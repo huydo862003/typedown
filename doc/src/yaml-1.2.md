@@ -529,3 +529,43 @@ Loading is the inverse: text -> events -> graph -> native data. Each stage strip
    Must only rely on information in the representation (node kinds, tags, content), not presentation or serialization details.
 
    Can fail if required native types are unavailable.
+
+### Information Models
+
+The [above section](#processes) specifies the phases/procedures. This section specifies the interfaces/the data structures agreed upon by the phases.
+
+As an analogy, in compiler construction, we have lexing, parsing, etc as the processes, while tokens, ASTs are the information models.
+
+![Information Models (source: YAML 1.2 spec)](img/yaml-1.2-information-models.svg)
+
+The diagram shows three models, each inheriting from the previous and adding new properties:
+
+- **Representation Graph**:
+  - Tag (the data type):
+    - Must have a name.
+    - Only specific/explicit tags are allowed here.
+  - Node: A graph node.
+    - Sequence node: The node representing a sequence.
+      - Contains ordered sequence of nodes.
+    - Mapping node: The node representing a mapping.
+      - Contains unordered key/value pairs.
+      - Keys and values are both nodes.
+    - Scalar node: The node representing a scalar.
+      - Canonical form: The interpreted value of the scalar.
+- **Serialization Tree** (`+`): Inherit everything from Representation Graph and...
+  - Tag:
+    - (+) Add non-specific tag: Implicit tags.
+  - (+) Alias node: To support serialization, alias nodes are introduced.
+  - Node:
+    - (+) Anchor: For aliasing.
+    - Scalar node:
+      - (+) Formatted content.
+- **Presentation Stream** (`++`):
+  - (++) Directive: Instruction to the YAML processor.
+    - (++) Name.
+    - (++) Parameter.
+  - (++) Comment.
+  - Node:
+    - (++) Style, spacing, etc.
+
+Each layer's additions (`+`, `++`) are details that should not leak into other layers. Applications should not treat key order, comments, or indentation as meaningful data. Keeping these layers separate ensures YAML representations stay consistent and portable across programming environments.
