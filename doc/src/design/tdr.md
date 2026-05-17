@@ -23,6 +23,7 @@ TDR (Typedown Resource) is the serialization format for Typedown resources.
   - [Blockquotes](#blockquotes)
   - [Math](#math)
   - [Tables](#tables)
+  - [Lists](#lists)
   - [Callout Blocks](#callout-blocks)
   - [Multimedia](#multimedia)
   - [Links](#links-1)
@@ -404,6 +405,31 @@ Tables use the standard Markdown pipe syntax:
 | ----- | --- |
 | Alice | 30  |
 | Bob   | 25  |
+```
+
+### Lists
+
+Bullet lists use `-` or `*`:
+
+```markdown
+- item one
+- item two
+  - nested item
+```
+
+Ordered lists use a number followed by `.`:
+
+```markdown
+1. first
+2. second
+   1. nested
+```
+
+Toggle lists use `>-`. The item is collapsed by default and can be expanded:
+
+```markdown
+>- Summary line
+  Content shown when expanded.
 ```
 
 ### Callout Blocks
