@@ -4,6 +4,8 @@ This document specifies the abstract model of Typedown, independent of any seria
 
 The model is inspired by the [property graph model](../research/graph-database/graph-databases-book/2-concept-property-graph-model.md) from graph databases and [RDF](../research/web-3/technologies/rdf.md) from the semantic web.
 
+For a complete, opinionated serialization of the resource graph, see [TDR](./tdr.md) (how individual resources are serialized as markdown with YAML frontmatter) and [Typedown Vault](./typedown-vault.md) (how a collection of TDR files is organized on disk). Note that the vault is purely an organization convention for structuring TDR files on disk and has no meaning in the abstract model itself.
+
 ## Resource Graph
 
 A Typedown project is a graph of [resources](#resources), which act as nodes. The graph model makes it natural to traverse connections, follow references, and query by structure rather than by table shape.
@@ -18,7 +20,7 @@ A resource is the fundamental unit in Typedown. It represents any entity: a note
 
 Everything attached to a resource is a [**property**](#properties). Properties differ only in what their value is:
 
-- A scalar value (e.g. a name, a date, a number).
+- A scalar value (e.g. a name, a date, a number (snake_case keys: `first_name`, `birth_date`)).
 - A [**link**](#links) to another resource, forming an edge in the graph.
 - One or more mandatory [**meta-resource**](#meta-resources) references, typing the resource itself.
 
@@ -47,8 +49,9 @@ Supported value types are:
 - `date`
 - `enum`: a value from a fixed set of options.
 - `link`: a reference to another resource, forming an edge in the graph (see [Links](#links)).
-- `list<T>`: a list of values.
-- `record<K, V>`: a key-valued record of values.
+- `list[T]`: a list of values of type `T`.
+- `record[K, V]`: a homogeneous mapping from keys of type `K` to values of type `V`.
+- A fixed-key record: a mapping where each named key has its own independently typed value.
 
 Whether a property is required or optional, and any constraints on its values, are enforced by the resource's [Schema](#meta-resources).
 

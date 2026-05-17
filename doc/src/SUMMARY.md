@@ -42,5 +42,6 @@
       - [Neo4j Internals: Transactions, Availability, Scale](./research/graph-database/graph-databases-book/13-internals-transactions-availability-scale.md)
   - [YAML 1.2](./research/yaml-1.2.md)
 - [Design](design.md)
-  - [Typedown YAML Schema & Processor](./design/typedown-yaml-schema-and-processor.md)
   - [Typedown Abstract Model](./design/typedown-model.md)
+  - [Typedown Vault](./design/typedown-vault.md)
+  - [TDR: Typedown Resource](./design/tdr.md)
