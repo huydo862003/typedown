@@ -1,3 +1,7 @@
+//! See rowan's SyntaxKind: https://github.com/rust-analyzer/rowan/commits/master/src/green.rs
+//! - rowan is designed to be more generic so it just wraps around a u16
+//! - We're not aiming for genericity so we just define it to be an enum with an underlying u16
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(u16)]
 pub enum SyntaxKind {
