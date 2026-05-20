@@ -1,5 +1,7 @@
 //! GreenChild: A thread-safe readonly tagged pointer to either a GreenNode or a GreenToken
 
+use std::hash::{Hash, Hasher};
+
 use super::node::GreenNode;
 use super::token::GreenToken;
 
@@ -89,13 +91,42 @@ impl Clone for GreenChild {
 impl Drop for GreenChild {
   fn drop(&mut self) {
     // Reconstruct the original handle and let its Drop handle
-    // ref-count decrement, cleanup, and freeing.
     unsafe {
       if self.is_node() {
         drop(GreenNode(self.0 as *const _));
       } else {
         drop(GreenToken((self.0 & !1) as *const _));
       }
+    }
+  }
+}
+
+impl PartialEq for GreenChild {
+  fn eq(&self, other: &Self) -> bool {
+    self.0 == other.0 || {
+      match (self.is_node(), other.is_node()) {
+        (true, true) => {
+          self.as_node().unwrap() == other.as_node().unwrap()
+        }
+        (false, false) => {
+          self.as_token().unwrap() == other.as_token().unwrap()
+        }
+        _ => false,
+      }
+    }
+  }
+}
+
+impl Eq for GreenChild {}
+
+impl Hash for GreenChild {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    if self.is_node() {
+      0u8.hash(state); // discriminant
+      self.as_node().unwrap().hash(state);
+    } else {
+      1u8.hash(state); // discriminant
+      self.as_token().unwrap().hash(state);
     }
   }
 }
