@@ -16,7 +16,7 @@ pub(super) struct GreenTokenBody {
 pub struct GreenToken(pub(super) *const GreenTokenBody);
 
 impl GreenToken {
-  pub fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &str) -> Self {
+  pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &str) -> Self {
     cache.token(kind, text)
   }
 

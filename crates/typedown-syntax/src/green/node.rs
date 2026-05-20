@@ -49,7 +49,7 @@ impl GreenNode {
   }
 
   /// Create a new interned GreenNode via the cache.
-  pub fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, children: &[GreenChild]) -> Self {
+  pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, children: &[GreenChild]) -> Self {
     cache.node(kind, children)
   }
 
