@@ -1,1 +1,72 @@
+//! The higher layer over green nodes
+//! Which gives green node identity and the child nodes now contain a back pointers to their
+//! parents
 
+use std::rc::Rc;
+
+use crate::green::{child::GreenChild, node::Node, syntax_kind::SyntaxKind};
+
+pub struct RedNodeData {
+  /// The start offset of this red node in the source code
+  offset: usize,
+  /// The parent pointer
+  parent: Option<RedNode>,
+  /// The underlying green child
+  green: GreenChild,
+}
+
+#[derive(Clone)]
+pub struct RedNode(Rc<RedNodeData>);
+
+impl RedNode {
+  pub fn new_root(root: Node) -> RedNode {
+    RedNode(Rc::new(RedNodeData {
+      offset: 0,
+      parent: None,
+      green: GreenChild::from_node(root),
+    }))
+  }
+
+  pub fn kind(&self) -> SyntaxKind {
+    self.0.green.kind()
+  }
+
+  pub fn parent(&self) -> Option<RedNode> {
+    self.0.parent.clone()
+  }
+
+  pub fn children(&self) -> RedNodeChildren {
+    let green_node = self.0.green.as_node();
+    RedNodeChildren {
+      parent: self.clone(),
+      green_node,
+      index: 0,
+      offset: self.0.offset,
+    }
+  }
+}
+
+/// A lazy iterator over a RedNode's children.
+pub struct RedNodeChildren {
+  parent: RedNode,
+  green_node: Option<Node>,
+  index: usize,
+  offset: usize,
+}
+
+impl Iterator for RedNodeChildren {
+  type Item = RedNode;
+
+  fn next(&mut self) -> Option<RedNode> {
+    let children = self.green_node.as_ref()?.children();
+    let child = children.get(self.index)?;
+    let child_offset = self.offset;
+    self.offset += child.text_len();
+    self.index += 1;
+    Some(RedNode(Rc::new(RedNodeData {
+      offset: child_offset,
+      parent: Some(self.parent.clone()),
+      green: child.clone(),
+    })))
+  }
+}

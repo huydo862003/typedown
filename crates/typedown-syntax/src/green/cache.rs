@@ -8,17 +8,17 @@ use hashbrown::hash_map::RawEntryMut;
 use std::hash::{BuildHasher, Hash, Hasher};
 
 use super::child::GreenChild;
-use super::node::GreenNode;
+use super::node::Node;
 use super::syntax_kind::SyntaxKind;
-use super::token::GreenToken;
+use super::token::Token;
 
 /// A non-thread safe interner for node/token deduplication.
 #[derive(Default)]
 pub struct Cache {
   // We use HashMap instead of HashSet to access the raw entry API,
   // which avoids allocating just to check if an entry exists.
-  tokens: HashMap<GreenToken, ()>,
-  nodes: HashMap<GreenNode, ()>,
+  tokens: HashMap<Token, ()>,
+  nodes: HashMap<Node, ()>,
 }
 
 impl Cache {
@@ -27,7 +27,7 @@ impl Cache {
   }
 
   /// Get or create an interned token.
-  pub fn token(&mut self, kind: SyntaxKind, text: &str) -> GreenToken {
+  pub fn token(&mut self, kind: SyntaxKind, text: &str) -> Token {
     // Hash from borrowed data to avoid allocating a String on cache hit
     let hash = {
       let mut h = self.tokens.hasher().build_hasher();
@@ -43,7 +43,7 @@ impl Cache {
     match entry {
       RawEntryMut::Occupied(e) => e.key().clone(),
       RawEntryMut::Vacant(e) => {
-        let token = GreenToken::from_raw_parts(kind, text.to_string());
+        let token = Token::from_raw_parts(kind, text.to_string());
         e.insert_hashed_nocheck(hash, token.clone(), ());
         token
       }
@@ -51,7 +51,7 @@ impl Cache {
   }
 
   /// Get or create an interned node.
-  pub fn node(&mut self, kind: SyntaxKind, children: &[GreenChild]) -> GreenNode {
+  pub fn node(&mut self, kind: SyntaxKind, children: &[GreenChild]) -> Node {
     let hash = {
       let mut h = self.nodes.hasher().build_hasher();
       kind.hash(&mut h);
@@ -66,7 +66,7 @@ impl Cache {
     match entry {
       RawEntryMut::Occupied(e) => e.key().clone(),
       RawEntryMut::Vacant(e) => {
-        let node = GreenNode::from_raw_parts(kind, children);
+        let node = Node::from_raw_parts(kind, children);
         e.insert_hashed_nocheck(hash, node.clone(), ());
         node
       }

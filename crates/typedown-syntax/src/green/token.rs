@@ -6,22 +6,22 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::green::syntax_kind::SyntaxKind;
 
-pub(super) struct GreenTokenBody {
+pub(super) struct TokenBody {
   pub(super) ref_count: AtomicUsize,
   pub(super) kind: SyntaxKind,
   pub(super) text: String,
 }
 
 /// The leaf node in the green tree.
-pub struct GreenToken(pub(super) *const GreenTokenBody);
+pub struct Token(pub(super) *const TokenBody);
 
-impl GreenToken {
+impl Token {
   pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &str) -> Self {
     cache.token(kind, text)
   }
 
   pub(super) fn from_raw_parts(kind: SyntaxKind, text: String) -> Self {
-    let body = Box::new(GreenTokenBody {
+    let body = Box::new(TokenBody {
       ref_count: AtomicUsize::new(1),
       kind,
       text,
@@ -42,7 +42,9 @@ impl GreenToken {
   }
 }
 
-impl Clone for GreenToken {
+impl Clone for Token {
+  /// The clone is very cheap
+  /// Suggest to use clone instead of &
   fn clone(&self) -> Self {
     // Currently use AcqRel for extra safety
     unsafe { (*self.0).ref_count.fetch_add(1, Ordering::AcqRel) };
@@ -50,31 +52,31 @@ impl Clone for GreenToken {
   }
 }
 
-impl Drop for GreenToken {
+impl Drop for Token {
   fn drop(&mut self) {
     // Currently use AcqRel for extra safety
     let prev = unsafe { (*self.0).ref_count.fetch_sub(1, Ordering::AcqRel) };
     if prev != 1 {
       return;
     }
-    unsafe { drop(Box::from_raw(self.0 as *mut GreenTokenBody)) };
+    unsafe { drop(Box::from_raw(self.0 as *mut TokenBody)) };
   }
 }
 
-impl PartialEq for GreenToken {
+impl PartialEq for Token {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0 || (self.kind() == other.kind() && self.text() == other.text())
   }
 }
 
-impl Eq for GreenToken {}
+impl Eq for Token {}
 
-impl Hash for GreenToken {
+impl Hash for Token {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
     self.text().hash(state);
   }
 }
 
-unsafe impl Send for GreenToken {}
-unsafe impl Sync for GreenToken {}
+unsafe impl Send for Token {}
+unsafe impl Sync for Token {}

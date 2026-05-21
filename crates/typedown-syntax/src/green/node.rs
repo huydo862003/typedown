@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use super::child::GreenChild;
 use crate::green::syntax_kind::SyntaxKind;
 
-pub(super) struct GreenNodeHeader {
+pub(super) struct NodeHeader {
   pub(super) ref_count: AtomicUsize,
   pub(super) kind: SyntaxKind,
   pub(super) text_len: usize,
@@ -13,11 +13,11 @@ pub(super) struct GreenNodeHeader {
 }
 
 /// An interior node in the green tree.
-pub struct GreenNode(pub(super) *const GreenNodeHeader);
+pub struct Node(pub(super) *const NodeHeader);
 
-impl GreenNode {
+impl Node {
   fn layout(n: usize) -> (Layout, usize) {
-    Layout::new::<GreenNodeHeader>()
+    Layout::new::<NodeHeader>()
       .extend(Layout::array::<GreenChild>(n).unwrap())
       .unwrap()
   }
@@ -31,7 +31,7 @@ impl GreenNode {
       let base = alloc(layout);
       assert!(!base.is_null(), "allocation failed");
 
-      (base as *mut GreenNodeHeader).write(GreenNodeHeader {
+      (base as *mut NodeHeader).write(NodeHeader {
         ref_count: AtomicUsize::new(1),
         kind,
         text_len,
@@ -44,12 +44,16 @@ impl GreenNode {
         children_ptr.add(i).write(child.clone());
       }
 
-      Self(base as *const GreenNodeHeader)
+      Self(base as *const NodeHeader)
     }
   }
 
-  /// Create a new interned GreenNode via the cache.
-  pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, children: &[GreenChild]) -> Self {
+  /// Create a new interned Node via the cache.
+  pub(crate) fn new(
+    cache: &mut super::cache::Cache,
+    kind: SyntaxKind,
+    children: &[GreenChild],
+  ) -> Self {
     cache.node(kind, children)
   }
 
@@ -76,14 +80,16 @@ impl GreenNode {
   }
 }
 
-impl Clone for GreenNode {
+impl Clone for Node {
+  /// The clone is very cheap
+  /// Suggest to use clone instead of &
   fn clone(&self) -> Self {
     unsafe { (*self.0).ref_count.fetch_add(1, Ordering::AcqRel) };
     Self(self.0)
   }
 }
 
-impl Drop for GreenNode {
+impl Drop for Node {
   fn drop(&mut self) {
     let prev = unsafe { (*self.0).ref_count.fetch_sub(1, Ordering::AcqRel) };
     if prev != 1 {
@@ -101,20 +107,20 @@ impl Drop for GreenNode {
   }
 }
 
-impl PartialEq for GreenNode {
+impl PartialEq for Node {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0 || (self.kind() == other.kind() && self.children() == other.children())
   }
 }
 
-impl Eq for GreenNode {}
+impl Eq for Node {}
 
-impl Hash for GreenNode {
+impl Hash for Node {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
     self.children().hash(state);
   }
 }
 
-unsafe impl Send for GreenNode {}
-unsafe impl Sync for GreenNode {}
+unsafe impl Send for Node {}
+unsafe impl Sync for Node {}
