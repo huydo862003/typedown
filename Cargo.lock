@@ -72,3 +72,7 @@ dependencies = [
  "expect-test",
  "hashbrown",
 ]
+
+[[package]]
+name = "typedown-types"
+version = "0.1.0"
