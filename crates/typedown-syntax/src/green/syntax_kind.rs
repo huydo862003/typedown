@@ -85,6 +85,8 @@ pub enum SyntaxKind {
   Whitespace = 600,
   Newline,
   Comment,
+  Indent,
+  Dedent,
 
   // Error
   Error,

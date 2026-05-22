@@ -1,6 +1,6 @@
 //! Shared utilities for the typedown ecosystem
 
-mod file_stream;
-mod stream;
-mod string_stream;
-mod text_range;
+pub mod file_stream;
+pub mod stream;
+pub mod string_stream;
+pub mod text_range;
