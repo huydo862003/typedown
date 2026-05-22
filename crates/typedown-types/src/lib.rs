@@ -1,7 +1,6 @@
 //! Shared utilities for the typedown ecosystem
 
-mod reader;
+mod file_stream;
+mod stream;
+mod string_stream;
 mod text_range;
-
-pub use reader::Reader;
-pub use text_range::TextRange;

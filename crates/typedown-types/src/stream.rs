@@ -1,0 +1,30 @@
+/// A result of reading from a UTF-8 stream
+#[derive(Debug, Clone, Copy)]
+pub enum Utf8Result {
+  /// A valid UTF-8 character
+  Char(char),
+  /// Some invalid bytes were skipped while recovering.
+  /// The recovery scheme is up to the implementor.
+  Invalid {
+    start_offset: usize,
+    end_offset: usize,
+  },
+  /// The end of the stream has been reached
+  Eof,
+}
+
+/// Character-level input source.
+/// Abstracts over files, strings, stdin, etc.
+pub trait Utf8Stream {
+  /// Look at the next result without consuming it.
+  fn peek(&mut self) -> Utf8Result;
+
+  /// Consume and return the next result.
+  fn advance(&mut self) -> Utf8Result;
+
+  /// Current byte offset in the source.
+  fn offset(&self) -> usize;
+
+  /// Whether the stream is exhausted.
+  fn exhausted(&self) -> bool;
+}
