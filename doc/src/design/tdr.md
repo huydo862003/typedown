@@ -52,7 +52,7 @@ A `.tdr` file consists of two sections:
 - The closing `---` is the frontmatter end marker.
 - Everything after belongs to the body.
 
-The syntaxes will be familiar to anyone who has worked with YAML and Markdown. TDR is case-sensitive throughout: identifiers, property names, type names, and reserved keys like `$type` and `$label` must match exactly.
+The syntaxes will be familiar to anyone who has worked with YAML and Markdown. TDR is case-sensitive throughout: identifiers, property names, type names, and reserved keys like `_type` and `_label` must match exactly.
 
 ## Modes
 
@@ -64,7 +64,7 @@ Active inside the frontmatter (between the opening and closing `---`). Content i
 
 ```yaml
 ---
-$type: person
+_type: person
 first_name: "Bob"
 tags:
   - "research"
@@ -168,6 +168,8 @@ birth_date: "1990-07-04" # valid
 my_key_2: 42 # valid
 ```
 
+Keys starting with `_` are reserved for built-in directives (`_type`, `_label`, etc.). User-defined properties should not start with `_` to avoid conflicts with current or future reserved keys.
+
 Values are **expressions**, not raw strings. Unquoted values are parsed as expressions (identifiers, numbers, booleans, operators). To write a string value, use double quotes or single quotes:
 
 ```yaml
@@ -181,13 +183,13 @@ full_name: self.first_name + " " + self.last_name # expression
 
 ### Type Declaration
 
-A resource file must declare its type using `$type`. The value is the name of a [TDR Schema](#tdr-schema) that the resource conforms to. The schema enforces what properties the resource is expected to have.
+A resource file must declare its type using `_type`. The value is the name of a [TDR Schema](#tdr-schema) that the resource conforms to. The schema enforces what properties the resource is expected to have.
 
 For example, given a `person` schema defined as:
 
 ```yaml
 ---
-$type: Schema
+_type: Schema
 properties:
   first_name:
     type: !type string
@@ -200,11 +202,11 @@ properties:
 ---
 ```
 
-A resource conforming to it declares `$type: person` and must provide the required fields:
+A resource conforming to it declares `_type: person` and must provide the required fields:
 
 ```yaml
 ---
-$type: person
+_type: person
 first_name: "Bob"
 last_name: "Smith"
 birth_date: "1990-07-04"
@@ -217,12 +219,12 @@ A resource can also declare additional fields not defined in its schema. These a
 
 ### Label
 
-A resource file can declare a human-readable label using `$label`. The label is a [TDR Expression](#tdr-expression) and can reference other properties:
+A resource file can declare a human-readable label using `_label`. The label is a [TDR Expression](#tdr-expression) and can reference other properties:
 
 ```yaml
 ---
-$type: person
-$label: !string self.first_name + " " + self.last_name
+_type: person
+_label: !string self.first_name + " " + self.last_name
 ---
 ```
 
@@ -232,8 +234,8 @@ All frontmatter keys other than reserved `$` keys are properties of the resource
 
 ```yaml
 ---
-$type: person
-$label: !string self.first_name + " " + self.last_name
+_type: person
+_label: !string self.first_name + " " + self.last_name
 first_name: "Bob"
 birth_date: "1990-07-04"
 author: !link mona_lisa.tdr
@@ -423,7 +425,7 @@ Expressions can reference:
 
 ## TDR Schema
 
-A schema file self-identifies by setting `$type: schema`. It defines the shape of resources that reference it: what properties they have, their types, constraints, and default values. Each property supports the following fields:
+A schema file self-identifies by setting `_type: schema`. It defines the shape of resources that reference it: what properties they have, their types, constraints, and default values. Each property supports the following fields:
 
 - `type`: the type of the property, as a `!type` expression.
 - `required`: whether the property must be present on the resource (default: `false`).
@@ -432,7 +434,7 @@ A schema file self-identifies by setting `$type: schema`. It defines the shape o
 
 ```yaml
 ---
-$type: schema
+_type: schema
 properties:
   first_name:
     type: !type string
