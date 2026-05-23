@@ -365,8 +365,84 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Strings */
 
-  fn lex_yaml_dq_string(&mut self) -> LexResult { todo!() }
-  fn lex_yaml_sq_string(&mut self) -> LexResult { todo!() }
+  fn lex_yaml_dq_string(&mut self) -> LexResult {
+    self.advance_avoid_invalid_utf8(); // consume opening "
+    loop {
+      match self.peek() {
+        Utf8Result::Char('"') => {
+          self.advance_avoid_invalid_utf8();
+          return self.emit(SyntaxKind::DqStr);
+        }
+        Utf8Result::Char('\\') => {
+          self.advance_avoid_invalid_utf8(); // consume backslash
+          match self.peek() {
+            Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
+              // Backslash at end of line or EOF
+              let start = self.stream.offset() - self.text_buffer.len();
+              let end = self.stream.offset();
+              return self.emit_with(
+                SyntaxKind::Error,
+                LexDiagnostic::UnterminatedString { start_offset: start, end_offset: end },
+              );
+            }
+            _ => {
+              self.advance_avoid_invalid_utf8(); // consume escaped char
+            }
+          }
+        }
+        Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
+          let start = self.stream.offset() - self.text_buffer.len();
+          let end = self.stream.offset();
+          return self.emit_with(
+            SyntaxKind::Error,
+            LexDiagnostic::UnterminatedString { start_offset: start, end_offset: end },
+          );
+        }
+        _ => {
+          self.advance_avoid_invalid_utf8();
+        }
+      }
+    }
+  }
+
+  fn lex_yaml_sq_string(&mut self) -> LexResult {
+    self.advance_avoid_invalid_utf8(); // consume opening '
+    loop {
+      match self.peek() {
+        Utf8Result::Char('\'') => {
+          self.advance_avoid_invalid_utf8();
+          return self.emit(SyntaxKind::SqStr);
+        }
+        Utf8Result::Char('\\') => {
+          self.advance_avoid_invalid_utf8(); // consume backslash
+          match self.peek() {
+            Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
+              let start = self.stream.offset() - self.text_buffer.len();
+              let end = self.stream.offset();
+              return self.emit_with(
+                SyntaxKind::Error,
+                LexDiagnostic::UnterminatedString { start_offset: start, end_offset: end },
+              );
+            }
+            _ => {
+              self.advance_avoid_invalid_utf8(); // consume escaped char
+            }
+          }
+        }
+        Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
+          let start = self.stream.offset() - self.text_buffer.len();
+          let end = self.stream.offset();
+          return self.emit_with(
+            SyntaxKind::Error,
+            LexDiagnostic::UnterminatedString { start_offset: start, end_offset: end },
+          );
+        }
+        _ => {
+          self.advance_avoid_invalid_utf8();
+        }
+      }
+    }
+  }
 
   /* Dollar and interpolation */
 
