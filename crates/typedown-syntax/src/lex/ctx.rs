@@ -33,7 +33,34 @@ pub struct LexCtx<S: Utf8Stream> {
   mode: LexMode,
   // Text buffer to accumulate the read utf-8
   text_buffer: String,
+
+  // State for YAML lexing
+  yaml_lex_ctx: YamlLexCtx,
+  // State for Markdown lexing
+  markdown_lex_ctx: MarkdownLexCtx,
 }
+
+/* YAML */
+struct YamlLexCtx {
+  // Whether we're just after a newline (linux), CRLF (Windows), carriage return (Mac)
+  at_line_start: bool,
+
+  // Indent stack for YAML
+  // In block style, YAML is indentation-sensitive
+  // We keep track of the previous indentations
+  indent_stack: Vec<usize>,
+
+  // We allow nested interpolations
+  // We need to distinguish between nested strings, interpolations, etc.
+  interp_stack: Vec<YamlInterpContext>,
+}
+
+enum YamlInterpContext {
+  SqString,
+  DqString,
+}
+
+struct MarkdownLexCtx {}
 
 impl<S: Utf8Stream> LexCtx<S> {
   pub fn new(stream: S, cache: Rc<RefCell<Cache>>) -> Self {
@@ -42,6 +69,12 @@ impl<S: Utf8Stream> LexCtx<S> {
       cache,
       mode: LexMode::YamlFrontmatter,
       text_buffer: String::from(""),
+      yaml_lex_ctx: YamlLexCtx {
+        at_line_start: true,
+        indent_stack: vec![],
+        interp_stack: vec![],
+      },
+      markdown_lex_ctx: MarkdownLexCtx {},
     }
   }
 
