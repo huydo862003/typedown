@@ -56,7 +56,7 @@ The syntaxes will be familiar to anyone who has worked with YAML and Markdown. T
 
 ## Modes
 
-Like Typst, TDR has three distinct modes that determine how content is interpreted. Each mode has its own syntax and semantics.
+Like Typst, TDR has four distinct modes that determine how content is interpreted. Each mode has its own syntax and semantics.
 
 ### YAML Mode
 
@@ -72,7 +72,7 @@ tags:
 ---
 ```
 
-Values are expressions. Strings must be quoted. Unquoted values are identifiers, numbers, or compound expressions. String interpolation with `${...}` is supported inside quoted strings.
+Values are expressions. Strings must be quoted. Unquoted values are identifiers, numbers, or compound expressions. `${...}` inside quoted strings is string interpolation (the content is a normal YAML expression, not a separate mode).
 
 ### Markdown Mode
 
@@ -84,11 +84,23 @@ Active after the closing `---`. Content is interpreted as rich text with formatt
 This is a paragraph with **bold** and _italic_ text.
 ```
 
-String interpolation with `${...}` is supported anywhere in the body text. `$` without `{` enters Math mode.
+`$` without `{` enters Math mode. `${...}` enters Formula mode.
+
+### Formula Mode
+
+Entered with `${` in Markdown mode. Content is interpreted as a TDR expression: identifiers, operators, numbers, function calls, and property access. The mode exits when the matching closing `}` is found.
+
+```markdown
+This note was written by ${self.author.first_name}.
+Total: ${self.items.length()}.
+Result: ${"value is ${self.compute()}"}
+```
+
+Formula mode supports nested strings (which can themselves contain `${...}`), and nested braces. This mode only exists in Markdown; in YAML mode, expressions are the default and `${...}` inside strings is just inline interpolation within the same expression context.
 
 ### Math Mode
 
-Entered with `$` (inline) or `$$` (block) inside Markdown mode. Content is treated as a math formula. No interpolation or TDR expressions are supported inside math. The mode exits when the matching closing delimiter is found.
+Entered with `$` (inline) or `$$` (block) inside Markdown mode. Content is treated as a math formula (e.g. LaTeX). No interpolation or TDR expressions are supported inside math. The mode exits when the matching closing delimiter is found.
 
 ```markdown
 The formula is $E = mc^2$.

@@ -42,7 +42,7 @@ pub enum SyntaxKind {
   TaggedExpr, // !tag value
   Tag,        // !string, !number, ...
 
-  // Tokens (leaf nodes emitted by the lexer)
+  // Shared tokens
   Ident = 400,
   Number,
   DqStrStart,   // opening "
@@ -51,39 +51,39 @@ pub enum SyntaxKind {
   SqStrStart,   // opening '
   SqStrContent, // text between ' and ' or ${
   SqStrEnd,     // closing '
-  InlineCode,   // matched ` delimiters, content on same line
-  CodeBlock,    // matched ` delimiters, optional language tag, content between newlines
-  InlineMath,   // matched $ delimiters, content on same line
-  MathBlock,    // matched $ delimiters, content between newlines
-  YamlOp,       // operators: +, -, ., ->, ==, etc.
 
-  // Punctuation and delimiters
-  TripleColon = 500, // :::
-  Colon,             // :
-  Bang,              // !
-  Dollar,            // $
-  LParen,            // (
-  RParen,            // )
-  LBracket,          // [
-  RBracket,          // ]
-  LBrace,            // {
-  RBrace,            // }
-  Comma,             // ,
-  Pipe,              // |
-  Hash,              // #
-  At,                // @
-  Caret,             // ^
-  Star,              // *
-  Tilde,             // ~
-  InterpStart,       // ${
+  InterpStart = 480, // ${
   InterpEnd,         // } closing an interpolation
+
+  // YAML mode tokens
+  YamlOp = 420, // operators: +, -, ., ->, ==, !string, etc.
+  YamlColon,    // :
+  YamlComma,    // ,
+  YamlLParen,   // (
+  YamlRParen,   // )
+  YamlLBracket, // [
+  YamlRBracket, // ]
+  YamlLBrace,   // {
+  YamlRBrace,   // }
+  YamlComment,  // # ...
+  YamlIndent,
+  YamlDedent,
+
+  // Markdown mode tokens
+  MdSymbol = 450, // any consecutive special chars (#, **, ~~, ---, :::, etc.)
+  MdLBracket,     // [
+  MdRBracket,     // ]
+  MdLParen,       // (
+  MdRParen,       // )
+  MdDollar,       // $
+  MdInlineCode,   // matched ` delimiters, content on same line
+  MdCodeBlock,    // matched ` delimiters, optional language tag, content between newlines
+  MdInlineMath,   // matched $ delimiters, content on same line
+  MdMathBlock,    // matched $ delimiters, content between newlines
 
   // Trivia
   Whitespace = 600,
   Newline,
-  Comment, // # ...
-  Indent,
-  Dedent,
   Eof,
 
   // Error
