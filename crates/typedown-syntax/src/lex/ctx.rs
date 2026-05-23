@@ -124,7 +124,90 @@ impl<S: Utf8Stream> LexCtx<S> {
       }
     }
 
-    todo!("lex_yaml_frontmatter: main token dispatch")
+    let char = match self.peek() {
+      Utf8Result::Char(char) => char,
+      _ => panic!("[LexCtx::lex_yaml_frontmatter] Expected a valid UTF-8 character but got EOF or invalid bytes. This should have been handled by try_consume_invalid_utf8 or is_eof before reaching this point."),
+    };
+
+    match char {
+      /* Newlines */
+      '\n' | '\r' => {
+        self.advance_avoid_invalid_utf8();
+        if char == '\r' {
+          self.consume_avoid_invalid_utf8('\n');
+        }
+        self.yaml_lex_ctx.at_line_start = true;
+        self.emit(SyntaxKind::Newline)
+      }
+
+      /* Whitespace */
+      _ if char.is_whitespace() => self.lex_yaml_whitespaces(),
+
+      /* Comments */
+      '#' => self.lex_yaml_comment(),
+
+      /* Punctuation and delimiters */
+      ':' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::Colon)
+      }
+      '!' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::Bang)
+      }
+      '(' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::LParen)
+      }
+      ')' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::RParen)
+      }
+      '[' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::LBracket)
+      }
+      ']' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::RBracket)
+      }
+      '{' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::LBrace)
+      }
+      '}' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::RBrace)
+      }
+      ',' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::Comma)
+      }
+
+      /* Strings */
+      '"' => self.lex_yaml_dq_string(),
+      '\'' => self.lex_yaml_sq_string(),
+
+      /* Dollar and interpolation */
+      '$' => self.lex_yaml_dollar(),
+
+      /* Numbers */
+      '0'..='9' => self.lex_yaml_number(),
+
+      /* Identifiers */
+      _ if char.is_alphabetic() || char == '_' => self.lex_yaml_ident(),
+
+      /* Operators */
+      '-' | '+' | '*' | '/' | '\\' | '.' | '~' | '^' | '|' | '>' | '<' | '=' | '%' | '&' | '@' => {
+        self.lex_yaml_op()
+      }
+
+      /* Error fallback */
+      _ => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::Error)
+      }
+    }
   }
 
   /* Indentation */
@@ -136,6 +219,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   fn lex_yaml_indent(&mut self) -> Option<LexResult> {
     self.yaml_lex_ctx.at_line_start = false;
 
+    // Count leading whitespace and track tab/space usage
     let start = self.stream.offset();
     let mut indent = 0;
     let mut saw_space = false;
@@ -158,6 +242,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     // Detect mixed or inconsistent indentation
     let diagnostic = if indent > 0 {
       if saw_space && saw_tab {
+        // Mixed tabs and spaces on the same line
         Some(LexDiagnostic::MixedIndentation {
           start_offset: start,
           end_offset: self.stream.offset(),
@@ -166,10 +251,12 @@ impl<S: Utf8Stream> LexCtx<S> {
         let char = if saw_tab { '\t' } else { ' ' };
         match self.yaml_lex_ctx.indent_char {
           None => {
+            // Establish the indent character
             self.yaml_lex_ctx.indent_char = Some(char);
             None
           }
           Some(established) if established != char => {
+            // Different indent character than established
             Some(LexDiagnostic::InconsistentIndentation {
               expected: established,
               encountered: char,
@@ -187,6 +274,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     let current = self.current_indent();
 
     if indent > current {
+      // Increased indentation
       self.yaml_lex_ctx.indent_stack.push(indent);
       self.text_buffer.clear();
       return Some(match diagnostic {
@@ -194,7 +282,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         None => self.emit(SyntaxKind::Indent),
       });
     } else if indent < current {
-      // Pop levels until we find one <= indent
+      // Decreased indentation: pop levels until we find one <= indent
       let mut dedents = 0;
       while let Some(&top) = self.yaml_lex_ctx.indent_stack.last() {
         if top > indent {
@@ -205,7 +293,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         }
       }
 
-      // If indent doesn't match an existing level exactly, emit an error diagnostic
+      // If indent doesn't match an existing level exactly, emit an error
       let diagnostic = if indent != self.current_indent() {
         Some(diagnostic.unwrap_or(LexDiagnostic::UnmatchedDedent {
           indent,
@@ -217,6 +305,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       };
 
       if dedents > 0 {
+        // Queue remaining dedents, emit the first one now
         self.yaml_lex_ctx.pending_dedents = dedents - 1;
         self.text_buffer.clear();
         return Some(match diagnostic {
@@ -226,9 +315,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       }
     }
 
-    /* Whitespaces */
-
-    // Same indent level
+    // Same indent level: emit whitespace if any was consumed
     if !self.text_buffer.is_empty() {
       return Some(self.emit(SyntaxKind::Whitespace));
     }
@@ -236,11 +323,69 @@ impl<S: Utf8Stream> LexCtx<S> {
     None
   }
 
-  /// Consume a single whitespace character (any Unicode whitespace except newlines).
+  /* Whitespace */
+
   fn lex_yaml_whitespaces(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8();
     self.emit(SyntaxKind::Whitespace)
   }
+
+  /* Comments */
+
+  fn lex_yaml_comment(&mut self) -> LexResult {
+    self.advance_avoid_invalid_utf8(); // consume #
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if char != '\n' && char != '\r' => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+    self.emit(SyntaxKind::Comment)
+  }
+
+  /* Operators */
+
+  fn lex_yaml_op(&mut self) -> LexResult {
+    self.consume_op_chars();
+    self.emit(SyntaxKind::YamlOp)
+  }
+
+  fn consume_op_chars(&mut self) {
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if is_op_char(char) => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+  }
+
+  /* Strings */
+
+  fn lex_yaml_dq_string(&mut self) -> LexResult { todo!() }
+  fn lex_yaml_sq_string(&mut self) -> LexResult { todo!() }
+
+  /* Dollar and interpolation */
+
+  fn lex_yaml_dollar(&mut self) -> LexResult { todo!() }
+
+  /* Numbers */
+
+  fn lex_yaml_number(&mut self) -> LexResult { todo!() }
+
+  /* Identifiers */
+
+  fn lex_yaml_ident(&mut self) -> LexResult { todo!() }
+}
+
+fn is_op_char(char: char) -> bool {
+  matches!(
+    char,
+    '+' | '-' | '*' | '/' | '\\' | '.' | '~' | '^' | '|' | '>' | '<' | '=' | '%' | '&' | '@'
+  )
 }
 
 // Markdown body lexing

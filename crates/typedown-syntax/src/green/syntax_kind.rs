@@ -54,26 +54,25 @@ pub enum SyntaxKind {
   YamlOp,     // operators: +, -, ., ->, ==, etc.
 
   // Punctuation and delimiters
-  TripleDash = 500, // ---
-  TripleColon,      // :::
-  Colon,            // :
-  Bang,             // !
-  Dollar,           // $
-  LParen,           // (
-  RParen,           // )
-  LBracket,         // [
-  RBracket,         // ]
-  LBrace,           // {
-  RBrace,           // }
-  Comma,            // ,
-  Pipe,             // |
-  Hash,             // #
-  At,               // @
-  Caret,            // ^
-  Star,             // *
-  Tilde,            // ~
-  InterpStart,      // ${
-  InterpEnd,        // } closing an interpolation
+  TripleColon = 500, // :::
+  Colon,             // :
+  Bang,              // !
+  Dollar,            // $
+  LParen,            // (
+  RParen,            // )
+  LBracket,          // [
+  RBracket,          // ]
+  LBrace,            // {
+  RBrace,            // }
+  Comma,             // ,
+  Pipe,              // |
+  Hash,              // #
+  At,                // @
+  Caret,             // ^
+  Star,              // *
+  Tilde,             // ~
+  InterpStart,       // ${
+  InterpEnd,         // } closing an interpolation
 
   // Trivia
   Whitespace = 600,
