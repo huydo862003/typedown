@@ -188,14 +188,11 @@ impl<S: Utf8Stream> LexCtx<S> {
       '"' => self.lex_yaml_dq_string(),
       '\'' => self.lex_yaml_sq_string(),
 
-      /* Dollar and interpolation */
-      '$' => self.lex_yaml_dollar(),
-
       /* Numbers */
       '0'..='9' => self.lex_yaml_number(),
 
       /* Identifiers */
-      _ if char.is_alphabetic() || char == '_' => self.lex_yaml_ident(),
+      _ if char.is_alphabetic() || char == '_' || char == '$' => self.lex_yaml_ident(),
 
       /* Operators */
       '-' | '+' | '*' | '/' | '\\' | '.' | '~' | '^' | '|' | '>' | '<' | '=' | '%' | '&' | '@' => {
@@ -443,10 +440,6 @@ impl<S: Utf8Stream> LexCtx<S> {
       }
     }
   }
-
-  /* Dollar and interpolation */
-
-  fn lex_yaml_dollar(&mut self) -> LexResult { todo!() }
 
   /* Numbers */
 
