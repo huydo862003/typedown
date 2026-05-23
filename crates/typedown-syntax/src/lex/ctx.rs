@@ -13,7 +13,7 @@ use typedown_types::stream::{Utf8Result, Utf8Stream};
 use crate::green::cache::Cache;
 use crate::green::syntax_kind::SyntaxKind;
 use crate::green::token::Token;
-use crate::lex::diagnostic::LexDiagnostic;
+use crate::lex::diagnostic::{self, LexDiagnostic};
 
 pub struct LexResult {
   pub token: Token,
@@ -128,12 +128,20 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /// Finalize the current token with no diagnostic.
   fn emit(&mut self, kind: SyntaxKind) -> LexResult {
-    todo!()
+    let text = std::mem::take(&mut self.text_buffer);
+    LexResult {
+      token: self.cache.borrow_mut().token(kind, &text),
+      diagnostic: None,
+    }
   }
 
   /// Finalize the current token with a diagnostic.
   fn emit_with(&mut self, kind: SyntaxKind, diagnostic: LexDiagnostic) -> LexResult {
-    todo!()
+    let text = std::mem::take(&mut self.text_buffer);
+    LexResult {
+      token: self.cache.borrow_mut().token(kind, &text),
+      diagnostic: Some(diagnostic),
+    }
   }
 
   /// Whether the stream is exhausted.
