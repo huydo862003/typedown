@@ -5,10 +5,7 @@ pub enum Utf8Result {
   Char(char),
   /// Some invalid bytes were skipped while recovering.
   /// The recovery scheme is up to the implementor.
-  Invalid {
-    start_offset: usize,
-    end_offset: usize,
-  },
+  Invalid { len: usize, bytes: [u8; 4] },
   /// The end of the stream has been reached
   Eof,
 }

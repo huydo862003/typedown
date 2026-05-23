@@ -44,12 +44,8 @@ impl<T: Read> Utf8Stream for FileStream<T> {
           }
           if filled >= 4 {
             // 4 bytes read but still invalid UTF-8
-            let start = self.offset;
             self.skip = filled;
-            break Utf8Result::Invalid {
-              start_offset: start,
-              end_offset: start + filled,
-            };
+            break Utf8Result::Invalid { len: filled, bytes };
           }
         }
         Err(_) => {
