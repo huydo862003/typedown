@@ -51,35 +51,30 @@ pub enum SyntaxKind {
   SqStrStart,   // opening '
   SqStrContent, // text between ' and ' or ${
   SqStrEnd,     // closing '
+  InterpStart,  // ${
+  InterpEnd,    // } closing an interpolation
+  Colon,        // :
+  Comma,        // ,
+  LParen,       // (
+  RParen,       // )
+  LBracket,     // [
+  RBracket,     // ]
+  LBrace,       // {
+  RBrace,       // }
 
-  InterpStart = 480, // ${
-  InterpEnd,         // } closing an interpolation
+  InlineMath, // matched $ delimiters, content on same line
+  MathBlock,  // matched $ delimiters, content between newlines
+  InlineCode, // matched ` delimiters, content on same line
+  CodeBlock,  // matched ` delimiters, optional language tag, content between newlines
 
   // YAML mode tokens
-  YamlOp = 420, // operators: +, -, ., ->, ==, !string, etc.
-  YamlColon,    // :
-  YamlComma,    // ,
-  YamlLParen,   // (
-  YamlRParen,   // )
-  YamlLBracket, // [
-  YamlRBracket, // ]
-  YamlLBrace,   // {
-  YamlRBrace,   // }
-  YamlComment,  // # ...
+  YamlOp,      // operators: +, -, ., ->, ==, !string, etc.
+  YamlComment, // # ...
   YamlIndent,
   YamlDedent,
 
   // Markdown mode tokens
-  MdSymbol = 450, // any consecutive special chars (#, **, ~~, ---, :::, etc.)
-  MdLBracket,     // [
-  MdRBracket,     // ]
-  MdLParen,       // (
-  MdRParen,       // )
-  MdDollar,       // $
-  MdInlineCode,   // matched ` delimiters, content on same line
-  MdCodeBlock,    // matched ` delimiters, optional language tag, content between newlines
-  MdInlineMath,   // matched $ delimiters, content on same line
-  MdMathBlock,    // matched $ delimiters, content between newlines
+  MdSymbol, // any consecutive special chars (#, **, ~~, ---, :::, etc.)
 
   // Trivia
   Whitespace = 600,

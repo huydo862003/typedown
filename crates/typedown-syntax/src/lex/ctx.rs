@@ -27,40 +27,37 @@ pub enum LexMode {
 
 /// An on-demand lexer supporting 2 lex modes
 pub struct LexCtx<S: Utf8Stream> {
-  stream: S,
-  cache: Rc<RefCell<Cache>>,
+  pub(super) stream: S,
+  pub(super) cache: Rc<RefCell<Cache>>,
   // Current mode
   mode: LexMode,
   // Text buffer to accumulate the read utf-8
-  text_buffer: String,
+  pub(super) text_buffer: String,
   // Pending tokens to emit before lexing more input.
-  pending_tokens: Vec<LexResult>,
+  pub(super) pending_tokens: Vec<LexResult>,
 
   // State for YAML lexing
-  yaml_lex_ctx: YamlLexCtx,
+  pub(super) yaml_lex_ctx: YamlLexCtx,
   // State for Markdown lexing
-  markdown_lex_ctx: MarkdownLexCtx,
+  pub(super) markdown_lex_ctx: MarkdownLexCtx,
 }
 
-/* YAML */
-struct YamlLexCtx {
+/* YAML state */
+pub(super) struct YamlLexCtx {
   // Whether we're just after a newline (linux), CRLF (Windows), carriage return (Mac)
-  at_line_start: bool,
-
+  pub(super) at_line_start: bool,
   // Indent stack for YAML
   // In block style, YAML is indentation-sensitive
   // We keep track of the previous indentations
-  indent_stack: Vec<usize>,
-
+  pub(super) indent_stack: Vec<usize>,
   // We allow nested interpolations
   // We need to distinguish between nested strings, interpolations, etc.
-  interp_stack: Vec<YamlInterpContext>,
-
+  pub(super) interp_stack: Vec<YamlInterpContext>,
   // The indent character established by the first indented line (None = not yet determined)
-  indent_char: Option<char>,
+  pub(super) indent_char: Option<char>,
 }
 
-enum YamlInterpContext {
+pub(super) enum YamlInterpContext {
   // Inside ${...}
   Interpolation,
   // Inside a nested {...} within an interpolation
@@ -71,7 +68,22 @@ enum YamlInterpContext {
   DqString,
 }
 
-struct MarkdownLexCtx {}
+/* Markdown state */
+pub(super) struct MarkdownLexCtx {
+  // Context stack for formula mode interpolation inside markdown
+  pub(super) interp_stack: Vec<MdInterpContext>,
+}
+
+pub(super) enum MdInterpContext {
+  // Inside ${...} formula
+  Interpolation,
+  // Nested { inside a formula
+  Brace,
+  // Inside "..." within a formula
+  DqString,
+  // Inside '...' within a formula
+  SqString,
+}
 
 impl<S: Utf8Stream> LexCtx<S> {
   pub fn new(stream: S, cache: Rc<RefCell<Cache>>) -> Self {
@@ -87,11 +99,12 @@ impl<S: Utf8Stream> LexCtx<S> {
         interp_stack: vec![],
         indent_char: None,
       },
-      markdown_lex_ctx: MarkdownLexCtx {},
+      markdown_lex_ctx: MarkdownLexCtx {
+        interp_stack: vec![],
+      },
     }
   }
 
-  /// Switch the lexing mode.
   pub fn set_mode(&mut self, mode: LexMode) {
     debug_assert!(
       self.pending_tokens.is_empty(),
@@ -100,7 +113,6 @@ impl<S: Utf8Stream> LexCtx<S> {
     self.mode = mode;
   }
 
-  /// Lex the next token based on the current mode.
   pub fn lex(&mut self) -> LexResult {
     // Drain pending tokens first (FIFO)
     if !self.pending_tokens.is_empty() {
@@ -122,559 +134,16 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 }
 
-// YAML frontmatter lexing
-impl<S: Utf8Stream> LexCtx<S> {
-  fn lex_yaml_frontmatter(&mut self) -> LexResult {
-    // If inside an interpolation context, dispatch accordingly
-    match self.yaml_lex_ctx.interp_stack.last() {
-      Some(YamlInterpContext::Interpolation) | Some(YamlInterpContext::Brace) => {
-        return self.lex_yaml_interpolation();
-      }
-      Some(YamlInterpContext::DqString) | Some(YamlInterpContext::SqString) => {
-        return self.lex_yaml_resume_string();
-      }
-      None => {}
-    }
-
-    // At line start, handle indentation
-    if self.yaml_lex_ctx.at_line_start {
-      if let Some(result) = self.lex_yaml_indent() {
-        return result;
-      }
-    }
-
-    self.lex_yaml_token()
-  }
-
-  fn lex_yaml_token(&mut self) -> LexResult {
-    let char = match self.peek() {
-      Utf8Result::Char(char) => char,
-      _ => panic!(
-        "[LexCtx::lex_yaml_token] Expected a valid UTF-8 character but got EOF or invalid bytes. This should have been handled by try_consume_invalid_utf8 or is_eof before reaching this point."
-      ),
-    };
-
-    match char {
-      /* Newlines */
-      '\n' | '\r' => {
-        self.advance_avoid_invalid_utf8();
-        if char == '\r' {
-          self.consume_avoid_invalid_utf8('\n');
-        }
-        self.yaml_lex_ctx.at_line_start = true;
-        self.emit(SyntaxKind::Newline)
-      }
-
-      /* Whitespace */
-      _ if char.is_whitespace() => self.lex_yaml_whitespaces(),
-
-      /* Comments */
-      '#' => self.lex_yaml_comment(),
-
-      /* Punctuation and delimiters */
-      ':' => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::YamlColon)
-      }
-      '(' => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::YamlLParen)
-      }
-      ')' => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::YamlRParen)
-      }
-      '[' => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::YamlLBracket)
-      }
-      ']' => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::YamlRBracket)
-      }
-      '{' => {
-        self.advance_avoid_invalid_utf8();
-        if !self.yaml_lex_ctx.interp_stack.is_empty() {
-          self
-            .yaml_lex_ctx
-            .interp_stack
-            .push(YamlInterpContext::Brace);
-        }
-        self.emit(SyntaxKind::YamlLBrace)
-      }
-      '}' => {
-        self.advance_avoid_invalid_utf8();
-        match self.yaml_lex_ctx.interp_stack.last() {
-          Some(YamlInterpContext::Brace) => {
-            self.yaml_lex_ctx.interp_stack.pop();
-            self.emit(SyntaxKind::YamlRBrace)
-          }
-          Some(YamlInterpContext::Interpolation) => {
-            self.yaml_lex_ctx.interp_stack.pop();
-            self.emit(SyntaxKind::InterpEnd)
-          }
-          _ => self.emit(SyntaxKind::YamlRBrace),
-        }
-      }
-      ',' => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::YamlComma)
-      }
-
-      /* Strings */
-      '"' => self.lex_yaml_dq_string(),
-      '\'' => self.lex_yaml_sq_string(),
-
-      /* Numbers */
-      '0'..='9' => self.lex_yaml_number(),
-
-      /* Identifiers */
-      _ if char.is_alphabetic() || char == '_' => self.lex_yaml_ident(),
-
-      /* Operators (including !, -, +, etc.) */
-      _ if is_op_char(char) => self.lex_yaml_op(),
-
-      /* Error fallback */
-      _ => {
-        self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::Error)
-      }
-    }
-  }
-
-  /* Indentation */
-
-  fn current_indent(&self) -> usize {
-    *self.yaml_lex_ctx.indent_stack.last().unwrap_or(&0)
-  }
-
-  fn lex_yaml_indent(&mut self) -> Option<LexResult> {
-    self.yaml_lex_ctx.at_line_start = false;
-
-    // Count leading whitespace and track tab/space usage
-    let start = self.stream.offset();
-    let mut indent = 0;
-    let mut saw_space = false;
-    let mut saw_tab = false;
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if char.is_whitespace() && char != '\n' && char != '\r' => {
-          if char == '\t' {
-            saw_tab = true;
-          } else {
-            saw_space = true;
-          }
-          indent += 1;
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
-      }
-    }
-
-    // Detect mixed or inconsistent indentation
-    let diagnostic = if indent > 0 {
-      if saw_space && saw_tab {
-        // Mixed tabs and spaces on the same line
-        Some(LexDiagnostic::MixedIndentation {
-          start_offset: start,
-          end_offset: self.stream.offset(),
-        })
-      } else {
-        let char = if saw_tab { '\t' } else { ' ' };
-        match self.yaml_lex_ctx.indent_char {
-          None => {
-            // Establish the indent character
-            self.yaml_lex_ctx.indent_char = Some(char);
-            None
-          }
-          Some(established) if established != char => {
-            // Different indent character than established
-            Some(LexDiagnostic::InconsistentIndentation {
-              expected: established,
-              encountered: char,
-              start_offset: start,
-              end_offset: self.stream.offset(),
-            })
-          }
-          _ => None,
-        }
-      }
-    } else {
-      None
-    };
-
-    let current = self.current_indent();
-
-    if indent > current {
-      // Increased indentation
-      self.yaml_lex_ctx.indent_stack.push(indent);
-      self.text_buffer.clear();
-      return Some(match diagnostic {
-        Some(diag) => self.emit_with(SyntaxKind::YamlIndent, diag),
-        None => self.emit(SyntaxKind::YamlIndent),
-      });
-    } else if indent < current {
-      // Decreased indentation: pop levels until we find one <= indent
-      let mut dedents = 0;
-      while let Some(&top) = self.yaml_lex_ctx.indent_stack.last() {
-        if top > indent {
-          self.yaml_lex_ctx.indent_stack.pop();
-          dedents += 1;
-        } else {
-          break;
-        }
-      }
-
-      // If indent doesn't match an existing level exactly, emit an error
-      let diagnostic = if indent != self.current_indent() {
-        Some(diagnostic.unwrap_or(LexDiagnostic::UnmatchedDedent {
-          indent,
-          start_offset: start,
-          end_offset: self.stream.offset(),
-        }))
-      } else {
-        diagnostic
-      };
-
-      if dedents > 0 {
-        // Queue all dedents into pending_tokens, return the first one
-        self.text_buffer.clear();
-        let first = match diagnostic {
-          Some(diag) => self.emit_with(SyntaxKind::YamlDedent, diag),
-          None => self.emit(SyntaxKind::YamlDedent),
-        };
-        for _ in 1..dedents {
-          self.pending_tokens.push(LexResult {
-            token: self.cache.borrow_mut().token(SyntaxKind::YamlDedent, &[]),
-            diagnostic: None,
-          });
-        }
-        return Some(first);
-      }
-    }
-
-    // Same indent level: emit whitespace if any was consumed
-    if !self.text_buffer.is_empty() {
-      return Some(self.emit(SyntaxKind::Whitespace));
-    }
-
-    None
-  }
-
-  /* Whitespace */
-
-  fn lex_yaml_whitespaces(&mut self) -> LexResult {
-    self.advance_avoid_invalid_utf8();
-    self.emit(SyntaxKind::Whitespace)
-  }
-
-  /* Comments */
-
-  fn lex_yaml_comment(&mut self) -> LexResult {
-    self.advance_avoid_invalid_utf8(); // consume #
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if char != '\n' && char != '\r' => {
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
-      }
-    }
-    self.emit(SyntaxKind::YamlComment)
-  }
-
-  /* Operators */
-
-  fn lex_yaml_op(&mut self) -> LexResult {
-    self.consume_op_chars();
-    self.emit(SyntaxKind::YamlOp)
-  }
-
-  fn consume_op_chars(&mut self) {
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if is_op_char(char) => {
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
-      }
-    }
-  }
-
-  /* Strings */
-
-  fn lex_yaml_dq_string(&mut self) -> LexResult {
-    // Consume opening " and emit DqStrStart
-    self.advance_avoid_invalid_utf8();
-    self
-      .yaml_lex_ctx
-      .interp_stack
-      .push(YamlInterpContext::DqString);
-    self.emit(SyntaxKind::DqStrStart)
-  }
-
-  fn lex_yaml_sq_string(&mut self) -> LexResult {
-    // Consume opening ' and emit SqStrStart
-    self.advance_avoid_invalid_utf8();
-    self
-      .yaml_lex_ctx
-      .interp_stack
-      .push(YamlInterpContext::SqString);
-    self.emit(SyntaxKind::SqStrStart)
-  }
-
-  // Resume lexing string content after returning from an interpolation or after the opening quote
-  fn lex_yaml_resume_string(&mut self) -> LexResult {
-    match self.yaml_lex_ctx.interp_stack.last() {
-      Some(YamlInterpContext::DqString) => {
-        self.lex_yaml_string_content('"', SyntaxKind::DqStrContent, SyntaxKind::DqStrEnd)
-      }
-      Some(YamlInterpContext::SqString) => {
-        self.lex_yaml_string_content('\'', SyntaxKind::SqStrContent, SyntaxKind::SqStrEnd)
-      }
-      _ => panic!(
-        "[LexCtx::lex_yaml_resume_string] Called without a string context on the interp stack"
-      ),
-    }
-  }
-
-  // Lex string content until closing quote, ${, or error.
-  fn lex_yaml_string_content(
-    &mut self,
-    closing: char,
-    content_kind: SyntaxKind,
-    end_kind: SyntaxKind,
-  ) -> LexResult {
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if char == closing => {
-          if self.text_buffer.is_empty() {
-            // No content before closing quote, emit end directly
-            self.advance_avoid_invalid_utf8();
-            self.yaml_lex_ctx.interp_stack.pop();
-            return self.emit(end_kind);
-          } else {
-            // Emit content first, queue end as pending
-            let content = self.emit(content_kind);
-            self.advance_avoid_invalid_utf8();
-            self.yaml_lex_ctx.interp_stack.pop();
-            let end = self.emit(end_kind);
-            self.pending_tokens.push(end);
-            return content;
-          }
-        }
-        Utf8Result::Char('$') => {
-          self.advance_avoid_invalid_utf8(); // consume $
-          match self.peek() {
-            Utf8Result::Char('{') => {
-              self.advance_avoid_invalid_utf8(); // consume {
-              // Split out ${ from the text buffer
-              let buf_len = self.text_buffer.len();
-              let string_text: String = self.text_buffer.drain(..buf_len - 2).collect();
-              self.text_buffer.clear();
-
-              // Push interpolation context
-              self
-                .yaml_lex_ctx
-                .interp_stack
-                .push(YamlInterpContext::Interpolation);
-
-              let interp_start = LexResult {
-                token: self
-                  .cache
-                  .borrow_mut()
-                  .token(SyntaxKind::InterpStart, "${".as_bytes()),
-                diagnostic: None,
-              };
-
-              if !string_text.is_empty() {
-                let content = LexResult {
-                  token: self
-                    .cache
-                    .borrow_mut()
-                    .token(content_kind, string_text.as_bytes()),
-                  diagnostic: None,
-                };
-                self.pending_tokens.push(interp_start);
-                return content;
-              } else {
-                return interp_start;
-              }
-            }
-            _ => {
-              // Single $ not followed by {: inline math
-              // The $ is already in the text buffer, split it out
-              let buf_len = self.text_buffer.len();
-              let string_text: String = self.text_buffer.drain(..buf_len - 1).collect();
-              self.text_buffer.clear();
-
-              // Consume math content until closing $
-              let math_token = self.lex_inline_math_content();
-
-              if !string_text.is_empty() {
-                let content = LexResult {
-                  token: self
-                    .cache
-                    .borrow_mut()
-                    .token(content_kind, string_text.as_bytes()),
-                  diagnostic: None,
-                };
-                self.pending_tokens.push(math_token);
-                return content;
-              } else {
-                return math_token;
-              }
-            }
-          }
-        }
-        Utf8Result::Char('\\') => {
-          self.advance_avoid_invalid_utf8(); // consume backslash
-          match self.peek() {
-            Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
-              let start = self.stream.offset() - self.text_buffer.len();
-              let end = self.stream.offset();
-              self.yaml_lex_ctx.interp_stack.pop();
-              return self.emit_with(
-                SyntaxKind::Error,
-                LexDiagnostic::UnterminatedString {
-                  start_offset: start,
-                  end_offset: end,
-                },
-              );
-            }
-            _ => {
-              self.advance_avoid_invalid_utf8(); // consume escaped char
-            }
-          }
-        }
-        Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
-          let start = self.stream.offset() - self.text_buffer.len();
-          let end = self.stream.offset();
-          self.yaml_lex_ctx.interp_stack.pop();
-          return self.emit_with(
-            SyntaxKind::Error,
-            LexDiagnostic::UnterminatedString {
-              start_offset: start,
-              end_offset: end,
-            },
-          );
-        }
-        _ => {
-          self.advance_avoid_invalid_utf8();
-        }
-      }
-    }
-  }
-
-  /* Interpolation */
-
-  // Lex inside ${...}. Delegates to shared token dispatch.
-  // Only adds EOF-inside-interpolation handling.
-  fn lex_yaml_interpolation(&mut self) -> LexResult {
-    if let Utf8Result::Eof = self.peek() {
-      self.yaml_lex_ctx.interp_stack.pop();
-      let offset = self.stream.offset();
-      return self.emit_with(
-        SyntaxKind::Error,
-        LexDiagnostic::UnterminatedInterpolation {
-          start_offset: offset,
-          end_offset: offset,
-        },
-      );
-    }
-    self.lex_yaml_token()
-  }
-
-  /* Numbers */
-
-  fn lex_yaml_number(&mut self) -> LexResult {
-    self.lex_number()
-  }
-
-  /* Identifiers */
-
-  fn lex_yaml_ident(&mut self) -> LexResult {
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if char.is_alphanumeric() || char == '_' => {
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
-      }
-    }
-    self.emit(SyntaxKind::Ident)
-  }
-}
-
-fn is_op_char(char: char) -> bool {
-  matches!(
-    char,
-    '!' | '+' | '-' | '*' | '/' | '\\' | '.' | '~' | '^' | '|' | '>' | '<' | '=' | '%' | '&' | '@'
-  )
-}
-
-// Markdown body lexing
-impl<S: Utf8Stream> LexCtx<S> {
-  fn lex_markdown_body(&mut self) -> LexResult {
-    todo!()
-  }
-
-  /* Symbols */
-
-  // Consume consecutive special characters as a single MdSymbol token
-  fn lex_markdown_symbol(&mut self) -> LexResult {
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if is_md_symbol_char(char) => {
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
-      }
-    }
-    self.emit(SyntaxKind::MdSymbol)
-  }
-
-  /* Numbers */
-
-  fn lex_markdown_number(&mut self) -> LexResult {
-    self.lex_number()
-  }
-}
-
-fn is_md_symbol_char(char: char) -> bool {
-  matches!(
-    char,
-    '#'
-      | '!'
-      | '*'
-      | '~'
-      | '^'
-      | '-'
-      | '>'
-      | '<'
-      | '|'
-      | '@'
-      | ':'
-      | '`'
-      | '\\'
-      | '/'
-      | '='
-      | '+'
-      | '&'
-      | '%'
-  )
-}
-
-// Shared helpers
+/* Shared helpers */
 impl<S: Utf8Stream> LexCtx<S> {
   /// Look at the next character without consuming it.
-  fn peek(&mut self) -> Utf8Result {
+  pub(super) fn peek(&mut self) -> Utf8Result {
     self.stream.peek()
   }
 
   /// Consume the next character, appending it to the current token text.
   /// If invalid UTF-8 is encountered, do not consume it and return the result.
-  fn advance_avoid_invalid_utf8(&mut self) -> Utf8Result {
+  pub(super) fn advance_avoid_invalid_utf8(&mut self) -> Utf8Result {
     match self.stream.peek() {
       Utf8Result::Char(_) => {
         let result = self.stream.advance();
@@ -688,7 +157,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 
   /// Consume the next character if it matches `expected`.
-  fn consume_avoid_invalid_utf8(&mut self, expected: char) -> bool {
+  pub(super) fn consume_avoid_invalid_utf8(&mut self, expected: char) -> bool {
     if let Utf8Result::Char(encountered) = self.peek()
       && encountered == expected
     {
@@ -699,8 +168,8 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  /// Look for an invalid utf-8 character right ahead and return if any
-  /// INVARIANT: Always call before any other advance()/consume()
+  /// Look for an invalid utf-8 character right ahead and return if any.
+  /// INVARIANT: Always call before any other advance()/consume().
   fn try_consume_invalid_utf8(&mut self) -> Option<LexResult> {
     debug_assert!(
       self.text_buffer.len() == 0,
@@ -723,7 +192,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 
   /// Finalize the current token with no diagnostic.
-  fn emit(&mut self, kind: SyntaxKind) -> LexResult {
+  pub(super) fn emit(&mut self, kind: SyntaxKind) -> LexResult {
     let text = std::mem::take(&mut self.text_buffer);
     LexResult {
       token: self.cache.borrow_mut().token(kind, text.as_bytes()),
@@ -732,7 +201,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 
   /// Finalize the current token with a diagnostic.
-  fn emit_with(&mut self, kind: SyntaxKind, diagnostic: LexDiagnostic) -> LexResult {
+  pub(super) fn emit_with(&mut self, kind: SyntaxKind, diagnostic: LexDiagnostic) -> LexResult {
     let text = std::mem::take(&mut self.text_buffer);
     LexResult {
       token: self.cache.borrow_mut().token(kind, text.as_bytes()),
@@ -740,8 +209,8 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  // Shared number lexer: integer, decimal, scientific notation
-  fn lex_number(&mut self) -> LexResult {
+  // Number lexer: integer, decimal, scientific notation.
+  pub(super) fn lex_number(&mut self) -> LexResult {
     // Integer part
     loop {
       match self.peek() {
@@ -793,15 +262,15 @@ impl<S: Utf8Stream> LexCtx<S> {
     self.emit(SyntaxKind::Number)
   }
 
-  // Consume inline math content until closing $. The opening $ is already consumed.
-  // Emits MdInlineMath on success, Error on unterminated.
-  fn lex_inline_math_content(&mut self) -> LexResult {
+  // Consume inline math content until closing $.
+  // INVARIANT: The opening $ must be already consumed and in the text buffer.
+  pub(super) fn lex_inline_math_content(&mut self) -> LexResult {
     // text_buffer already contains the opening $
     loop {
       match self.peek() {
         Utf8Result::Char('$') => {
           self.advance_avoid_invalid_utf8();
-          return self.emit(SyntaxKind::MdInlineMath);
+          return self.emit(SyntaxKind::InlineMath);
         }
         Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
           let start = self.stream.offset() - self.text_buffer.len();
