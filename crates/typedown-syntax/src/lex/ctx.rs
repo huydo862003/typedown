@@ -619,7 +619,15 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Identifiers */
 
   fn lex_yaml_ident(&mut self) -> LexResult {
-    todo!()
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if char.is_alphanumeric() || char == '_' => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+    self.emit(SyntaxKind::Ident)
   }
 }
 
