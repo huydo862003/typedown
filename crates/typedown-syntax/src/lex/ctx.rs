@@ -55,6 +55,10 @@ impl<S: Utf8Stream> LexCtx<S> {
     if self.is_eof() {
       self.emit(SyntaxKind::Eof)
     } else {
+      let maybe_invalid_utf8 = self.try_consume_invalid_utf8();
+      if let Some(result) = maybe_invalid_utf8 {
+        return result;
+      }
       match self.mode {
         LexMode::YamlFrontmatter => self.lex_frontmatter(),
         LexMode::MarkdownBody => self.lex_body(),
@@ -85,21 +89,26 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 
   /// Consume the next character, appending it to the current token text.
-  fn advance(&mut self) -> Utf8Result {
-    let char = self.stream.advance();
-    match char {
-      Utf8Result::Char(c) => self.text_buffer.push(c),
-      _ => {}
+  /// If invalid UTF-8 is encountered, do not consume it and return the result.
+  fn advance_avoid_invalid_utf8(&mut self) -> Utf8Result {
+    match self.stream.peek() {
+      Utf8Result::Char(_) => {
+        let result = self.stream.advance();
+        if let Utf8Result::Char(char) = result {
+          self.text_buffer.push(char);
+        }
+        result
+      }
+      other => other,
     }
-    char
   }
 
   /// Consume the next character if it matches `expected`.
-  fn consume(&mut self, expected: char) -> bool {
+  fn consume_avoid_invalid_utf8(&mut self, expected: char) -> bool {
     if let Utf8Result::Char(encountered) = self.peek()
       && encountered == expected
     {
-      self.advance();
+      self.advance_avoid_invalid_utf8();
       true
     } else {
       false
