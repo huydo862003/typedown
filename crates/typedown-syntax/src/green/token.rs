@@ -9,22 +9,22 @@ use crate::green::syntax_kind::SyntaxKind;
 pub(super) struct TokenBody {
   pub(super) ref_count: AtomicUsize,
   pub(super) kind: SyntaxKind,
-  pub(super) text: String,
+  pub(super) bytes: Vec<u8>,
 }
 
 /// The leaf node in the green tree.
 pub struct Token(pub(super) *const TokenBody);
 
 impl Token {
-  pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &str) -> Self {
+  pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &[u8]) -> Self {
     cache.token(kind, text)
   }
 
-  pub(super) fn from_raw_parts(kind: SyntaxKind, text: String) -> Self {
+  pub(super) fn from_raw_parts(kind: SyntaxKind, bytes: Vec<u8>) -> Self {
     let body = Box::new(TokenBody {
       ref_count: AtomicUsize::new(1),
       kind,
-      text,
+      bytes,
     });
     Self(Box::into_raw(body))
   }
@@ -33,12 +33,21 @@ impl Token {
     unsafe { (*self.0).kind }
   }
 
-  pub fn text(&self) -> &str {
-    unsafe { &(*self.0).text }
+  pub fn text(&self) -> impl Iterator<Item = char> {
+    let bytes = unsafe { &(*self.0).bytes };
+    bytes
+      .iter()
+      .map(|b| u32::from(*b))
+      .map(|val| char::from_u32(val))
+      .map(|maybe_char| maybe_char.unwrap_or('\u{FFFD}'))
+  }
+
+  pub fn bytes(&self) -> &[u8] {
+    unsafe { &(*self.0).bytes }
   }
 
   pub fn text_len(&self) -> usize {
-    self.text().len()
+    unsafe { (*self.0).bytes.len() }
   }
 }
 
@@ -65,7 +74,13 @@ impl Drop for Token {
 
 impl PartialEq for Token {
   fn eq(&self, other: &Self) -> bool {
-    self.0 == other.0 || (self.kind() == other.kind() && self.text() == other.text())
+    let self_bytes = unsafe { &(*self.0).bytes };
+    let other_bytes = unsafe { &(*other.0).bytes };
+
+    self.0 == other.0
+      || self.kind() == other.kind()
+        && self_bytes.len() == other_bytes.len()
+        && self_bytes == other_bytes
   }
 }
 
@@ -74,7 +89,7 @@ impl Eq for Token {}
 impl Hash for Token {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
-    self.text().hash(state);
+    self.text().collect::<String>().hash(state);
   }
 }
 

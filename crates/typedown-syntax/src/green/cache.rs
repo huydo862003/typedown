@@ -27,23 +27,23 @@ impl Cache {
   }
 
   /// Get or create an interned token.
-  pub fn token(&mut self, kind: SyntaxKind, text: &str) -> Token {
+  pub fn token(&mut self, kind: SyntaxKind, bytes: &[u8]) -> Token {
     // Hash from borrowed data to avoid allocating a String on cache hit
     let hash = {
       let mut h = self.tokens.hasher().build_hasher();
       kind.hash(&mut h);
-      text.hash(&mut h);
+      bytes.hash(&mut h);
       h.finish()
     };
 
     let entry = self.tokens.raw_entry_mut().from_hash(hash, |existing| {
-      existing.kind() == kind && existing.text() == text
+      existing.kind() == kind && existing.bytes() == bytes
     });
 
     match entry {
       RawEntryMut::Occupied(e) => e.key().clone(),
       RawEntryMut::Vacant(e) => {
-        let token = Token::from_raw_parts(kind, text.to_string());
+        let token = Token::from_raw_parts(kind, bytes.to_vec());
         e.insert_hashed_nocheck(hash, token.clone(), ());
         token
       }
