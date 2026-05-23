@@ -62,8 +62,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(GreenNode::from_token(result.token));
         }
         SyntaxKind::Newline | SyntaxKind::Eof => {
-          // Put it back for the next consumer
-          self.lex_ctx.pending_tokens_mut().insert(0, result);
+          children.push(GreenNode::from_token(result.token));
           break;
         }
         _ => {

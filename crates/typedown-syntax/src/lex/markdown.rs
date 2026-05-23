@@ -80,17 +80,64 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Dollar */
 
   fn lex_markdown_dollar(&mut self) -> LexResult {
-    self.advance_avoid_invalid_utf8(); // consume $
-    if self.consume_avoid_invalid_utf8('{') {
-      // ${ enters formula mode
-      self
-        .markdown_lex_ctx
-        .interp_stack
-        .push(MdInterpContext::Interpolation);
-      self.emit(SyntaxKind::InterpStart)
-    } else {
-      // $ enters inline math
-      self.lex_inline_math_content()
+    // Count opening $ delimiters
+    let mut fence_count = 0;
+    while let Utf8Result::Char('$') = self.peek() {
+      self.advance_avoid_invalid_utf8();
+      fence_count += 1;
+    }
+
+    // Check for ${ (formula mode, only when exactly one $)
+    if fence_count == 1 {
+      if self.consume_avoid_invalid_utf8('{') {
+        self
+          .markdown_lex_ctx
+          .interp_stack
+          .push(MdInterpContext::Interpolation);
+        return self.emit(SyntaxKind::InterpStart);
+      }
+    }
+
+    // Check if content starts with a newline (block) or not (inline)
+    let is_block = matches!(self.peek(), Utf8Result::Char('\n') | Utf8Result::Char('\r'));
+
+    // Consume math content until matching fence count
+    loop {
+      match self.peek() {
+        Utf8Result::Char('$') => {
+          let mut count = 0;
+          while let Utf8Result::Char('$') = self.peek() {
+            self.advance_avoid_invalid_utf8();
+            count += 1;
+            if count == fence_count {
+              break;
+            }
+          }
+          if count == fence_count {
+            let kind = if is_block {
+              SyntaxKind::MathBlock
+            } else {
+              SyntaxKind::InlineMath
+            };
+            return self.emit(kind);
+          }
+          // Not enough $, they're part of the content
+        }
+        Utf8Result::Eof => {
+          let start = self.stream.offset() - self.text_buffer.len();
+          let end = self.stream.offset();
+          return self.emit_with(
+            SyntaxKind::Error,
+            Diagnostic::UnterminatedMathBlock {
+              start_offset: start,
+              end_offset: end,
+            },
+          );
+        }
+        _ => {
+          self.advance_avoid_invalid_utf8();
+        }
+      }
     }
   }
 
