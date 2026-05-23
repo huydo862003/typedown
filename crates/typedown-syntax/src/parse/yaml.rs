@@ -4,11 +4,14 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
 use super::constants::*;
 use super::ctx::ParseCtx;
+use super::peekable_lex_ctx::PeekYamlResult;
 use crate::green::{GreenNode, syntax_kind::SyntaxKind};
 use crate::lex::ctx::LexMode;
 
-// YAML frontmatter parsing
+// Top-level YAML frontmatter parsing
 impl<S: Utf8Stream> ParseCtx<S> {
+  /* Top-level YAML frontmatter */
+
   pub(super) fn parse_yaml_frontmatter(&mut self) -> GreenNode {
     debug_assert!(
       *self.lex_ctx.mode() == LexMode::YamlFrontmatter,
@@ -18,9 +21,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let mut children = vec![];
 
     // Consume opening ---
-    let ok = self.consume_if(
+    let ok = self.consume_yaml_if(
       &mut children,
-      SKIP_COMMENT,
+      SKIP_NONE,
       |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
       Diagnostic::MissingFrontmatterMarker {
         offset: self.offset(),
@@ -29,55 +32,56 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if !ok {
       self.synchronize_to_triple_dash(&mut children);
     }
-    self.expect_line_end(&mut children);
 
-    // TODO: parse frontmatter content
-
-    // Skip to the beginning of next line
-    self.advance_to_next_line(&mut children);
-    // Consume closing ---
-    self.consume_if(
+    // Expect newline after opening ---
+    self.consume_yaml(
       &mut children,
-      SKIP_NEWLINE,
-      |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
-      Diagnostic::MissingFrontmatterMarker {
-        offset: self.offset(),
+      SKIP_TRAILING_WS | SKIP_COMMENT,
+      SyntaxKind::Newline,
+      Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
       },
     );
-    self.expect_line_end(&mut children);
+
+    // Parse body
+    self.parse_yaml_body(&mut children);
+
+    // Consume closing ---
+    // Require the indentation to be 0
+
+    let start_offset = self.offset();
+    self.consume_yaml_if(
+      &mut children,
+      SKIP_NEWLINE | SKIP_DEDENT,
+      |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
+      Diagnostic::MissingFrontmatterMarker {
+        offset: start_offset,
+      },
+    );
+    let end_offset = self.offset();
+
+    if self.lex_ctx.indent_depth() != 0 {
+      self
+        .diagnostics
+        .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+          start_offset,
+          end_offset,
+        });
+    }
+
+    // Expect newline after closing ---
+    self.consume_yaml(
+      &mut children,
+      SKIP_TRAILING_WS | SKIP_COMMENT,
+      SyntaxKind::Newline,
+      Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      },
+    );
 
     self.emit(SyntaxKind::Frontmatter, &children)
-  }
-
-  /// After consuming `---`, expect only whitespace/comments until end of line.
-  /// Any other tokens are wrapped in an Error node with a diagnostic.
-  fn expect_line_end(&mut self, children: &mut Vec<GreenNode>) {
-    let mut error_children = vec![];
-    let start_offset = self.offset();
-
-    loop {
-      let result = self.lex_ctx.lex();
-      match result.token.kind() {
-        SyntaxKind::Whitespace | SyntaxKind::YamlComment => {
-          children.push(GreenNode::from_token(result.token));
-        }
-        SyntaxKind::Newline | SyntaxKind::Eof => {
-          children.push(GreenNode::from_token(result.token));
-          break;
-        }
-        _ => {
-          error_children.push(GreenNode::from_token(result.token));
-        }
-      }
-    }
-
-    if !error_children.is_empty() {
-      children.push(self.emit(SyntaxKind::Error, &error_children));
-      self.diagnostics.push(Diagnostic::ExtraTokensAfterFrontmatterMarker {
-        start_offset,
-        end_offset: self.offset(),
-      });
-    }
   }
 
   /// Error recovery: skip tokens until `---` or EOF is found.
@@ -88,7 +92,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let result = self.lex_ctx.lex();
       let kind = result.token.kind();
 
-      let is_target = (kind == SyntaxKind::YamlOp && result.token.text().collect::<String>() == "---")
+      let is_target = (kind == SyntaxKind::YamlOp
+        && result.token.text().collect::<String>() == "---")
         || kind == SyntaxKind::Eof;
 
       if is_target {
@@ -100,6 +105,63 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
 
       error_children.push(GreenNode::from_token(result.token));
+    }
+  }
+
+  /* YAML frontmatter body */
+  pub(super) fn parse_yaml_body(&mut self, children: &mut Vec<GreenNode>) {
+    if !self.should_end_yaml_frontmatter() {
+      let mapping = self.parse_yaml_block_mapping();
+      children.push(mapping);
+    }
+  }
+}
+
+/* YAML mapping */
+impl<S: Utf8Stream> ParseCtx<S> {
+  pub(super) fn parse_yaml_block_mapping(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  pub(super) fn parse_yaml_mapping_entry(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  pub(super) fn parse_yaml_value(&mut self) -> GreenNode {
+    todo!()
+  }
+}
+
+impl<S: Utf8Stream> ParseCtx<S> {
+  /// YAML should end when encounter:
+  /// - EOF
+  /// - Triple dash at indent level 0
+  fn should_end_yaml_frontmatter(&mut self) -> bool {
+    let PeekYamlResult(result, indent_depth) = self
+      .lex_ctx
+      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);
+
+    match result.token.kind() {
+      SyntaxKind::Eof => true,
+      SyntaxKind::YamlOp if result.token.text().collect::<String>() == "---" => indent_depth == 0,
+      _ => false,
+    }
+  }
+
+  /// YAML expression should end when encounter:
+  /// - EOF
+  /// - Triple dash at indent level 0
+  /// - Dedent
+  pub(super) fn should_end_yaml_expr(&mut self) -> bool {
+    let PeekYamlResult(result, indent_depth) = self
+      .lex_ctx
+      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);
+
+    match result.token.kind() {
+      SyntaxKind::Eof => true,
+      SyntaxKind::YamlOp if result.token.text().collect::<String>() == "---" => indent_depth == 0,
+      SyntaxKind::YamlDedent => true,
+      _ => false,
     }
   }
 }

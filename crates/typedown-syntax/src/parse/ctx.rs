@@ -4,15 +4,15 @@ use std::{cell::RefCell, rc::Rc};
 
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
-use super::constants::*;
 use crate::{
   green::{GreenNode, SyntaxToken, cache::Cache, syntax_kind::SyntaxKind},
   lex::ctx::{LexCtx, LexMode, LexResult},
+  parse::peekable_lex_ctx::PeekableLexCtx,
 };
 
 pub struct ParseCtx<S: Utf8Stream> {
   pub(super) cache: Rc<RefCell<Cache>>,
-  pub(super) lex_ctx: LexCtx<S>,
+  pub(super) lex_ctx: PeekableLexCtx<S>,
   pub(super) diagnostics: Vec<Diagnostic>,
   ast: Option<GreenNode>,
 }
@@ -26,7 +26,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub fn new(stream: S, cache: Rc<RefCell<Cache>>) -> ParseCtx<S> {
     Self {
       cache: cache.clone(),
-      lex_ctx: LexCtx::new(stream, cache),
+      lex_ctx: PeekableLexCtx::new(LexCtx::new(stream, cache)),
       diagnostics: Vec::new(),
       ast: None,
     }
@@ -48,7 +48,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
-  fn parse_source_file(&mut self) -> GreenNode {
+  pub(super) fn parse_source_file(&mut self) -> GreenNode {
     let yaml_frontmatter = self.parse_yaml_frontmatter();
     self.lex_ctx.set_mode(LexMode::MarkdownBody);
     let markdown_body = self.parse_markdown_body();
@@ -59,33 +59,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 }
 
-/// We do not support peek here, because lexing is irreversible
 impl<S: Utf8Stream> ParseCtx<S> {
-  /// Consume the next token, pushing skipped trivia into children.
-  /// Returns the first non-skipped token (also pushed into children).
-  /// Use SKIP_* constants to control what trivia to skip.
-  pub(super) fn advance(&mut self, children: &mut Vec<GreenNode>, skip: u8) -> LexResult {
+  /// Consume the next non-skipped YAML token, pushing skipped trivia and result into children.
+  pub(super) fn advance_yaml(&mut self, children: &mut Vec<GreenNode>, skip: u16) -> LexResult {
     loop {
       let mut result = self.lex_ctx.lex();
-
-      // Collect lexer diagnostics if any
       if let Some(diagnostic) = result.diagnostic.take() {
         self.diagnostics.push(diagnostic);
       }
-
-      // Skip Error tokens from the lexer
-      if result.token.kind() == SyntaxKind::Error {
-        children.push(GreenNode::from_token(result.token));
-        continue;
-      }
-
-      let should_skip = match result.token.kind() {
-        SyntaxKind::Whitespace => skip & SKIP_WS != 0,
-        SyntaxKind::YamlComment => skip & SKIP_COMMENT != 0,
-        SyntaxKind::Newline => skip & SKIP_NEWLINE != 0,
-        _ => false,
-      };
-      if should_skip {
+      if self.lex_ctx.should_skip(result.token.kind(), skip) {
         children.push(GreenNode::from_token(result.token));
       } else {
         children.push(GreenNode::from_token(result.token.clone()));
@@ -94,17 +76,31 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
-  /// Like advance(), but expects the last token to match `expected`.
-  /// If it doesn't match, the token is wrapped in an Error node and a diagnostic is pushed.
-  /// Returns true if matched, false otherwise.
-  pub(super) fn consume(
+  /// Consume the next non-skipped Markdown token, pushing skipped trivia and result into children.
+  pub(super) fn advance_md(&mut self, children: &mut Vec<GreenNode>, skip: u16) -> LexResult {
+    loop {
+      let mut result = self.lex_ctx.lex();
+      if let Some(diagnostic) = result.diagnostic.take() {
+        self.diagnostics.push(diagnostic);
+      }
+      if self.lex_ctx.should_skip(result.token.kind(), skip) {
+        children.push(GreenNode::from_token(result.token));
+      } else {
+        children.push(GreenNode::from_token(result.token.clone()));
+        return result;
+      }
+    }
+  }
+
+  /// Like advance_yaml(), but expects the token to match `expected`.
+  pub(super) fn consume_yaml(
     &mut self,
     children: &mut Vec<GreenNode>,
-    skip: u8,
+    skip: u16,
     expected: SyntaxKind,
     diagnostic: Diagnostic,
   ) -> bool {
-    let result = self.advance(children, skip);
+    let result = self.advance_yaml(children, skip);
     if result.token.kind() != expected {
       let bad_token = children.pop().unwrap();
       children.push(self.emit(SyntaxKind::Error, &[bad_token]));
@@ -115,17 +111,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
-  /// Like advance(), but expects the last token to satisfy a predicate.
-  /// If it doesn't, the token is wrapped in an Error node and a diagnostic is pushed.
-  /// Returns true if matched, false otherwise.
-  pub(super) fn consume_if(
+  /// Like advance_yaml(), but expects the token to satisfy a predicate.
+  pub(super) fn consume_yaml_if(
     &mut self,
     children: &mut Vec<GreenNode>,
-    skip: u8,
+    skip: u16,
     predicate: impl Fn(&SyntaxToken) -> bool,
     diagnostic: Diagnostic,
   ) -> bool {
-    let result = self.advance(children, skip);
+    let result = self.advance_yaml(children, skip);
     if !predicate(&result.token) {
       let bad_token = children.pop().unwrap();
       children.push(self.emit(SyntaxKind::Error, &[bad_token]));
@@ -133,27 +127,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
       false
     } else {
       true
-    }
-  }
-
-  /// Consume tokens until a newline or EOF is reached.
-  /// All consumed tokens are pushed into children.
-  /// Lexer diagnostics are collected.
-  pub(super) fn advance_to_next_line(&mut self, children: &mut Vec<GreenNode>) {
-    loop {
-      let mut result = self.lex_ctx.lex();
-      if let Some(diagnostic) = result.diagnostic.take() {
-        self.diagnostics.push(diagnostic);
-      }
-      match result.token.kind() {
-        SyntaxKind::Newline | SyntaxKind::Eof => {
-          children.push(GreenNode::from_token(result.token));
-          return;
-        }
-        _ => {
-          children.push(GreenNode::from_token(result.token));
-        }
-      }
     }
   }
 

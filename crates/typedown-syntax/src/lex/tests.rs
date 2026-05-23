@@ -146,9 +146,17 @@ mod tests {
 
   #[test]
   fn yaml_indent() {
-    // Leading space at line start emits YamlIndent (synthetic, empty text)
-    let tokens = lex_yaml(" ");
+    // Leading space on a non-empty line emits YamlIndent
+    let tokens = lex_yaml(" a");
     assert_eq!(tokens[0].0, SyntaxKind::YamlIndent);
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "a".to_string()));
+  }
+
+  #[test]
+  fn yaml_empty_line_no_indent() {
+    // Leading space on an empty line (before EOF) emits Whitespace, not YamlIndent
+    let tokens = lex_yaml(" ");
+    assert_eq!(tokens[0], (SyntaxKind::Whitespace, " ".to_string()));
   }
 
   #[test]

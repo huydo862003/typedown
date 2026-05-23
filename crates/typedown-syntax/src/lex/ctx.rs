@@ -53,12 +53,12 @@ pub(super) struct YamlLexCtx {
   pub(super) indent_stack: Vec<usize>,
   // We allow nested interpolations
   // We need to distinguish between nested strings, interpolations, etc.
-  pub(super) interp_stack: Vec<YamlInterpContext>,
+  pub(super) interp_stack: Vec<InterpContext>,
   // The indent character established by the first indented line (None = not yet determined)
   pub(super) indent_char: Option<char>,
 }
 
-pub(super) enum YamlInterpContext {
+pub(super) enum InterpContext {
   // Inside ${...}
   Interpolation,
   // Inside a nested {...} within an interpolation
@@ -72,18 +72,7 @@ pub(super) enum YamlInterpContext {
 /* Markdown state */
 pub(super) struct MarkdownLexCtx {
   // Context stack for formula mode interpolation inside markdown
-  pub(super) interp_stack: Vec<MdInterpContext>,
-}
-
-pub(super) enum MdInterpContext {
-  // Inside ${...} formula
-  Interpolation,
-  // Nested { inside a formula
-  Brace,
-  // Inside "..." within a formula
-  DqString,
-  // Inside '...' within a formula
-  SqString,
+  pub(super) interp_stack: Vec<InterpContext>,
 }
 
 impl<S: Utf8Stream> LexCtx<S> {

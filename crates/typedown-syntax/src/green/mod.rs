@@ -100,12 +100,10 @@ impl Clone for GreenNode {
 
 impl Drop for GreenNode {
   fn drop(&mut self) {
-    unsafe {
-      if self.is_node() {
-        drop(SyntaxNode(self.0 as *const _));
-      } else {
-        drop(SyntaxToken((self.0 & !1) as *const _));
-      }
+    if self.is_node() {
+      drop(SyntaxNode(self.0 as *const _));
+    } else {
+      drop(SyntaxToken((self.0 & !1) as *const _));
     }
   }
 }

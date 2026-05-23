@@ -1,5 +1,6 @@
 /// Compilation diagnostics.
 /// When multiple variants match, use the first (most specific) one.
+#[derive(Debug, Clone)]
 pub enum Diagnostic {
   /* Lexer diagnostics */
   /// Expected a specific character but reached end of input.
@@ -106,18 +107,13 @@ pub enum Diagnostic {
   },
 
   /* Parser diagnostics */
-  /// Unexpected tokens found before the frontmatter marker ---.
-  UnexpectedTokensBeforeFrontmatterMarker {
+
+  /// Unexpected tokens found before/after the frontmatter marker ---
+  UnexpectedTokensOnFrontmatterMarkerLine {
     start_offset: usize,
     end_offset: usize,
   },
 
-  /// Missing frontmatter marker --- (either opening or closing).
+  /// Missing frontmatter marker ---
   MissingFrontmatterMarker { offset: usize },
-
-  /// Extra tokens found on the same line after ---.
-  ExtraTokensAfterFrontmatterMarker {
-    start_offset: usize,
-    end_offset: usize,
-  },
 }

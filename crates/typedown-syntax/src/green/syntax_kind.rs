@@ -38,9 +38,11 @@ pub enum SyntaxKind {
 
   // Expression nodes
   Expr = 300,
-  InterpExpr, // ${ ... }
-  TaggedExpr, // !tag value
-  Tag,        // !string, !number, ...
+  InterpExpr,      // ${ ... }
+  TaggedExpr,      // !tag value
+  Tag,             // !string, !number, ...
+  LiteralBlockStr, // | block scalar (preserves newlines)
+  FoldedBlockStr,  // > block scalar (folds newlines to spaces)
 
   // Shared tokens
   Ident = 400,

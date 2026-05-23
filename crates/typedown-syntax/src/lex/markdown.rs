@@ -1,7 +1,7 @@
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
-use super::ctx::{LexCtx, LexResult, MdInterpContext};
+use super::ctx::{LexCtx, LexResult, InterpContext};
 use super::yaml::is_op_char;
 use crate::green::syntax_kind::SyntaxKind;
 
@@ -10,10 +10,10 @@ impl<S: Utf8Stream> LexCtx<S> {
   pub(super) fn lex_markdown_body(&mut self) -> LexResult {
     // If inside a formula/string context, dispatch accordingly
     match self.markdown_lex_ctx.interp_stack.last() {
-      Some(MdInterpContext::Interpolation) | Some(MdInterpContext::Brace) => {
+      Some(InterpContext::Interpolation) | Some(InterpContext::Brace) => {
         return self.lex_markdown_formula();
       }
-      Some(MdInterpContext::DqString) | Some(MdInterpContext::SqString) => {
+      Some(InterpContext::DqString) | Some(InterpContext::SqString) => {
         return self.lex_markdown_resume_string();
       }
       None => {}
@@ -79,7 +79,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Dollar */
 
-  fn lex_markdown_dollar(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_dollar(&mut self) -> LexResult {
     // Count opening $ delimiters
     let mut fence_count = 0;
     while let Utf8Result::Char('$') = self.peek() {
@@ -93,7 +93,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         self
           .markdown_lex_ctx
           .interp_stack
-          .push(MdInterpContext::Interpolation);
+          .push(InterpContext::Interpolation);
         return self.emit(SyntaxKind::InterpStart);
       }
     }
@@ -143,7 +143,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Text */
 
-  fn lex_markdown_text(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_text(&mut self) -> LexResult {
     loop {
       match self.peek() {
         Utf8Result::Char(char)
@@ -167,7 +167,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Symbols */
 
-  fn lex_markdown_symbol(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_symbol(&mut self) -> LexResult {
     loop {
       match self.peek() {
         Utf8Result::Char(char) if is_md_symbol_char(char) => {
@@ -181,7 +181,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Code spans */
 
-  fn lex_markdown_code(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_code(&mut self) -> LexResult {
     // Count opening backticks
     let mut fence_count = 0;
     while let Utf8Result::Char('`') = self.peek() {
@@ -233,13 +233,13 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Numbers */
 
-  fn lex_markdown_number(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_number(&mut self) -> LexResult {
     self.lex_number()
   }
 
   /* Formula mode (inside ${...} in markdown) */
 
-  fn lex_markdown_formula(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_formula(&mut self) -> LexResult {
     if let Utf8Result::Eof = self.peek() {
       self.markdown_lex_ctx.interp_stack.pop();
       let offset = self.stream.offset();
@@ -261,11 +261,11 @@ impl<S: Utf8Stream> LexCtx<S> {
       '}' => {
         self.advance_avoid_invalid_utf8();
         match self.markdown_lex_ctx.interp_stack.last() {
-          Some(MdInterpContext::Brace) => {
+          Some(InterpContext::Brace) => {
             self.markdown_lex_ctx.interp_stack.pop();
             self.emit(SyntaxKind::RBrace)
           }
-          Some(MdInterpContext::Interpolation) => {
+          Some(InterpContext::Interpolation) => {
             self.markdown_lex_ctx.interp_stack.pop();
             self.emit(SyntaxKind::InterpEnd)
           }
@@ -277,7 +277,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         self
           .markdown_lex_ctx
           .interp_stack
-          .push(MdInterpContext::Brace);
+          .push(InterpContext::Brace);
         self.emit(SyntaxKind::LBrace)
       }
       '"' => {
@@ -285,7 +285,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         self
           .markdown_lex_ctx
           .interp_stack
-          .push(MdInterpContext::DqString);
+          .push(InterpContext::DqString);
         self.emit(SyntaxKind::DqStrStart)
       }
       '\'' => {
@@ -293,7 +293,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         self
           .markdown_lex_ctx
           .interp_stack
-          .push(MdInterpContext::SqString);
+          .push(InterpContext::SqString);
         self.emit(SyntaxKind::SqStrStart)
       }
       '\n' | '\r' => {
@@ -327,26 +327,14 @@ impl<S: Utf8Stream> LexCtx<S> {
         self.advance_avoid_invalid_utf8();
         self.emit(SyntaxKind::Comma)
       }
+      '#' => self.lex_yaml_comment(),
       ':' => {
         self.advance_avoid_invalid_utf8();
         self.emit(SyntaxKind::Colon)
       }
       '0'..='9' => self.lex_number(),
-      _ if char.is_alphabetic() || char == '_' => {
-        loop {
-          match self.peek() {
-            Utf8Result::Char(char) if char.is_alphanumeric() || char == '_' => {
-              self.advance_avoid_invalid_utf8();
-            }
-            _ => break,
-          }
-        }
-        self.emit(SyntaxKind::Ident)
-      }
-      _ if is_op_char(char) => {
-        self.consume_op_chars();
-        self.emit(SyntaxKind::YamlOp)
-      }
+      _ if char.is_alphabetic() || char == '_' => self.lex_yaml_ident(),
+      _ if is_op_char(char) => self.lex_yaml_op(),
       _ => {
         self.advance_avoid_invalid_utf8();
         self.emit(SyntaxKind::Error)
@@ -354,12 +342,12 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  fn lex_markdown_resume_string(&mut self) -> LexResult {
+  pub(super) fn lex_markdown_resume_string(&mut self) -> LexResult {
     match self.markdown_lex_ctx.interp_stack.last() {
-      Some(MdInterpContext::DqString) => {
+      Some(InterpContext::DqString) => {
         self.lex_markdown_string_content('"', SyntaxKind::DqStrContent, SyntaxKind::DqStrEnd)
       }
-      Some(MdInterpContext::SqString) => {
+      Some(InterpContext::SqString) => {
         self.lex_markdown_string_content('\'', SyntaxKind::SqStrContent, SyntaxKind::SqStrEnd)
       }
       _ => panic!(
@@ -368,7 +356,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  fn lex_markdown_string_content(
+  pub(super) fn lex_markdown_string_content(
     &mut self,
     closing: char,
     content_kind: SyntaxKind,
@@ -402,7 +390,7 @@ impl<S: Utf8Stream> LexCtx<S> {
               self
                 .markdown_lex_ctx
                 .interp_stack
-                .push(MdInterpContext::Interpolation);
+                .push(InterpContext::Interpolation);
 
               let interp_start = LexResult {
                 token: self
