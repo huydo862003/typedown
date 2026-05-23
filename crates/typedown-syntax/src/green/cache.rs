@@ -7,18 +7,18 @@ use hashbrown::HashMap;
 use hashbrown::hash_map::RawEntryMut;
 use std::hash::{BuildHasher, Hash, Hasher};
 
-use super::child::GreenChild;
-use super::node::Node;
+use super::GreenNode;
+use super::node::SyntaxNode;
 use super::syntax_kind::SyntaxKind;
-use super::token::Token;
+use super::token::SyntaxToken;
 
 /// A non-thread safe interner for node/token deduplication.
 #[derive(Default)]
 pub struct Cache {
   // We use HashMap instead of HashSet to access the raw entry API,
   // which avoids allocating just to check if an entry exists.
-  tokens: HashMap<Token, ()>,
-  nodes: HashMap<Node, ()>,
+  tokens: HashMap<SyntaxToken, ()>,
+  nodes: HashMap<SyntaxNode, ()>,
 }
 
 impl Cache {
@@ -27,7 +27,7 @@ impl Cache {
   }
 
   /// Get or create an interned token.
-  pub fn token(&mut self, kind: SyntaxKind, bytes: &[u8]) -> Token {
+  pub fn token(&mut self, kind: SyntaxKind, bytes: &[u8]) -> SyntaxToken {
     // Hash from borrowed data to avoid allocating a String on cache hit
     let hash = {
       let mut h = self.tokens.hasher().build_hasher();
@@ -43,7 +43,7 @@ impl Cache {
     match entry {
       RawEntryMut::Occupied(e) => e.key().clone(),
       RawEntryMut::Vacant(e) => {
-        let token = Token::from_raw_parts(kind, bytes.to_vec());
+        let token = SyntaxToken::from_raw_parts(kind, bytes.to_vec());
         e.insert_hashed_nocheck(hash, token.clone(), ());
         token
       }
@@ -51,7 +51,7 @@ impl Cache {
   }
 
   /// Get or create an interned node.
-  pub fn node(&mut self, kind: SyntaxKind, children: &[GreenChild]) -> Node {
+  pub fn node(&mut self, kind: SyntaxKind, children: &[GreenNode]) -> SyntaxNode {
     let hash = {
       let mut h = self.nodes.hasher().build_hasher();
       kind.hash(&mut h);
@@ -66,7 +66,7 @@ impl Cache {
     match entry {
       RawEntryMut::Occupied(e) => e.key().clone(),
       RawEntryMut::Vacant(e) => {
-        let node = Node::from_raw_parts(kind, children);
+        let node = SyntaxNode::from_raw_parts(kind, children);
         e.insert_hashed_nocheck(hash, node.clone(), ());
         node
       }

@@ -12,11 +12,11 @@ use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::green::cache::Cache;
 use crate::green::syntax_kind::SyntaxKind;
-use crate::green::token::Token;
+use crate::green::token::SyntaxToken;
 use crate::lex::diagnostic::LexDiagnostic;
 
 pub struct LexResult {
-  pub token: Token,
+  pub token: SyntaxToken,
   pub diagnostic: Option<LexDiagnostic>,
 }
 

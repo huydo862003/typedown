@@ -13,9 +13,9 @@ pub(super) struct TokenBody {
 }
 
 /// The leaf node in the green tree.
-pub struct Token(pub(super) *const TokenBody);
+pub struct SyntaxToken(pub(super) *const TokenBody);
 
-impl Token {
+impl SyntaxToken {
   pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &[u8]) -> Self {
     cache.token(kind, text)
   }
@@ -51,7 +51,7 @@ impl Token {
   }
 }
 
-impl Clone for Token {
+impl Clone for SyntaxToken {
   /// The clone is very cheap
   /// Suggest to use clone instead of &
   fn clone(&self) -> Self {
@@ -61,7 +61,7 @@ impl Clone for Token {
   }
 }
 
-impl Drop for Token {
+impl Drop for SyntaxToken {
   fn drop(&mut self) {
     // Currently use AcqRel for extra safety
     let prev = unsafe { (*self.0).ref_count.fetch_sub(1, Ordering::AcqRel) };
@@ -72,7 +72,7 @@ impl Drop for Token {
   }
 }
 
-impl PartialEq for Token {
+impl PartialEq for SyntaxToken {
   fn eq(&self, other: &Self) -> bool {
     let self_bytes = unsafe { &(*self.0).bytes };
     let other_bytes = unsafe { &(*other.0).bytes };
@@ -84,14 +84,14 @@ impl PartialEq for Token {
   }
 }
 
-impl Eq for Token {}
+impl Eq for SyntaxToken {}
 
-impl Hash for Token {
+impl Hash for SyntaxToken {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
     self.text().collect::<String>().hash(state);
   }
 }
 
-unsafe impl Send for Token {}
-unsafe impl Sync for Token {}
+unsafe impl Send for SyntaxToken {}
+unsafe impl Sync for SyntaxToken {}

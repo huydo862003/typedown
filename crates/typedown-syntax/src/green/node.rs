@@ -2,7 +2,7 @@ use std::alloc::{Layout, alloc, dealloc};
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::child::GreenChild;
+use super::GreenNode;
 use crate::green::syntax_kind::SyntaxKind;
 
 pub(super) struct NodeHeader {
@@ -13,16 +13,16 @@ pub(super) struct NodeHeader {
 }
 
 /// An interior node in the green tree.
-pub struct Node(pub(super) *const NodeHeader);
+pub struct SyntaxNode(pub(super) *const NodeHeader);
 
-impl Node {
+impl SyntaxNode {
   fn layout(n: usize) -> (Layout, usize) {
     Layout::new::<NodeHeader>()
-      .extend(Layout::array::<GreenChild>(n).unwrap())
+      .extend(Layout::array::<GreenNode>(n).unwrap())
       .unwrap()
   }
 
-  pub(super) fn from_raw_parts(kind: SyntaxKind, children: &[GreenChild]) -> Self {
+  pub(super) fn from_raw_parts(kind: SyntaxKind, children: &[GreenNode]) -> Self {
     let n = children.len();
     let text_len = children.iter().map(|c| c.text_len()).sum();
     let (layout, children_offset) = Self::layout(n);
@@ -39,7 +39,7 @@ impl Node {
       });
 
       // Clone each child (bumps ref-count) and write into the allocation.
-      let children_ptr = base.add(children_offset) as *mut GreenChild;
+      let children_ptr = base.add(children_offset) as *mut GreenNode;
       for (i, child) in children.iter().enumerate() {
         children_ptr.add(i).write(child.clone());
       }
@@ -52,7 +52,7 @@ impl Node {
   pub(crate) fn new(
     cache: &mut super::cache::Cache,
     kind: SyntaxKind,
-    children: &[GreenChild],
+    children: &[GreenNode],
   ) -> Self {
     cache.node(kind, children)
   }
@@ -70,17 +70,17 @@ impl Node {
   }
 
   /// Returns a slice of this node's children.
-  pub fn children(&self) -> &[GreenChild] {
+  pub fn children(&self) -> &[GreenNode] {
     unsafe {
       let n = (*self.0).n_children as usize;
       let (_, offset) = Self::layout(n);
-      let ptr = (self.0 as *const u8).add(offset) as *const GreenChild;
+      let ptr = (self.0 as *const u8).add(offset) as *const GreenNode;
       std::slice::from_raw_parts(ptr, n)
     }
   }
 }
 
-impl Clone for Node {
+impl Clone for SyntaxNode {
   /// The clone is very cheap
   /// Suggest to use clone instead of &
   fn clone(&self) -> Self {
@@ -89,7 +89,7 @@ impl Clone for Node {
   }
 }
 
-impl Drop for Node {
+impl Drop for SyntaxNode {
   fn drop(&mut self) {
     let prev = unsafe { (*self.0).ref_count.fetch_sub(1, Ordering::AcqRel) };
     if prev != 1 {
@@ -98,7 +98,7 @@ impl Drop for Node {
     unsafe {
       let n = (*self.0).n_children as usize;
       let (layout, offset) = Self::layout(n);
-      let children_ptr = (self.0 as *mut u8).add(offset) as *mut GreenChild;
+      let children_ptr = (self.0 as *mut u8).add(offset) as *mut GreenNode;
       for i in 0..n {
         std::ptr::drop_in_place(children_ptr.add(i));
       }
@@ -107,20 +107,20 @@ impl Drop for Node {
   }
 }
 
-impl PartialEq for Node {
+impl PartialEq for SyntaxNode {
   fn eq(&self, other: &Self) -> bool {
     self.0 == other.0 || (self.kind() == other.kind() && self.children() == other.children())
   }
 }
 
-impl Eq for Node {}
+impl Eq for SyntaxNode {}
 
-impl Hash for Node {
+impl Hash for SyntaxNode {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
     self.children().hash(state);
   }
 }
 
-unsafe impl Send for Node {}
-unsafe impl Sync for Node {}
+unsafe impl Send for SyntaxNode {}
+unsafe impl Sync for SyntaxNode {}

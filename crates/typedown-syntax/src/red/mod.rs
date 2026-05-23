@@ -4,7 +4,7 @@
 
 use std::rc::Rc;
 
-use crate::green::{child::GreenChild, node::Node, syntax_kind::SyntaxKind};
+use crate::green::{GreenNode, node::SyntaxNode, syntax_kind::SyntaxKind};
 
 pub struct RedNodeData {
   /// The start offset of this red node in the source code
@@ -12,18 +12,18 @@ pub struct RedNodeData {
   /// The parent pointer
   parent: Option<RedNode>,
   /// The underlying green child
-  green: GreenChild,
+  green: GreenNode,
 }
 
 #[derive(Clone)]
 pub struct RedNode(Rc<RedNodeData>);
 
 impl RedNode {
-  pub fn new_root(root: Node) -> RedNode {
+  pub fn new_root(root: SyntaxNode) -> RedNode {
     RedNode(Rc::new(RedNodeData {
       offset: 0,
       parent: None,
-      green: GreenChild::from_node(root),
+      green: GreenNode::from_node(root),
     }))
   }
 
@@ -49,7 +49,7 @@ impl RedNode {
 /// A lazy iterator over a RedNode's children.
 pub struct RedNodeChildren {
   parent: RedNode,
-  green_node: Option<Node>,
+  green_node: Option<SyntaxNode>,
   index: usize,
   offset: usize,
 }
