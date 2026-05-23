@@ -6,14 +6,15 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
 use super::constants::*;
 use crate::{
-  green::{GreenNode, cache::Cache, syntax_kind::SyntaxKind},
+  green::{GreenNode, SyntaxToken, cache::Cache, syntax_kind::SyntaxKind},
   lex::ctx::{LexCtx, LexMode, LexResult},
 };
 
 pub struct ParseCtx<S: Utf8Stream> {
   pub(super) cache: Rc<RefCell<Cache>>,
   pub(super) lex_ctx: LexCtx<S>,
-  ast: Option<(GreenNode, Vec<Diagnostic>)>,
+  pub(super) diagnostics: Vec<Diagnostic>,
+  ast: Option<GreenNode>,
 }
 
 pub struct ParseResult<'a> {
@@ -26,25 +27,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
     Self {
       cache: cache.clone(),
       lex_ctx: LexCtx::new(stream, cache),
+      diagnostics: Vec::new(),
       ast: None,
     }
   }
 
   pub fn parse<'a>(&'a mut self) -> ParseResult<'a> {
-    if let Some((ref ast, ref diagnostics)) = self.ast {
+    if let Some(ref ast) = self.ast {
       ParseResult {
         ast: ast.clone(),
-        diagnostics,
+        diagnostics: &self.diagnostics,
       }
     } else {
-      self.parse_source_file();
-      let (ast, diagnostics) = self
-        .ast
-        .as_ref()
-        .expect("ParseCtx::ast should be set after calling parse_source_file()");
+      let root = self.parse_source_file();
+      self.ast = Some(root.clone());
       ParseResult {
-        ast: ast.clone(),
-        diagnostics,
+        ast: root,
+        diagnostics: &self.diagnostics,
       }
     }
   }
@@ -81,6 +80,43 @@ impl<S: Utf8Stream> ParseCtx<S> {
         return result;
       }
     }
+  }
+
+  /// Like advance(), but expects the last token to match `expected`.
+  /// If it doesn't match, the token is wrapped in an Error node and a diagnostic is pushed.
+  pub(super) fn consume(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u8,
+    expected: SyntaxKind,
+    diagnostic: Diagnostic,
+  ) -> LexResult {
+    let result = self.advance(children, skip);
+    if result.token.kind() != expected {
+      // Pop the token we just pushed, wrap it in an Error node
+      let bad_token = children.pop().unwrap();
+      children.push(self.emit(SyntaxKind::Error, &[bad_token]));
+      self.diagnostics.push(diagnostic);
+    }
+    result
+  }
+
+  /// Like advance(), but expects the last token to satisfy a predicate.
+  /// If it doesn't, the token is wrapped in an Error node and a diagnostic is pushed.
+  pub(super) fn consume_if(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u8,
+    predicate: impl Fn(&SyntaxToken) -> bool,
+    diagnostic: Diagnostic,
+  ) -> LexResult {
+    let result = self.advance(children, skip);
+    if !predicate(&result.token) {
+      let bad_token = children.pop().unwrap();
+      children.push(self.emit(SyntaxKind::Error, &[bad_token]));
+      self.diagnostics.push(diagnostic);
+    }
+    result
   }
 
   /// Emit a GreenNode
