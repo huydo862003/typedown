@@ -66,7 +66,19 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Use SKIP_* constants to control what trivia to skip.
   pub(super) fn advance(&mut self, children: &mut Vec<GreenNode>, skip: u8) -> LexResult {
     loop {
-      let result = self.lex_ctx.lex();
+      let mut result = self.lex_ctx.lex();
+
+      // Collect lexer diagnostics if any
+      if let Some(diagnostic) = result.diagnostic.take() {
+        self.diagnostics.push(diagnostic);
+      }
+
+      // Skip Error tokens from the lexer
+      if result.token.kind() == SyntaxKind::Error {
+        children.push(GreenNode::from_token(result.token));
+        continue;
+      }
+
       let should_skip = match result.token.kind() {
         SyntaxKind::Whitespace => skip & SKIP_WS != 0,
         SyntaxKind::YamlComment => skip & SKIP_COMMENT != 0,
@@ -84,39 +96,70 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Like advance(), but expects the last token to match `expected`.
   /// If it doesn't match, the token is wrapped in an Error node and a diagnostic is pushed.
+  /// Returns true if matched, false otherwise.
   pub(super) fn consume(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u8,
     expected: SyntaxKind,
     diagnostic: Diagnostic,
-  ) -> LexResult {
+  ) -> bool {
     let result = self.advance(children, skip);
     if result.token.kind() != expected {
-      // Pop the token we just pushed, wrap it in an Error node
       let bad_token = children.pop().unwrap();
       children.push(self.emit(SyntaxKind::Error, &[bad_token]));
       self.diagnostics.push(diagnostic);
+      false
+    } else {
+      true
     }
-    result
   }
 
   /// Like advance(), but expects the last token to satisfy a predicate.
   /// If it doesn't, the token is wrapped in an Error node and a diagnostic is pushed.
+  /// Returns true if matched, false otherwise.
   pub(super) fn consume_if(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u8,
     predicate: impl Fn(&SyntaxToken) -> bool,
     diagnostic: Diagnostic,
-  ) -> LexResult {
+  ) -> bool {
     let result = self.advance(children, skip);
     if !predicate(&result.token) {
       let bad_token = children.pop().unwrap();
       children.push(self.emit(SyntaxKind::Error, &[bad_token]));
       self.diagnostics.push(diagnostic);
+      false
+    } else {
+      true
     }
-    result
+  }
+
+  /// Consume tokens until a newline or EOF is reached.
+  /// All consumed tokens are pushed into children.
+  /// Lexer diagnostics are collected.
+  pub(super) fn advance_to_next_line(&mut self, children: &mut Vec<GreenNode>) {
+    loop {
+      let mut result = self.lex_ctx.lex();
+      if let Some(diagnostic) = result.diagnostic.take() {
+        self.diagnostics.push(diagnostic);
+      }
+      match result.token.kind() {
+        SyntaxKind::Newline | SyntaxKind::Eof => {
+          children.push(GreenNode::from_token(result.token));
+          return;
+        }
+        _ => {
+          children.push(GreenNode::from_token(result.token));
+        }
+      }
+    }
+  }
+
+  /// Current byte offset in the source stream.
+  pub(super) fn offset(&self) -> usize {
+    self.lex_ctx.offset()
   }
 
   /// Emit a GreenNode

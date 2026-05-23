@@ -118,9 +118,9 @@ impl<S: Utf8Stream> LexCtx<S> {
     &self.mode
   }
 
-  /// Access pending tokens for push-back from the parser.
-  pub fn pending_tokens_mut(&mut self) -> &mut Vec<LexResult> {
-    &mut self.pending_tokens
+  /// Current byte offset in the source stream.
+  pub fn offset(&self) -> usize {
+    self.stream.offset()
   }
 
   pub fn lex(&mut self) -> LexResult {

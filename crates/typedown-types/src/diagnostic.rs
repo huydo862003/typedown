@@ -2,7 +2,6 @@
 /// When multiple variants match, use the first (most specific) one.
 pub enum Diagnostic {
   /* Lexer diagnostics */
-
   /// Expected a specific character but reached end of input.
   UnexpectedEof {
     expected: char,
@@ -102,6 +101,22 @@ pub enum Diagnostic {
 
   /// Missing digits after exponent in scientific notation (e.g. 2.5E+, 1e).
   MissingExponentDigits {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /* Parser diagnostics */
+  /// Unexpected tokens found before the frontmatter marker ---.
+  UnexpectedTokensBeforeFrontmatterMarker {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Missing frontmatter marker --- (either opening or closing).
+  MissingFrontmatterMarker { offset: usize },
+
+  /// Extra tokens found on the same line after ---.
+  ExtraTokensAfterFrontmatterMarker {
     start_offset: usize,
     end_offset: usize,
   },
