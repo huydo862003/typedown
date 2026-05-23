@@ -132,6 +132,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     *self.yaml_lex_ctx.indent_stack.last().unwrap_or(&0)
   }
 
+  // TODO: Empty lines should be ignored (no dedent or indent at all)
   fn lex_yaml_indent(&mut self) -> Option<LexResult> {
     self.yaml_lex_ctx.at_line_start = false;
 
