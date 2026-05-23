@@ -93,8 +93,8 @@ impl<S: Utf8Stream> LexCtx<S> {
         return result;
       }
       match self.mode {
-        LexMode::YamlFrontmatter => self.lex_frontmatter(),
-        LexMode::MarkdownBody => self.lex_body(),
+        LexMode::YamlFrontmatter => self.lex_yaml_frontmatter(),
+        LexMode::MarkdownBody => self.lex_markdown_body(),
       }
     }
   }
@@ -102,14 +102,15 @@ impl<S: Utf8Stream> LexCtx<S> {
 
 // YAML frontmatter lexing
 impl<S: Utf8Stream> LexCtx<S> {
-  fn lex_frontmatter(&mut self) -> LexResult {
+  fn lex_yaml_frontmatter(&mut self) -> LexResult {
     todo!()
   }
+
 }
 
 // Markdown body lexing
 impl<S: Utf8Stream> LexCtx<S> {
-  fn lex_body(&mut self) -> LexResult {
+  fn lex_markdown_body(&mut self) -> LexResult {
     todo!()
   }
 }
