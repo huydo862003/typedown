@@ -4,8 +4,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
+use super::constants::*;
 use crate::{
-  green::{GreenNode, SyntaxToken, cache::Cache, syntax_kind::SyntaxKind},
+  green::{GreenNode, cache::Cache, syntax_kind::SyntaxKind},
   lex::ctx::{LexCtx, LexMode, LexResult},
 };
 
@@ -61,57 +62,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
 /// We do not support peek here, because lexing is irreversible
 impl<S: Utf8Stream> ParseCtx<S> {
-  /// Consume the next token, push it into children, and return it.
-  pub(super) fn advance(&mut self, children: &mut Vec<GreenNode>) -> LexResult {
-    let result = self.lex_ctx.lex();
-    children.push(GreenNode::from_token(result.token.clone()));
-    result
-  }
-
-  /// Consume tokens, skipping whitespace. Skipped tokens are pushed into children.
-  /// Returns the first non-whitespace token.
-  pub(super) fn advance_skip_ws(&mut self, children: &mut Vec<GreenNode>) -> LexResult {
+  /// Consume the next token, pushing skipped trivia into children.
+  /// Returns the first non-skipped token (also pushed into children).
+  /// Use SKIP_* constants to control what trivia to skip.
+  pub(super) fn advance(&mut self, children: &mut Vec<GreenNode>, skip: u8) -> LexResult {
     loop {
       let result = self.lex_ctx.lex();
-      if result.token.kind() == SyntaxKind::Whitespace {
+      let should_skip = match result.token.kind() {
+        SyntaxKind::Whitespace => skip & SKIP_WS != 0,
+        SyntaxKind::YamlComment => skip & SKIP_COMMENT != 0,
+        SyntaxKind::Newline => skip & SKIP_NEWLINE != 0,
+        _ => false,
+      };
+      if should_skip {
         children.push(GreenNode::from_token(result.token));
       } else {
         children.push(GreenNode::from_token(result.token.clone()));
         return result;
-      }
-    }
-  }
-
-  /// Consume tokens, skipping whitespace and comments. Skipped tokens are pushed into children.
-  /// Returns the first non-whitespace, non-comment token.
-  pub(super) fn advance_skip_wc(&mut self, children: &mut Vec<GreenNode>) -> LexResult {
-    loop {
-      let result = self.lex_ctx.lex();
-      match result.token.kind() {
-        SyntaxKind::Whitespace | SyntaxKind::YamlComment => {
-          children.push(GreenNode::from_token(result.token));
-        }
-        _ => {
-          children.push(GreenNode::from_token(result.token.clone()));
-          return result;
-        }
-      }
-    }
-  }
-
-  /// Consume tokens, skipping whitespace, comments, and newlines. Skipped tokens are pushed into children.
-  /// Returns the first non-trivia token.
-  pub(super) fn advance_skip_wcn(&mut self, children: &mut Vec<GreenNode>) -> LexResult {
-    loop {
-      let result = self.lex_ctx.lex();
-      match result.token.kind() {
-        SyntaxKind::Whitespace | SyntaxKind::YamlComment | SyntaxKind::Newline => {
-          children.push(GreenNode::from_token(result.token));
-        }
-        _ => {
-          children.push(GreenNode::from_token(result.token.clone()));
-          return result;
-        }
       }
     }
   }
