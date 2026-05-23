@@ -87,6 +87,7 @@ pub enum SyntaxKind {
   Comment,
   Indent,
   Dedent,
+  Eof, // End of file
 
   // Error
   Error,

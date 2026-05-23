@@ -11,7 +11,7 @@ use std::rc::Rc;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::green::cache::Cache;
-use crate::green::syntax_kind::SyntaxKind;
+use crate::green::syntax_kind::{self, SyntaxKind};
 use crate::green::token::Token;
 use crate::lex::diagnostic::{self, LexDiagnostic};
 
@@ -31,11 +31,6 @@ pub struct LexCtx<S: Utf8Stream> {
   cache: Rc<RefCell<Cache>>,
   // Current mode
   mode: LexMode,
-
-  // Start offset of the to-be-produced token
-  start_offset: usize,
-  // Current (exclusive end) offset of the to-be-produced token
-  end_offset: usize,
   // Text buffer to accumulate the read utf-8
   text_buffer: String,
 }
@@ -45,8 +40,6 @@ impl<S: Utf8Stream> LexCtx<S> {
     Self {
       stream,
       cache,
-      start_offset: 0,
-      end_offset: 0,
       mode: LexMode::YamlFrontmatter,
       text_buffer: String::from(""),
     }
@@ -58,15 +51,28 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 
   /// Lex the next token based on the current mode.
-  pub fn lex(&mut self) -> Option<LexResult> {
+  pub fn lex(&mut self) -> LexResult {
     if self.is_eof() {
-      return None;
+      self.emit(SyntaxKind::Eof)
+    } else if let Utf8Result::Invalid {
+      start_offset,
+      end_offset,
+    } = self.peek()
+    {
+      self.advance();
+      self.emit_with(
+        SyntaxKind::Error,
+        LexDiagnostic::InvalidUtf8 {
+          start_offset,
+          end_offset,
+        },
+      )
+    } else {
+      match self.mode {
+        LexMode::YamlFrontmatter => self.lex_frontmatter(),
+        LexMode::MarkdownBody => self.lex_body(),
+      }
     }
-    let result = match self.mode {
-      LexMode::YamlFrontmatter => self.lex_frontmatter(),
-      LexMode::MarkdownBody => self.lex_body(),
-    };
-    Some(result)
   }
 }
 
@@ -93,18 +99,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /// Consume the next character, appending it to the current token text.
   fn advance(&mut self) -> Utf8Result {
-    let result = self.stream.advance();
-
-    match result {
-      Utf8Result::Char(char) => {
-        self.end_offset += char.len_utf8();
-      }
-      Utf8Result::Invalid { end_offset, .. } => {
-        self.end_offset = end_offset;
-      }
-      _ => {}
-    }
-    result
+    self.stream.advance()
   }
 
   /// Consume the next character if it matches `expected`.

@@ -61,7 +61,6 @@ pub enum LexDiagnostic {
 
   /// Encountered an invalid UTF-8 byte sequence.
   InvalidUtf8 {
-    encountered: [u8; 4],
     start_offset: usize,
     end_offset: usize,
   },
