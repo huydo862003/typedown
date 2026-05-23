@@ -97,4 +97,10 @@ pub enum LexDiagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// Missing digits after exponent in scientific notation (e.g. 2.5E+, 1e).
+  MissingExponentDigits {
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

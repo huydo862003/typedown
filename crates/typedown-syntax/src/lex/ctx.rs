@@ -564,7 +564,56 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Numbers */
 
   fn lex_yaml_number(&mut self) -> LexResult {
-    todo!()
+    // Integer part
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if char.is_ascii_digit() => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+    // Decimal part
+    if let Utf8Result::Char('.') = self.peek() {
+      self.advance_avoid_invalid_utf8();
+      loop {
+        match self.peek() {
+          Utf8Result::Char(char) if char.is_ascii_digit() => {
+            self.advance_avoid_invalid_utf8();
+          }
+          _ => break,
+        }
+      }
+    }
+    // Scientific notation
+    if let Utf8Result::Char('e' | 'E') = self.peek() {
+      self.advance_avoid_invalid_utf8();
+      if let Utf8Result::Char('+' | '-') = self.peek() {
+        self.advance_avoid_invalid_utf8();
+      }
+      // Must have at least one digit after e/E or e+/e-
+      let has_digits = matches!(self.peek(), Utf8Result::Char(char) if char.is_ascii_digit());
+      if !has_digits {
+        let start = self.stream.offset() - self.text_buffer.len();
+        let end = self.stream.offset();
+        return self.emit_with(
+          SyntaxKind::Error,
+          LexDiagnostic::MissingExponentDigits {
+            start_offset: start,
+            end_offset: end,
+          },
+        );
+      }
+      loop {
+        match self.peek() {
+          Utf8Result::Char(char) if char.is_ascii_digit() => {
+            self.advance_avoid_invalid_utf8();
+          }
+          _ => break,
+        }
+      }
+    }
+    self.emit(SyntaxKind::Number)
   }
 
   /* Identifiers */
