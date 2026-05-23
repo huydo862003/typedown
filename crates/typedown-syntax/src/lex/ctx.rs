@@ -20,6 +20,7 @@ pub struct LexResult {
   pub diagnostic: Option<Diagnostic>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum LexMode {
   YamlFrontmatter,
   MarkdownBody,
@@ -111,6 +112,15 @@ impl<S: Utf8Stream> LexCtx<S> {
       "[LexCtx::set_mode] Cannot switch mode while pending tokens are queued"
     );
     self.mode = mode;
+  }
+
+  pub fn mode(&self) -> &LexMode {
+    &self.mode
+  }
+
+  /// Access pending tokens for push-back from the parser.
+  pub fn pending_tokens_mut(&mut self) -> &mut Vec<LexResult> {
+    &mut self.pending_tokens
   }
 
   pub fn lex(&mut self) -> LexResult {
