@@ -87,27 +87,31 @@ impl<S: Utf8Stream> LexCtx<S> {
 // Shared helpers
 impl<S: Utf8Stream> LexCtx<S> {
   /// Look at the next character without consuming it.
-  fn peek(&mut self) -> Option<char> {
-    match self.stream.peek() {
-      Utf8Result::Char(ch) => Some(ch),
-      _ => None,
-    }
+  fn peek(&mut self) -> Utf8Result {
+    self.stream.peek()
   }
 
   /// Consume the next character, appending it to the current token text.
-  fn advance(&mut self) -> Option<char> {
-    match self.stream.advance() {
-      Utf8Result::Char(ch) => {
-        self.end_offset += ch.len_utf8();
-        Some(ch)
+  fn advance(&mut self) -> Utf8Result {
+    let result = self.stream.advance();
+
+    match result {
+      Utf8Result::Char(char) => {
+        self.end_offset += char.len_utf8();
       }
-      _ => None,
+      Utf8Result::Invalid { end_offset, .. } => {
+        self.end_offset = end_offset;
+      }
+      _ => {}
     }
+    result
   }
 
   /// Consume the next character if it matches `expected`.
   fn consume(&mut self, expected: char) -> bool {
-    if self.peek() == Some(expected) {
+    if let Utf8Result::Char(encountered) = self.peek()
+      && encountered == expected
+    {
       self.advance();
       true
     } else {
@@ -117,8 +121,8 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /// Consume characters while the predicate holds.
   fn consume_while(&mut self, predicate: impl Fn(char) -> bool) {
-    while let Some(ch) = self.peek() {
-      if predicate(ch) {
+    while let Utf8Result::Char(encountered) = self.peek() {
+      if predicate(encountered) {
         self.advance();
       } else {
         break;
