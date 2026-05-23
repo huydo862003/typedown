@@ -45,13 +45,17 @@ pub enum SyntaxKind {
   // Tokens (leaf nodes emitted by the lexer)
   Ident = 400,
   Number,
-  DqStr,      // "..."
-  SqStr,      // '...'
-  InlineCode, // matched ` delimiters, content on same line
-  CodeBlock,  // matched ` delimiters, optional language tag, content between newlines
-  InlineMath, // matched $ delimiters, content on same line
-  MathBlock,  // matched $ delimiters, content between newlines
-  YamlOp,     // operators: +, -, ., ->, ==, etc.
+  DqStrStart,   // opening "
+  DqStrContent, // text between " and " or ${
+  DqStrEnd,     // closing "
+  SqStrStart,   // opening '
+  SqStrContent, // text between ' and ' or ${
+  SqStrEnd,     // closing '
+  InlineCode,   // matched ` delimiters, content on same line
+  CodeBlock,    // matched ` delimiters, optional language tag, content between newlines
+  InlineMath,   // matched $ delimiters, content on same line
+  MathBlock,    // matched $ delimiters, content between newlines
+  YamlOp,       // operators: +, -, ., ->, ==, etc.
 
   // Punctuation and delimiters
   TripleColon = 500, // :::
