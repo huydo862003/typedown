@@ -3,7 +3,10 @@
 TDR (Typedown Resource) is the serialization format for Typedown resources.
 
 - [Basic Structure](#basic-structure)
-- [TDR Resource](#tdr-resource)
+- [Modes](#modes)
+- [Escape Sequences](#escape-sequences)
+- [String Interpolation](#string-interpolation)
+- [TDR Frontmatter (YAML Mode)](#tdr-frontmatter-yaml-mode)
   - [Comments](#comments)
   - [Top-level Frontmatter Value](#top-level-frontmatter-value)
   - [Type Declaration](#type-declaration)
@@ -17,19 +20,18 @@ TDR (Typedown Resource) is the serialization format for Typedown resources.
   - [Type Expressions](#type-expressions)
 - [TDR Explicit Type Tags](#tdr-explicit-type-tags)
 - [TDR Schema](#tdr-schema)
-- [TDR Markdown](#tdr-markdown)
+- [TDR Body (Markdown Mode)](#tdr-body-markdown-mode)
   - [Headings](#headings)
   - [Code](#code)
   - [Blockquotes](#blockquotes)
   - [Math](#math)
   - [Tables](#tables)
-  - [Lists](#lists)
+  - [Lists](#lists-1)
   - [Callout Blocks](#callout-blocks)
   - [Multimedia](#multimedia)
   - [Links](#links-1)
   - [Footnotes](#footnotes)
   - [Bibliography](#bibliography)
-  - [String Interpolation](#string-interpolation)
 
 ## Basic Structure
 
@@ -52,7 +54,97 @@ A `.tdr` file consists of two sections:
 
 The syntaxes will be familiar to anyone who has worked with YAML and Markdown. TDR is case-sensitive throughout: identifiers, property names, type names, and reserved keys like `$type` and `$label` must match exactly.
 
-## TDR Resource
+## Modes
+
+Like Typst, TDR has three distinct modes that determine how content is interpreted. Each mode has its own syntax and semantics.
+
+### YAML Mode
+
+Active inside the frontmatter (between the opening and closing `---`). Content is interpreted as structured data: key-value mappings, sequences, expressions, and type tags. Indentation is significant. Comments start with `#`.
+
+```yaml
+---
+$type: person
+first_name: "Bob"
+tags:
+  - "research"
+  - "rdf"
+---
+```
+
+Values are expressions. Strings must be quoted. Unquoted values are identifiers, numbers, or compound expressions. String interpolation with `${...}` is supported inside quoted strings.
+
+### Markdown Mode
+
+Active after the closing `---`. Content is interpreted as rich text with formatting, headings, lists, code blocks, tables, and other document elements.
+
+```markdown
+# Introduction
+
+This is a paragraph with **bold** and _italic_ text.
+```
+
+String interpolation with `${...}` is supported anywhere in the body text. `$` without `{` enters Math mode.
+
+### Math Mode
+
+Entered with `$` (inline) or `$$` (block) inside Markdown mode. Content is treated as a math formula. No interpolation or TDR expressions are supported inside math. The mode exits when the matching closing delimiter is found.
+
+```markdown
+The formula is $E = mc^2$.
+
+$$
+\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+$$
+```
+
+## Escape Sequences
+
+Backslash `\` is the escape character. It works in quoted strings (both `"..."` and `'...'`) and in Markdown body text.
+
+In quoted strings:
+
+| Sequence | Result |
+|----------|--------|
+| `\\` | Literal `\` |
+| `\"` | Literal `"` (in double-quoted strings) |
+| `\'` | Literal `'` (in single-quoted strings) |
+| `\n` | Newline |
+| `\t` | Tab |
+| `\$` | Literal `$` (prevents interpolation) |
+
+In Markdown body text, backslash escapes any special character to produce a literal:
+
+```markdown
+\# Not a heading
+\*Not bold\*
+\$ Not math
+\${ Not interpolation
+```
+
+Inside code spans and math spans, backslash has no special meaning. All content is literal.
+
+## String Interpolation
+
+Both YAML mode and Markdown mode support string interpolation with `${...}`. Any expression can appear inside the braces:
+
+```yaml
+greeting: "Hello, ${self.first_name}!"
+```
+
+```markdown
+This note was written by ${self.author.first_name} ${self.author.last_name}.
+```
+
+`$` without `{` does not trigger interpolation. In Markdown mode, it enters Math mode. In YAML mode, it is a literal `$`.
+
+Interpolations can be nested. A string inside an interpolation can itself contain interpolations:
+
+```yaml
+label: "Result: ${"value is ${self.compute()}"}"
+```
+
+## TDR Frontmatter (YAML Mode)
 
 Every `.tdr` file is a **TDR resource file**. It contains a frontmatter and a body. The body is free-form content written in [TDR Markdown](#tdr-markdown). The frontmatter is where the resource's structured data lives.
 
@@ -62,29 +154,29 @@ The frontmatter supports YAML line comments using `#`:
 
 ```yaml
 ---
-first_name: Bob # this is a comment
+first_name: "Bob" # this is a comment
 ---
 ```
 
 ### Top-level Frontmatter Value
 
-The top-level frontmatter must be a **YAML mapping** with scalar string keys. A YAML mapping is a set of key-value pairs, similar to a JSON object. Keys must be simple strings with no special YAML tags or complex types.
-
-The following are invalid as keys:
+The top-level frontmatter must be a **YAML mapping** with identifier keys. A YAML mapping is a set of key-value pairs, similar to a JSON object. Keys must be single-word identifiers (alphanumeric and underscores, no spaces or special characters):
 
 ```yaml
-[a, b]: value # sequence as key
-{ a: 1 }: value # mapping as key
-!type string: value # tagged key
-&anchor key: value # anchored key
+first_name: "Bob" # valid
+birth_date: "1990-07-04" # valid
+my_key_2: 42 # valid
 ```
 
-Valid keys are plain strings, optionally quoted:
+Values are **expressions**, not raw strings. Unquoted values are parsed as expressions (identifiers, numbers, booleans, operators). To write a string value, use double quotes or single quotes:
 
 ```yaml
-first_name: Bob
-"birth_date": 1990-07-04
-author: !link bob.tdr
+first_name: "Bob" # string literal
+status: "draft" # string literal
+count: 42 # number expression
+active: true # boolean identifier
+author: bob.tdr # identifier (link reference)
+full_name: self.first_name + " " + self.last_name # expression
 ```
 
 ### Type Declaration
@@ -113,13 +205,13 @@ A resource conforming to it declares `$type: person` and must provide the requir
 ```yaml
 ---
 $type: person
-first_name: Bob
-last_name: Smith
-birth_date: 1990-07-04
+first_name: "Bob"
+last_name: "Smith"
+birth_date: "1990-07-04"
 ---
 ```
 
-Property values do not need explicit type tags when the type can be inferred from the schema. `Bob` above is inferred as a `string` because the schema declares `first_name` as `!type string`. Explicit tags like `!string Bob` are only needed when the type cannot be inferred.
+Property values do not need explicit type tags when the type can be inferred from the schema. `"Bob"` above is inferred as a `string` because the schema declares `first_name` as `!type string`. Explicit tags like `!string "Bob"` are only needed when the type cannot be inferred.
 
 A resource can also declare additional fields not defined in its schema. These are stored as-is and are not validated by the schema.
 
@@ -142,12 +234,12 @@ All frontmatter keys other than reserved `$` keys are properties of the resource
 ---
 $type: person
 $label: !string self.first_name + " " + self.last_name
-first_name: Bob
-birth_date: 1990-07-04
+first_name: "Bob"
+birth_date: "1990-07-04"
 author: !link mona_lisa.tdr
 tags:
-  - research
-  - rdf
+  - "research"
+  - "rdf"
 ---
 Free-form markdown body content.
 ```
@@ -182,21 +274,37 @@ Whether a value is an identifier or a literal is inferred from context in most c
 
 ### Scalars
 
-A scalar is a single primitive value. The scalar types are: `string`, `number`, `boolean`, `date`, `link`. The type is inferred from the schema:
+A scalar is a single primitive value. Every value in frontmatter is an expression. The scalar types are: `string`, `number`, `boolean`, `date`, `link`:
 
 ```yaml
-first_name: Bob # string
-birth_date: 1990-07-04 # date
+first_name: "Bob" # string (quoted)
+birth_date: "1990-07-04" # date (quoted)
 count: 42 # number
-active: true # boolean
-author: bob.tdr # link
+active: true # boolean (identifier)
+author: bob.tdr # link (identifier)
+```
+
+Unquoted values are identifiers or expressions, not strings. Strings must always be quoted with double quotes (`"..."`) or single quotes (`'...'`):
+
+```yaml
+name: "Bob"              # string
+name: Bob                # identifier, NOT a string
+full_name: self.first_name + " " + self.last_name  # expression
 ```
 
 String values support interpolation with `${}`. Any expression can appear inside the braces:
 
 ```yaml
 greeting: "Hello, ${self.first_name}!"
-summary: "Written by ${self.author.first_name} on ${self.created_at}"
+summary: "Written by ${self.author.first_name}"
+```
+
+Interpolation is **not** supported inside `$` math expressions. `$` enters math mode, where the content is treated as a math formula, not as a TDR expression.
+
+Interpolations can be nested. A string inside an interpolation can itself contain interpolations:
+
+```yaml
+label: "Result: ${"value is ${self.compute()}"}"
 ```
 
 ### Lists
@@ -205,8 +313,8 @@ A list is a YAML sequence. Its type is `list[T]`, where `T` is the element type.
 
 ```yaml
 tags: # list[string]
-  - research
-  - rdf
+  - "research"
+  - "rdf"
 authors: # list[link]
   - !link bob.tdr
   - !link alice.tdr
@@ -228,8 +336,8 @@ A fixed-key mapping assigns a specific type to each named key independently:
 
 ```yaml
 address: # { street: string, city: string, zip: number }
-  street: Main St
-  city: Springfield
+  street: "Main St"
+  city: "Springfield"
   zip: 12345
 ```
 
@@ -298,8 +406,8 @@ An enum type is therefore shorthand for a union of string literal types.
 A value can carry an explicit type tag to override inference or disambiguate. The available tags are: `!string`, `!number`, `!boolean`, `!date`, `!link`. Any tagged value is an expression and can use operators, property references, and built-in functions:
 
 ```yaml
-first_name: !string Bob
-birth_date: !date 1990-07-04
+first_name: !string "Bob"
+birth_date: !date "1990-07-04"
 count: !number 42
 active: !boolean true
 author: !link bob.tdr
@@ -336,10 +444,10 @@ properties:
   status:
     type: !type enum
     values:
-      - draft
-      - published
-      - archived
-    default: draft
+      - "draft"
+      - "published"
+      - "archived"
+    default: "draft"
   full_name:
     type: !type string
     default: !string formula(self.first_name + " " + self.last_name)
@@ -350,7 +458,7 @@ properties:
 
 `Schema` itself is a built-in schema, defined by the Typedown processor. It is typed by itself.
 
-## TDR Markdown
+## TDR Body (Markdown Mode)
 
 The body of a `.tdr` file is written in TDR Markdown, an extension of standard Markdown with Typedown-specific syntax.
 
@@ -368,15 +476,24 @@ Headings use the standard `#` syntax:
 
 ### Code
 
-Inline code uses backticks. Code fences use triple backticks with an optional language tag:
+Code spans use backticks. The number of backticks in the opening fence must match the closing fence. A code span is inline by default. A code block is a code span where the content starts and ends with a newline (i.e. the opening fence is followed by a newline, and the closing fence is preceded by a newline):
 
 ````markdown
 `inline code`
+
+``code with ` inside``
+
+```
+code block
+multiple lines
+```
 
 ```python
 print("hello")
 ```
 ````
+
+Since the delimiter is matched by count, backticks inside code can be used freely as long as the count differs from the fence. For example, `` `a`` ` `` contains a literal double backtick.
 
 ### Blockquotes
 
@@ -386,14 +503,28 @@ print("hello")
 
 ### Math
 
-Inline math is wrapped in `$`. Block math is wrapped in `$$$`:
+Math spans use `$`. Like code spans, the number of `$` in the opening delimiter must match the closing delimiter. A math span is inline by default. A math block is a math span where the content starts and ends with a newline:
 
 ```markdown
 The formula is $E = mc^2$.
 
+$$E = mc^2$$
+
 $$
 \int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
 $$
+```
+
+Since the delimiter is matched by count, `$` inside `$$` is treated as a literal character:
+
+```markdown
+$$x = $100$$
+```
+
+Math content is raw text. No interpolation (`${...}`) is supported inside math spans. To embed a computed value in a math context, close the math span, interpolate, then reopen:
+
+```markdown
+$x = $ ${self.value} $ + 1$
 ```
 
 ### Tables
@@ -428,8 +559,8 @@ Ordered lists use a number followed by `.`:
 Toggle lists use `>-`. The item is collapsed by default and can be expanded:
 
 ```markdown
->- Summary line
-  Content shown when expanded.
+> - Summary line
+>   Content shown when expanded.
 ```
 
 ### Callout Blocks
@@ -494,12 +625,3 @@ year: 1984
 :::
 ```
 
-### String Interpolation
-
-Any text in the body can embed expressions using `${}`. Expressions can reference the resource's own properties or traverse links:
-
-```markdown
-This note was written by ${self.author.first_name} ${self.author.last_name}.
-
-Status: ${self.status}.
-```
