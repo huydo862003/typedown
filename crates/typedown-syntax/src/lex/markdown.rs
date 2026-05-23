@@ -1,9 +1,9 @@
+use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{LexCtx, LexResult, MdInterpContext};
 use super::yaml::is_op_char;
 use crate::green::syntax_kind::SyntaxKind;
-use crate::lex::diagnostic::LexDiagnostic;
 
 // Markdown body lexing
 impl<S: Utf8Stream> LexCtx<S> {
@@ -171,7 +171,7 @@ impl<S: Utf8Stream> LexCtx<S> {
           let end = self.stream.offset();
           return self.emit_with(
             SyntaxKind::Error,
-            LexDiagnostic::UnterminatedCodeBlock {
+            Diagnostic::UnterminatedCodeBlock {
               start_offset: start,
               end_offset: end,
             },
@@ -198,7 +198,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       let offset = self.stream.offset();
       return self.emit_with(
         SyntaxKind::Error,
-        LexDiagnostic::UnterminatedInterpolation {
+        Diagnostic::UnterminatedInterpolation {
           start_offset: offset,
           end_offset: offset,
         },
@@ -412,7 +412,7 @@ impl<S: Utf8Stream> LexCtx<S> {
               self.markdown_lex_ctx.interp_stack.pop();
               return self.emit_with(
                 SyntaxKind::Error,
-                LexDiagnostic::UnterminatedString {
+                Diagnostic::UnterminatedString {
                   start_offset: start,
                   end_offset: end,
                 },
@@ -429,7 +429,7 @@ impl<S: Utf8Stream> LexCtx<S> {
           self.markdown_lex_ctx.interp_stack.pop();
           return self.emit_with(
             SyntaxKind::Error,
-            LexDiagnostic::UnterminatedString {
+            Diagnostic::UnterminatedString {
               start_offset: start,
               end_offset: end,
             },

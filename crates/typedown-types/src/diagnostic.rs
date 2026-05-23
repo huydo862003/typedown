@@ -1,6 +1,8 @@
-/// A lexer error.
+/// Compilation diagnostics.
 /// When multiple variants match, use the first (most specific) one.
-pub enum LexDiagnostic {
+pub enum Diagnostic {
+  /* Lexer diagnostics */
+
   /// Expected a specific character but reached end of input.
   UnexpectedEof {
     expected: char,

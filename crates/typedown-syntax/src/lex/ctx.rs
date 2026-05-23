@@ -8,16 +8,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::green::cache::Cache;
 use crate::green::syntax_kind::SyntaxKind;
 use crate::green::token::SyntaxToken;
-use crate::lex::diagnostic::LexDiagnostic;
 
 pub struct LexResult {
   pub token: SyntaxToken,
-  pub diagnostic: Option<LexDiagnostic>,
+  pub diagnostic: Option<Diagnostic>,
 }
 
 pub enum LexMode {
@@ -181,7 +181,7 @@ impl<S: Utf8Stream> LexCtx<S> {
           .cache
           .borrow_mut()
           .token(SyntaxKind::Error, &bytes[..len]),
-        diagnostic: Some(LexDiagnostic::InvalidUtf8 {
+        diagnostic: Some(Diagnostic::InvalidUtf8 {
           start_offset: self.stream.offset() - len,
           end_offset: self.stream.offset(),
         }),
@@ -201,7 +201,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 
   /// Finalize the current token with a diagnostic.
-  pub(super) fn emit_with(&mut self, kind: SyntaxKind, diagnostic: LexDiagnostic) -> LexResult {
+  pub(super) fn emit_with(&mut self, kind: SyntaxKind, diagnostic: Diagnostic) -> LexResult {
     let text = std::mem::take(&mut self.text_buffer);
     LexResult {
       token: self.cache.borrow_mut().token(kind, text.as_bytes()),
@@ -244,7 +244,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         let end = self.stream.offset();
         return self.emit_with(
           SyntaxKind::Error,
-          LexDiagnostic::MissingExponentDigits {
+          Diagnostic::MissingExponentDigits {
             start_offset: start,
             end_offset: end,
           },
@@ -277,7 +277,7 @@ impl<S: Utf8Stream> LexCtx<S> {
           let end = self.stream.offset();
           return self.emit_with(
             SyntaxKind::Error,
-            LexDiagnostic::UnterminatedInlineMath {
+            Diagnostic::UnterminatedInlineMath {
               start_offset: start,
               end_offset: end,
             },

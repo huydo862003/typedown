@@ -1,8 +1,10 @@
-use typedown_types::stream::{Utf8Result, Utf8Stream};
+use typedown_types::{
+  diagnostic::Diagnostic,
+  stream::{Utf8Result, Utf8Stream},
+};
 
 use super::ctx::{LexCtx, LexResult, YamlInterpContext};
 use crate::green::syntax_kind::SyntaxKind;
-use crate::lex::diagnostic::LexDiagnostic;
 
 // YAML frontmatter lexing
 impl<S: Utf8Stream> LexCtx<S> {
@@ -156,7 +158,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     // Detect mixed or inconsistent indentation
     let diagnostic = if indent > 0 {
       if saw_space && saw_tab {
-        Some(LexDiagnostic::MixedIndentation {
+        Some(Diagnostic::MixedIndentation {
           start_offset: start,
           end_offset: self.stream.offset(),
         })
@@ -167,14 +169,12 @@ impl<S: Utf8Stream> LexCtx<S> {
             self.yaml_lex_ctx.indent_char = Some(char);
             None
           }
-          Some(established) if established != char => {
-            Some(LexDiagnostic::InconsistentIndentation {
-              expected: established,
-              encountered: char,
-              start_offset: start,
-              end_offset: self.stream.offset(),
-            })
-          }
+          Some(established) if established != char => Some(Diagnostic::InconsistentIndentation {
+            expected: established,
+            encountered: char,
+            start_offset: start,
+            end_offset: self.stream.offset(),
+          }),
           _ => None,
         }
       }
@@ -203,7 +203,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       }
 
       let diagnostic = if indent != self.current_indent() {
-        Some(diagnostic.unwrap_or(LexDiagnostic::UnmatchedDedent {
+        Some(diagnostic.unwrap_or(Diagnostic::UnmatchedDedent {
           indent,
           start_offset: start,
           end_offset: self.stream.offset(),
@@ -401,7 +401,7 @@ impl<S: Utf8Stream> LexCtx<S> {
               self.yaml_lex_ctx.interp_stack.pop();
               return self.emit_with(
                 SyntaxKind::Error,
-                LexDiagnostic::UnterminatedString {
+                Diagnostic::UnterminatedString {
                   start_offset: start,
                   end_offset: end,
                 },
@@ -418,7 +418,7 @@ impl<S: Utf8Stream> LexCtx<S> {
           self.yaml_lex_ctx.interp_stack.pop();
           return self.emit_with(
             SyntaxKind::Error,
-            LexDiagnostic::UnterminatedString {
+            Diagnostic::UnterminatedString {
               start_offset: start,
               end_offset: end,
             },
@@ -439,7 +439,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       let offset = self.stream.offset();
       return self.emit_with(
         SyntaxKind::Error,
-        LexDiagnostic::UnterminatedInterpolation {
+        Diagnostic::UnterminatedInterpolation {
           start_offset: offset,
           end_offset: offset,
         },
