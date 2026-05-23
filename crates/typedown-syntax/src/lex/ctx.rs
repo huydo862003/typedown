@@ -174,23 +174,23 @@ impl<S: Utf8Stream> LexCtx<S> {
       /* Punctuation and delimiters */
       ':' => {
         self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::Colon)
+        self.emit(SyntaxKind::YamlColon)
       }
       '(' => {
         self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::LParen)
+        self.emit(SyntaxKind::YamlLParen)
       }
       ')' => {
         self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::RParen)
+        self.emit(SyntaxKind::YamlRParen)
       }
       '[' => {
         self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::LBracket)
+        self.emit(SyntaxKind::YamlLBracket)
       }
       ']' => {
         self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::RBracket)
+        self.emit(SyntaxKind::YamlRBracket)
       }
       '{' => {
         self.advance_avoid_invalid_utf8();
@@ -200,25 +200,25 @@ impl<S: Utf8Stream> LexCtx<S> {
             .interp_stack
             .push(YamlInterpContext::Brace);
         }
-        self.emit(SyntaxKind::LBrace)
+        self.emit(SyntaxKind::YamlLBrace)
       }
       '}' => {
         self.advance_avoid_invalid_utf8();
         match self.yaml_lex_ctx.interp_stack.last() {
           Some(YamlInterpContext::Brace) => {
             self.yaml_lex_ctx.interp_stack.pop();
-            self.emit(SyntaxKind::RBrace)
+            self.emit(SyntaxKind::YamlRBrace)
           }
           Some(YamlInterpContext::Interpolation) => {
             self.yaml_lex_ctx.interp_stack.pop();
             self.emit(SyntaxKind::InterpEnd)
           }
-          _ => self.emit(SyntaxKind::RBrace),
+          _ => self.emit(SyntaxKind::YamlRBrace),
         }
       }
       ',' => {
         self.advance_avoid_invalid_utf8();
-        self.emit(SyntaxKind::Comma)
+        self.emit(SyntaxKind::YamlComma)
       }
 
       /* Strings */
@@ -310,8 +310,8 @@ impl<S: Utf8Stream> LexCtx<S> {
       self.yaml_lex_ctx.indent_stack.push(indent);
       self.text_buffer.clear();
       return Some(match diagnostic {
-        Some(diag) => self.emit_with(SyntaxKind::Indent, diag),
-        None => self.emit(SyntaxKind::Indent),
+        Some(diag) => self.emit_with(SyntaxKind::YamlIndent, diag),
+        None => self.emit(SyntaxKind::YamlIndent),
       });
     } else if indent < current {
       // Decreased indentation: pop levels until we find one <= indent
@@ -340,12 +340,12 @@ impl<S: Utf8Stream> LexCtx<S> {
         // Queue all dedents into pending_tokens, return the first one
         self.text_buffer.clear();
         let first = match diagnostic {
-          Some(diag) => self.emit_with(SyntaxKind::Dedent, diag),
-          None => self.emit(SyntaxKind::Dedent),
+          Some(diag) => self.emit_with(SyntaxKind::YamlDedent, diag),
+          None => self.emit(SyntaxKind::YamlDedent),
         };
         for _ in 1..dedents {
           self.pending_tokens.push(LexResult {
-            token: self.cache.borrow_mut().token(SyntaxKind::Dedent, &[]),
+            token: self.cache.borrow_mut().token(SyntaxKind::YamlDedent, &[]),
             diagnostic: None,
           });
         }
@@ -380,7 +380,7 @@ impl<S: Utf8Stream> LexCtx<S> {
         _ => break,
       }
     }
-    self.emit(SyntaxKind::Comment)
+    self.emit(SyntaxKind::YamlComment)
   }
 
   /* Operators */
@@ -465,43 +465,67 @@ impl<S: Utf8Stream> LexCtx<S> {
         }
         Utf8Result::Char('$') => {
           self.advance_avoid_invalid_utf8(); // consume $
-          if let Utf8Result::Char('{') = self.peek() {
-            self.advance_avoid_invalid_utf8(); // consume {
-            // Split out ${ from the text buffer
-            let buf_len = self.text_buffer.len();
-            let string_text: String = self.text_buffer.drain(..buf_len - 2).collect();
-            self.text_buffer.clear();
+          match self.peek() {
+            Utf8Result::Char('{') => {
+              self.advance_avoid_invalid_utf8(); // consume {
+              // Split out ${ from the text buffer
+              let buf_len = self.text_buffer.len();
+              let string_text: String = self.text_buffer.drain(..buf_len - 2).collect();
+              self.text_buffer.clear();
 
-            // Push interpolation context
-            self
-              .yaml_lex_ctx
-              .interp_stack
-              .push(YamlInterpContext::Interpolation);
+              // Push interpolation context
+              self
+                .yaml_lex_ctx
+                .interp_stack
+                .push(YamlInterpContext::Interpolation);
 
-            let interp_start = LexResult {
-              token: self
-                .cache
-                .borrow_mut()
-                .token(SyntaxKind::InterpStart, "${".as_bytes()),
-              diagnostic: None,
-            };
-
-            if !string_text.is_empty() {
-              // Emit content, queue InterpStart as pending
-              let content = LexResult {
+              let interp_start = LexResult {
                 token: self
                   .cache
                   .borrow_mut()
-                  .token(content_kind, string_text.as_bytes()),
+                  .token(SyntaxKind::InterpStart, "${".as_bytes()),
                 diagnostic: None,
               };
-              self.pending_tokens.push(interp_start);
-              return content;
-            } else {
-              return interp_start;
+
+              if !string_text.is_empty() {
+                let content = LexResult {
+                  token: self
+                    .cache
+                    .borrow_mut()
+                    .token(content_kind, string_text.as_bytes()),
+                  diagnostic: None,
+                };
+                self.pending_tokens.push(interp_start);
+                return content;
+              } else {
+                return interp_start;
+              }
+            }
+            _ => {
+              // Single $ not followed by {: inline math
+              // The $ is already in the text buffer, split it out
+              let buf_len = self.text_buffer.len();
+              let string_text: String = self.text_buffer.drain(..buf_len - 1).collect();
+              self.text_buffer.clear();
+
+              // Consume math content until closing $
+              let math_token = self.lex_inline_math_content();
+
+              if !string_text.is_empty() {
+                let content = LexResult {
+                  token: self
+                    .cache
+                    .borrow_mut()
+                    .token(content_kind, string_text.as_bytes()),
+                  diagnostic: None,
+                };
+                self.pending_tokens.push(math_token);
+                return content;
+              } else {
+                return math_token;
+              }
             }
           }
-          // Not ${, just a regular $ in the string, continue
         }
         Utf8Result::Char('\\') => {
           self.advance_avoid_invalid_utf8(); // consume backslash
@@ -564,56 +588,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Numbers */
 
   fn lex_yaml_number(&mut self) -> LexResult {
-    // Integer part
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if char.is_ascii_digit() => {
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
-      }
-    }
-    // Decimal part
-    if let Utf8Result::Char('.') = self.peek() {
-      self.advance_avoid_invalid_utf8();
-      loop {
-        match self.peek() {
-          Utf8Result::Char(char) if char.is_ascii_digit() => {
-            self.advance_avoid_invalid_utf8();
-          }
-          _ => break,
-        }
-      }
-    }
-    // Scientific notation
-    if let Utf8Result::Char('e' | 'E') = self.peek() {
-      self.advance_avoid_invalid_utf8();
-      if let Utf8Result::Char('+' | '-') = self.peek() {
-        self.advance_avoid_invalid_utf8();
-      }
-      // Must have at least one digit after e/E or e+/e-
-      let has_digits = matches!(self.peek(), Utf8Result::Char(char) if char.is_ascii_digit());
-      if !has_digits {
-        let start = self.stream.offset() - self.text_buffer.len();
-        let end = self.stream.offset();
-        return self.emit_with(
-          SyntaxKind::Error,
-          LexDiagnostic::MissingExponentDigits {
-            start_offset: start,
-            end_offset: end,
-          },
-        );
-      }
-      loop {
-        match self.peek() {
-          Utf8Result::Char(char) if char.is_ascii_digit() => {
-            self.advance_avoid_invalid_utf8();
-          }
-          _ => break,
-        }
-      }
-    }
-    self.emit(SyntaxKind::Number)
+    self.lex_number()
   }
 
   /* Identifiers */
@@ -643,6 +618,51 @@ impl<S: Utf8Stream> LexCtx<S> {
   fn lex_markdown_body(&mut self) -> LexResult {
     todo!()
   }
+
+  /* Symbols */
+
+  // Consume consecutive special characters as a single MdSymbol token
+  fn lex_markdown_symbol(&mut self) -> LexResult {
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if is_md_symbol_char(char) => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+    self.emit(SyntaxKind::MdSymbol)
+  }
+
+  /* Numbers */
+
+  fn lex_markdown_number(&mut self) -> LexResult {
+    self.lex_number()
+  }
+}
+
+fn is_md_symbol_char(char: char) -> bool {
+  matches!(
+    char,
+    '#'
+      | '!'
+      | '*'
+      | '~'
+      | '^'
+      | '-'
+      | '>'
+      | '<'
+      | '|'
+      | '@'
+      | ':'
+      | '`'
+      | '\\'
+      | '/'
+      | '='
+      | '+'
+      | '&'
+      | '%'
+  )
 }
 
 // Shared helpers
@@ -717,6 +737,87 @@ impl<S: Utf8Stream> LexCtx<S> {
     LexResult {
       token: self.cache.borrow_mut().token(kind, text.as_bytes()),
       diagnostic: Some(diagnostic),
+    }
+  }
+
+  // Shared number lexer: integer, decimal, scientific notation
+  fn lex_number(&mut self) -> LexResult {
+    // Integer part
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if char.is_ascii_digit() => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+    // Decimal part
+    if let Utf8Result::Char('.') = self.peek() {
+      self.advance_avoid_invalid_utf8();
+      loop {
+        match self.peek() {
+          Utf8Result::Char(char) if char.is_ascii_digit() => {
+            self.advance_avoid_invalid_utf8();
+          }
+          _ => break,
+        }
+      }
+    }
+    // Scientific notation
+    if let Utf8Result::Char('e' | 'E') = self.peek() {
+      self.advance_avoid_invalid_utf8();
+      if let Utf8Result::Char('+' | '-') = self.peek() {
+        self.advance_avoid_invalid_utf8();
+      }
+      let has_digits = matches!(self.peek(), Utf8Result::Char(char) if char.is_ascii_digit());
+      if !has_digits {
+        let start = self.stream.offset() - self.text_buffer.len();
+        let end = self.stream.offset();
+        return self.emit_with(
+          SyntaxKind::Error,
+          LexDiagnostic::MissingExponentDigits {
+            start_offset: start,
+            end_offset: end,
+          },
+        );
+      }
+      loop {
+        match self.peek() {
+          Utf8Result::Char(char) if char.is_ascii_digit() => {
+            self.advance_avoid_invalid_utf8();
+          }
+          _ => break,
+        }
+      }
+    }
+    self.emit(SyntaxKind::Number)
+  }
+
+  // Consume inline math content until closing $. The opening $ is already consumed.
+  // Emits MdInlineMath on success, Error on unterminated.
+  fn lex_inline_math_content(&mut self) -> LexResult {
+    // text_buffer already contains the opening $
+    loop {
+      match self.peek() {
+        Utf8Result::Char('$') => {
+          self.advance_avoid_invalid_utf8();
+          return self.emit(SyntaxKind::MdInlineMath);
+        }
+        Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof => {
+          let start = self.stream.offset() - self.text_buffer.len();
+          let end = self.stream.offset();
+          return self.emit_with(
+            SyntaxKind::Error,
+            LexDiagnostic::UnterminatedInlineMath {
+              start_offset: start,
+              end_offset: end,
+            },
+          );
+        }
+        _ => {
+          self.advance_avoid_invalid_utf8();
+        }
+      }
     }
   }
 

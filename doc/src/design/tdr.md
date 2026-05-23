@@ -72,7 +72,12 @@ tags:
 ---
 ```
 
-Values are expressions. Strings must be quoted. Unquoted values are identifiers, numbers, or compound expressions. `${...}` inside quoted strings is string interpolation (the content is a normal YAML expression, not a separate mode).
+Values are expressions. Strings must be quoted. Unquoted values are identifiers, numbers, or compound expressions. Inside quoted strings, `${...}` enters Formula mode and `$...$` enters Math mode:
+
+```yaml
+greeting: "Hello, ${self.first_name}!"
+description: "The formula is $E = mc^2$ and it works"
+```
 
 ### Markdown Mode
 
@@ -88,7 +93,7 @@ This is a paragraph with **bold** and _italic_ text.
 
 ### Formula Mode
 
-Entered with `${` in Markdown mode. Content is interpreted as a TDR expression: identifiers, operators, numbers, function calls, and property access. The mode exits when the matching closing `}` is found.
+Entered with `${` in Markdown mode or inside quoted strings in YAML mode. Content is interpreted as a TDR expression: identifiers, operators, numbers, function calls, and property access. The mode exits when the matching closing `}` is found.
 
 ```markdown
 This note was written by ${self.author.first_name}.
@@ -96,7 +101,9 @@ Total: ${self.items.length()}.
 Result: ${"value is ${self.compute()}"}
 ```
 
-Formula mode supports nested strings (which can themselves contain `${...}`), and nested braces. This mode only exists in Markdown; in YAML mode, expressions are the default and `${...}` inside strings is just inline interpolation within the same expression context.
+```yaml
+greeting: "Hello, ${self.first_name}!"
+```
 
 ### Math Mode
 
