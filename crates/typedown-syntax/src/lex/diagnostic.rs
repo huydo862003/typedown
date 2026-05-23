@@ -90,4 +90,11 @@ pub enum LexDiagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// Dedent to an indentation level that was never established.
+  UnmatchedDedent {
+    indent: usize,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }
