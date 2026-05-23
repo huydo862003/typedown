@@ -52,6 +52,18 @@ pub enum LexDiagnostic {
     end_offset: usize,
   },
 
+  /// A code block fence is missing a newline after the opening fence or before the closing fence.
+  MissingCodeBlockNewline {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A math block delimiter is missing a newline after the opening $$ or before the closing $$.
+  MissingMathBlockNewline {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
   /// Encountered a character that is not valid in the current lexing context.
   InvalidChar {
     encountered: char,
