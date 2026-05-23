@@ -11,9 +11,9 @@ use std::rc::Rc;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::green::cache::Cache;
-use crate::green::syntax_kind::{self, SyntaxKind};
+use crate::green::syntax_kind::SyntaxKind;
 use crate::green::token::Token;
-use crate::lex::diagnostic::{self, LexDiagnostic};
+use crate::lex::diagnostic::LexDiagnostic;
 
 pub struct LexResult {
   pub token: Token,
@@ -54,19 +54,6 @@ impl<S: Utf8Stream> LexCtx<S> {
   pub fn lex(&mut self) -> LexResult {
     if self.is_eof() {
       self.emit(SyntaxKind::Eof)
-    } else if let Utf8Result::Invalid {
-      start_offset,
-      end_offset,
-    } = self.peek()
-    {
-      self.advance();
-      self.emit_with(
-        SyntaxKind::Error,
-        LexDiagnostic::InvalidUtf8 {
-          start_offset,
-          end_offset,
-        },
-      )
     } else {
       match self.mode {
         LexMode::YamlFrontmatter => self.lex_frontmatter(),
@@ -99,7 +86,12 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /// Consume the next character, appending it to the current token text.
   fn advance(&mut self) -> Utf8Result {
-    self.stream.advance()
+    let char = self.stream.advance();
+    match char {
+      Utf8Result::Char(c) => self.text_buffer.push(c),
+      _ => {}
+    }
+    char
   }
 
   /// Consume the next character if it matches `expected`.
@@ -114,14 +106,26 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  /// Consume characters while the predicate holds.
-  fn consume_while(&mut self, predicate: impl Fn(char) -> bool) {
-    while let Utf8Result::Char(encountered) = self.peek() {
-      if predicate(encountered) {
-        self.advance();
-      } else {
-        break;
-      }
+  /// Look for an invalid utf-8 character right ahead and return if any
+  /// INVARIANT: Always call before any other advance()/consume()
+  fn try_consume_invalid_utf8(&mut self) -> Option<LexResult> {
+    debug_assert!(
+      self.text_buffer.len() == 0,
+      "Do not call advance()/consume() before try_consume_invalid_utf8()"
+    );
+    if let Utf8Result::Invalid { len, bytes } = self.peek() {
+      Some(LexResult {
+        token: self
+          .cache
+          .borrow_mut()
+          .token(SyntaxKind::Error, &bytes[..len]),
+        diagnostic: Some(LexDiagnostic::InvalidUtf8 {
+          start_offset: self.stream.offset() - len,
+          end_offset: self.stream.offset(),
+        }),
+      })
+    } else {
+      None
     }
   }
 
@@ -129,7 +133,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   fn emit(&mut self, kind: SyntaxKind) -> LexResult {
     let text = std::mem::take(&mut self.text_buffer);
     LexResult {
-      token: self.cache.borrow_mut().token(kind, &text),
+      token: self.cache.borrow_mut().token(kind, text.as_bytes()),
       diagnostic: None,
     }
   }
@@ -138,7 +142,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   fn emit_with(&mut self, kind: SyntaxKind, diagnostic: LexDiagnostic) -> LexResult {
     let text = std::mem::take(&mut self.text_buffer);
     LexResult {
-      token: self.cache.borrow_mut().token(kind, &text),
+      token: self.cache.borrow_mut().token(kind, text.as_bytes()),
       diagnostic: Some(diagnostic),
     }
   }
