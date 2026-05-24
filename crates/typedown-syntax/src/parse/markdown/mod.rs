@@ -27,6 +27,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.emit(SyntaxKind::Body, &children)
   }
 
+  pub(in crate::parse) fn parse_md_block_element(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  pub(in crate::parse) fn parse_md_inline_element(&mut self) -> GreenNode {
+    todo!()
+  }
+
   /// Parse a heading: `# ...`, `## ...`, etc.
   /// INVARIANT: The next token should be a hash sequence  /// Any whitespaces must be consumed by the parent to pass the correct current_indent
   pub(in crate::parse) fn parse_heading(&mut self, current_indent: usize) -> GreenNode {
