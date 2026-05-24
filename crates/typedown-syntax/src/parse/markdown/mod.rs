@@ -222,7 +222,52 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a footnote reference: `[^key]`.
   pub(in crate::parse) fn parse_footnote_ref(&mut self, current_indent: usize) -> GreenNode {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
+      "[ParseCtx::parse_citation] Expected ["
+    );
+
+    let mut children = vec![];
+    let open_offset = self.offset();
+
+    self.expr_ctx_stack.enter(ExprCtx::MdCitation);
+    self.advance_md(&mut children, SKIP_NONE); // consume `[`
+
+    self.consume_md_if(
+      &mut children,
+      SKIP_NONE,
+      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "^",
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Citation,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+
+    self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::Ident,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Citation,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+
+    self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::RBracket,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Citation,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+
+    self.expr_ctx_stack.exit(ExprCtx::MdCitation);
+    self.emit(SyntaxKind::Citation, &children)
   }
 
   /// Parse a citation: `[@key]`.

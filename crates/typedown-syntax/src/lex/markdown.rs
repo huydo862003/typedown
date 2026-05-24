@@ -17,7 +17,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       Some(InterpContext::DqString) | Some(InterpContext::SqString) => {
         return self.lex_markdown_resume_string();
       }
-      // MdDqString / MdSqString: content lexes as normal markdown tokens, fall through
+      // MdDqString/MdSqString: content lexes as normal markdown tokens, fall through
       Some(InterpContext::MdDqString) | Some(InterpContext::MdSqString) | None => {}
     }
 
