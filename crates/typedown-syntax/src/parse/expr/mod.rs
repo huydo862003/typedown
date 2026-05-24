@@ -527,14 +527,122 @@ impl<S: Utf8Stream> ParseCtx<S> {
     todo!()
   }
 
-  /// Parse a string literal (double or single quoted, with interpolation).
-  pub(in crate::parse) fn parse_str_lit(&mut self) -> GreenNode {
-    todo!()
+  /// Parse a double-quoted string literal with interpolation: `"content ${expr} content"`.
+  pub(in crate::parse) fn parse_dq_str_lit(&mut self) -> GreenNode {
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::DqStrStart,
+      "[ParseCtx::parse_dq_str_lit] Expected next token to be DqStrStart"
+    );
+
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::DqString);
+    self.advance(&mut children, SKIP_WCN, mode);
+
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, mode);
+      match peek.token.kind() {
+        SyntaxKind::DqStrEnd => {
+          self.advance(&mut children, SKIP_NONE, mode);
+          break;
+        }
+        SyntaxKind::InterpStart => {
+          let fragment = self.parse_interp_fragment();
+          children.push(fragment);
+        }
+        SyntaxKind::InlineMath => {
+          let math = self.parse_math_lit();
+          children.push(math);
+        }
+        SyntaxKind::Eof | SyntaxKind::Error => {
+          self.advance(&mut children, SKIP_NONE, mode);
+          break;
+        }
+        _ => {
+          self.advance(&mut children, SKIP_NONE, mode);
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::DqString);
+    self.emit(SyntaxKind::StrLit, &children)
+  }
+
+  /// Parse a single-quoted string literal with interpolation: `'content ${expr} content'`.
+  pub(in crate::parse) fn parse_sq_str_lit(&mut self) -> GreenNode {
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::SqStrStart,
+      "[ParseCtx::parse_sq_str_lit] Expected next token to be SqStrStart"
+    );
+
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::SqString);
+    self.advance(&mut children, SKIP_WCN, mode);
+
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, mode);
+      match peek.token.kind() {
+        SyntaxKind::SqStrEnd => {
+          self.advance(&mut children, SKIP_NONE, mode);
+          break;
+        }
+        SyntaxKind::InterpStart => {
+          let fragment = self.parse_interp_fragment();
+          children.push(fragment);
+        }
+        SyntaxKind::InlineMath => {
+          let math = self.parse_math_lit();
+          children.push(math);
+        }
+        SyntaxKind::Eof | SyntaxKind::Error => {
+          self.advance(&mut children, SKIP_NONE, mode);
+          break;
+        }
+        _ => {
+          self.advance(&mut children, SKIP_NONE, mode);
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::SqString);
+    self.emit(SyntaxKind::StrLit, &children)
   }
 
   /// Parse an interpolation fragment: `${...}` inside a string.
   pub(in crate::parse) fn parse_interp_fragment(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self.lex_ctx.peek(SKIP_NONE, mode).token.kind() == SyntaxKind::InterpStart,
+      "[ParseCtx::parse_interp_fragment] Expected next token to be InterpStart"
+    );
+
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::Interp);
+
+    // Consume `${`
+    self.advance(&mut children, SKIP_NONE, mode);
+
+    // Parse the expression inside
+    let inner = self.parse_formula_expr();
+    children.push(inner);
+
+    // Consume `}`
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_ALL_TRIVIA,
+      mode,
+      SyntaxKind::InterpEnd,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::InterpEnd,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    self.expr_ctx_stack.exit(ExprCtx::Interp);
+    self.emit(SyntaxKind::InterpFragment, &children)
   }
 
   /// Parse a math literal (inline or block math).
