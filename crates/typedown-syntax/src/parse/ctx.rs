@@ -92,6 +92,17 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
+  pub fn advance(&mut self, children: &mut Vec<GreenNode>, skip: u16, mode: LexMode) -> LexResult {
+    debug_assert!(
+      *self.lex_ctx.mode() == mode,
+      "[PeekableLexCtx::advance] Lex mode must be the same as the `mode` argument"
+    );
+    match mode {
+      LexMode::YamlFrontmatter => self.advance_yaml(children, skip),
+      LexMode::MarkdownBody => self.advance_md(children, skip),
+    }
+  }
+
   /// Like advance_yaml(), but expects the token to match `expected`.
   pub(super) fn consume_yaml(
     &mut self,
@@ -111,6 +122,43 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
+  /// Like advance_md(), but expects the token to match `expected`.
+  pub(super) fn consume_md(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u16,
+    expected: SyntaxKind,
+    diagnostic: Diagnostic,
+  ) -> bool {
+    let result = self.advance_md(children, skip);
+    if result.token.kind() != expected {
+      let bad_token = children.pop().unwrap();
+      children.push(self.emit(SyntaxKind::Error, &[bad_token]));
+      self.diagnostics.push(diagnostic);
+      false
+    } else {
+      true
+    }
+  }
+
+  pub fn consume(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u16,
+    mode: LexMode,
+    expected: SyntaxKind,
+    diagnostic: Diagnostic,
+  ) -> bool {
+    debug_assert!(
+      *self.lex_ctx.mode() == mode,
+      "[PeekableLexCtx::consume] Lex mode must be the same as the `mode` argument"
+    );
+    match mode {
+      LexMode::YamlFrontmatter => self.consume_yaml(children, skip, expected, diagnostic),
+      LexMode::MarkdownBody => self.consume_md(children, skip, expected, diagnostic),
+    }
+  }
+
   /// Like advance_yaml(), but expects the token to satisfy a predicate.
   pub(super) fn consume_yaml_if(
     &mut self,
@@ -127,6 +175,43 @@ impl<S: Utf8Stream> ParseCtx<S> {
       false
     } else {
       true
+    }
+  }
+
+  /// Like advance_md(), but expects the token to satisfy a predicate.
+  pub(super) fn consume_md_if(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u16,
+    predicate: impl Fn(&SyntaxToken) -> bool,
+    diagnostic: Diagnostic,
+  ) -> bool {
+    let result = self.advance_md(children, skip);
+    if !predicate(&result.token) {
+      let bad_token = children.pop().unwrap();
+      children.push(self.emit(SyntaxKind::Error, &[bad_token]));
+      self.diagnostics.push(diagnostic);
+      false
+    } else {
+      true
+    }
+  }
+
+  pub fn consume_if(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u16,
+    mode: LexMode,
+    predicate: impl Fn(&SyntaxToken) -> bool,
+    diagnostic: Diagnostic,
+  ) -> bool {
+    debug_assert!(
+      *self.lex_ctx.mode() == mode,
+      "[PeekableLexCtx::consume_if] Lex mode must be the same as the `mode` argument"
+    );
+    match mode {
+      LexMode::YamlFrontmatter => self.consume_yaml_if(children, skip, predicate, diagnostic),
+      LexMode::MarkdownBody => self.consume_md_if(children, skip, predicate, diagnostic),
     }
   }
 

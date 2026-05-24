@@ -77,6 +77,17 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     result
   }
 
+  pub fn peek(&mut self, skip: u16, mode: LexMode) -> LexResult {
+    debug_assert!(
+      *self.lex_ctx.mode() == mode,
+      "[PeekableLexCtx::peek] Lex mode must be the same as the `mode` argument"
+    );
+    match mode {
+      LexMode::YamlFrontmatter => self.peek_yaml(skip).0,
+      LexMode::MarkdownBody => self.peek_md(skip),
+    }
+  }
+
   /// Peek at the next non-skipped YAML token without consuming.
   pub fn peek_yaml(&mut self, skip: u16) -> PeekYamlResult {
     debug_assert!(
