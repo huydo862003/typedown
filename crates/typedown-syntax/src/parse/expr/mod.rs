@@ -212,8 +212,198 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a flow mapping literal: `{key: value, ...}`.
-  pub(in crate::parse) fn parse_mapping_lit(&mut self) -> GreenNode {
-    todo!()
+  pub(in crate::parse) fn parse_dict_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let outer_skip = SKIP_WCN
+      | if self.expr_ctx_stack.should_ignore_indent() {
+        SKIP_INDENT_DEDENT
+      } else {
+        0
+      };
+    debug_assert!(
+      self
+        .lex_ctx
+        .peek(outer_skip, self.lex_ctx.mode())
+        .token
+        .kind()
+        == SyntaxKind::LBrace,
+      "[ParseCtx::parse_dict_lit] Expected next token to be LBrace"
+    );
+
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::Dict);
+
+    // Consume `{`
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      outer_skip,
+      mode,
+      SyntaxKind::LBrace,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::LBrace,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Check for empty mapping `{}`
+    let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+    if peek.token.kind() == SyntaxKind::RBrace {
+      self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+      self.expr_ctx_stack.exit(ExprCtx::Dict);
+      return (self.emit(SyntaxKind::DictLit, &children), None);
+    }
+
+    // Parse first entry
+    let (entry, early_exit) = self.parse_dict_entry_lit();
+    children.push(entry);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::Dict) {
+      self.expr_ctx_stack.exit(ExprCtx::Dict);
+      return (self.emit(SyntaxKind::DictLit, &children), early_exit);
+    }
+
+    // Parse remaining entries
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+      match peek.token.kind() {
+        // End of mapping
+        SyntaxKind::RBrace => {
+          self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+          break;
+        }
+        // Separator: expect another entry
+        SyntaxKind::Comma => {
+          self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+
+          // Trailing comma before `}` is allowed
+          let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+          if peek.token.kind() == SyntaxKind::RBrace {
+            self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+            break;
+          }
+
+          let (entry, early_exit) = self.parse_dict_entry_lit();
+          children.push(entry);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::Dict) {
+            self.expr_ctx_stack.exit(ExprCtx::Dict);
+            return (self.emit(SyntaxKind::DictLit, &children), early_exit);
+          }
+        }
+        // EOF
+        SyntaxKind::Eof => {
+          self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+            expected: SyntaxKind::RBrace,
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
+          break;
+        }
+        // Unexpected token
+        _ => {
+          let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+          if handler.is_some_and(|ctx| ctx != ExprCtx::Dict) {
+            self.expr_ctx_stack.exit(ExprCtx::Dict);
+            return (self.emit(SyntaxKind::DictLit, &children), handler);
+          }
+          if let Some(ctx) = self.synchronize_dict_lit(&mut children) {
+            self.expr_ctx_stack.exit(ExprCtx::Dict);
+            return (self.emit(SyntaxKind::DictLit, &children), Some(ctx));
+          }
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::Dict);
+    (self.emit(SyntaxKind::DictLit, &children), None)
+  }
+
+  /// Parse a single mapping entry: `key: value`.
+  fn parse_dict_entry_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+
+    let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+
+    // Missing key: `:` seen immediately
+    if peek.token.kind() == SyntaxKind::Colon {
+      self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::DictEntryKey,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+      // Emit empty MappingEntryKey as error
+      children.push(self.emit(SyntaxKind::DictEntryKey, &[]));
+    } else {
+      // Key (required to be an identifier)
+      let offset = self.offset();
+      self.consume(
+        &mut children,
+        SKIP_ALL_TRIVIA,
+        mode,
+        SyntaxKind::Ident,
+        Diagnostic::MissingSyntaxNode {
+          expected: SyntaxKind::Ident,
+          start_offset: offset,
+          end_offset: self.offset(),
+        },
+      );
+      let key_token = children.pop().unwrap();
+      children.push(self.emit(SyntaxKind::DictEntryKey, &[key_token]));
+    }
+
+    // Colon
+    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS, mode);
+    if peek.token.kind() == SyntaxKind::Colon {
+      self.advance(&mut children, SKIP_MIDDLE_WS, mode);
+    } else {
+      // Missing colon: emit diagnostic but continue to parse value
+      self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Colon,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    }
+
+    // Value
+    let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+    match peek.token.kind() {
+      SyntaxKind::Comma | SyntaxKind::RBrace | SyntaxKind::Eof => {
+        // Missing value
+        self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+          expected: SyntaxKind::DictEntryValue,
+          start_offset: self.offset(),
+          end_offset: self.offset(),
+        });
+        children.push(self.emit(SyntaxKind::DictEntryValue, &[]));
+        (self.emit(SyntaxKind::DictEntry, &children), None)
+      }
+      _ => {
+        let (value_expr, early_exit) = self.parse_expr();
+        children.push(self.emit(SyntaxKind::DictEntryValue, &[value_expr]));
+        (self.emit(SyntaxKind::DictEntry, &children), early_exit)
+      }
+    }
+  }
+
+  // Stop on Comma and RBrace
+  fn synchronize_dict_lit(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
+      match peek.token.kind() {
+        SyntaxKind::Comma | SyntaxKind::RBrace | SyntaxKind::Eof => break None,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate(ExprCtx::Dict, &mut error_children) {
+            break Some(ctx);
+          }
+        }
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
   }
 
   /// Parse a literal block string: `|` followed by indented content.
