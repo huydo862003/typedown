@@ -538,23 +538,61 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a math literal (inline or block math).
+  /// Wraps a single InlineMath or MathBlock token.
   pub(in crate::parse) fn parse_math_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      matches!(
+        self.lex_ctx.peek(SKIP_WCN, mode).token.kind(),
+        SyntaxKind::InlineMath | SyntaxKind::MathBlock
+      ),
+      "[ParseCtx::parse_math_lit] Expected next token to be InlineMath or MathBlock"
+    );
+    let mut children = vec![];
+    self.advance(&mut children, SKIP_WCN, mode);
+    self.emit(SyntaxKind::MathLit, &children)
   }
 
   /// Parse a code literal (inline or block code).
+  /// Wraps a single InlineCode or CodeBlock token.
   pub(in crate::parse) fn parse_code_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      matches!(
+        self.lex_ctx.peek(SKIP_WCN, mode).token.kind(),
+        SyntaxKind::InlineCode | SyntaxKind::CodeBlock
+      ),
+      "[ParseCtx::parse_code_lit] Expected next token to be InlineCode or CodeBlock"
+    );
+    let mut children = vec![];
+    self.advance(&mut children, SKIP_WCN, mode);
+    self.emit(SyntaxKind::CodeLit, &children)
   }
 
   /// Parse a number literal.
+  /// Wraps a single Number token.
   pub(in crate::parse) fn parse_number_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::Number,
+      "[ParseCtx::parse_number_lit] Expected next token to be Number"
+    );
+    let mut children = vec![];
+    self.advance(&mut children, SKIP_WCN, mode);
+    self.emit(SyntaxKind::NumberLit, &children)
   }
 
   /// Parse an identifier literal.
+  /// Wraps a single Ident token.
   pub(in crate::parse) fn parse_ident_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::Ident,
+      "[ParseCtx::parse_ident_lit] Expected next token to be Ident"
+    );
+    let mut children = vec![];
+    self.advance(&mut children, SKIP_WCN, mode);
+    self.emit(SyntaxKind::IdentLit, &children)
   }
 
   /// Parse a tag: `!name`.
