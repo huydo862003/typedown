@@ -242,6 +242,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.lex_ctx.offset()
   }
 
+  /// Push a diagnostic.
+  pub(in crate::parse) fn emit_diagnostic(&mut self, diagnostic: Diagnostic) {
+    self.diagnostics.push(diagnostic);
+  }
+
   /// Emit a GreenNode
   pub(in crate::parse) fn emit(&mut self, kind: SyntaxKind, children: &[GreenNode]) -> GreenNode {
     GreenNode::from_node(self.cache.borrow_mut().node(kind, children))

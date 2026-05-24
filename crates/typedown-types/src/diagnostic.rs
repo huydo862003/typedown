@@ -117,6 +117,18 @@ pub enum Diagnostic {
   MissingFrontmatterMarker { offset: usize },
 
   /// Expected a specific syntax node or token but it was missing.
+  MissingMarkdownHeadingHash {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Expected a specific syntax node or token but it was missing.
+  MissingRequiredSpacesBetweenHashAndHeading {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Expected a specific syntax node or token but it was missing.
   MissingSyntaxNode {
     expected: crate::syntax_kind::SyntaxKind,
     start_offset: usize,

@@ -1,11 +1,13 @@
 //! Markdown body parsing
 
+use typedown_types::diagnostic::Diagnostic;
 use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
-use crate::green::GreenNode;
+use crate::green::{GreenNode, SyntaxToken};
 use crate::lex::ctx::LexMode;
+use crate::parse::constants::SKIP_NONE;
 
 // Markdown body parsing
 // We distinguish between block elements and inline elements
@@ -23,8 +25,38 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a heading: `# ...`, `## ...`, etc.
+  /// INVARIANT: The next token should be a hash sequence  /// Any whitespaces must be consumed by the parent to pass the correct current_indent
   pub(in crate::parse) fn parse_heading(&mut self, current_indent: usize) -> GreenNode {
-    todo!()
+    fn is_hash(token: &SyntaxToken) -> bool {
+      token.kind() == SyntaxKind::MdSymbol && token.text().all(|c| c == '#')
+    }
+    debug_assert!(
+      is_hash(&self.lex_ctx.peek_md(SKIP_NONE).token),
+      "[ParseCtx::parse_heading] Expect the next immediate token to be a hash"
+    );
+    let mut children = vec![];
+
+    self.consume_md_if(
+      &mut children,
+      SKIP_NONE,
+      is_hash,
+      Diagnostic::MissingMarkdownHeadingHash {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      },
+    );
+
+    let next_token = &self.lex_ctx.peek_md(SKIP_NONE).token;
+    if next_token.kind() != SyntaxKind::Whitespace {
+      self.emit_diagnostic(Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    todo!();
   }
 
   /// Parse a paragraph: consecutive non-blank text lines.
