@@ -2,7 +2,6 @@
 
 pub mod cache;
 pub mod node;
-pub mod syntax_kind;
 pub mod token;
 
 use std::hash::{Hash, Hasher};
@@ -65,7 +64,7 @@ impl GreenNode {
     Some(cloned)
   }
 
-  pub fn kind(&self) -> syntax_kind::SyntaxKind {
+  pub fn kind(&self) -> typedown_types::syntax_kind::SyntaxKind {
     if self.is_token() {
       self.as_token().unwrap().kind()
     } else {

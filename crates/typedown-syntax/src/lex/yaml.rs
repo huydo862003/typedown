@@ -4,7 +4,7 @@ use typedown_types::{
 };
 
 use super::ctx::{LexCtx, LexResult, InterpContext};
-use crate::green::syntax_kind::SyntaxKind;
+use typedown_types::syntax_kind::SyntaxKind;
 
 // YAML frontmatter lexing
 impl<S: Utf8Stream> LexCtx<S> {

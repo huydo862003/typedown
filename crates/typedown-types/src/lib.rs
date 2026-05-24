@@ -4,4 +4,5 @@ pub mod diagnostic;
 pub mod file_stream;
 pub mod stream;
 pub mod string_stream;
+pub mod syntax_kind;
 pub mod text_range;

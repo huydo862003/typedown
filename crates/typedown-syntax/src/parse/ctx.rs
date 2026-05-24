@@ -2,10 +2,10 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
+use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use crate::{
-  green::{GreenNode, SyntaxToken, cache::Cache, syntax_kind::SyntaxKind},
+  green::{GreenNode, SyntaxToken, cache::Cache},
   lex::ctx::{LexCtx, LexMode, LexResult},
   parse::peekable_lex_ctx::PeekableLexCtx,
 };

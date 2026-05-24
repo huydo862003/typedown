@@ -107,7 +107,6 @@ pub enum Diagnostic {
   },
 
   /* Parser diagnostics */
-
   /// Unexpected tokens found before/after the frontmatter marker ---
   UnexpectedTokensOnFrontmatterMarkerLine {
     start_offset: usize,
@@ -116,4 +115,11 @@ pub enum Diagnostic {
 
   /// Missing frontmatter marker ---
   MissingFrontmatterMarker { offset: usize },
+
+  /// Expected a specific token but found something else.
+  MissingToken {
+    expected: crate::syntax_kind::SyntaxKind,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

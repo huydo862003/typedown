@@ -12,7 +12,7 @@ use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::green::cache::Cache;
-use crate::green::syntax_kind::SyntaxKind;
+use typedown_types::syntax_kind::SyntaxKind;
 use crate::green::token::SyntaxToken;
 
 pub struct LexResult {

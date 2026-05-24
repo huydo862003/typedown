@@ -2,7 +2,7 @@
 //! Each AST type checks the SyntaxKind on cast, providing a type-safe API
 //! over the generic tree structure.
 
-use crate::green::syntax_kind::SyntaxKind;
+use typedown_types::syntax_kind::SyntaxKind;
 use crate::red::RedNode;
 
 /// All AST nodes implement this trait.

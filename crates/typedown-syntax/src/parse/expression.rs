@@ -1,11 +1,17 @@
 //! Parser method for parsing many kinds of expressions
 
-use typedown_types::stream::Utf8Stream;
+use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
 
+use super::constants::*;
 use crate::{green::GreenNode, parse::ctx::ParseCtx};
 
 impl<S: Utf8Stream> ParseCtx<S> {
-  /// Formula expressions: Pratt-parsed expressions inside `${...}`.
+  /// General expression, including formula and yaml
+  pub(super) fn parse_expression(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Formula expressions: Pratt-parsed expressions that follow most programming language rules
   pub(super) fn parse_formula_expression(&mut self) -> GreenNode {
     todo!()
   }

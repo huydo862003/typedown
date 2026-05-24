@@ -5,8 +5,9 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 use super::constants::*;
 use super::ctx::ParseCtx;
 use super::peekable_lex_ctx::PeekYamlResult;
-use crate::green::{GreenNode, syntax_kind::SyntaxKind};
+use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
+use typedown_types::syntax_kind::SyntaxKind;
 
 // Top-level YAML frontmatter parsing
 impl<S: Utf8Stream> ParseCtx<S> {

@@ -3,7 +3,7 @@ use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{LexCtx, LexResult, InterpContext};
 use super::yaml::is_op_char;
-use crate::green::syntax_kind::SyntaxKind;
+use typedown_types::syntax_kind::SyntaxKind;
 
 // Markdown body lexing
 impl<S: Utf8Stream> LexCtx<S> {

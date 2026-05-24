@@ -3,10 +3,9 @@ use std::{
   ops::{Deref, DerefMut},
 };
 
-use typedown_types::stream::Utf8Stream;
+use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use crate::{
-  green::syntax_kind::SyntaxKind,
   lex::ctx::{LexCtx, LexMode, LexResult},
   parse::constants::{
     SKIP_COMMENT, SKIP_DEDENT, SKIP_INDENT, SKIP_LEADING_WS, SKIP_MIDDLE_WS, SKIP_NEWLINE,

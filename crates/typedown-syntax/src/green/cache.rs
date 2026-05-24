@@ -9,7 +9,7 @@ use std::hash::{BuildHasher, Hash, Hasher};
 
 use super::GreenNode;
 use super::node::SyntaxNode;
-use super::syntax_kind::SyntaxKind;
+use typedown_types::syntax_kind::SyntaxKind;
 use super::token::SyntaxToken;
 
 /// A non-thread safe interner for node/token deduplication.

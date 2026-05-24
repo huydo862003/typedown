@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::GreenNode;
-use crate::green::syntax_kind::SyntaxKind;
+use typedown_types::syntax_kind::SyntaxKind;
 
 pub(super) struct NodeHeader {
   pub(super) ref_count: AtomicUsize,
