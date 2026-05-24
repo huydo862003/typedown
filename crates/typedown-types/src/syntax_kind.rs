@@ -34,6 +34,10 @@ pub enum SyntaxKind {
   Media,             // ![alt](src)
   FootnoteRef,       // [^key]
   Citation,          // [@key]
+  Bold,              // **text**
+  Italic,            // *text* or _text_
+  BoldItalic,        // ***text***
+  Strikethrough,     // ~~text~~
   Text,              // plain text run
 
   // Expression nodes

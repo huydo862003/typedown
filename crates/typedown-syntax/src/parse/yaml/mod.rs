@@ -5,7 +5,6 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 use super::constants::*;
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
-use super::ctx::peekable_lex_ctx::PeekYamlResult;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
 use typedown_types::syntax_kind::SyntaxKind;
@@ -51,10 +50,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     if let Some(ctx) = early_exit {
       if ctx != ExprCtx::YamlFrontmatter {
-        self.diagnostics.push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
-          start_offset: self.offset(),
-          end_offset: self.offset(),
-        });
+        self
+          .diagnostics
+          .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
       }
     }
 
@@ -144,13 +145,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// - EOF
   /// - Triple dash at indent level 0
   fn should_end_yaml_frontmatter(&mut self) -> bool {
-    let PeekYamlResult(result, indent_depth) = self
+    let peek = self
       .lex_ctx
       .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);
 
-    match result.token.kind() {
+    match peek.result.token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if result.token.text().collect::<String>() == "---" => indent_depth == 0,
+      SyntaxKind::YamlOp if peek.result.token.text().collect::<String>() == "---" => {
+        peek.indent_depth == 0
+      }
       _ => false,
     }
   }

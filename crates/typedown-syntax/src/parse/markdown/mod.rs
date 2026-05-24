@@ -1,12 +1,29 @@
 //! Markdown body parsing
 
-use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
+use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use super::constants::*;
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
+
+/// Markdown indentation tracking.
+struct MdIndent {
+  /// Current indentation level (number of whitespace chars at line start).
+  level: usize,
+  /// The indent character established by the first indented line (None = not yet determined).
+  indent_char: Option<char>,
+}
+
+impl MdIndent {
+  fn new() -> Self {
+    Self {
+      level: 0,
+      indent_char: None,
+    }
+  }
+}
 
 // Markdown body parsing
 impl<S: Utf8Stream> ParseCtx<S> {
@@ -18,6 +35,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.expr_ctx_stack.enter(ExprCtx::MarkdownBody);
 
     let mut children = vec![];
+    let mut indent = MdIndent::new();
+    let mut at_line_start = true;
 
     loop {
       let mode = self.lex_ctx.mode();
@@ -27,11 +46,43 @@ impl<S: Utf8Stream> ParseCtx<S> {
         SyntaxKind::Eof => break,
         SyntaxKind::Newline => {
           self.advance_md(&mut children, SKIP_NONE);
+          at_line_start = true;
+          indent.level = 0;
         }
-        SyntaxKind::Whitespace => {
-          self.advance_md(&mut children, SKIP_NONE);
+        SyntaxKind::Whitespace if at_line_start => {
+          let result = self.advance_md(&mut children, SKIP_NONE);
+          let text: String = result.token.text().collect();
+
+          // Track indentation
+          let has_space = text.contains(' ');
+          let has_tab = text.contains('\t');
+
+          if has_space && has_tab {
+            self.diagnostics.push(Diagnostic::MixedIndentation {
+              start_offset: self.offset() - text.len(),
+              end_offset: self.offset(),
+            });
+          } else {
+            let char = if has_tab { '\t' } else { ' ' };
+            match indent.indent_char {
+              None => indent.indent_char = Some(char),
+              Some(established) if established != char => {
+                self.diagnostics.push(Diagnostic::InconsistentIndentation {
+                  expected: established,
+                  encountered: char,
+                  start_offset: self.offset() - text.len(),
+                  end_offset: self.offset(),
+                });
+              }
+              _ => {}
+            }
+          }
+
+          indent.level += text.len();
         }
         _ => {
+          at_line_start = false;
+          // TODO: dispatch to specific markdown element parsers
           self.advance_md(&mut children, SKIP_NONE);
         }
       }
@@ -133,6 +184,26 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a citation: `[@key]`.
   pub(in crate::parse) fn parse_citation(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse bold text: `**text**`.
+  pub(in crate::parse) fn parse_bold(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse italic text: `*text*` or `_text_`.
+  pub(in crate::parse) fn parse_italic(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse bold+italic text: `***text***`.
+  pub(in crate::parse) fn parse_bold_italic(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse strikethrough text: `~~text~~`.
+  pub(in crate::parse) fn parse_strikethrough(&mut self) -> GreenNode {
     todo!()
   }
 

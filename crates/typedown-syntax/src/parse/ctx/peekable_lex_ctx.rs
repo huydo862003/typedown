@@ -13,14 +13,17 @@ use crate::{
   },
 };
 
-/// Result of `peek_yaml`, wrapping a `LexResult` with the indent depth at the peeked token.
-pub struct PeekYamlResult(pub LexResult, pub usize);
+/// Result of `peek_yaml` or `peek_md`.
+pub struct AugmentedLexResult {
+  pub result: LexResult,
+  pub indent_depth: usize,
+}
 
-impl std::ops::Deref for PeekYamlResult {
+impl std::ops::Deref for AugmentedLexResult {
   type Target = LexResult;
 
   fn deref(&self) -> &Self::Target {
-    &self.0
+    &self.result
   }
 }
 
@@ -76,19 +79,19 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     result
   }
 
-  pub fn peek(&mut self, skip: u16, mode: LexMode) -> LexResult {
+  pub fn peek(&mut self, skip: u16, mode: LexMode) -> AugmentedLexResult {
     debug_assert!(
       self.lex_ctx.mode() == mode,
       "[PeekableLexCtx::peek] Lex mode must be the same as the `mode` argument"
     );
     match mode {
-      LexMode::YamlFrontmatter => self.peek_yaml(skip).0,
+      LexMode::YamlFrontmatter => self.peek_yaml(skip),
       LexMode::MarkdownBody => self.peek_md(skip),
     }
   }
 
   /// Peek at the next non-skipped YAML token without consuming.
-  pub fn peek_yaml(&mut self, skip: u16) -> PeekYamlResult {
+  pub fn peek_yaml(&mut self, skip: u16) -> AugmentedLexResult {
     debug_assert!(
       self.lex_ctx.mode() == LexMode::YamlFrontmatter,
       "[PeekableLexCtx::peek_yaml] Lex mode must be YamlFrontmatter"
@@ -139,15 +142,20 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     self.indent_depth = saved_indent_depth;
     self.after_newline = saved_after_newline;
 
-    PeekYamlResult(result, peeked_indent_depth)
+    AugmentedLexResult {
+      result,
+      indent_depth: peeked_indent_depth,
+    }
   }
 
   /// Peek at the next non-skipped Markdown token without consuming.
-  pub fn peek_md(&mut self, skip: u16) -> LexResult {
+  pub fn peek_md(&mut self, skip: u16) -> AugmentedLexResult {
     debug_assert!(
       self.lex_ctx.mode() == LexMode::MarkdownBody,
       "[PeekableLexCtx::peek_md] Lex mode must be MarkdownBody"
     );
+    let saved_indent_depth = self.indent_depth;
+    let saved_after_newline = self.after_newline;
     let mut skipped_count = 0;
 
     let result = loop {
@@ -158,8 +166,13 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       });
       skipped_count += 1;
 
+      // Never peek past EOF
+      if token.kind() == SyntaxKind::Eof {
+        break LexResult { token, diagnostic };
+      }
+
       let should_skip = match token.kind() {
-        SyntaxKind::Whitespace => skip & SKIP_WS != 0,
+        SyntaxKind::Whitespace => self.should_skip_ws(skip),
         SyntaxKind::Newline => skip & SKIP_NEWLINE != 0,
         _ => false,
       };
@@ -168,10 +181,19 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       }
     };
 
+    let peeked_indent_depth = self.indent_depth;
+
     // Rotate the newly appended tokens to the front so they replay in order
     self.token_buffer.rotate_right(skipped_count);
 
-    result
+    // Restore state to pre-peek
+    self.indent_depth = saved_indent_depth;
+    self.after_newline = saved_after_newline;
+
+    AugmentedLexResult {
+      result,
+      indent_depth: peeked_indent_depth,
+    }
   }
 
   /// Whether the most recently lexed token should be skipped in YAML mode.
