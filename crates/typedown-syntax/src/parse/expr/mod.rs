@@ -15,9 +15,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Formula expressions: Pratt-parsed expressions that follow most programming language rules
-  pub(in crate::parse) fn parse_formula_expr(&mut self) -> GreenNode {
-    let (node, _) = self.pratt_parse_expr(0);
-    node
+  pub(in crate::parse) fn parse_formula_expr(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    self.pratt_parse_expr(0)
   }
 
   fn pratt_parse_expr(&mut self, min_bp: u8) -> (GreenNode, Option<ExprCtx>) {
@@ -53,7 +52,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
       // Check for call expression: ident followed by `(`
       if peek.token.kind() == SyntaxKind::LParen {
-        lhs = self.parse_call_expr(lhs);
+        let (node, exit) = self.parse_call_expr(lhs);
+        lhs = node;
+        if exit.is_some() {
+          return (lhs, exit);
+        }
         continue;
       }
 
@@ -102,7 +105,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a call expression: `callee(arg1, arg2, ...)`.
   /// `callee` has already been parsed and is passed in.
-  fn parse_call_expr(&mut self, callee: GreenNode) -> GreenNode {
+  fn parse_call_expr(&mut self, callee: GreenNode) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::LParen,
@@ -120,7 +123,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if peek.token.kind() == SyntaxKind::RParen {
       self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
       self.expr_ctx_stack.exit(ExprCtx::Call);
-      return self.emit(SyntaxKind::CallExpr, &children);
+      return (self.emit(SyntaxKind::CallExpr, &children), None);
     }
 
     // Parse first argument
@@ -128,7 +131,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(arg);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
       self.expr_ctx_stack.exit(ExprCtx::Call);
-      return self.emit(SyntaxKind::CallExpr, &children);
+      return (self.emit(SyntaxKind::CallExpr, &children), early_exit);
     }
 
     // Parse remaining arguments
@@ -153,7 +156,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(arg);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
             self.expr_ctx_stack.exit(ExprCtx::Call);
-            return self.emit(SyntaxKind::CallExpr, &children);
+            return (self.emit(SyntaxKind::CallExpr, &children), early_exit);
           }
         }
         SyntaxKind::Eof => {
@@ -168,18 +171,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
           let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::Call) {
             self.expr_ctx_stack.exit(ExprCtx::Call);
-            return self.emit(SyntaxKind::CallExpr, &children);
+            return (self.emit(SyntaxKind::CallExpr, &children), handler);
           }
           if let Some(ctx) = self.synchronize_call_expr(&mut children) {
             self.expr_ctx_stack.exit(ExprCtx::Call);
-            return self.emit(SyntaxKind::CallExpr, &children);
+            return (self.emit(SyntaxKind::CallExpr, &children), Some(ctx));
           }
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::Call);
-    self.emit(SyntaxKind::CallExpr, &children)
+    (self.emit(SyntaxKind::CallExpr, &children), None)
   }
 
   // Stop on Comma and RParen
@@ -208,13 +211,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let peek = self.lex_ctx.peek(SKIP_WCN, mode);
 
     match peek.token.kind() {
-      SyntaxKind::Number => (self.parse_number_lit(), None),
-      SyntaxKind::DqStrStart => (self.parse_dq_str_lit(), None),
-      SyntaxKind::SqStrStart => (self.parse_sq_str_lit(), None),
-      SyntaxKind::InlineCode | SyntaxKind::CodeBlock => (self.parse_code_lit(), None),
-      SyntaxKind::InlineMath | SyntaxKind::MathBlock => (self.parse_math_lit(), None),
-      SyntaxKind::Ident => (self.parse_ident_lit(), None),
-      SyntaxKind::LParen => (self.parse_paren_expr(), None),
+      SyntaxKind::Number => self.parse_number_lit(),
+      SyntaxKind::DqStrStart => self.parse_dq_str_lit(),
+      SyntaxKind::SqStrStart => self.parse_sq_str_lit(),
+      SyntaxKind::InlineCode | SyntaxKind::CodeBlock => self.parse_code_lit(),
+      SyntaxKind::InlineMath | SyntaxKind::MathBlock => self.parse_math_lit(),
+      SyntaxKind::Ident => self.parse_ident_lit(),
+      SyntaxKind::LParen => self.parse_paren_expr(),
       SyntaxKind::LBracket => self.parse_list_lit(),
       SyntaxKind::LBrace => self.parse_dict_lit(),
       _ => {
@@ -246,7 +249,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a parenthesized expression: `(expr)`.
-  pub(in crate::parse) fn parse_paren_expr(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_paren_expr(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self
         .lex_ctx
@@ -257,6 +260,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       "[ParseCtx::parse_paren_expr] Expected next token to be LParen"
     );
     let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::Paren);
 
     // Consume `(`
     let offset = self.offset();
@@ -273,8 +277,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     // Parse inner expression
-    let inner = self.parse_formula_expr();
+    let (inner, early_exit) = self.parse_formula_expr();
     children.push(inner);
+
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::Paren) {
+      self.expr_ctx_stack.exit(ExprCtx::Paren);
+      return (self.emit(SyntaxKind::ParenExpr, &children), early_exit);
+    }
 
     // Consume `)`
     let offset = self.offset();
@@ -290,7 +299,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       },
     );
 
-    self.emit(SyntaxKind::ParenExpr, &children)
+    self.expr_ctx_stack.exit(ExprCtx::Paren);
+    (self.emit(SyntaxKind::ParenExpr, &children), None)
   }
 
   /// Parse a flow list literal: `[expr, expr, ...]`.
@@ -423,7 +433,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a block expression (sequence or mapping) after a newline.
-  pub(in crate::parse) fn parse_block_seq_or_mapping(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_block_seq_or_mapping(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     let mut children = vec![];
 
@@ -448,18 +458,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
-      let seq = self.parse_block_seq_lit();
+      let (seq, early_exit) = self.parse_block_seq_lit();
       children.push(seq);
-      self.emit(SyntaxKind::BlockSeqLit, &children)
+      (self.emit(SyntaxKind::BlockSeqLit, &children), early_exit)
     } else {
-      let mapping = self.parse_block_mapping_lit();
+      let (mapping, early_exit) = self.parse_block_mapping_lit();
       children.push(mapping);
-      self.emit(SyntaxKind::BlockMappingLit, &children)
+      (
+        self.emit(SyntaxKind::BlockMappingLit, &children),
+        early_exit,
+      )
     }
   }
 
   /// Parse a block sequence literal: lines starting with `-`.
-  pub(in crate::parse) fn parse_block_seq_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_block_seq_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     let mut children = vec![];
     self.expr_ctx_stack.enter(ExprCtx::BlockSeq);
@@ -478,23 +491,25 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(item);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
             self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-            return self.emit(SyntaxKind::BlockSeqLit, &children);
+            return (self.emit(SyntaxKind::BlockSeqLit, &children), early_exit);
           }
         }
         _ => {
           let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
-            break;
+            self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
+            return (self.emit(SyntaxKind::BlockSeqLit, &children), handler);
           }
-          if let Some(_) = self.synchronize_block_seq(&mut children) {
-            break;
+          if let Some(ctx) = self.synchronize_block_seq(&mut children) {
+            self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
+            return (self.emit(SyntaxKind::BlockSeqLit, &children), Some(ctx));
           }
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-    self.emit(SyntaxKind::BlockSeqLit, &children)
+    (self.emit(SyntaxKind::BlockSeqLit, &children), None)
   }
 
   /// Parse a single block sequence item: `- expr`.
@@ -757,7 +772,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a literal block string: `|` followed by indented content.
-  pub(in crate::parse) fn parse_literal_block_str_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_literal_block_str_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       {
@@ -811,11 +826,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
     }
 
-    self.emit(SyntaxKind::LiteralBlockStrLit, &children)
+    (self.emit(SyntaxKind::LiteralBlockStrLit, &children), None)
   }
 
   /// Parse a folded block string: `>` followed by indented content.
-  pub(in crate::parse) fn parse_folded_block_str_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_folded_block_str_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       {
@@ -869,13 +884,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
     }
 
-    self.emit(SyntaxKind::FoldedBlockStrLit, &children)
+    (self.emit(SyntaxKind::FoldedBlockStrLit, &children), None)
   }
 
   /// Parse a block mapping literal (indentation-based `key: value` pairs).
   /// Indent has already been consumed by `parse_block_seq_or_mapping`.
   /// Returns on dedent or when the next token can't start an entry.
-  pub(in crate::parse) fn parse_block_mapping_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_block_mapping_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     let mut children = vec![];
     self.expr_ctx_stack.enter(ExprCtx::BlockMap);
@@ -893,23 +908,28 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(entry);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
             self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-            return self.emit(SyntaxKind::BlockMappingLit, &children);
+            return (
+              self.emit(SyntaxKind::BlockMappingLit, &children),
+              early_exit,
+            );
           }
         }
         _ => {
           let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
-            break;
+            self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+            return (self.emit(SyntaxKind::BlockMappingLit, &children), handler);
           }
-          if let Some(_) = self.synchronize_block_mapping(&mut children) {
-            break;
+          if let Some(ctx) = self.synchronize_block_mapping(&mut children) {
+            self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+            return (self.emit(SyntaxKind::BlockMappingLit, &children), Some(ctx));
           }
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-    self.emit(SyntaxKind::BlockMappingLit, &children)
+    (self.emit(SyntaxKind::BlockMappingLit, &children), None)
   }
 
   /// Parse a single block mapping entry: `key: value`.
@@ -971,8 +991,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
           mode,
         );
         if peek_after.token.kind() == SyntaxKind::YamlIndent {
-          let nested = self.parse_block_seq_or_mapping();
+          let (nested, early_exit) = self.parse_block_seq_or_mapping();
           children.push(self.emit(SyntaxKind::MappingEntryValue, &[nested]));
+          return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
         } else {
           // Empty value (newline without indent)
           self.diagnostics.push(Diagnostic::MissingSyntaxNode {
@@ -1004,7 +1025,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a double-quoted string literal with interpolation: `"content ${expr} content"`.
-  pub(in crate::parse) fn parse_dq_str_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_dq_str_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::DqStrStart,
@@ -1023,12 +1044,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
           break;
         }
         SyntaxKind::InterpStart => {
-          let fragment = self.parse_interp_fragment();
+          let (fragment, early_exit) = self.parse_interp_fragment();
           children.push(fragment);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::DqString) {
+            self.expr_ctx_stack.exit(ExprCtx::DqString);
+            return (self.emit(SyntaxKind::StrLit, &children), early_exit);
+          }
         }
         SyntaxKind::InlineMath => {
-          let math = self.parse_math_lit();
+          let (math, early_exit) = self.parse_math_lit();
           children.push(math);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::DqString) {
+            self.expr_ctx_stack.exit(ExprCtx::DqString);
+            return (self.emit(SyntaxKind::StrLit, &children), early_exit);
+          }
         }
         SyntaxKind::Eof | SyntaxKind::Error => {
           self.advance(&mut children, SKIP_NONE, mode);
@@ -1041,11 +1070,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::DqString);
-    self.emit(SyntaxKind::StrLit, &children)
+    (self.emit(SyntaxKind::StrLit, &children), None)
   }
 
   /// Parse a single-quoted string literal with interpolation: `'content ${expr} content'`.
-  pub(in crate::parse) fn parse_sq_str_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_sq_str_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::SqStrStart,
@@ -1064,12 +1093,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
           break;
         }
         SyntaxKind::InterpStart => {
-          let fragment = self.parse_interp_fragment();
+          let (fragment, early_exit) = self.parse_interp_fragment();
           children.push(fragment);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::SqString) {
+            self.expr_ctx_stack.exit(ExprCtx::SqString);
+            return (self.emit(SyntaxKind::StrLit, &children), early_exit);
+          }
         }
         SyntaxKind::InlineMath => {
-          let math = self.parse_math_lit();
+          let (math, early_exit) = self.parse_math_lit();
           children.push(math);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::SqString) {
+            self.expr_ctx_stack.exit(ExprCtx::SqString);
+            return (self.emit(SyntaxKind::StrLit, &children), early_exit);
+          }
         }
         SyntaxKind::Eof | SyntaxKind::Error => {
           self.advance(&mut children, SKIP_NONE, mode);
@@ -1082,11 +1119,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::SqString);
-    self.emit(SyntaxKind::StrLit, &children)
+    (self.emit(SyntaxKind::StrLit, &children), None)
   }
 
   /// Parse an interpolation fragment: `${...}` inside a string.
-  pub(in crate::parse) fn parse_interp_fragment(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_interp_fragment(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_NONE, mode).token.kind() == SyntaxKind::InterpStart,
@@ -1100,8 +1137,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.advance(&mut children, SKIP_NONE, mode);
 
     // Parse the expression inside
-    let inner = self.parse_formula_expr();
+    let (inner, early_exit) = self.parse_formula_expr();
     children.push(inner);
+
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::Interp) {
+      self.expr_ctx_stack.exit(ExprCtx::Interp);
+      return (self.emit(SyntaxKind::InterpFragment, &children), early_exit);
+    }
 
     // Consume `}`
     let offset = self.offset();
@@ -1118,12 +1160,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     self.expr_ctx_stack.exit(ExprCtx::Interp);
-    self.emit(SyntaxKind::InterpFragment, &children)
+    (self.emit(SyntaxKind::InterpFragment, &children), None)
   }
 
   /// Parse a math literal (inline or block math).
   /// Wraps a single InlineMath or MathBlock token.
-  pub(in crate::parse) fn parse_math_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_math_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       matches!(
@@ -1134,12 +1176,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let mut children = vec![];
     self.advance(&mut children, SKIP_WCN, mode);
-    self.emit(SyntaxKind::MathLit, &children)
+    (self.emit(SyntaxKind::MathLit, &children), None)
   }
 
   /// Parse a code literal (inline or block code).
   /// Wraps a single InlineCode or CodeBlock token.
-  pub(in crate::parse) fn parse_code_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_code_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       matches!(
@@ -1150,12 +1192,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let mut children = vec![];
     self.advance(&mut children, SKIP_WCN, mode);
-    self.emit(SyntaxKind::CodeLit, &children)
+    (self.emit(SyntaxKind::CodeLit, &children), None)
   }
 
   /// Parse a number literal.
   /// Wraps a single Number token.
-  pub(in crate::parse) fn parse_number_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_number_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::Number,
@@ -1163,12 +1205,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let mut children = vec![];
     self.advance(&mut children, SKIP_WCN, mode);
-    self.emit(SyntaxKind::NumberLit, &children)
+    (self.emit(SyntaxKind::NumberLit, &children), None)
   }
 
   /// Parse an identifier literal.
   /// Wraps a single Ident token.
-  pub(in crate::parse) fn parse_ident_lit(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_ident_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::Ident,
@@ -1176,7 +1218,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let mut children = vec![];
     self.advance(&mut children, SKIP_WCN, mode);
-    self.emit(SyntaxKind::IdentLit, &children)
+    (self.emit(SyntaxKind::IdentLit, &children), None)
   }
 
   /// If the next token should be handled by an outer context, return that context.
