@@ -29,6 +29,8 @@ pub(in crate::parse) enum ExprCtx {
   BlockSeq,
   /// Inside a block mapping
   BlockMap,
+  /// Inside a markdown list item at the given indentation level
+  MdListItem(usize),
 }
 
 /// Stack of expression contexts for error recovery in expressions.
@@ -60,7 +62,7 @@ impl ExprCtxStack {
   }
 
   /// Whether indentation should be ignored.
-  /// True if any context on the stack ignores indentation (flow constructs).
+  /// Return true if any context on the stack ignores indentation (flow constructs)
   pub(in crate::parse) fn should_ignore_indent(&self) -> bool {
     self.0.iter().any(|ctx| ctx.should_ignore_indent())
   }
@@ -81,15 +83,16 @@ impl ExprCtxStack {
 impl ExprCtx {
   /// Whether indentation is irrelevant in this context (flow constructs).
   pub(in crate::parse) fn should_ignore_indent(self) -> bool {
-    matches!(self, ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call)
+    matches!(
+      self,
+      ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call
+    )
   }
 
   /// Whether this context can handle the given token.
   pub(in crate::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
     match (self, token.kind()) {
-      (ExprCtx::YamlFrontmatter, SyntaxKind::YamlOp) => {
-        token.text().collect::<String>() == "---"
-      }
+      (ExprCtx::YamlFrontmatter, SyntaxKind::YamlOp) => token.text().collect::<String>() == "---",
       (ExprCtx::YamlFrontmatter, SyntaxKind::YamlIndent)
       | (ExprCtx::YamlFrontmatter, SyntaxKind::YamlDedent)
       | (ExprCtx::YamlFrontmatter, SyntaxKind::Eof)
@@ -108,7 +111,9 @@ impl ExprCtx {
       | (ExprCtx::BlockSeq, SyntaxKind::Newline)
       | (ExprCtx::BlockSeq, SyntaxKind::YamlDedent)
       | (ExprCtx::BlockMap, SyntaxKind::Newline)
-      | (ExprCtx::BlockMap, SyntaxKind::YamlDedent) => true,
+      | (ExprCtx::BlockMap, SyntaxKind::YamlDedent)
+      | (ExprCtx::MdListItem(_), SyntaxKind::Newline)
+      | (ExprCtx::MdListItem(_), SyntaxKind::Eof) => true,
       _ => false,
     }
   }

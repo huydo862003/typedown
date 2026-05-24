@@ -7,7 +7,7 @@ use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
 use crate::green::{GreenNode, SyntaxToken};
 use crate::lex::ctx::LexMode;
-use crate::parse::constants::{SKIP_NONE, SKIP_TRAILING_WS};
+use crate::parse::constants::{SKIP_LEADING_WS, SKIP_NONE, SKIP_TRAILING_WS};
 
 // Markdown body parsing
 // We distinguish between block elements and inline elements
@@ -100,8 +100,49 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a paragraph: consecutive non-blank text lines.
+  /// INVARIANT: The current line is not blank (caller must ensure there is content).
   pub(in crate::parse) fn parse_paragraph(&mut self, current_indent: usize) -> GreenNode {
-    todo!()
+    let mut children = vec![];
+
+    loop {
+      // Parse all inline elements on this line
+      loop {
+        let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+        if matches!(next_kind, SyntaxKind::Newline | SyntaxKind::Eof) {
+          break;
+        }
+        let inline = self.parse_md_inline_element();
+        children.push(inline);
+      }
+
+      // Stop at EOF
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if next_kind == SyntaxKind::Eof {
+        break;
+      }
+
+      // Consume the newline
+      self.advance_md(&mut children, SKIP_NONE);
+
+      // Peek past leading whitespace on the next line to decide whether to continue
+      let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+      if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+        // Blank line: end paragraph
+        break;
+      }
+      if self.is_md_block_start() {
+        if next.indent_depth > current_indent {
+          // Indented block: parse as a nested child of this paragraph
+          let block = self.parse_md_block_element();
+          children.push(block);
+        } else {
+          // Block at same or lower indent: end paragraph
+          break;
+        }
+      }
+    }
+
+    self.emit(SyntaxKind::Paragraph, &children)
   }
 
   /// Parse a blockquote: `> ...`.
@@ -212,5 +253,28 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a text run: consecutive plain text.
   pub(in crate::parse) fn parse_text(&mut self, current_indent: usize) -> GreenNode {
     todo!()
+  }
+
+  /// Whether the next non-leading-whitespace token starts a block-level element.
+  /// INVARIANT: Must be called right after consuming a newline.
+  fn is_md_block_start(&mut self) -> bool {
+    let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+    if next.token.kind() != SyntaxKind::MdSymbol {
+      // Number can start an ordered list item: `1. ...`
+      return next.token.kind() == SyntaxKind::Number;
+    }
+    let text: String = next.token.text().collect();
+    let first = match text.chars().next() {
+      Some(char) => char,
+      None => return false,
+    };
+    matches!(
+      first,
+      '#'  // heading
+      | '-' | '*' | '+' // bullet list
+      | '>' // blockquote or toggle list
+      | '|' // table (this can introduces some false positives, but I think it's okay)
+      | ':' // callout/footnote/bibliography (:::)
+    )
   }
 }
