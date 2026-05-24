@@ -408,12 +408,118 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a literal block string: `|` followed by indented content.
   pub(in crate::parse) fn parse_literal_block_str_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      {
+        let peek = self.lex_ctx.peek(SKIP_WCN, mode);
+        peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "|"
+      },
+      "[ParseCtx::parse_literal_block_str_lit] Expected next token to be `|`"
+    );
+
+    let mut children = vec![];
+
+    // Consume `|`
+    self.advance(&mut children, SKIP_WCN, mode);
+
+    // Expect newline after `|`
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_TRAILING_WS | SKIP_COMMENT,
+      mode,
+      SyntaxKind::Newline,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Newline,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Expect indent
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_NONE,
+      mode,
+      SyntaxKind::YamlIndent,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::YamlIndent,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Consume content until dedent or EOF
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, mode);
+      match peek.token.kind() {
+        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+        _ => {
+          self.advance(&mut children, SKIP_NONE, mode);
+        }
+      }
+    }
+
+    self.emit(SyntaxKind::LiteralBlockStrLit, &children)
   }
 
   /// Parse a folded block string: `>` followed by indented content.
   pub(in crate::parse) fn parse_folded_block_str_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      {
+        let peek = self.lex_ctx.peek(SKIP_WCN, mode);
+        peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == ">"
+      },
+      "[ParseCtx::parse_folded_block_str_lit] Expected next token to be `>`"
+    );
+
+    let mut children = vec![];
+
+    // Consume `>`
+    self.advance(&mut children, SKIP_WCN, mode);
+
+    // Expect newline after `>`
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_TRAILING_WS | SKIP_COMMENT,
+      mode,
+      SyntaxKind::Newline,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Newline,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Expect indent
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_NONE,
+      mode,
+      SyntaxKind::YamlIndent,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::YamlIndent,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Consume content until dedent or EOF
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, mode);
+      match peek.token.kind() {
+        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+        _ => {
+          self.advance(&mut children, SKIP_NONE, mode);
+        }
+      }
+    }
+
+    self.emit(SyntaxKind::FoldedBlockStrLit, &children)
   }
 
   /// Parse a block mapping literal (delegates to yaml block mapping).
