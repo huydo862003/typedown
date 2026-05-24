@@ -7,7 +7,7 @@ use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
 use crate::green::{GreenNode, SyntaxToken};
 use crate::lex::ctx::LexMode;
-use crate::parse::constants::SKIP_NONE;
+use crate::parse::constants::{SKIP_NONE, SKIP_TRAILING_WS};
 
 // Markdown body parsing
 // We distinguish between block elements and inline elements
@@ -67,7 +67,36 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance_md(&mut children, SKIP_NONE);
     }
 
-    todo!();
+    // Require at least one inline element
+    let has_inline = {
+      let next = self.lex_ctx.peek_md(SKIP_TRAILING_WS);
+      !matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof)
+    };
+    if !has_inline {
+      self.emit_diagnostic(Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Text,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      // Parse inline elements until newline or EOF
+      loop {
+        let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+        if matches!(next_kind, SyntaxKind::Newline | SyntaxKind::Eof) {
+          break;
+        }
+        let inline = self.parse_md_inline_element();
+        children.push(inline);
+      }
+    }
+
+    // Consume the trailing newline if present
+    let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+    if next_kind == SyntaxKind::Newline {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    self.emit(SyntaxKind::Heading, &children)
   }
 
   /// Parse a paragraph: consecutive non-blank text lines.
