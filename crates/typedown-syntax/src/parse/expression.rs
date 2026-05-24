@@ -3,7 +3,7 @@
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use super::constants::*;
-use crate::{green::GreenNode, parse::ctx::ParseCtx};
+use crate::{green::GreenNode, lex::ctx::LexMode, parse::ctx::ParseCtx};
 
 impl<S: Utf8Stream> ParseCtx<S> {
   /// General expression, including formula and yaml
@@ -23,7 +23,50 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a parenthesized expression: `(expr)`.
   pub(super) fn parse_paren_expr(&mut self) -> GreenNode {
-    todo!()
+    debug_assert!(
+      self
+        .lex_ctx
+        .peek(SKIP_WCN, self.lex_ctx.mode())
+        .token
+        .kind()
+        == SyntaxKind::LParen,
+      "[ParseCtx::parse_paren_expr] Expected next token to be LParen"
+    );
+    let mut children = vec![];
+
+    // Consume `(`
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_WCN,
+      self.lex_ctx.mode(),
+      SyntaxKind::LParen,
+      Diagnostic::MissingToken {
+        expected: SyntaxKind::LParen,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Parse inner expression
+    let inner = self.parse_formula_expression();
+    children.push(inner);
+
+    // Consume `)`
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_WCN,
+      self.lex_ctx.mode(),
+      SyntaxKind::RParen,
+      Diagnostic::MissingToken {
+        expected: SyntaxKind::RParen,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    self.emit(SyntaxKind::ParenExpr, &children)
   }
 
   /// Parse a unary expression: `!expr`, `-expr`, `+expr`.

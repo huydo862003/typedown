@@ -20,7 +20,7 @@ pub struct LexResult {
   pub diagnostic: Option<Diagnostic>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LexMode {
   YamlFrontmatter,
   MarkdownBody,
@@ -103,8 +103,8 @@ impl<S: Utf8Stream> LexCtx<S> {
     self.mode = mode;
   }
 
-  pub fn mode(&self) -> &LexMode {
-    &self.mode
+  pub fn mode(&self) -> LexMode {
+    self.mode
   }
 
   /// Current byte offset in the source stream.
