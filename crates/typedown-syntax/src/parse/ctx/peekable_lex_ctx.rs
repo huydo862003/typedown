@@ -16,6 +16,7 @@ use crate::{
 /// Result of `peek_yaml` or `peek_md`.
 pub struct AugmentedLexResult {
   pub result: LexResult,
+  /// Indent depth at the peeked token.
   pub indent_depth: usize,
 }
 
@@ -33,8 +34,10 @@ impl std::ops::Deref for AugmentedLexResult {
 pub struct PeekableLexCtx<S: Utf8Stream> {
   pub(in crate::parse) lex_ctx: LexCtx<S>,
   token_buffer: VecDeque<LexResult>,
-  /// Current YAML indent depth.
-  indent_depth: usize,
+  /// Current YAML indent depth (indent/dedent levels).
+  yaml_indent_depth: usize,
+  /// Current Markdown indent depth (whitespace chars at line start).
+  md_indent_depth: usize,
   /// Whether the last non-whitespace token was a Newline (or we're at start of input).
   after_newline: bool,
 }
@@ -44,13 +47,18 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     PeekableLexCtx {
       lex_ctx,
       token_buffer: VecDeque::default(),
-      indent_depth: 0,
+      yaml_indent_depth: 0,
+      md_indent_depth: 0,
       after_newline: true,
     }
   }
 
-  pub fn indent_depth(&self) -> usize {
-    self.indent_depth
+  pub fn yaml_indent_depth(&self) -> usize {
+    self.yaml_indent_depth
+  }
+
+  pub fn md_indent_depth(&self) -> usize {
+    self.md_indent_depth
   }
 
   pub fn lex(&mut self) -> LexResult {
@@ -62,9 +70,19 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
 
     // Track indent depth
     match result.token.kind() {
-      SyntaxKind::YamlIndent => self.indent_depth += 1,
+      SyntaxKind::YamlIndent => self.yaml_indent_depth += 1,
       SyntaxKind::YamlDedent => {
-        self.indent_depth = self.indent_depth.saturating_sub(1);
+        self.yaml_indent_depth = self.yaml_indent_depth.saturating_sub(1);
+      }
+      _ => {}
+    }
+
+    // Track Markdown indent depth
+    match result.token.kind() {
+      SyntaxKind::Newline => self.md_indent_depth = 0,
+      SyntaxKind::Whitespace if self.after_newline => {
+        let text: String = result.token.text().collect();
+        self.md_indent_depth += text.len();
       }
       _ => {}
     }
@@ -98,7 +116,8 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     );
 
     // Saved state before peeking
-    let saved_indent_depth = self.indent_depth;
+    let saved_yaml_indent_depth = self.yaml_indent_depth;
+    let saved_md_indent_depth = self.md_indent_depth;
     let saved_after_newline = self.after_newline;
 
     let mut skipped_count = 0; // Used for rotating the token_buffer
@@ -133,13 +152,14 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       }
     };
 
-    let peeked_indent_depth = self.indent_depth;
+    let peeked_indent_depth = self.yaml_indent_depth;
 
     // Rotate the newly appended tokens to the front so they replay in order
     self.token_buffer.rotate_right(skipped_count);
 
     // Restore state to pre-peek
-    self.indent_depth = saved_indent_depth;
+    self.yaml_indent_depth = saved_yaml_indent_depth;
+    self.md_indent_depth = saved_md_indent_depth;
     self.after_newline = saved_after_newline;
 
     AugmentedLexResult {
@@ -154,7 +174,8 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       self.lex_ctx.mode() == LexMode::MarkdownBody,
       "[PeekableLexCtx::peek_md] Lex mode must be MarkdownBody"
     );
-    let saved_indent_depth = self.indent_depth;
+    let saved_yaml_indent_depth = self.yaml_indent_depth;
+    let saved_md_indent_depth = self.md_indent_depth;
     let saved_after_newline = self.after_newline;
     let mut skipped_count = 0;
 
@@ -181,13 +202,14 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       }
     };
 
-    let peeked_indent_depth = self.indent_depth;
+    let peeked_indent_depth = self.md_indent_depth;
 
     // Rotate the newly appended tokens to the front so they replay in order
     self.token_buffer.rotate_right(skipped_count);
 
     // Restore state to pre-peek
-    self.indent_depth = saved_indent_depth;
+    self.yaml_indent_depth = saved_yaml_indent_depth;
+    self.md_indent_depth = saved_md_indent_depth;
     self.after_newline = saved_after_newline;
 
     AugmentedLexResult {

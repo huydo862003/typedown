@@ -73,7 +73,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let end_offset = self.offset();
 
-    if self.lex_ctx.indent_depth() != 0 {
+    if self.lex_ctx.yaml_indent_depth() != 0 {
       self
         .diagnostics
         .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
