@@ -20,8 +20,46 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a primary expression (an operand): literal, ident, paren, etc.
-  pub(in crate::parse) fn parse_primary_expr(&mut self) -> GreenNode {
-    todo!()
+  pub(in crate::parse) fn parse_primary_expr(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+    let peek = self.lex_ctx.peek(SKIP_WCN, mode);
+
+    match peek.token.kind() {
+      SyntaxKind::Number => (self.parse_number_lit(), None),
+      SyntaxKind::DqStrStart => (self.parse_dq_str_lit(), None),
+      SyntaxKind::SqStrStart => (self.parse_sq_str_lit(), None),
+      SyntaxKind::InlineCode | SyntaxKind::CodeBlock => (self.parse_code_lit(), None),
+      SyntaxKind::InlineMath | SyntaxKind::MathBlock => (self.parse_math_lit(), None),
+      SyntaxKind::Ident => (self.parse_ident_lit(), None),
+      SyntaxKind::LParen => (self.parse_paren_expr(), None),
+      SyntaxKind::LBracket => self.parse_list_lit(),
+      SyntaxKind::LBrace => self.parse_dict_lit(),
+      _ => {
+        // Check if an outer context can handle this token
+        let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+        if handler.is_some() {
+          // Don't consume: let the caller handle it
+          self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+            expected: SyntaxKind::PrimaryExpr,
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
+          (self.emit(SyntaxKind::PrimaryExpr, &[]), handler)
+        } else {
+          // No one can handle it: consume as error
+          let mut children = vec![];
+          self.advance(&mut children, SKIP_WCN, mode);
+          let bad = children.pop().unwrap();
+          children.push(self.emit(SyntaxKind::Error, &[bad]));
+          self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+            expected: SyntaxKind::PrimaryExpr,
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
+          (self.emit(SyntaxKind::PrimaryExpr, &children), None)
+        }
+      }
+    }
   }
 
   /// Parse a parenthesized expression: `(expr)`.

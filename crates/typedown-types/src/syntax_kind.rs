@@ -40,6 +40,7 @@ pub enum SyntaxKind {
   Expr = 300,
   PrimaryExpr, // An operand in an expression
   ParenExpr,   // (expr)
+  CallExpr,    // func(args)
   UnaryExpr,
   BinaryExpr,
 
