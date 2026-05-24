@@ -15,9 +15,18 @@ use crate::{
 
 /// Result of `peek_yaml` or `peek_md`.
 pub struct AugmentedLexResult {
-  pub result: LexResult,
+  result: LexResult,
   /// Indent depth at the peeked token.
   pub indent_depth: usize,
+}
+
+impl AugmentedLexResult {
+  pub(in crate::parse) fn new(result: LexResult, indent_depth: usize) -> Self {
+    Self {
+      result,
+      indent_depth,
+    }
+  }
 }
 
 impl std::ops::Deref for AugmentedLexResult {

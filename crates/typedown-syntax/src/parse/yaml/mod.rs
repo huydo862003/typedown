@@ -149,9 +149,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
       .lex_ctx
       .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);
 
-    match peek.result.token.kind() {
+    match peek.token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if peek.result.token.text().collect::<String>() == "---" => {
+      SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "---" => {
         peek.indent_depth == 0
       }
       _ => false,
