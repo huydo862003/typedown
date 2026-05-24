@@ -38,12 +38,28 @@ pub enum SyntaxKind {
 
   // Expression nodes
   Expr = 300,
-  InterpExpr,      // ${ ... }
-  TaggedExpr,      // !tag value
-  Tag,             // !string, !number, ...
-  LiteralBlockStr, // | block scalar (preserves newlines)
-  FoldedBlockStr,  // > block scalar (folds newlines to spaces)
+  PrimaryExpr, // An operand in an expression
+  ParenExpr,   // (expr)
+  UnaryExpr,
+  BinaryExpr,
 
+  // Literals
+  // All literals must be wrapped in a primary expr to be treated as an expression
+  TaggedLit,          // !tag value
+  ListLit,            // Flow sequence in yaml frontmatter & formula mode
+  BlockSeqLit,        // Block sequence in yaml frontmatter
+  MappingLit,         // Flow mapping in yaml frontmatter & formula mode
+  LiteralBlockStrLit, // | block scalar (preserves newlines)
+  FoldedBlockStrLit,  // > block scalar (folds newlines to spaces)
+  BlockMappingLit,    // Block mapping in yaml frontmatter
+  StrLit,             // String literal + interpolation + math
+  InterpFragment,     // Interpolation fragment: ${...}
+  MathLit,            // Inline + block math expression
+  CodeLit,            // Inline + block code expression
+  NumberLit,
+  IdentLit,
+
+  Tag, // !string, !number, ...
   // Shared tokens
   Ident = 400,
   Number,
