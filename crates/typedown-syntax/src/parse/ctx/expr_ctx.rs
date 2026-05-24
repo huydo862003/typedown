@@ -25,6 +25,10 @@ pub(in crate::parse) enum ExprCtx {
   Paren,
   /// Inside `func(...)` call expression, closed by `)`
   Call,
+  /// Inside a block sequence
+  BlockSeq,
+  /// Inside a block mapping
+  BlockMap,
 }
 
 /// Stack of expression contexts for error recovery in expressions.
@@ -100,7 +104,11 @@ impl ExprCtx {
       | (ExprCtx::SqString, SyntaxKind::SqStrEnd)
       | (ExprCtx::Paren, SyntaxKind::RParen)
       | (ExprCtx::Call, SyntaxKind::RParen)
-      | (ExprCtx::Call, SyntaxKind::Comma) => true,
+      | (ExprCtx::Call, SyntaxKind::Comma)
+      | (ExprCtx::BlockSeq, SyntaxKind::Newline)
+      | (ExprCtx::BlockSeq, SyntaxKind::YamlDedent)
+      | (ExprCtx::BlockMap, SyntaxKind::Newline)
+      | (ExprCtx::BlockMap, SyntaxKind::YamlDedent) => true,
       _ => false,
     }
   }

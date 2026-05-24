@@ -422,9 +422,98 @@ impl<S: Utf8Stream> ParseCtx<S> {
     result
   }
 
+  /// Parse a block expression (sequence or mapping) after a newline.
+  pub(in crate::parse) fn parse_block_seq_or_mapping(&mut self) -> GreenNode {
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+
+    // Consume indent
+    let offset = self.offset();
+    self.consume(
+      &mut children,
+      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      mode,
+      SyntaxKind::YamlIndent,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::YamlIndent,
+        start_offset: offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    // Peek to decide: `-` means sequence, `ident` means mapping
+    let peek = self.lex_ctx.peek(
+      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      mode,
+    );
+
+    if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
+      let seq = self.parse_block_seq_lit();
+      children.push(seq);
+      self.emit(SyntaxKind::BlockSeqLit, &children)
+    } else {
+      let mapping = self.parse_block_mapping_lit();
+      children.push(mapping);
+      self.emit(SyntaxKind::BlockMappingLit, &children)
+    }
+  }
+
   /// Parse a block sequence literal: lines starting with `-`.
   pub(in crate::parse) fn parse_block_seq_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::BlockSeq);
+
+    // Parse items
+    loop {
+      let peek = self.lex_ctx.peek(
+        SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+        mode,
+      );
+
+      match peek.token.kind() {
+        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+        SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => {
+          let (item, early_exit) = self.parse_block_seq_item();
+          children.push(item);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
+            self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
+            return self.emit(SyntaxKind::BlockSeqLit, &children);
+          }
+        }
+        _ => {
+          let handler = self.expr_ctx_stack.find_handler(&peek.token);
+          if handler.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
+            break;
+          }
+          if let Some(_) = self.synchronize_block_seq(&mut children) {
+            break;
+          }
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
+    self.emit(SyntaxKind::BlockSeqLit, &children)
+  }
+
+  /// Parse a single block sequence item: `- expr`.
+  fn parse_block_seq_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+
+    // Consume `-`
+    self.advance(
+      &mut children,
+      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      mode,
+    );
+
+    // Parse the value expression
+    let (value, early_exit) = self.parse_expr();
+    children.push(value);
+
+    (self.emit(SyntaxKind::SequenceItem, &children), early_exit)
   }
 
   /// Parse a flow mapping literal: `{key: value, ...}`.
@@ -622,6 +711,51 @@ impl<S: Utf8Stream> ParseCtx<S> {
     result
   }
 
+  // Stop on `-` (YamlOp), YamlDedent, Newline, Eof
+  fn synchronize_block_seq(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
+      match peek.token.kind() {
+        SyntaxKind::YamlDedent | SyntaxKind::Newline | SyntaxKind::Eof => break None,
+        SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => break None,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate(ExprCtx::BlockSeq, &mut error_children) {
+            break Some(ctx);
+          }
+        }
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
+  }
+
+  // Stop on Ident, Colon, YamlDedent, Newline, Eof
+  fn synchronize_block_mapping(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
+      match peek.token.kind() {
+        SyntaxKind::Ident
+        | SyntaxKind::Colon
+        | SyntaxKind::YamlDedent
+        | SyntaxKind::Newline
+        | SyntaxKind::Eof => break None,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate(ExprCtx::BlockMap, &mut error_children) {
+            break Some(ctx);
+          }
+        }
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
+  }
+
   /// Parse a literal block string: `|` followed by indented content.
   pub(in crate::parse) fn parse_literal_block_str_lit(&mut self) -> GreenNode {
     let mode = self.lex_ctx.mode();
@@ -738,9 +872,135 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.emit(SyntaxKind::FoldedBlockStrLit, &children)
   }
 
-  /// Parse a block mapping literal (delegates to yaml block mapping).
+  /// Parse a block mapping literal (indentation-based `key: value` pairs).
+  /// Indent has already been consumed by `parse_block_seq_or_mapping`.
+  /// Returns on dedent or when the next token can't start an entry.
   pub(in crate::parse) fn parse_block_mapping_lit(&mut self) -> GreenNode {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::BlockMap);
+
+    loop {
+      let peek = self.lex_ctx.peek(
+        SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+        mode,
+      );
+
+      match peek.token.kind() {
+        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+        SyntaxKind::Ident | SyntaxKind::Colon => {
+          let (entry, early_exit) = self.parse_block_mapping_entry();
+          children.push(entry);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
+            self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+            return self.emit(SyntaxKind::BlockMappingLit, &children);
+          }
+        }
+        _ => {
+          let handler = self.expr_ctx_stack.find_handler(&peek.token);
+          if handler.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
+            break;
+          }
+          if let Some(_) = self.synchronize_block_mapping(&mut children) {
+            break;
+          }
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+    self.emit(SyntaxKind::BlockMappingLit, &children)
+  }
+
+  /// Parse a single block mapping entry: `key: value`.
+  fn parse_block_mapping_entry(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+
+    let peek = self.lex_ctx.peek(
+      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      mode,
+    );
+
+    // Missing key: `:` seen immediately
+    if peek.token.kind() == SyntaxKind::Colon {
+      self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::MappingEntryKey,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+      children.push(self.emit(SyntaxKind::MappingEntryKey, &[]));
+    } else {
+      // Key (identifier)
+      let offset = self.offset();
+      self.consume(
+        &mut children,
+        SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+        mode,
+        SyntaxKind::Ident,
+        Diagnostic::MissingSyntaxNode {
+          expected: SyntaxKind::MappingEntryKey,
+          start_offset: offset,
+          end_offset: self.offset(),
+        },
+      );
+      let key_token = children.pop().unwrap();
+      children.push(self.emit(SyntaxKind::MappingEntryKey, &[key_token]));
+    }
+
+    // Colon
+    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS, mode);
+    if peek.token.kind() == SyntaxKind::Colon {
+      self.advance(&mut children, SKIP_MIDDLE_WS, mode);
+    } else {
+      self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Colon,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    }
+
+    // Value: check for newline + indent (nested block) or inline expression
+    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS | SKIP_COMMENT, mode);
+    match peek.token.kind() {
+      // Newline: could be a nested block (seq or mapping)
+      SyntaxKind::Newline => {
+        // Peek past the newline to see if indent follows
+        let peek_after = self.lex_ctx.peek(
+          SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+          mode,
+        );
+        if peek_after.token.kind() == SyntaxKind::YamlIndent {
+          let nested = self.parse_block_seq_or_mapping();
+          children.push(self.emit(SyntaxKind::MappingEntryValue, &[nested]));
+        } else {
+          // Empty value (newline without indent)
+          self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+            expected: SyntaxKind::MappingEntryValue,
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
+          children.push(self.emit(SyntaxKind::MappingEntryValue, &[]));
+        }
+      }
+      // Dedent or EOF: missing value
+      SyntaxKind::YamlDedent | SyntaxKind::Eof => {
+        self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+          expected: SyntaxKind::MappingEntryValue,
+          start_offset: self.offset(),
+          end_offset: self.offset(),
+        });
+        children.push(self.emit(SyntaxKind::MappingEntryValue, &[]));
+      }
+      // Inline value
+      _ => {
+        let (value, early_exit) = self.parse_expr();
+        children.push(self.emit(SyntaxKind::MappingEntryValue, &[value]));
+        return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
+      }
+    }
+
+    (self.emit(SyntaxKind::MappingEntry, &children), None)
   }
 
   /// Parse a double-quoted string literal with interpolation: `"content ${expr} content"`.
