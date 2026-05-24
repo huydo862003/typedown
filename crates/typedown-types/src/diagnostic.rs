@@ -134,4 +134,34 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// A bold span was opened but never closed before a blank line, block boundary, or EOF.
+  UnclosedBold {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// An italic span was opened but never closed before a blank line, block boundary, or EOF.
+  UnclosedItalic {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A strikethrough span was opened but never closed before a blank line, block boundary, or EOF.
+  UnclosedStrikethrough {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A bolditalic span was opened but never closed before a blank line, block boundary, or EOF.
+  UnclosedBoldItalic {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// The closing delimiter of an italic span does not match the opening delimiter (`*` vs `_`).
+  MismatchedItalicDelimiter {
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

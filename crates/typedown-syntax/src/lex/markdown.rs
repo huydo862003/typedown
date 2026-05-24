@@ -484,6 +484,7 @@ fn is_md_symbol_char(char: char) -> bool {
     '#'
       | '!'
       | '*'
+      | '_'
       | '~'
       | '^'
       | '-'

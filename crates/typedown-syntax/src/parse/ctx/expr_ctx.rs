@@ -31,6 +31,20 @@ pub(in crate::parse) enum ExprCtx {
   BlockMap,
   /// Inside a markdown list item at the given indentation level
   MdListItem(usize),
+  /// Inside the text part of a markdown link or media: `[text]`
+  MdLinkText,
+  /// Inside the url/src part of a markdown link or media: `(url)`
+  MdLinkUrl,
+  /// Inside `**text**`, closed by `**`
+  MdBold,
+  /// Inside `*text*`, closed by `*`
+  MdItalicStar,
+  /// Inside `_text_`, closed by `_`
+  MdItalicUnderscore,
+  /// Inside `***text***`, closed by `***`
+  MdBoldItalic,
+  /// Inside `~~text~~`, closed by `~~`
+  MdStrikethrough,
 }
 
 /// Stack of expression contexts for error recovery in expressions.
@@ -91,8 +105,21 @@ impl ExprCtx {
 
   /// Whether this context can handle the given token.
   pub(in crate::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
+    // Text-dependent checks for MdSymbol closing delimiters
+    if token.kind() == SyntaxKind::MdSymbol {
+      let text: String = token.text().collect();
+      return match (self, text.as_str()) {
+        (ExprCtx::YamlFrontmatter, "---") => true,
+        (ExprCtx::MdBold, "**") => true,
+        (ExprCtx::MdItalicStar, "*") => true,
+        (ExprCtx::MdItalicUnderscore, "_") => true,
+        (ExprCtx::MdBoldItalic, "***") => true,
+        (ExprCtx::MdStrikethrough, "~~") => true,
+        _ => false,
+      };
+    }
+
     match (self, token.kind()) {
-      (ExprCtx::YamlFrontmatter, SyntaxKind::YamlOp) => token.text().collect::<String>() == "---",
       (ExprCtx::YamlFrontmatter, SyntaxKind::YamlIndent)
       | (ExprCtx::YamlFrontmatter, SyntaxKind::YamlDedent)
       | (ExprCtx::YamlFrontmatter, SyntaxKind::Eof)
@@ -113,7 +140,23 @@ impl ExprCtx {
       | (ExprCtx::BlockMap, SyntaxKind::Newline)
       | (ExprCtx::BlockMap, SyntaxKind::YamlDedent)
       | (ExprCtx::MdListItem(_), SyntaxKind::Newline)
-      | (ExprCtx::MdListItem(_), SyntaxKind::Eof) => true,
+      | (ExprCtx::MdListItem(_), SyntaxKind::Eof)
+      | (ExprCtx::MdLinkText, SyntaxKind::RBracket)
+      | (ExprCtx::MdLinkText, SyntaxKind::Newline)
+      | (ExprCtx::MdLinkText, SyntaxKind::Eof)
+      | (ExprCtx::MdLinkUrl, SyntaxKind::RParen)
+      | (ExprCtx::MdLinkUrl, SyntaxKind::Newline)
+      | (ExprCtx::MdLinkUrl, SyntaxKind::Eof)
+      | (ExprCtx::MdBold, SyntaxKind::Newline)
+      | (ExprCtx::MdBold, SyntaxKind::Eof)
+      | (ExprCtx::MdItalicStar, SyntaxKind::Newline)
+      | (ExprCtx::MdItalicStar, SyntaxKind::Eof)
+      | (ExprCtx::MdItalicUnderscore, SyntaxKind::Newline)
+      | (ExprCtx::MdItalicUnderscore, SyntaxKind::Eof)
+      | (ExprCtx::MdBoldItalic, SyntaxKind::Newline)
+      | (ExprCtx::MdBoldItalic, SyntaxKind::Eof)
+      | (ExprCtx::MdStrikethrough, SyntaxKind::Newline)
+      | (ExprCtx::MdStrikethrough, SyntaxKind::Eof) => true,
       _ => false,
     }
   }

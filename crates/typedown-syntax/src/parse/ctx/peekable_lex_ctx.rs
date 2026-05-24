@@ -179,14 +179,21 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
 
   /// Peek at the next non-skipped Markdown token without consuming.
   pub fn peek_md(&mut self, skip: u16) -> AugmentedLexResult {
+    self.peek_md_nth(1, skip)
+  }
+
+  /// Peek at the nth non-skipped Markdown token without consuming (1-indexed).
+  pub fn peek_md_nth(&mut self, nth: usize, skip: u16) -> AugmentedLexResult {
+    debug_assert!(nth >= 1, "[PeekableLexCtx::peek_md_nth] nth must be >= 1");
     debug_assert!(
       self.lex_ctx.mode() == LexMode::MarkdownBody,
-      "[PeekableLexCtx::peek_md] Lex mode must be MarkdownBody"
+      "[PeekableLexCtx::peek_md_nth] Lex mode must be MarkdownBody"
     );
     let saved_yaml_indent_depth = self.yaml_indent_depth;
     let saved_md_indent_depth = self.md_indent_depth;
     let saved_after_newline = self.after_newline;
     let mut skipped_count = 0;
+    let mut found = 0;
 
     let result = loop {
       let LexResult { token, diagnostic } = self.lex();
@@ -207,7 +214,10 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
         _ => false,
       };
       if !should_skip {
-        break LexResult { token, diagnostic };
+        found += 1;
+        if found == nth {
+          break LexResult { token, diagnostic };
+        }
       }
     };
 
