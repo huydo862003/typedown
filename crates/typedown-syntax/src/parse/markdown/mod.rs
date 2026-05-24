@@ -1,8 +1,10 @@
 //! Markdown body parsing
 
-use typedown_types::stream::Utf8Stream;
+use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
 
+use super::constants::*;
 use super::ctx::ParseCtx;
+use super::ctx::expr_ctx::ExprCtx;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
 
@@ -13,6 +15,129 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.lex_ctx.mode() == LexMode::MarkdownBody,
       "[ParseCtx::parse_markdown_body] Lex mode must be MarkdownBody"
     );
+    self.expr_ctx_stack.enter(ExprCtx::MarkdownBody);
+
+    let mut children = vec![];
+
+    loop {
+      let mode = self.lex_ctx.mode();
+      let peek = self.lex_ctx.peek(SKIP_NONE, mode);
+
+      match peek.token.kind() {
+        SyntaxKind::Eof => break,
+        SyntaxKind::Newline => {
+          self.advance_md(&mut children, SKIP_NONE);
+        }
+        SyntaxKind::Whitespace => {
+          self.advance_md(&mut children, SKIP_NONE);
+        }
+        _ => {
+          self.advance_md(&mut children, SKIP_NONE);
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MarkdownBody);
+    self.emit(SyntaxKind::Body, &children)
+  }
+
+  /// Parse a heading: `# ...`, `## ...`, etc.
+  pub(in crate::parse) fn parse_heading(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a paragraph: consecutive non-blank text lines.
+  pub(in crate::parse) fn parse_paragraph(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a blockquote: `> ...`.
+  pub(in crate::parse) fn parse_blockquote(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a table: `| ... | ... |`.
+  pub(in crate::parse) fn parse_table(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a table row.
+  pub(in crate::parse) fn parse_table_row(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a table cell.
+  pub(in crate::parse) fn parse_table_cell(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a bullet list: `- ...` or `* ...`.
+  pub(in crate::parse) fn parse_bullet_list(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a bullet list item.
+  pub(in crate::parse) fn parse_bullet_list_item(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse an ordered list: `1. ...`.
+  pub(in crate::parse) fn parse_ordered_list(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse an ordered list item.
+  pub(in crate::parse) fn parse_ordered_list_item(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a toggle list: `>- ...`.
+  pub(in crate::parse) fn parse_toggle_list(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a toggle list item.
+  pub(in crate::parse) fn parse_toggle_list_item(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a callout block: `::: label ... :::`.
+  pub(in crate::parse) fn parse_callout_block(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a footnote block: `:::footnote ... :::`.
+  pub(in crate::parse) fn parse_footnote_block(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a bibliography block: `:::bibtex ... :::`.
+  pub(in crate::parse) fn parse_bibliography_block(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a link: `[text](url)`.
+  pub(in crate::parse) fn parse_link(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a media embed: `![alt](src)`.
+  pub(in crate::parse) fn parse_media(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a footnote reference: `[^key]`.
+  pub(in crate::parse) fn parse_footnote_ref(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a citation: `[@key]`.
+  pub(in crate::parse) fn parse_citation(&mut self) -> GreenNode {
+    todo!()
+  }
+
+  /// Parse a text run: consecutive plain text.
+  pub(in crate::parse) fn parse_text(&mut self) -> GreenNode {
     todo!()
   }
 }
