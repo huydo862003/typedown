@@ -359,4 +359,104 @@ mod tests {
     let tokens = lex_markdown("$hello");
     assert_eq!(tokens[0].0, SyntaxKind::Error);
   }
+
+  /* HTML entity tests */
+
+  #[test]
+  fn md_html_entity_named() {
+    let tokens = lex_markdown("&amp;");
+    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&amp;".to_string()));
+  }
+
+  #[test]
+  fn md_html_entity_numeric_decimal() {
+    let tokens = lex_markdown("&#42;");
+    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&#42;".to_string()));
+  }
+
+  #[test]
+  fn md_html_entity_numeric_hex() {
+    let tokens = lex_markdown("&#x2A;");
+    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&#x2A;".to_string()));
+  }
+
+  #[test]
+  fn md_html_entity_numeric_hex_lowercase() {
+    let tokens = lex_markdown("&#x2a;");
+    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&#x2a;".to_string()));
+  }
+
+  #[test]
+  fn md_html_entity_invalid_no_semicolon() {
+    // Missing semicolon: `&` falls back to MdSymbol, rest is plain tokens
+    let tokens = lex_markdown("&amp");
+    assert_eq!(tokens[0], (SyntaxKind::MdSymbol, "&".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "amp".to_string()));
+  }
+
+  #[test]
+  fn md_html_entity_bare_ampersand() {
+    let tokens = lex_markdown("&");
+    assert_eq!(tokens[0], (SyntaxKind::MdSymbol, "&".to_string()));
+  }
+
+  #[test]
+  fn md_html_entity_with_space() {
+    // Space in entity name: `&` is MdSymbol, `abc` is Ident, space is Whitespace, rest is separate
+    let tokens = lex_markdown("&abc aa;");
+    assert_eq!(tokens[0], (SyntaxKind::MdSymbol, "&".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "abc".to_string()));
+  }
+
+  /* Markdown string literal tests */
+
+  #[test]
+  fn md_dq_string() {
+    let tokens = lex_markdown("\"hello world\"");
+    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "hello".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::Whitespace, " ".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::Ident, "world".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::DqStrEnd, "\"".to_string()));
+  }
+
+  #[test]
+  fn md_sq_string() {
+    let tokens = lex_markdown("'hello world'");
+    assert_eq!(tokens[0], (SyntaxKind::SqStrStart, "'".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "hello".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::Whitespace, " ".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::Ident, "world".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::SqStrEnd, "'".to_string()));
+  }
+
+  #[test]
+  fn md_dq_string_with_symbols() {
+    // Symbols inside a markdown string lex as normal markdown tokens
+    let tokens = lex_markdown("\"**bold**\"");
+    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::MdSymbol, "**".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::Ident, "bold".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::MdSymbol, "**".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::DqStrEnd, "\"".to_string()));
+  }
+
+  #[test]
+  fn md_dq_string_with_interpolation() {
+    let tokens = lex_markdown("\"hello ${name}\"");
+    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "hello".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::Whitespace, " ".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::InterpStart, "${".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::Ident, "name".to_string()));
+    assert_eq!(tokens[5], (SyntaxKind::InterpEnd, "}".to_string()));
+    assert_eq!(tokens[6], (SyntaxKind::DqStrEnd, "\"".to_string()));
+  }
+
+  #[test]
+  fn md_empty_dq_string() {
+    let tokens = lex_markdown("\"\"");
+    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrEnd, "\"".to_string()));
+  }
 }

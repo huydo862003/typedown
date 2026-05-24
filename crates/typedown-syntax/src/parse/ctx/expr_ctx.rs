@@ -45,6 +45,8 @@ pub(in crate::parse) enum ExprCtx {
   MdBoldItalic,
   /// Inside `~~text~~`, closed by `~~`
   MdStrikethrough,
+  /// Inside `[@key]`, closed by `]`
+  MdCitation,
 }
 
 /// Stack of expression contexts for error recovery in expressions.
@@ -156,7 +158,10 @@ impl ExprCtx {
       | (ExprCtx::MdBoldItalic, SyntaxKind::Newline)
       | (ExprCtx::MdBoldItalic, SyntaxKind::Eof)
       | (ExprCtx::MdStrikethrough, SyntaxKind::Newline)
-      | (ExprCtx::MdStrikethrough, SyntaxKind::Eof) => true,
+      | (ExprCtx::MdStrikethrough, SyntaxKind::Eof)
+      | (ExprCtx::MdCitation, SyntaxKind::RBracket)
+      | (ExprCtx::MdCitation, SyntaxKind::Newline)
+      | (ExprCtx::MdCitation, SyntaxKind::Eof) => true,
       _ => false,
     }
   }

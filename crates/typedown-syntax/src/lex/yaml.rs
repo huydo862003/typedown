@@ -17,6 +17,9 @@ impl<S: Utf8Stream> LexCtx<S> {
       Some(InterpContext::DqString) | Some(InterpContext::SqString) => {
         return self.lex_yaml_resume_string();
       }
+      Some(InterpContext::MdDqString) | Some(InterpContext::MdSqString) => {
+        unreachable!("[LexCtx::lex_yaml_frontmatter] MdDqString/MdSqString context cannot appear in YAML mode")
+      }
       None => {}
     }
 

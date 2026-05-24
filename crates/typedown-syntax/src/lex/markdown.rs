@@ -3,6 +3,7 @@ use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{InterpContext, LexCtx, LexResult};
 use super::yaml::is_op_char;
+use crate::green::token::SyntaxToken;
 use typedown_types::syntax_kind::SyntaxKind;
 
 // Markdown body lexing
@@ -16,7 +17,8 @@ impl<S: Utf8Stream> LexCtx<S> {
       Some(InterpContext::DqString) | Some(InterpContext::SqString) => {
         return self.lex_markdown_resume_string();
       }
-      None => {}
+      // MdDqString / MdSqString: content lexes as normal markdown tokens, fall through
+      Some(InterpContext::MdDqString) | Some(InterpContext::MdSqString) | None => {}
     }
 
     let char = match self.peek() {
@@ -68,6 +70,37 @@ impl<S: Utf8Stream> LexCtx<S> {
 
       /* Numbers */
       '0'..='9' => self.lex_markdown_number(),
+
+      /* String delimiters (no interpolation in markdown) */
+      '"' => {
+        self.advance_avoid_invalid_utf8();
+        match self.markdown_lex_ctx.interp_stack.last() {
+          Some(InterpContext::MdDqString) => {
+            self.markdown_lex_ctx.interp_stack.pop();
+            self.emit(SyntaxKind::DqStrEnd)
+          }
+          _ => {
+            self.markdown_lex_ctx.interp_stack.push(InterpContext::MdDqString);
+            self.emit(SyntaxKind::DqStrStart)
+          }
+        }
+      }
+      '\'' => {
+        self.advance_avoid_invalid_utf8();
+        match self.markdown_lex_ctx.interp_stack.last() {
+          Some(InterpContext::MdSqString) => {
+            self.markdown_lex_ctx.interp_stack.pop();
+            self.emit(SyntaxKind::SqStrEnd)
+          }
+          _ => {
+            self.markdown_lex_ctx.interp_stack.push(InterpContext::MdSqString);
+            self.emit(SyntaxKind::SqStrStart)
+          }
+        }
+      }
+
+      /* HTML entities */
+      '&' => self.lex_markdown_html_entity(),
 
       /* Symbols */
       _ if is_md_symbol_char(char) => self.lex_markdown_symbol(),
@@ -141,6 +174,96 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
+  /* HTML entities */
+
+  pub(super) fn lex_markdown_html_entity(&mut self) -> LexResult {
+    // Consume `&`
+    self.advance_avoid_invalid_utf8();
+
+    match self.peek() {
+      // Numeric entity: &#digits; or &#xhex;
+      Utf8Result::Char('#') => {
+        self.advance_avoid_invalid_utf8();
+        match self.peek() {
+          Utf8Result::Char('x') | Utf8Result::Char('X') => {
+            self.advance_avoid_invalid_utf8();
+            let mut count = 0;
+            while let Utf8Result::Char(ch) = self.peek() {
+              if ch.is_ascii_hexdigit() {
+                self.advance_avoid_invalid_utf8();
+                count += 1;
+              } else {
+                break;
+              }
+            }
+            if count > 0 {
+              if let Utf8Result::Char(';') = self.peek() {
+                self.advance_avoid_invalid_utf8();
+                return self.emit(SyntaxKind::HtmlEntity);
+              }
+            }
+          }
+          _ => {
+            let mut count = 0;
+            while let Utf8Result::Char(ch) = self.peek() {
+              if ch.is_ascii_digit() {
+                self.advance_avoid_invalid_utf8();
+                count += 1;
+              } else {
+                break;
+              }
+            }
+            if count > 0 {
+              if let Utf8Result::Char(';') = self.peek() {
+                self.advance_avoid_invalid_utf8();
+                return self.emit(SyntaxKind::HtmlEntity);
+              }
+            }
+          }
+        }
+      }
+      // Named entity: &name;
+      // Advance name chars directly into a local buffer (not text_buffer) so that on
+      // failure we can emit just `&` as MdSymbol and queue the name chars as a separate Ident.
+      Utf8Result::Char(ch) if ch.is_ascii_alphabetic() => {
+        let mut name = String::new();
+        loop {
+          match self.peek() {
+            Utf8Result::Char(ch) if ch.is_ascii_alphanumeric() => {
+              self.stream.advance();
+              name.push(ch);
+            }
+            _ => break,
+          }
+        }
+        if let Utf8Result::Char(';') = self.peek() {
+          // Valid named entity: commit name + `;` into text_buffer and emit
+          self.text_buffer.push_str(&name);
+          self.advance_avoid_invalid_utf8(); // consume `;`
+          return self.emit(SyntaxKind::HtmlEntity);
+        }
+        // Invalid entity (no `;`): emit `&` as MdSymbol, queue name as Ident
+        let ampersand_token = self.emit(SyntaxKind::MdSymbol);
+        if !name.is_empty() {
+          let ident_token = SyntaxToken::new(
+            &mut self.cache.borrow_mut(),
+            SyntaxKind::Ident,
+            name.as_bytes(),
+          );
+          self.pending_tokens.push(LexResult {
+            token: ident_token,
+            diagnostic: None,
+          });
+        }
+        return ampersand_token;
+      }
+      _ => {}
+    }
+
+    // Not a valid entity: emit `&` as MdSymbol
+    self.emit(SyntaxKind::MdSymbol)
+  }
+
   /* Text */
 
   pub(super) fn lex_markdown_text(&mut self) -> LexResult {
@@ -154,6 +277,8 @@ impl<S: Utf8Stream> LexCtx<S> {
             && char != '('
             && char != ')'
             && char != '`'
+            && char != '"'
+            && char != '\''
             && !is_md_symbol_char(char)
             && !char.is_ascii_digit() =>
         {
@@ -493,11 +618,11 @@ fn is_md_symbol_char(char: char) -> bool {
       | '|'
       | '@'
       | ':'
+      | '&'
       | '\\'
       | '/'
       | '='
       | '+'
-      | '&'
       | '%'
   )
 }

@@ -63,10 +63,14 @@ pub(super) enum InterpContext {
   Interpolation,
   // Inside a nested {...} within an interpolation
   Brace,
-  // Inside '...'
+  // Inside '...' in formula/YAML mode
   SqString,
-  // Inside "..."
+  // Inside "..." in formula/YAML mode
   DqString,
+  // Inside "..." in markdown body (no interpolation, content lexed as normal markdown tokens)
+  MdDqString,
+  // Inside '...' in markdown body (no interpolation, content lexed as normal markdown tokens)
+  MdSqString,
 }
 
 /* Markdown state */

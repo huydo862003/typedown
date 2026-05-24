@@ -226,8 +226,54 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a citation: `[@key]`.
-  pub(in crate::parse) fn parse_citation(&mut self, current_indent: usize) -> GreenNode {
-    todo!()
+  /// INVARIANT: The next token must be LBracket.
+  pub(in crate::parse) fn parse_citation(&mut self, _current_indent: usize) -> GreenNode {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
+      "[ParseCtx::parse_citation] Expected ["
+    );
+
+    let mut children = vec![];
+    let open_offset = self.offset();
+
+    self.expr_ctx_stack.enter(ExprCtx::MdCitation);
+    self.advance_md(&mut children, SKIP_NONE); // consume `[`
+
+    self.consume_md_if(
+      &mut children,
+      SKIP_NONE,
+      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "@",
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Citation,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+
+    self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::Ident,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Citation,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+
+    self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::RBracket,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Citation,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+
+    self.expr_ctx_stack.exit(ExprCtx::MdCitation);
+    self.emit(SyntaxKind::Citation, &children)
   }
 
   /// Parse bold text: `**text**`.
@@ -481,6 +527,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let next = self.lex_ctx.peek_md(SKIP_NONE);
     match next.token.kind() {
       SyntaxKind::LBracket => true,
+      SyntaxKind::InterpStart => true,
       SyntaxKind::InlineMath
       | SyntaxKind::MathBlock
       | SyntaxKind::InlineCode

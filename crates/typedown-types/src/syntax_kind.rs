@@ -100,7 +100,8 @@ pub enum SyntaxKind {
   YamlDedent,
 
   // Markdown mode tokens
-  MdSymbol, // any consecutive special chars (#, **, ~~, ---, :::, etc.)
+  MdSymbol,    // any consecutive special chars (#, **, ~~, ---, :::, etc.)
+  HtmlEntity,  // &name; or &#digits; or &#xhex; (e.g. &amp;, &#42;, &#x2A;)
 
   // Trivia
   Whitespace = 600,
