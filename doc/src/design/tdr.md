@@ -488,6 +488,7 @@ There are some limitations though:
 - TDR does not support HTML tags.
   - Context: HTML allows a wide range of semantic structures to be expressed. Moreover, HTML also allows the `style` element, which can be used to style the doc.
   - The decision: TDR mostly concerns itself with the document structure and relationship, which is believed to be adequately covered by the built-in primitive. TDR does not really care about the presentation. TDR processor will allow the generation of static sites, which can integrate with most frontend frameworks for flexible presentation.
+- TDR does not implicit code blocks via indentation: I think code fences are more flexible and explicit while still being concise.
 
 ### Headings
 
