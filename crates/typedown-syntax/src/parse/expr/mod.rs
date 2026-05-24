@@ -915,8 +915,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a block mapping literal (indentation-based `key: value` pairs).
-  /// Indent has already been consumed by `parse_block_seq_or_mapping`.
-  /// Returns on dedent or when the next token can't start an entry.
   pub(in crate::parse) fn parse_block_mapping_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     let mut children = vec![];

@@ -4,6 +4,7 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
 use super::constants::*;
 use super::ctx::ParseCtx;
+use super::ctx::expr_ctx::ExprCtx;
 use super::ctx::peekable_lex_ctx::PeekYamlResult;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
@@ -46,7 +47,16 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     // Parse body
-    self.parse_yaml_body(&mut children);
+    let early_exit = self.parse_yaml_body(&mut children);
+
+    if let Some(ctx) = early_exit {
+      if ctx != ExprCtx::YamlFrontmatter {
+        self.diagnostics.push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+          start_offset: self.offset(),
+          end_offset: self.offset(),
+        });
+      }
+    }
 
     // Consume closing ---
     // Require the indentation to be 0
@@ -110,26 +120,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /* YAML frontmatter body */
-  pub(in crate::parse) fn parse_yaml_body(&mut self, children: &mut Vec<GreenNode>) {
-    if !self.should_end_yaml_frontmatter() {
-      let mapping = self.parse_yaml_block_mapping();
+  pub(in crate::parse) fn parse_yaml_body(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+  ) -> Option<ExprCtx> {
+    self.expr_ctx_stack.enter(ExprCtx::YamlFrontmatter);
+
+    let early_exit = if !self.should_end_yaml_frontmatter() {
+      let (mapping, early_exit) = self.parse_block_mapping_lit();
       children.push(mapping);
-    }
-  }
-}
+      early_exit
+    } else {
+      None
+    };
 
-/* YAML mapping */
-impl<S: Utf8Stream> ParseCtx<S> {
-  pub(in crate::parse) fn parse_yaml_block_mapping(&mut self) -> GreenNode {
-    todo!()
-  }
-
-  pub(in crate::parse) fn parse_yaml_mapping_entry(&mut self) -> GreenNode {
-    todo!()
-  }
-
-  pub(in crate::parse) fn parse_yaml_value(&mut self) -> GreenNode {
-    todo!()
+    self.expr_ctx_stack.exit(ExprCtx::YamlFrontmatter);
+    early_exit
   }
 }
 
@@ -145,23 +151,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     match result.token.kind() {
       SyntaxKind::Eof => true,
       SyntaxKind::YamlOp if result.token.text().collect::<String>() == "---" => indent_depth == 0,
-      _ => false,
-    }
-  }
-
-  /// YAML expression should end when encounter:
-  /// - EOF
-  /// - Triple dash at indent level 0
-  /// - Dedent
-  pub(in crate::parse) fn should_end_yaml_expr(&mut self) -> bool {
-    let PeekYamlResult(result, indent_depth) = self
-      .lex_ctx
-      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);
-
-    match result.token.kind() {
-      SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if result.token.text().collect::<String>() == "---" => indent_depth == 0,
-      SyntaxKind::YamlDedent => true,
       _ => false,
     }
   }
