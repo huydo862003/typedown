@@ -11,7 +11,34 @@ use crate::{
 impl<S: Utf8Stream> ParseCtx<S> {
   /// General expression, including formula and yaml.
   pub(in crate::parse) fn parse_expr(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    let mode = self.lex_ctx.mode();
+    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS | SKIP_COMMENT, mode);
+
+    match peek.token.kind() {
+      SyntaxKind::Newline => {
+        let peek_after = self.lex_ctx.peek(
+          SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+          mode,
+        );
+        if peek_after.token.kind() == SyntaxKind::YamlIndent {
+          self.parse_block_seq_or_mapping()
+        } else {
+          // No indent after newline: parse as formula (will likely produce an error)
+          self.parse_formula_expr()
+        }
+      }
+      // `|` or `>` at the start: block scalar
+      SyntaxKind::YamlOp => {
+        let text: String = peek.token.text().collect();
+        match text.as_str() {
+          "|" => self.parse_literal_block_str_lit(),
+          ">" => self.parse_folded_block_str_lit(),
+          _ => self.parse_formula_expr(),
+        }
+      }
+      // Everything else: formula expression
+      _ => self.parse_formula_expr(),
+    }
   }
 
   /// Formula expressions: Pratt-parsed expressions that follow most programming language rules
