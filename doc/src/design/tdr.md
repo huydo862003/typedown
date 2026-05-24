@@ -123,14 +123,14 @@ Backslash `\` is the escape character. It works in quoted strings (both `"..."` 
 
 In quoted strings:
 
-| Sequence | Result |
-|----------|--------|
-| `\\` | Literal `\` |
-| `\"` | Literal `"` (in double-quoted strings) |
-| `\'` | Literal `'` (in single-quoted strings) |
-| `\n` | Newline |
-| `\t` | Tab |
-| `\$` | Literal `$` (prevents interpolation) |
+| Sequence | Result                                 |
+| -------- | -------------------------------------- |
+| `\\`     | Literal `\`                            |
+| `\"`     | Literal `"` (in double-quoted strings) |
+| `\'`     | Literal `'` (in single-quoted strings) |
+| `\n`     | Newline                                |
+| `\t`     | Tab                                    |
+| `\$`     | Literal `$` (prevents interpolation)   |
 
 In Markdown body text, backslash escapes any special character to produce a literal:
 
@@ -483,6 +483,12 @@ properties:
 
 The body of a `.tdr` file is written in TDR Markdown, an extension of standard Markdown with Typedown-specific syntax.
 
+There are some limitations though:
+
+- TDR does not support HTML tags.
+  - Context: HTML allows a wide range of semantic structures to be expressed. Moreover, HTML also allows the `style` element, which can be used to style the doc.
+  - The decision: TDR mostly concerns itself with the document structure and relationship, which is believed to be adequately covered by the built-in primitive. TDR does not really care about the presentation. TDR processor will allow the generation of static sites, which can integrate with most frontend frameworks for flexible presentation.
+
 ### Headings
 
 Headings use the standard `#` syntax:
@@ -645,4 +651,3 @@ year: 1984
 }
 :::
 ```
-
