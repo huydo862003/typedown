@@ -28,7 +28,7 @@ impl std::ops::Deref for PeekYamlResult {
 /// WARNING: By rewinding, it means that the extracted token can be pushed back to the token stream
 /// You CANNOT push back the token's characters, switch mode, re-lex then return a new token
 pub struct PeekableLexCtx<S: Utf8Stream> {
-  pub(super) lex_ctx: LexCtx<S>,
+  pub(in crate::parse) lex_ctx: LexCtx<S>,
   token_buffer: VecDeque<LexResult>,
   /// Current YAML indent depth.
   indent_depth: usize,

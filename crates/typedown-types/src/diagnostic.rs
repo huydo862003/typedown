@@ -116,8 +116,8 @@ pub enum Diagnostic {
   /// Missing frontmatter marker ---
   MissingFrontmatterMarker { offset: usize },
 
-  /// Expected a specific token but found something else.
-  MissingToken {
+  /// Expected a specific syntax node or token but it was missing.
+  MissingSyntaxNode {
     expected: crate::syntax_kind::SyntaxKind,
     start_offset: usize,
     end_offset: usize,

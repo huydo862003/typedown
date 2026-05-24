@@ -4,8 +4,8 @@
 
 use std::rc::Rc;
 
-use typedown_types::syntax_kind::SyntaxKind;
 use crate::green::{GreenNode, node::SyntaxNode};
+use typedown_types::syntax_kind::SyntaxKind;
 
 pub struct RedNodeData {
   /// The start offset of this red node in the source code

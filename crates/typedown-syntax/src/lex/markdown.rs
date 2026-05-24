@@ -1,7 +1,7 @@
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
-use super::ctx::{LexCtx, LexResult, InterpContext};
+use super::ctx::{InterpContext, LexCtx, LexResult};
 use super::yaml::is_op_char;
 use typedown_types::syntax_kind::SyntaxKind;
 

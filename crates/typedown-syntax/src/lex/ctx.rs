@@ -12,8 +12,8 @@ use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::green::cache::Cache;
-use typedown_types::syntax_kind::SyntaxKind;
 use crate::green::token::SyntaxToken;
+use typedown_types::syntax_kind::SyntaxKind;
 
 pub struct LexResult {
   pub token: SyntaxToken,

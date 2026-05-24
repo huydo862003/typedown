@@ -2,8 +2,8 @@
 //! Each AST type checks the SyntaxKind on cast, providing a type-safe API
 //! over the generic tree structure.
 
-use typedown_types::syntax_kind::SyntaxKind;
 use crate::red::RedNode;
+use typedown_types::syntax_kind::SyntaxKind;
 
 /// All AST nodes implement this trait.
 pub trait AstNode: Sized {

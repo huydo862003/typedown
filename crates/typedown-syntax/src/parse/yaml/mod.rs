@@ -4,7 +4,7 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
 use super::constants::*;
 use super::ctx::ParseCtx;
-use super::peekable_lex_ctx::PeekYamlResult;
+use super::ctx::peekable_lex_ctx::PeekYamlResult;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
 use typedown_types::syntax_kind::SyntaxKind;
@@ -13,7 +13,7 @@ use typedown_types::syntax_kind::SyntaxKind;
 impl<S: Utf8Stream> ParseCtx<S> {
   /* Top-level YAML frontmatter */
 
-  pub(super) fn parse_yaml_frontmatter(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_yaml_frontmatter(&mut self) -> GreenNode {
     debug_assert!(
       self.lex_ctx.mode() == LexMode::YamlFrontmatter,
       "[ParseCtx::parse_yaml_frontmatter] Lex mode must be YamlFrontmatter"
@@ -110,7 +110,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /* YAML frontmatter body */
-  pub(super) fn parse_yaml_body(&mut self, children: &mut Vec<GreenNode>) {
+  pub(in crate::parse) fn parse_yaml_body(&mut self, children: &mut Vec<GreenNode>) {
     if !self.should_end_yaml_frontmatter() {
       let mapping = self.parse_yaml_block_mapping();
       children.push(mapping);
@@ -120,15 +120,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
 /* YAML mapping */
 impl<S: Utf8Stream> ParseCtx<S> {
-  pub(super) fn parse_yaml_block_mapping(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_yaml_block_mapping(&mut self) -> GreenNode {
     todo!()
   }
 
-  pub(super) fn parse_yaml_mapping_entry(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_yaml_mapping_entry(&mut self) -> GreenNode {
     todo!()
   }
 
-  pub(super) fn parse_yaml_value(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_yaml_value(&mut self) -> GreenNode {
     todo!()
   }
 }
@@ -153,7 +153,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// - EOF
   /// - Triple dash at indent level 0
   /// - Dedent
-  pub(super) fn should_end_yaml_expr(&mut self) -> bool {
+  pub(in crate::parse) fn should_end_yaml_expr(&mut self) -> bool {
     let PeekYamlResult(result, indent_depth) = self
       .lex_ctx
       .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);

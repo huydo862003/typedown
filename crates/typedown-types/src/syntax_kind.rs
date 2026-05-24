@@ -6,10 +6,10 @@ pub enum SyntaxKind {
 
   // Frontmatter (YAML mode) nodes
   Frontmatter = 100,
-  Mapping,
-  MappingEntry, // one key: value pair
-  Key,
-  Value,
+  Mapping,           // block mapping (indentation-based)
+  MappingEntry,      // one key: value pair in block mapping
+  MappingEntryKey,   // key in a block mapping entry
+  MappingEntryValue, // value in a block mapping entry
   Sequence,
   SequenceItem, // one - item
 
@@ -48,10 +48,13 @@ pub enum SyntaxKind {
   TaggedLit,          // !tag value
   ListLit,            // Flow sequence in yaml frontmatter & formula mode
   BlockSeqLit,        // Block sequence in yaml frontmatter
-  MappingLit,         // Flow mapping in yaml frontmatter & formula mode
+  DictLit,            // Flow mapping `{key: value, ...}` in yaml frontmatter & formula mode
+  DictEntry,          // one key: value pair in a dict
+  DictEntryKey,       // key in a dict entry
+  DictEntryValue,     // value in a dict entry
   LiteralBlockStrLit, // | block scalar (preserves newlines)
   FoldedBlockStrLit,  // > block scalar (folds newlines to spaces)
-  BlockMappingLit,    // Block mapping in yaml frontmatter
+  BlockMappingLit,    // Block mapping in yaml frontmatter (indentation-based)
   StrLit,             // String literal + interpolation + math
   InterpFragment,     // Interpolation fragment: ${...}
   MathLit,            // Inline + block math expression

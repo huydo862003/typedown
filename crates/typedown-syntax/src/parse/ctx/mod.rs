@@ -1,5 +1,8 @@
 //! A recursive descent parser
 
+pub(in crate::parse) mod expr_ctx;
+pub(in crate::parse) mod peekable_lex_ctx;
+
 use std::{cell::RefCell, rc::Rc};
 
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
@@ -7,13 +10,15 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::Sy
 use crate::{
   green::{GreenNode, SyntaxToken, cache::Cache},
   lex::ctx::{LexCtx, LexMode, LexResult},
-  parse::peekable_lex_ctx::PeekableLexCtx,
 };
+use expr_ctx::ExprCtxStack;
+use peekable_lex_ctx::PeekableLexCtx;
 
 pub struct ParseCtx<S: Utf8Stream> {
-  pub(super) cache: Rc<RefCell<Cache>>,
-  pub(super) lex_ctx: PeekableLexCtx<S>,
-  pub(super) diagnostics: Vec<Diagnostic>,
+  pub(in crate::parse) cache: Rc<RefCell<Cache>>,
+  pub(in crate::parse) lex_ctx: PeekableLexCtx<S>,
+  pub(in crate::parse) diagnostics: Vec<Diagnostic>,
+  pub(in crate::parse) expr_ctx_stack: ExprCtxStack,
   ast: Option<GreenNode>,
 }
 
@@ -28,6 +33,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       cache: cache.clone(),
       lex_ctx: PeekableLexCtx::new(LexCtx::new(stream, cache)),
       diagnostics: Vec::new(),
+      expr_ctx_stack: ExprCtxStack::new(),
       ast: None,
     }
   }
@@ -48,7 +54,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
-  pub(super) fn parse_source_file(&mut self) -> GreenNode {
+  pub(in crate::parse) fn parse_source_file(&mut self) -> GreenNode {
     let yaml_frontmatter = self.parse_yaml_frontmatter();
     self.lex_ctx.set_mode(LexMode::MarkdownBody);
     let markdown_body = self.parse_markdown_body();
@@ -61,7 +67,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
 impl<S: Utf8Stream> ParseCtx<S> {
   /// Consume the next non-skipped YAML token, pushing skipped trivia and result into children.
-  pub(super) fn advance_yaml(&mut self, children: &mut Vec<GreenNode>, skip: u16) -> LexResult {
+  pub(in crate::parse) fn advance_yaml(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u16,
+  ) -> LexResult {
     loop {
       let mut result = self.lex_ctx.lex();
       if let Some(diagnostic) = result.diagnostic.take() {
@@ -77,7 +87,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Consume the next non-skipped Markdown token, pushing skipped trivia and result into children.
-  pub(super) fn advance_md(&mut self, children: &mut Vec<GreenNode>, skip: u16) -> LexResult {
+  pub(in crate::parse) fn advance_md(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    skip: u16,
+  ) -> LexResult {
     loop {
       let mut result = self.lex_ctx.lex();
       if let Some(diagnostic) = result.diagnostic.take() {
@@ -104,7 +118,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_yaml(), but expects the token to match `expected`.
-  pub(super) fn consume_yaml(
+  pub(in crate::parse) fn consume_yaml(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -123,7 +137,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_md(), but expects the token to match `expected`.
-  pub(super) fn consume_md(
+  pub(in crate::parse) fn consume_md(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -160,7 +174,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_yaml(), but expects the token to satisfy a predicate.
-  pub(super) fn consume_yaml_if(
+  pub(in crate::parse) fn consume_yaml_if(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -179,7 +193,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_md(), but expects the token to satisfy a predicate.
-  pub(super) fn consume_md_if(
+  pub(in crate::parse) fn consume_md_if(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -216,12 +230,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Current byte offset in the source stream.
-  pub(super) fn offset(&self) -> usize {
+  pub(in crate::parse) fn offset(&self) -> usize {
     self.lex_ctx.offset()
   }
 
   /// Emit a GreenNode
-  pub(super) fn emit(&mut self, kind: SyntaxKind, children: &[GreenNode]) -> GreenNode {
+  pub(in crate::parse) fn emit(&mut self, kind: SyntaxKind, children: &[GreenNode]) -> GreenNode {
     GreenNode::from_node(self.cache.borrow_mut().node(kind, children))
   }
 }

@@ -6,8 +6,8 @@ mod tests {
   use typedown_types::string_stream::StringStream;
 
   use crate::green::cache::Cache;
-  use typedown_types::syntax_kind::SyntaxKind;
   use crate::lex::ctx::{LexCtx, LexMode};
+  use typedown_types::syntax_kind::SyntaxKind;
 
   fn lex_yaml(input: &str) -> Vec<(SyntaxKind, String)> {
     let stream = StringStream::new(input);

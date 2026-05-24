@@ -3,7 +3,7 @@ use typedown_types::{
   stream::{Utf8Result, Utf8Stream},
 };
 
-use super::ctx::{LexCtx, LexResult, InterpContext};
+use super::ctx::{InterpContext, LexCtx, LexResult};
 use typedown_types::syntax_kind::SyntaxKind;
 
 // YAML frontmatter lexing
@@ -79,10 +79,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       '{' => {
         self.advance_avoid_invalid_utf8();
         if !self.yaml_lex_ctx.interp_stack.is_empty() {
-          self
-            .yaml_lex_ctx
-            .interp_stack
-            .push(InterpContext::Brace);
+          self.yaml_lex_ctx.interp_stack.push(InterpContext::Brace);
         }
         self.emit(SyntaxKind::LBrace)
       }
@@ -307,19 +304,13 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   pub(super) fn lex_yaml_dq_string(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8();
-    self
-      .yaml_lex_ctx
-      .interp_stack
-      .push(InterpContext::DqString);
+    self.yaml_lex_ctx.interp_stack.push(InterpContext::DqString);
     self.emit(SyntaxKind::DqStrStart)
   }
 
   pub(super) fn lex_yaml_sq_string(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8();
-    self
-      .yaml_lex_ctx
-      .interp_stack
-      .push(InterpContext::SqString);
+    self.yaml_lex_ctx.interp_stack.push(InterpContext::SqString);
     self.emit(SyntaxKind::SqStrStart)
   }
 
