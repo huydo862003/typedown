@@ -17,6 +17,8 @@ pub(in crate::parse) enum ExprCtx {
   SqString,
   /// Inside `(...)` parenthesized expression, closed by `)`
   Paren,
+  /// Inside `func(...)` call expression, closed by `)`
+  Call,
 }
 
 /// Stack of expression contexts for error recovery in expressions.
@@ -69,7 +71,7 @@ impl ExprCtxStack {
 impl ExprCtx {
   /// Whether indentation is irrelevant in this context (flow constructs).
   pub(in crate::parse) fn should_ignore_indent(self) -> bool {
-    matches!(self, ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren)
+    matches!(self, ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call)
   }
 
   /// Whether this context can handle the given token kind.
@@ -85,6 +87,8 @@ impl ExprCtx {
         | (ExprCtx::DqString, SyntaxKind::DqStrEnd)
         | (ExprCtx::SqString, SyntaxKind::SqStrEnd)
         | (ExprCtx::Paren, SyntaxKind::RParen)
+        | (ExprCtx::Call, SyntaxKind::RParen)
+        | (ExprCtx::Call, SyntaxKind::Comma)
     )
   }
 }

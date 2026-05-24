@@ -16,7 +16,190 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Formula expressions: Pratt-parsed expressions that follow most programming language rules
   pub(in crate::parse) fn parse_formula_expr(&mut self) -> GreenNode {
-    todo!()
+    let (node, _) = self.pratt_parse_expr(0);
+    node
+  }
+
+  fn pratt_parse_expr(&mut self, min_bp: u8) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+
+    // Handle prefix operators
+    let peek = self.lex_ctx.peek(SKIP_WCN, mode);
+    let (mut lhs, early_exit) = if peek.token.kind() == SyntaxKind::YamlOp {
+      let op_text: String = peek.token.text().collect();
+      if let Some(((), right_bp)) = prefix_binding_power(&op_text) {
+        let mut children = vec![];
+        // Consume the prefix operator
+        self.advance(&mut children, SKIP_WCN, mode);
+        // Parse operand with the prefix's right binding power
+        let (operand, exit) = self.pratt_parse_expr(right_bp);
+        children.push(operand);
+        (self.emit(SyntaxKind::UnaryExpr, &children), exit)
+      } else {
+        // Not a prefix op, parse as primary
+        self.parse_primary_expr()
+      }
+    } else {
+      self.parse_primary_expr()
+    };
+
+    if early_exit.is_some() {
+      return (lhs, early_exit);
+    }
+
+    // Infix/postfix loop
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_WCN, mode);
+
+      // Check for call expression: ident followed by `(`
+      if peek.token.kind() == SyntaxKind::LParen {
+        lhs = self.parse_call_expr(lhs);
+        continue;
+      }
+
+      // Check for infix operator
+      if peek.token.kind() != SyntaxKind::YamlOp {
+        break;
+      }
+
+      let op_text: String = peek.token.text().collect();
+
+      // Check postfix first
+      if let Some((left_bp, ())) = postfix_binding_power(&op_text) {
+        if left_bp < min_bp {
+          break;
+        }
+        let mut children = vec![lhs];
+        self.advance(&mut children, SKIP_WCN, mode);
+        lhs = self.emit(SyntaxKind::UnaryExpr, &children);
+        continue;
+      }
+
+      // Check infix
+      if let Some((left_bp, right_bp)) = infix_binding_power(&op_text) {
+        if left_bp < min_bp {
+          break;
+        }
+        let mut children = vec![lhs];
+        // Consume the infix operator
+        self.advance(&mut children, SKIP_WCN, mode);
+        // Parse right-hand side
+        let (rhs, exit) = self.pratt_parse_expr(right_bp);
+        children.push(rhs);
+        lhs = self.emit(SyntaxKind::BinaryExpr, &children);
+        if exit.is_some() {
+          return (lhs, exit);
+        }
+        continue;
+      }
+
+      // Not a recognized operator, stop
+      break;
+    }
+
+    (lhs, None)
+  }
+
+  /// Parse a call expression: `callee(arg1, arg2, ...)`.
+  /// `callee` has already been parsed and is passed in.
+  fn parse_call_expr(&mut self, callee: GreenNode) -> GreenNode {
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self.lex_ctx.peek(SKIP_WCN, mode).token.kind() == SyntaxKind::LParen,
+      "[ParseCtx::parse_call_expr] Expected next token to be LParen"
+    );
+
+    let mut children = vec![callee];
+    self.expr_ctx_stack.enter(ExprCtx::Call);
+
+    // Consume `(`
+    self.advance(&mut children, SKIP_WCN, mode);
+
+    // Check for empty args `()`
+    let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+    if peek.token.kind() == SyntaxKind::RParen {
+      self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+      self.expr_ctx_stack.exit(ExprCtx::Call);
+      return self.emit(SyntaxKind::CallExpr, &children);
+    }
+
+    // Parse first argument
+    let (arg, early_exit) = self.parse_expr();
+    children.push(arg);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
+      self.expr_ctx_stack.exit(ExprCtx::Call);
+      return self.emit(SyntaxKind::CallExpr, &children);
+    }
+
+    // Parse remaining arguments
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+      match peek.token.kind() {
+        SyntaxKind::RParen => {
+          self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+          break;
+        }
+        SyntaxKind::Comma => {
+          self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+
+          // Trailing comma before `)` is allowed
+          let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+          if peek.token.kind() == SyntaxKind::RParen {
+            self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+            break;
+          }
+
+          let (arg, early_exit) = self.parse_expr();
+          children.push(arg);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
+            self.expr_ctx_stack.exit(ExprCtx::Call);
+            return self.emit(SyntaxKind::CallExpr, &children);
+          }
+        }
+        SyntaxKind::Eof => {
+          self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+            expected: SyntaxKind::RParen,
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
+          break;
+        }
+        _ => {
+          let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+          if handler.is_some_and(|ctx| ctx != ExprCtx::Call) {
+            self.expr_ctx_stack.exit(ExprCtx::Call);
+            return self.emit(SyntaxKind::CallExpr, &children);
+          }
+          if let Some(ctx) = self.synchronize_call_expr(&mut children) {
+            self.expr_ctx_stack.exit(ExprCtx::Call);
+            return self.emit(SyntaxKind::CallExpr, &children);
+          }
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::Call);
+    self.emit(SyntaxKind::CallExpr, &children)
+  }
+
+  // Stop on Comma and RParen
+  fn synchronize_call_expr(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
+      match peek.token.kind() {
+        SyntaxKind::Comma | SyntaxKind::RParen | SyntaxKind::Eof => break None,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate(ExprCtx::Call, &mut error_children) {
+            break Some(ctx);
+          }
+        }
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
   }
 
   /// Parse a primary expression (an operand): literal, ident, paren, etc.
