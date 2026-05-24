@@ -430,9 +430,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.emit(SyntaxKind::Strikethrough, &children)
   }
 
-  /// Parse a text run: consecutive plain text.
-  pub(in crate::parse) fn parse_text(&mut self, current_indent: usize) -> GreenNode {
-    todo!()
+  /// Parse a text run: consecutive plain text, including surrounding whitespace.
+  /// Consumes leading and trailing spaces.
+  pub(in crate::parse) fn parse_text(&mut self, _current_indent: usize) -> GreenNode {
+    let mut children = vec![];
+
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if matches!(next_kind, SyntaxKind::Newline | SyntaxKind::Eof) {
+        break;
+      }
+      if self.is_md_inline_start() {
+        break;
+      }
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    self.emit(SyntaxKind::Text, &children)
   }
 
   /// Whether the current inline element should end due to EOF or a line boundary.
@@ -460,6 +474,31 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
     }
     false
+  }
+
+  /// Whether the next token starts an inline element.
+  fn is_md_inline_start(&mut self) -> bool {
+    let next = self.lex_ctx.peek_md(SKIP_NONE);
+    match next.token.kind() {
+      SyntaxKind::LBracket => true,
+      SyntaxKind::InlineMath
+      | SyntaxKind::MathBlock
+      | SyntaxKind::InlineCode
+      | SyntaxKind::CodeBlock => true,
+      SyntaxKind::MdSymbol => {
+        let text: String = next.token.text().collect();
+        if matches!(text.as_str(), "*" | "_" | "**" | "***" | "~~") {
+          return true;
+        }
+        // `![` starts a media embed
+        if text == "!" {
+          let second = self.lex_ctx.peek_md_nth(2, SKIP_NONE);
+          return second.token.kind() == SyntaxKind::LBracket;
+        }
+        false
+      }
+      _ => false,
+    }
   }
 
   /// Whether the next non-leading-whitespace token starts a block-level element.
