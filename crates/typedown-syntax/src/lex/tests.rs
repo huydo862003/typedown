@@ -182,10 +182,9 @@ mod tests {
 
   #[test]
   fn yaml_bang_op() {
-    // ! is an op char, but followed by alpha it stops (alpha is not an op char)
+    // ! immediately followed by alpha is a tag, emitted as a single YamlOp
     let tokens = lex_yaml("!string");
-    assert_eq!(tokens[0], (SyntaxKind::YamlOp, "!".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::Ident, "string".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlOp, "!string".to_string()));
   }
 
   #[test]

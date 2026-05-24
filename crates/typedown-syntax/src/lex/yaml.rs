@@ -285,6 +285,35 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Operators */
 
   pub(super) fn lex_yaml_op(&mut self) -> LexResult {
+    // Check for `!` tag before consuming op chars:
+    if let Utf8Result::Char('!') = self.peek() {
+      self.advance_avoid_invalid_utf8();
+      if let Utf8Result::Char(char) = self.peek() {
+        if char.is_alphabetic() || char == '_' {
+          // Tag: consume the identifier part
+          self.advance_avoid_invalid_utf8();
+          loop {
+            match self.peek() {
+              Utf8Result::Char(char) if char.is_alphanumeric() || char == '_' => {
+                self.advance_avoid_invalid_utf8();
+              }
+              _ => break,
+            }
+          }
+          return self.emit(SyntaxKind::YamlOp);
+        }
+      }
+      // `!` followed by another op char (e.g. `!=`): continue consuming op chars
+      if let Utf8Result::Char(char) = self.peek() {
+        if is_op_char(char) {
+          self.consume_op_chars();
+          return self.emit(SyntaxKind::YamlOp);
+        }
+      }
+      // Standalone `!` not followed by identifier or op char is an error
+      return self.emit(SyntaxKind::Error);
+    }
+
     self.consume_op_chars();
     self.emit(SyntaxKind::YamlOp)
   }

@@ -72,11 +72,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.emit(SyntaxKind::ParenExpr, &children)
   }
 
-  /// Parse a tagged literal: `!tag value`.
-  pub(in crate::parse) fn parse_tagged_lit(&mut self) -> GreenNode {
-    todo!()
-  }
-
   /// Parse a flow list literal: `[expr, expr, ...]`.
   pub(in crate::parse) fn parse_list_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let outer_skip = SKIP_WCN
@@ -703,11 +698,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.emit(SyntaxKind::IdentLit, &children)
   }
 
-  /// Parse a tag: `!name`.
-  pub(in crate::parse) fn parse_tag(&mut self) -> GreenNode {
-    todo!()
-  }
-
   /// If the next token should be handled by an outer context, return that context.
   /// Otherwise consume the token into `error_children` for the caller to wrap.
   fn consume_or_delegate(
@@ -728,7 +718,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
 pub(in crate::parse) fn prefix_binding_power(op: &str) -> Option<((), u8)> {
   let bp = match op {
-    "!" | "-" | "+" => 15,
+    _ if op.starts_with('!') => 1,
+    "~" | "-" | "+" => 15,
     _ => return None,
   };
   Some(((), bp))
