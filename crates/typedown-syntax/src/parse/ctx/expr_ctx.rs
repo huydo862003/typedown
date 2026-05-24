@@ -2,9 +2,15 @@
 
 use typedown_types::syntax_kind::SyntaxKind;
 
+use crate::green::SyntaxToken;
+
 /// Expression context stack entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::parse) enum ExprCtx {
+  /// Top-level YAML frontmatter context.
+  YamlFrontmatter,
+  /// Top-level Markdown body context
+  MarkdownBody,
   /// Inside `${...}` interpolation, closed by `}`
   Interp,
   /// Inside `[...]` list, closed by `]`
@@ -55,15 +61,15 @@ impl ExprCtxStack {
     self.0.iter().any(|ctx| ctx.should_ignore_indent())
   }
 
-  /// Find the innermost context that can handle the given token kind.
+  /// Find the innermost context that can handle the given token.
   /// Falls back to the current (innermost) context if none matches.
-  pub(in crate::parse) fn find_handler(&self, kind: SyntaxKind) -> Option<ExprCtx> {
+  pub(in crate::parse) fn find_handler(&self, token: &SyntaxToken) -> Option<ExprCtx> {
     self
       .0
       .iter()
       .rev()
       .copied()
-      .find(|ctx| ctx.can_handle(kind))
+      .find(|ctx| ctx.can_handle(token))
       .or_else(|| self.current())
   }
 }
@@ -74,21 +80,28 @@ impl ExprCtx {
     matches!(self, ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call)
   }
 
-  /// Whether this context can handle the given token kind.
-  pub(in crate::parse) fn can_handle(self, kind: SyntaxKind) -> bool {
-    matches!(
-      (self, kind),
-      (ExprCtx::Interp, SyntaxKind::InterpEnd)
-        | (ExprCtx::List, SyntaxKind::RBracket)
-        | (ExprCtx::List, SyntaxKind::Comma)
-        | (ExprCtx::Dict, SyntaxKind::RBrace)
-        | (ExprCtx::Dict, SyntaxKind::Comma)
-        | (ExprCtx::Dict, SyntaxKind::Colon)
-        | (ExprCtx::DqString, SyntaxKind::DqStrEnd)
-        | (ExprCtx::SqString, SyntaxKind::SqStrEnd)
-        | (ExprCtx::Paren, SyntaxKind::RParen)
-        | (ExprCtx::Call, SyntaxKind::RParen)
-        | (ExprCtx::Call, SyntaxKind::Comma)
-    )
+  /// Whether this context can handle the given token.
+  pub(in crate::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
+    match (self, token.kind()) {
+      (ExprCtx::YamlFrontmatter, SyntaxKind::YamlOp) => {
+        token.text().collect::<String>() == "---"
+      }
+      (ExprCtx::YamlFrontmatter, SyntaxKind::YamlIndent)
+      | (ExprCtx::YamlFrontmatter, SyntaxKind::YamlDedent)
+      | (ExprCtx::YamlFrontmatter, SyntaxKind::Eof)
+      | (ExprCtx::MarkdownBody, SyntaxKind::Eof)
+      | (ExprCtx::Interp, SyntaxKind::InterpEnd)
+      | (ExprCtx::List, SyntaxKind::RBracket)
+      | (ExprCtx::List, SyntaxKind::Comma)
+      | (ExprCtx::Dict, SyntaxKind::RBrace)
+      | (ExprCtx::Dict, SyntaxKind::Comma)
+      | (ExprCtx::Dict, SyntaxKind::Colon)
+      | (ExprCtx::DqString, SyntaxKind::DqStrEnd)
+      | (ExprCtx::SqString, SyntaxKind::SqStrEnd)
+      | (ExprCtx::Paren, SyntaxKind::RParen)
+      | (ExprCtx::Call, SyntaxKind::RParen)
+      | (ExprCtx::Call, SyntaxKind::Comma) => true,
+      _ => false,
+    }
   }
 }

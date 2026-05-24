@@ -165,7 +165,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           break;
         }
         _ => {
-          let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+          let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::Call) {
             self.expr_ctx_stack.exit(ExprCtx::Call);
             return self.emit(SyntaxKind::CallExpr, &children);
@@ -219,7 +219,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::LBrace => self.parse_dict_lit(),
       _ => {
         // Check if an outer context can handle this token
-        let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+        let handler = self.expr_ctx_stack.find_handler(&peek.token);
         if handler.is_some() {
           // Don't consume: let the caller handle it
           self.diagnostics.push(Diagnostic::MissingSyntaxNode {
@@ -383,7 +383,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
         // Unexpected token: check handler context
         _ => {
-          let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+          let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::List) {
             // Outer context should handle this token
             self.expr_ctx_stack.exit(ExprCtx::List);
@@ -517,7 +517,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
         // Unexpected token
         _ => {
-          let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+          let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::Dict) {
             self.expr_ctx_stack.exit(ExprCtx::Dict);
             return (self.emit(SyntaxKind::DictLit, &children), handler);
@@ -927,7 +927,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     error_children: &mut Vec<GreenNode>,
   ) -> Option<ExprCtx> {
     let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
-    let handler = self.expr_ctx_stack.find_handler(peek.token.kind());
+    let handler = self.expr_ctx_stack.find_handler(&peek.token);
     if handler.is_some_and(|ctx| ctx != current) {
       return handler;
     }
