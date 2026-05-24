@@ -94,7 +94,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   pub fn advance(&mut self, children: &mut Vec<GreenNode>, skip: u16, mode: LexMode) -> LexResult {
     debug_assert!(
-      *self.lex_ctx.mode() == mode,
+      self.lex_ctx.mode() == mode,
       "[PeekableLexCtx::advance] Lex mode must be the same as the `mode` argument"
     );
     match mode {
@@ -150,7 +150,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     diagnostic: Diagnostic,
   ) -> bool {
     debug_assert!(
-      *self.lex_ctx.mode() == mode,
+      self.lex_ctx.mode() == mode,
       "[PeekableLexCtx::consume] Lex mode must be the same as the `mode` argument"
     );
     match mode {
@@ -206,7 +206,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     diagnostic: Diagnostic,
   ) -> bool {
     debug_assert!(
-      *self.lex_ctx.mode() == mode,
+      self.lex_ctx.mode() == mode,
       "[PeekableLexCtx::consume_if] Lex mode must be the same as the `mode` argument"
     );
     match mode {

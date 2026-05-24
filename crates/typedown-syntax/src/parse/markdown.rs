@@ -10,7 +10,7 @@ use crate::lex::ctx::LexMode;
 impl<S: Utf8Stream> ParseCtx<S> {
   pub(super) fn parse_markdown_body(&mut self) -> GreenNode {
     debug_assert!(
-      *self.lex_ctx.mode() == LexMode::MarkdownBody,
+      self.lex_ctx.mode() == LexMode::MarkdownBody,
       "[ParseCtx::parse_markdown_body] Lex mode must be MarkdownBody"
     );
     todo!()

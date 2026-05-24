@@ -78,7 +78,7 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
 
   pub fn peek(&mut self, skip: u16, mode: LexMode) -> LexResult {
     debug_assert!(
-      *self.lex_ctx.mode() == mode,
+      self.lex_ctx.mode() == mode,
       "[PeekableLexCtx::peek] Lex mode must be the same as the `mode` argument"
     );
     match mode {
@@ -90,7 +90,7 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
   /// Peek at the next non-skipped YAML token without consuming.
   pub fn peek_yaml(&mut self, skip: u16) -> PeekYamlResult {
     debug_assert!(
-      *self.lex_ctx.mode() == LexMode::YamlFrontmatter,
+      self.lex_ctx.mode() == LexMode::YamlFrontmatter,
       "[PeekableLexCtx::peek_yaml] Lex mode must be YamlFrontmatter"
     );
 
@@ -145,7 +145,7 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
   /// Peek at the next non-skipped Markdown token without consuming.
   pub fn peek_md(&mut self, skip: u16) -> LexResult {
     debug_assert!(
-      *self.lex_ctx.mode() == LexMode::MarkdownBody,
+      self.lex_ctx.mode() == LexMode::MarkdownBody,
       "[PeekableLexCtx::peek_md] Lex mode must be MarkdownBody"
     );
     let mut skipped_count = 0;
