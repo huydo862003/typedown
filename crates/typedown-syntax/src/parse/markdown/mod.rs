@@ -224,7 +224,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn parse_footnote_ref(&mut self, current_indent: usize) -> GreenNode {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
-      "[ParseCtx::parse_citation] Expected ["
+      "[ParseCtx::parse_footnote_ref] Expected ["
+    );
+    debug_assert!(
+      {
+        let second = self.lex_ctx.peek_md_nth(2, SKIP_NONE);
+        second.token.kind() == SyntaxKind::MdSymbol
+          && second.token.text().collect::<String>() == "^"
+      },
+      "[ParseCtx::parse_footnote_ref] Expected ^ after ["
     );
 
     let mut children = vec![];
