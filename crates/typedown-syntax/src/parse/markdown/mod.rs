@@ -265,11 +265,141 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a link: `[text](url)`.
+  /// INVARIANT: The next token must be LBracket.
   pub(in crate::parse) fn parse_link(
     &mut self,
     current_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
+      "[ParseCtx::parse_link] Expected ["
+    );
+
+    let mut children = vec![];
+    let open_offset = self.offset();
+
+    // Consume `[`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::LBracket,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Link,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Link, &children), handler);
+    }
+
+    self.expr_ctx_stack.enter(ExprCtx::MdLinkText);
+
+    // Consume inline elements until `]` or end of inline element
+    loop {
+      if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::RBracket {
+        break;
+      }
+      if self.should_end_inline_element(current_indent) {
+        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+        return (self.emit(SyntaxKind::Link, &children), None);
+      }
+
+      let (inline, early_exit) = self.parse_md_inline_element();
+      children.push(inline);
+
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdLinkText) {
+        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+        return (self.emit(SyntaxKind::Link, &children), early_exit);
+      }
+
+      if early_exit == Some(ExprCtx::MdLinkText) {
+        if let Some(ctx) = self.synchronize_link_text(current_indent, &mut children) {
+          self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+          return (self.emit(SyntaxKind::Link, &children), Some(ctx));
+        }
+      }
+    }
+
+    // Consume `]`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::RBracket,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Link,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Link, &children), handler);
+    }
+
+    // Consume `(`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::LParen,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Link,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Link, &children), handler);
+    }
+
+    self.expr_ctx_stack.enter(ExprCtx::MdLinkUrl);
+
+    // Consume plain text tokens until `)`, Newline, or EOF
+    let mut url_children = vec![];
+    loop {
+      let peek = self.lex_ctx.peek_md(SKIP_NONE);
+      match peek.token.kind() {
+        SyntaxKind::RParen | SyntaxKind::Newline | SyntaxKind::Eof => break,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkUrl, &mut url_children) {
+            children.push(self.emit(SyntaxKind::Text, &url_children));
+            self.expr_ctx_stack.exit(ExprCtx::MdLinkUrl);
+            return (self.emit(SyntaxKind::Link, &children), Some(ctx));
+          }
+        }
+      }
+    }
+    children.push(self.emit(SyntaxKind::Text, &url_children));
+
+    // Consume `)`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::RParen,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Link,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    self.expr_ctx_stack.exit(ExprCtx::MdLinkUrl);
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Link, &children), handler);
+    }
+
+    (self.emit(SyntaxKind::Link, &children), None)
   }
 
   /// Parse a media embed: `![alt](src)`.
