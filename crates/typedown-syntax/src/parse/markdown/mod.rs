@@ -241,11 +241,137 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a callout block: `::: label ... :::`.
+  /// INVARIANT: Expect ::: to be the next token, all spaces must already be consumed and passed
+  /// correctly to current indent
+  /// ::: creates a new indentation context (inside this, elements can start at indentation 0)
   pub(in crate::parse) fn parse_callout_block(
     &mut self,
     current_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ":::",
+      "[ParseCtx::parse_callout_block] Expected :::"
+    );
+
+    let mut children = vec![];
+    let open_offset = self.offset();
+
+    // Consume `:::`
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Require a space between `:::` and the label
+    let next = self.lex_ctx.peek_md(SKIP_NONE);
+    if next.token.kind() != SyntaxKind::Whitespace {
+      self.emit_diagnostic(Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Require a label identifier
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Ident {
+      self.emit_diagnostic(Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Ident,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Consume the newline after the label (skip trailing whitespace)
+    self.consume_md(
+      &mut children,
+      SKIP_TRAILING_WS,
+      SyntaxKind::Newline,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Newline,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      },
+    );
+
+    self.expr_ctx_stack.enter(ExprCtx::MdCalloutBlock);
+
+    // Parse block elements until closing `:::` or EOF
+    // The callout creates a new indentation context: inner elements start at indent 0
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if next_kind == SyntaxKind::Eof {
+        break;
+      }
+
+      // Check for closing `:::` at the same indentation level
+      let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+      if next.token.kind() == SyntaxKind::MdSymbol
+        && next.token.text().collect::<String>() == ":::"
+        && next.indent_depth == current_indent
+      {
+        break;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      children.push(block);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdCalloutBlock) {
+        self.expr_ctx_stack.exit(ExprCtx::MdCalloutBlock);
+        return (self.emit(SyntaxKind::CalloutBlock, &children), early_exit);
+      }
+      if early_exit == Some(ExprCtx::MdCalloutBlock) {
+        if let Some(ctx) = self.synchronize_callout_block(current_indent, &mut children) {
+          self.expr_ctx_stack.exit(ExprCtx::MdCalloutBlock);
+          return (self.emit(SyntaxKind::CalloutBlock, &children), Some(ctx));
+        }
+      }
+    }
+
+    // Consume closing `:::`
+    self.consume_md_if(
+      &mut children,
+      SKIP_LEADING_WS,
+      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ":::",
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::CalloutBlock,
+        start_offset: open_offset,
+        end_offset: self.offset(),
+      },
+    );
+
+    self.expr_ctx_stack.exit(ExprCtx::MdCalloutBlock);
+    (self.emit(SyntaxKind::CalloutBlock, &children), None)
+  }
+
+  // Stop on `:::` at matching indent, or EOF.
+  fn synchronize_callout_block(
+    &mut self,
+    current_indent: usize,
+    children: &mut Vec<GreenNode>,
+  ) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+      let is_closing = peek.token.kind() == SyntaxKind::MdSymbol
+        && peek.token.text().collect::<String>() == ":::"
+        && peek.indent_depth == current_indent;
+      if is_closing || peek.token.kind() == SyntaxKind::Eof {
+        break None;
+      }
+      if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdCalloutBlock, &mut error_children) {
+        break Some(ctx);
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
   }
 
   /// Parse a footnote block: `:::footnote ... :::`.

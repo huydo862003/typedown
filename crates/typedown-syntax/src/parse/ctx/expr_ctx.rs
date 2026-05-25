@@ -47,6 +47,8 @@ pub(in crate::parse) enum ExprCtx {
   MdStrikethrough,
   /// Inside `[@key]`, closed by `]`
   MdCitation,
+  /// Inside a `:::` callout block, closed by `:::`
+  MdCalloutBlock,
 }
 
 /// Stack of expression contexts for error recovery in expressions.
@@ -117,6 +119,7 @@ impl ExprCtx {
         (ExprCtx::MdItalicUnderscore, "_") => true,
         (ExprCtx::MdBoldItalic, "***") => true,
         (ExprCtx::MdStrikethrough, "~~") => true,
+        (ExprCtx::MdCalloutBlock, ":::") => true,
         _ => false,
       };
     }
@@ -161,7 +164,8 @@ impl ExprCtx {
       | (ExprCtx::MdStrikethrough, SyntaxKind::Eof)
       | (ExprCtx::MdCitation, SyntaxKind::RBracket)
       | (ExprCtx::MdCitation, SyntaxKind::Newline)
-      | (ExprCtx::MdCitation, SyntaxKind::Eof) => true,
+      | (ExprCtx::MdCitation, SyntaxKind::Eof)
+      | (ExprCtx::MdCalloutBlock, SyntaxKind::Eof) => true,
       _ => false,
     }
   }
