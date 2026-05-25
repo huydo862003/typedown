@@ -273,11 +273,196 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a media embed: `![alt](src)`.
+  /// INVARIANT: The next token must be MdSymbol `!` followed by `[`.
   pub(in crate::parse) fn parse_media(
     &mut self,
     current_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == "!",
+      "[ParseCtx::parse_media] Expected !"
+    );
+    debug_assert!(
+      self.lex_ctx.peek_md_nth(2, SKIP_NONE).token.kind() == SyntaxKind::LBracket,
+      "[ParseCtx::parse_media] Expected [ after !"
+    );
+
+    let mut children = vec![];
+    let open_offset = self.offset();
+
+    // Consume `!`
+    let ok = self.consume_md_if(
+      &mut children,
+      SKIP_NONE,
+      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "!",
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Media,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Media, &children), handler);
+    }
+
+    // Consume `[`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::LBracket,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Media,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Media, &children), handler);
+    }
+
+    self.expr_ctx_stack.enter(ExprCtx::MdLinkText);
+
+    // Consume inline elements until `]` or end of inline element
+    loop {
+      if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::RBracket {
+        break;
+      }
+      if self.should_end_inline_element(current_indent) {
+        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+        return (self.emit(SyntaxKind::Media, &children), None);
+      }
+
+      let (inline, early_exit) = self.parse_md_inline_element();
+      children.push(inline);
+
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdLinkText) {
+        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+        return (self.emit(SyntaxKind::Media, &children), early_exit);
+      }
+
+      if early_exit == Some(ExprCtx::MdLinkText) {
+        if let Some(ctx) = self.synchronize_link_text(current_indent, &mut children) {
+          self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+          return (self.emit(SyntaxKind::Media, &children), Some(ctx));
+        }
+      }
+    }
+
+    // Consume `]`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::RBracket,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Media,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Media, &children), handler);
+    }
+
+    // Consume `(`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::LParen,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Media,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Media, &children), handler);
+    }
+
+    self.expr_ctx_stack.enter(ExprCtx::MdLinkUrl);
+
+    // Consume plain text tokens until `)`, Newline, or EOF
+    let mut url_children = vec![];
+    loop {
+      let peek = self.lex_ctx.peek_md(SKIP_NONE);
+      match peek.token.kind() {
+        SyntaxKind::RParen | SyntaxKind::Newline | SyntaxKind::Eof => break,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkUrl, &mut url_children) {
+            children.push(self.emit(SyntaxKind::Text, &url_children));
+            self.expr_ctx_stack.exit(ExprCtx::MdLinkUrl);
+            return (self.emit(SyntaxKind::Media, &children), Some(ctx));
+          }
+        }
+      }
+    }
+    children.push(self.emit(SyntaxKind::Text, &url_children));
+
+    // Consume `)`
+    let ok = self.consume_md(
+      &mut children,
+      SKIP_NONE,
+      SyntaxKind::RParen,
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::Media,
+        start_offset: open_offset,
+        end_offset: open_offset,
+      },
+    );
+    self.expr_ctx_stack.exit(ExprCtx::MdLinkUrl);
+    if !ok {
+      let handler = self
+        .expr_ctx_stack
+        .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
+      return (self.emit(SyntaxKind::Media, &children), handler);
+    }
+
+    (self.emit(SyntaxKind::Media, &children), None)
+  }
+
+  // Stop on `]`, Newline, EOF, or end of inline element.
+  fn synchronize_link_text(
+    &mut self,
+    current_indent: usize,
+    children: &mut Vec<GreenNode>,
+  ) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek_md(SKIP_NONE);
+      if matches!(
+        peek.token.kind(),
+        SyntaxKind::RBracket | SyntaxKind::Newline | SyntaxKind::Eof
+      ) || self.should_end_inline_element(current_indent)
+      {
+        break None;
+      }
+      if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkText, &mut error_children) {
+        break Some(ctx);
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
   }
 
   /// Parse a footnote reference: `[^key]`.
