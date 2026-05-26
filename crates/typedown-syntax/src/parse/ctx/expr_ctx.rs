@@ -9,8 +9,6 @@ use crate::green::SyntaxToken;
 pub(in crate::parse) enum ExprCtx {
   /// Top-level YAML frontmatter context.
   YamlFrontmatter,
-  /// Top-level Markdown body context
-  MarkdownBody,
   /// Inside `${...}` interpolation, closed by `}`
   Interp,
   /// Inside `[...]` list, closed by `]`
@@ -29,8 +27,27 @@ pub(in crate::parse) enum ExprCtx {
   BlockSeq,
   /// Inside a block mapping
   BlockMap,
-  /// Inside a markdown list item at the given indentation level
-  MdListItem(usize),
+
+  /// Top-level Markdown body context
+  MarkdownBody,
+  /// Inside a `:::` callout block, closed by `:::`
+  /// The `u16` is the indentation level (spaces before `:::`) to append to the prefix.
+  MdCalloutBlock(u16),
+  /// Inside a `>` blockquote
+  MdBlockQuote,
+  /// Inside an ordered list (`1. ...`)
+  MdOrderedList,
+  /// Inside an ordered list item
+  MdOrderedListItem,
+  /// Inside an unordered list (`- ...`, `* ...`, `+ ...`)
+  MdUnorderedList,
+  /// Inside an unordered list item
+  MdUnorderedListItem,
+  /// Inside a toggle list (`>- ...`)
+  MdToggleList,
+  /// Inside a toggle list item
+  MdToggleListItem,
+
   /// Inside the text part of a markdown link or media: `[text]`
   MdLinkText,
   /// Inside the url/src part of a markdown link or media: `(url)`
@@ -47,58 +64,113 @@ pub(in crate::parse) enum ExprCtx {
   MdStrikethrough,
   /// Inside `[@key]`, closed by `]`
   MdCitation,
-  /// Inside a `:::` callout block, closed by `:::`
-  MdCalloutBlock,
+}
+
+struct ExprStackEntry {
+  ctx: ExprCtx,
+  /// Number of prefix tokens this context contributed.
+  prefix_token_count: u16,
 }
 
 /// Stack of expression contexts for error recovery in expressions.
-pub(in crate::parse) struct ExprCtxStack(Vec<ExprCtx>);
+pub(in crate::parse) struct ExprCtxStack {
+  stack: Vec<ExprStackEntry>,
+  /// Accumulated MD line prefix as a sequence of expected token kinds.
+  md_prefix_tokens: Vec<SyntaxKind>,
+}
 
 impl ExprCtxStack {
   pub(in crate::parse) fn new() -> Self {
-    Self(Vec::new())
+    Self {
+      stack: Vec::new(),
+      md_prefix_tokens: Vec::new(),
+    }
   }
 
   /// Push a context onto the stack.
   pub(in crate::parse) fn enter(&mut self, ctx: ExprCtx) {
-    self.0.push(ctx);
+    let before = self.md_prefix_tokens.len();
+    ctx.push_md_prefix_tokens(&mut self.md_prefix_tokens);
+    let prefix_token_count = (self.md_prefix_tokens.len() - before) as u16;
+    self.stack.push(ExprStackEntry {
+      ctx,
+      prefix_token_count,
+    });
   }
 
   /// Pop the current context.
   pub(in crate::parse) fn exit(&mut self, expected: ExprCtx) {
-    let popped = self.0.pop();
+    let entry = self.stack.pop();
     debug_assert!(
-      popped == Some(expected),
+      entry.as_ref().unwrap().ctx == expected,
       "[ExprCtxStack::exit] Expected {:?} but got {:?}",
       expected,
-      popped
+      entry.as_ref().unwrap().ctx,
     );
+    if let Some(entry) = entry {
+      let new_len = self.md_prefix_tokens.len() - entry.prefix_token_count as usize;
+      self.md_prefix_tokens.truncate(new_len);
+    }
   }
 
   pub(in crate::parse) fn current(&self) -> Option<ExprCtx> {
-    self.0.last().copied()
+    self.stack.last().map(|e| e.ctx)
+  }
+
+  /// The accumulated expected MD prefix token kinds.
+  pub(in crate::parse) fn md_prefix_tokens(&self) -> &[SyntaxKind] {
+    &self.md_prefix_tokens
   }
 
   /// Whether indentation should be ignored.
   /// Return true if any context on the stack ignores indentation (flow constructs)
   pub(in crate::parse) fn should_ignore_indent(&self) -> bool {
-    self.0.iter().any(|ctx| ctx.should_ignore_indent())
+    self.stack.iter().any(|e| e.ctx.should_ignore_indent())
   }
 
   /// Find the innermost context that can handle the given token.
   /// Falls back to the current (innermost) context if none matches.
   pub(in crate::parse) fn find_handler(&self, token: &SyntaxToken) -> Option<ExprCtx> {
     self
-      .0
+      .stack
       .iter()
       .rev()
-      .copied()
+      .map(|e| e.ctx)
       .find(|ctx| ctx.can_handle(token))
       .or_else(|| self.current())
   }
 }
 
 impl ExprCtx {
+  pub(in crate::parse) fn is_md_callout_block(self) -> bool {
+    matches!(self, ExprCtx::MdCalloutBlock(_))
+  }
+
+  /// Push this context's expected prefix tokens.
+  fn push_md_prefix_tokens(self, tokens: &mut Vec<SyntaxKind>) {
+    match self {
+      ExprCtx::MdBlockQuote => {
+        tokens.push(SyntaxKind::MdSymbol);
+        tokens.push(SyntaxKind::Whitespace);
+      }
+      ExprCtx::MdUnorderedListItem => {
+        tokens.push(SyntaxKind::Whitespace);
+      }
+      ExprCtx::MdOrderedListItem => {
+        tokens.push(SyntaxKind::Whitespace);
+      }
+      ExprCtx::MdToggleListItem => {
+        tokens.push(SyntaxKind::Whitespace);
+      }
+      ExprCtx::MdCalloutBlock(parent_prefix_count) => {
+        if parent_prefix_count > 0 {
+          tokens.push(SyntaxKind::Whitespace);
+        }
+      }
+      _ => {}
+    }
+  }
+
   /// Whether indentation is irrelevant in this context (flow constructs).
   pub(in crate::parse) fn should_ignore_indent(self) -> bool {
     matches!(
@@ -119,7 +191,7 @@ impl ExprCtx {
         (ExprCtx::MdItalicUnderscore, "_") => true,
         (ExprCtx::MdBoldItalic, "***") => true,
         (ExprCtx::MdStrikethrough, "~~") => true,
-        (ExprCtx::MdCalloutBlock, ":::") => true,
+        (ExprCtx::MdCalloutBlock(_), ":::") => true,
         _ => false,
       };
     }
@@ -144,8 +216,17 @@ impl ExprCtx {
       | (ExprCtx::BlockSeq, SyntaxKind::YamlDedent)
       | (ExprCtx::BlockMap, SyntaxKind::Newline)
       | (ExprCtx::BlockMap, SyntaxKind::YamlDedent)
-      | (ExprCtx::MdListItem(_), SyntaxKind::Newline)
-      | (ExprCtx::MdListItem(_), SyntaxKind::Eof)
+      | (ExprCtx::MdBlockQuote, SyntaxKind::Newline)
+      | (ExprCtx::MdBlockQuote, SyntaxKind::Eof)
+      | (ExprCtx::MdOrderedList, SyntaxKind::Eof)
+      | (ExprCtx::MdOrderedListItem, SyntaxKind::Newline)
+      | (ExprCtx::MdOrderedListItem, SyntaxKind::Eof)
+      | (ExprCtx::MdUnorderedList, SyntaxKind::Eof)
+      | (ExprCtx::MdUnorderedListItem, SyntaxKind::Newline)
+      | (ExprCtx::MdUnorderedListItem, SyntaxKind::Eof)
+      | (ExprCtx::MdToggleList, SyntaxKind::Eof)
+      | (ExprCtx::MdToggleListItem, SyntaxKind::Newline)
+      | (ExprCtx::MdToggleListItem, SyntaxKind::Eof)
       | (ExprCtx::MdLinkText, SyntaxKind::RBracket)
       | (ExprCtx::MdLinkText, SyntaxKind::Newline)
       | (ExprCtx::MdLinkText, SyntaxKind::Eof)
@@ -165,7 +246,7 @@ impl ExprCtx {
       | (ExprCtx::MdCitation, SyntaxKind::RBracket)
       | (ExprCtx::MdCitation, SyntaxKind::Newline)
       | (ExprCtx::MdCitation, SyntaxKind::Eof)
-      | (ExprCtx::MdCalloutBlock, SyntaxKind::Eof) => true,
+      | (ExprCtx::MdCalloutBlock(_), SyntaxKind::Eof) => true,
       _ => false,
     }
   }

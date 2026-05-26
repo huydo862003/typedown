@@ -164,4 +164,11 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// The expected line prefix (e.g. `> ` for blockquotes) was not found after a newline.
+  MissingExpectMdPrefix {
+    expected_prefix: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

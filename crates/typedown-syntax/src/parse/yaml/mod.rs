@@ -3,8 +3,8 @@
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
 use super::constants::*;
-use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
+use super::ctx::ParseCtx;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
 use typedown_types::syntax_kind::SyntaxKind;
@@ -73,7 +73,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let end_offset = self.offset();
 
-    if self.lex_ctx.yaml_indent_depth() != 0 {
+    if self.lex_ctx.yaml_indent() != 0 {
       self
         .diagnostics
         .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
@@ -151,9 +151,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     match peek.token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "---" => {
-        peek.indent_depth == 0
-      }
+      SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "---" => peek.indent == 0,
       _ => false,
     }
   }

@@ -9,11 +9,10 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::Sy
 
 use crate::{
   green::{GreenNode, SyntaxToken, cache::Cache},
-  lex::ctx::{LexCtx, LexMode},
+  lex::ctx::{LexCtx, LexMode, LexResult},
 };
 use expr_ctx::ExprCtxStack;
-use peekable_lex_ctx::AugmentedLexResult;
-use peekable_lex_ctx::PeekableLexCtx;
+use peekable_lex_ctx::{MdLexResult, PeekableLexCtx, YamlLexResult};
 
 pub struct ParseCtx<S: Utf8Stream> {
   pub(in crate::parse) cache: Rc<RefCell<Cache>>,
@@ -72,7 +71,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
-  ) -> AugmentedLexResult {
+  ) -> YamlLexResult {
     loop {
       let mut result = self.lex_ctx.lex();
       if let Some(diagnostic) = result.diagnostic.take() {
@@ -81,9 +80,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if self.lex_ctx.should_skip(result.token.kind(), skip) {
         children.push(GreenNode::from_token(result.token));
       } else {
-        let indent_depth = self.lex_ctx.yaml_indent_depth();
+        let indent = self.lex_ctx.yaml_indent();
         children.push(GreenNode::from_token(result.token.clone()));
-        return AugmentedLexResult::new(result, indent_depth);
+        return YamlLexResult::new(result, indent);
       }
     }
   }
@@ -93,7 +92,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
-  ) -> AugmentedLexResult {
+  ) -> MdLexResult {
     loop {
       let mut result = self.lex_ctx.lex();
       if let Some(diagnostic) = result.diagnostic.take() {
@@ -102,26 +101,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if self.lex_ctx.should_skip(result.token.kind(), skip) {
         children.push(GreenNode::from_token(result.token));
       } else {
-        let indent_depth = self.lex_ctx.md_indent_depth();
         children.push(GreenNode::from_token(result.token.clone()));
-        return AugmentedLexResult::new(result, indent_depth);
+        return MdLexResult::new(result);
       }
     }
   }
 
-  pub fn advance(
-    &mut self,
-    children: &mut Vec<GreenNode>,
-    skip: u16,
-    mode: LexMode,
-  ) -> AugmentedLexResult {
+  pub fn advance(&mut self, children: &mut Vec<GreenNode>, skip: u16, mode: LexMode) -> LexResult {
     debug_assert!(
       self.lex_ctx.mode() == mode,
       "[PeekableLexCtx::advance] Lex mode must be the same as the `mode` argument"
     );
     match mode {
-      LexMode::YamlFrontmatter => self.advance_yaml(children, skip),
-      LexMode::MarkdownBody => self.advance_md(children, skip),
+      LexMode::YamlFrontmatter => self.advance_yaml(children, skip).into(),
+      LexMode::MarkdownBody => self.advance_md(children, skip).into(),
     }
   }
 

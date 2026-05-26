@@ -359,7 +359,15 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Numbers */
 
   pub(in crate::lex) fn lex_markdown_number(&mut self) -> LexResult {
-    self.lex_number()
+    loop {
+      match self.peek() {
+        Utf8Result::Char(char) if char.is_ascii_digit() => {
+          self.advance_avoid_invalid_utf8();
+        }
+        _ => break,
+      }
+    }
+    self.emit(SyntaxKind::MdNumber)
   }
 
   /* Formula mode (inside ${...} in markdown) */

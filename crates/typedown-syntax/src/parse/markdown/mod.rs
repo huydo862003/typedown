@@ -36,11 +36,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a heading: `# ...`, `## ...`, etc.
-  /// INVARIANT: The next token should be a hash sequence  /// Any whitespaces must be consumed by the parent to pass the correct current_indent
-  pub(in crate::parse) fn parse_heading(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  /// INVARIANT: The next token should be a hash sequence
+  pub(in crate::parse) fn parse_heading(&mut self) -> (GreenNode, Option<ExprCtx>) {
     fn is_hash(token: &SyntaxToken) -> bool {
       token.kind() == SyntaxKind::MdSymbol && token.text().all(|c| c == '#')
     }
@@ -107,10 +104,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a paragraph: consecutive non-blank text lines.
   /// INVARIANT: The current line is not blank (caller must ensure there is content).
-  pub(in crate::parse) fn parse_paragraph(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_paragraph(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mut children = vec![];
 
     loop {
@@ -136,14 +130,24 @@ impl<S: Utf8Stream> ParseCtx<S> {
       // Consume the newline
       self.advance_md(&mut children, SKIP_NONE);
 
-      // Peek past leading whitespace on the next line to decide whether to continue
-      let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
-      if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+      // Decide whether to continue on the next line
+      let prefix_len = self.expr_ctx_stack.md_prefix_tokens().len();
+      let after_prefix = self.lex_ctx.peek_md_nth(prefix_len, SKIP_NONE);
+      if matches!(
+        after_prefix.token.kind(),
+        SyntaxKind::Newline | SyntaxKind::Eof
+      ) {
         // Blank line: end paragraph
         break;
       }
+      if !self.peek_matches_md_prefix() {
+        // Prefix mismatch: end paragraph
+        break;
+      }
       if self.is_md_block_start() {
-        if next.indent_depth > current_indent {
+        // Check if there's extra indentation after the prefix
+        let after_prefix_kind = after_prefix.token.kind();
+        if after_prefix_kind == SyntaxKind::Whitespace {
           // Indented block: parse as a nested child of this paragraph
           let (block, early_exit) = self.parse_md_block_element();
           children.push(block);
@@ -151,7 +155,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             return (self.emit(SyntaxKind::Paragraph, &children), early_exit);
           }
         } else {
-          // Block at same or lower indent: end paragraph
+          // Block at same indent: end paragraph
           break;
         }
       }
@@ -161,93 +165,225 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a blockquote: `> ...`.
-  pub(in crate::parse) fn parse_blockquote(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// INVARIANT: Expect the next token to be `>`
+  pub(in crate::parse) fn parse_blockquote(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ">",
+      "[ParseCtx::parse_blockquote] Expected >"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdBlockQuote);
+
+    // Consume `>`
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Require a space after `>`
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Whitespace {
+      self.emit_diagnostic(Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Parse block elements until the blockquote ends
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if next_kind == SyntaxKind::Eof {
+        break;
+      }
+      if matches!(next_kind, SyntaxKind::Newline) {
+        self.consume_md_newline_and_prefix(&mut children);
+        if !self.peek_matches_md_prefix() {
+          break;
+        }
+        continue;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      children.push(block);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdBlockQuote) {
+        self.expr_ctx_stack.exit(ExprCtx::MdBlockQuote);
+        return (self.emit(SyntaxKind::Blockquote, &children), early_exit);
+      }
+      if early_exit == Some(ExprCtx::MdBlockQuote) {
+        break;
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdBlockQuote);
+    (self.emit(SyntaxKind::Blockquote, &children), None)
   }
 
   /// Parse a table: `| ... | ... |`.
-  pub(in crate::parse) fn parse_table(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_table(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
   /// Parse a table row.
-  pub(in crate::parse) fn parse_table_row(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_table_row(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
   /// Parse a table cell.
-  pub(in crate::parse) fn parse_table_cell(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_table_cell(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
-  /// Parse a bullet list: `- ...` or `* ...`.
-  pub(in crate::parse) fn parse_bullet_list(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// Parse a bullet list: `- ...` or `* ...` or `+ ...`.
+  /// INVARIANT: Must be after prefix. Next token must be MdSymbol `-`, `*`, or `+`.
+  pub(in crate::parse) fn parse_bullet_list(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    debug_assert!(
+      {
+        let peek = self.lex_ctx.peek_md(SKIP_NONE);
+        peek.token.kind() == SyntaxKind::MdSymbol && {
+          let text: String = peek.token.text().collect();
+          text == "-" || text == "*" || text == "+"
+        }
+      },
+      "[ParseCtx::parse_bullet_list] Expected -, *, or +"
+    );
+
+    let mut children = vec![];
+    let bullet: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+
+    self.expr_ctx_stack.enter(ExprCtx::MdUnorderedList);
+
+    // Parse first list item
+    let (item, early_exit) = self.parse_bullet_list_item(&bullet);
+    children.push(item);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedList) {
+      self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
+      return (self.emit(SyntaxKind::BulletList, &children), early_exit);
+    }
+
+    // Parse remaining list items
+    loop {
+      // Consume newline + prefix, then check if next line starts another item with the same bullet
+      if !self.consume_md_newline_and_prefix(&mut children) {
+        break;
+      }
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if next.token.kind() != SyntaxKind::MdSymbol {
+        break;
+      }
+      let text: String = next.token.text().collect();
+      if text != bullet {
+        break;
+      }
+
+      let (item, early_exit) = self.parse_bullet_list_item(&bullet);
+      children.push(item);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedList) {
+        self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
+        return (self.emit(SyntaxKind::BulletList, &children), early_exit);
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
+    (self.emit(SyntaxKind::BulletList, &children), None)
   }
 
-  /// Parse a bullet list item.
-  pub(in crate::parse) fn parse_bullet_list_item(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// Parse a bullet list item: `- content` or `* content` or `+ content`.
+  /// INVARIANT: Next token must be the bullet marker matching `bullet`.
+  fn parse_bullet_list_item(&mut self, bullet: &str) -> (GreenNode, Option<ExprCtx>) {
+    debug_assert!(
+      {
+        let peek = self.lex_ctx.peek_md(SKIP_NONE);
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == bullet
+      },
+      "[ParseCtx::parse_bullet_list_item] Expected bullet marker"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdUnorderedListItem);
+
+    // Consume the bullet marker
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Require a space after the bullet
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Whitespace {
+      self.emit_diagnostic(Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Parse block elements until end of list item
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if next_kind == SyntaxKind::Eof {
+        break;
+      }
+      if next_kind == SyntaxKind::Newline {
+        self.consume_md_newline_and_prefix(&mut children);
+        let next = self.lex_ctx.peek_md(SKIP_NONE);
+        if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+          break;
+        }
+        if !self.peek_matches_md_prefix() {
+          break;
+        }
+        // Same-level bullet starts a new list item
+        if next.token.kind() == SyntaxKind::MdSymbol
+          && next.token.text().collect::<String>() == bullet
+        {
+          break;
+        }
+        continue;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      children.push(block);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedListItem) {
+        self.expr_ctx_stack.exit(ExprCtx::MdUnorderedListItem);
+        return (self.emit(SyntaxKind::BulletListItem, &children), early_exit);
+      }
+      if early_exit == Some(ExprCtx::MdUnorderedListItem) {
+        break;
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdUnorderedListItem);
+    (self.emit(SyntaxKind::BulletListItem, &children), None)
   }
 
   /// Parse an ordered list: `1. ...`.
-  pub(in crate::parse) fn parse_ordered_list(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_ordered_list(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
   /// Parse an ordered list item.
-  pub(in crate::parse) fn parse_ordered_list_item(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_ordered_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
   /// Parse a toggle list: `>- ...`.
-  pub(in crate::parse) fn parse_toggle_list(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_toggle_list(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
   /// Parse a toggle list item.
-  pub(in crate::parse) fn parse_toggle_list_item(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_toggle_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
     todo!()
   }
 
   /// Parse a callout block: `::: label ... :::`.
   /// INVARIANT: Expect ::: to be the next token, all spaces must already be consumed and passed
-  /// correctly to current indent
-  /// ::: creates a new indentation context (inside this, elements can start at indentation 0)
-  pub(in crate::parse) fn parse_callout_block(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_callout_block(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -300,7 +436,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
       },
     );
 
-    self.expr_ctx_stack.enter(ExprCtx::MdCalloutBlock);
+    let parent_prefix_count = self.expr_ctx_stack.md_prefix_tokens().len();
+    let callout_ctx = ExprCtx::MdCalloutBlock(parent_prefix_count as u16);
+    self.expr_ctx_stack.enter(callout_ctx);
 
     // Parse block elements until closing `:::` or EOF
     // The callout creates a new indentation context: inner elements start at indent 0
@@ -310,24 +448,24 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
 
-      // Check for closing `:::` at the same indentation level
-      let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
-      if next.token.kind() == SyntaxKind::MdSymbol
-        && next.token.text().collect::<String>() == ":::"
-        && next.indent_depth == current_indent
+      // Check for closing `:::` at the same indentation level as the opening
+      // The closing `:::` should appear right after the parent prefix
+      let closing_pos = parent_prefix_count;
+      let next = self.lex_ctx.peek_md_nth(closing_pos, SKIP_NONE);
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == ":::"
       {
         break;
       }
 
       let (block, early_exit) = self.parse_md_block_element();
       children.push(block);
-      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdCalloutBlock) {
-        self.expr_ctx_stack.exit(ExprCtx::MdCalloutBlock);
+      if early_exit.is_some_and(|ctx| !ctx.is_md_callout_block()) {
+        self.expr_ctx_stack.exit(callout_ctx);
         return (self.emit(SyntaxKind::CalloutBlock, &children), early_exit);
       }
-      if early_exit == Some(ExprCtx::MdCalloutBlock) {
-        if let Some(ctx) = self.synchronize_callout_block(current_indent, &mut children) {
-          self.expr_ctx_stack.exit(ExprCtx::MdCalloutBlock);
+      if early_exit.is_some_and(|ctx| ctx.is_md_callout_block()) {
+        if let Some(ctx) = self.synchronize_callout_block(&mut children) {
+          self.expr_ctx_stack.exit(callout_ctx);
           return (self.emit(SyntaxKind::CalloutBlock, &children), Some(ctx));
         }
       }
@@ -345,26 +483,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
       },
     );
 
-    self.expr_ctx_stack.exit(ExprCtx::MdCalloutBlock);
+    self.expr_ctx_stack.exit(callout_ctx);
     (self.emit(SyntaxKind::CalloutBlock, &children), None)
   }
 
   // Stop on `:::` at matching indent, or EOF.
-  fn synchronize_callout_block(
-    &mut self,
-    current_indent: usize,
-    children: &mut Vec<GreenNode>,
-  ) -> Option<ExprCtx> {
+  fn synchronize_callout_block(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+    let current = self.expr_ctx_stack.current().unwrap();
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_LEADING_WS);
-      let is_closing = peek.token.kind() == SyntaxKind::MdSymbol
-        && peek.token.text().collect::<String>() == ":::"
-        && peek.indent_depth == current_indent;
+      let is_closing =
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == ":::";
       if is_closing || peek.token.kind() == SyntaxKind::Eof {
         break None;
       }
-      if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdCalloutBlock, &mut error_children) {
+      if let Some(ctx) = self.consume_or_delegate_md(current, &mut error_children) {
         break Some(ctx);
       }
     };
@@ -374,28 +508,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
     result
   }
 
-  /// Parse a footnote block: `:::footnote ... :::`.
-  pub(in crate::parse) fn parse_footnote_block(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
-  }
-
-  /// Parse a bibliography block: `:::bibtex ... :::`.
-  pub(in crate::parse) fn parse_bibliography_block(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
-  }
-
   /// Parse a link: `[text](url)`.
   /// INVARIANT: The next token must be LBracket.
-  pub(in crate::parse) fn parse_link(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_link(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
       "[ParseCtx::parse_link] Expected ["
@@ -429,7 +544,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::RBracket {
         break;
       }
-      if self.should_end_inline_element(current_indent) {
+      if self.should_end_inline_element(&mut children) {
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
         return (self.emit(SyntaxKind::Link, &children), None);
       }
@@ -443,7 +558,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
 
       if early_exit == Some(ExprCtx::MdLinkText) {
-        if let Some(ctx) = self.synchronize_link_text(current_indent, &mut children) {
+        if let Some(ctx) = self.synchronize_link_text(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
           return (self.emit(SyntaxKind::Link, &children), Some(ctx));
         }
@@ -530,10 +645,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a media embed: `![alt](src)`.
   /// INVARIANT: The next token must be MdSymbol `!` followed by `[`.
-  pub(in crate::parse) fn parse_media(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_media(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -546,7 +658,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       "[ParseCtx::parse_media] Expected !"
     );
     debug_assert!(
-      self.lex_ctx.peek_md_nth(2, SKIP_NONE).token.kind() == SyntaxKind::LBracket,
+      self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::LBracket,
       "[ParseCtx::parse_media] Expected [ after !"
     );
 
@@ -596,7 +708,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::RBracket {
         break;
       }
-      if self.should_end_inline_element(current_indent) {
+      if self.should_end_inline_element(&mut children) {
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
         return (self.emit(SyntaxKind::Media, &children), None);
       }
@@ -610,7 +722,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
 
       if early_exit == Some(ExprCtx::MdLinkText) {
-        if let Some(ctx) = self.synchronize_link_text(current_indent, &mut children) {
+        if let Some(ctx) = self.synchronize_link_text(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
           return (self.emit(SyntaxKind::Media, &children), Some(ctx));
         }
@@ -696,18 +808,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   // Stop on `]`, Newline, EOF, or end of inline element.
-  fn synchronize_link_text(
-    &mut self,
-    current_indent: usize,
-    children: &mut Vec<GreenNode>,
-  ) -> Option<ExprCtx> {
+  fn synchronize_link_text(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
       if matches!(
         peek.token.kind(),
         SyntaxKind::RBracket | SyntaxKind::Newline | SyntaxKind::Eof
-      ) || self.should_end_inline_element(current_indent)
+      ) || self.should_end_inline_element(children)
       {
         break None;
       }
@@ -722,17 +830,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a footnote reference: `[^key]`.
-  pub(in crate::parse) fn parse_footnote_ref(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_footnote_ref(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
       "[ParseCtx::parse_footnote_ref] Expected ["
     );
     debug_assert!(
       {
-        let second = self.lex_ctx.peek_md_nth(2, SKIP_NONE);
+        let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
         second.token.kind() == SyntaxKind::MdSymbol
           && second.token.text().collect::<String>() == "^"
       },
@@ -784,10 +889,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a citation: `[@key]`.
   /// INVARIANT: The next token must be LBracket.
-  pub(in crate::parse) fn parse_citation(
-    &mut self,
-    _current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_citation(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
       "[ParseCtx::parse_citation] Expected ["
@@ -840,10 +942,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// INVARIANT: The next token must be MdSymbol `**`.
   /// Leading whitespace must already be consumed by the caller.
   /// Trailing whitespace after the closing delimiter is not consumed.
-  pub(in crate::parse) fn parse_bold(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_bold(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -868,7 +967,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.advance_md(&mut children, SKIP_NONE);
         break;
       }
-      if self.should_end_inline_element(current_indent) {
+      if self.should_end_inline_element(&mut children) {
         self.emit_diagnostic(Diagnostic::UnclosedBold {
           start_offset: open_offset,
           end_offset: self.offset(),
@@ -886,7 +985,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         return (self.emit(SyntaxKind::Bold, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdBold) {
-        if let Some(ctx) = self.synchronize_bold(current_indent, &mut children) {
+        if let Some(ctx) = self.synchronize_bold(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdBold);
           return (self.emit(SyntaxKind::Bold, &children), Some(ctx));
         }
@@ -898,11 +997,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   // Stop on `**`, EOF, or end of inline element.
-  fn synchronize_bold(
-    &mut self,
-    current_indent: usize,
-    children: &mut Vec<GreenNode>,
-  ) -> Option<ExprCtx> {
+  fn synchronize_bold(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
@@ -910,7 +1005,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == "**";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
-        || self.should_end_inline_element(current_indent)
+        || self.should_end_inline_element(children)
       {
         break None;
       }
@@ -928,10 +1023,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// INVARIANT: The next token must be MdSymbol `*` or `_`.
   /// Leading whitespace must already be consumed by the caller.
   /// Trailing whitespace after the closing delimiter is not consumed.
-  pub(in crate::parse) fn parse_italic(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_italic(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let opening: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
@@ -964,7 +1056,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
         break;
       }
-      if self.should_end_inline_element(current_indent) {
+      if self.should_end_inline_element(&mut children) {
         self.emit_diagnostic(Diagnostic::UnclosedItalic {
           start_offset: open_offset,
           end_offset: self.offset(),
@@ -982,7 +1074,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         return (self.emit(SyntaxKind::Italic, &children), early_exit);
       }
       if early_exit == Some(ctx) {
-        if let Some(propagate) = self.synchronize_italic(current_indent, &opening, &mut children) {
+        if let Some(propagate) = self.synchronize_italic(&opening, &mut children) {
           self.expr_ctx_stack.exit(ctx);
           return (self.emit(SyntaxKind::Italic, &children), Some(propagate));
         }
@@ -996,7 +1088,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
   // Stop on `*`/`_` matching `opening`, EOF, or end of inline element.
   fn synchronize_italic(
     &mut self,
-    current_indent: usize,
     opening: &str,
     children: &mut Vec<GreenNode>,
   ) -> Option<ExprCtx> {
@@ -1012,7 +1103,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let is_closing = peek.token.kind() == SyntaxKind::MdSymbol && (text == "*" || text == "_");
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
-        || self.should_end_inline_element(current_indent)
+        || self.should_end_inline_element(children)
       {
         break None;
       }
@@ -1030,10 +1121,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// INVARIANT: The next token must be MdSymbol `***`.
   /// Leading whitespace must already be consumed by the caller.
   /// Trailing whitespace after the closing delimiter is not consumed.
-  pub(in crate::parse) fn parse_bold_italic(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_bold_italic(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -1058,7 +1146,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.advance_md(&mut children, SKIP_NONE);
         break;
       }
-      if self.should_end_inline_element(current_indent) {
+      if self.should_end_inline_element(&mut children) {
         self.emit_diagnostic(Diagnostic::UnclosedBoldItalic {
           start_offset: open_offset,
           end_offset: self.offset(),
@@ -1076,7 +1164,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         return (self.emit(SyntaxKind::BoldItalic, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdBoldItalic) {
-        if let Some(ctx) = self.synchronize_bold_italic(current_indent, &mut children) {
+        if let Some(ctx) = self.synchronize_bold_italic(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
           return (self.emit(SyntaxKind::BoldItalic, &children), Some(ctx));
         }
@@ -1088,11 +1176,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   // Stop on `***`, EOF, or end of inline element.
-  fn synchronize_bold_italic(
-    &mut self,
-    current_indent: usize,
-    children: &mut Vec<GreenNode>,
-  ) -> Option<ExprCtx> {
+  fn synchronize_bold_italic(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
@@ -1100,7 +1184,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == "***";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
-        || self.should_end_inline_element(current_indent)
+        || self.should_end_inline_element(children)
       {
         break None;
       }
@@ -1118,10 +1202,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// INVARIANT: The next token must be MdSymbol `~~`.
   /// Leading whitespace must already be consumed by the caller.
   /// Trailing whitespace after the closing delimiter is not consumed.
-  pub(in crate::parse) fn parse_strikethrough(
-    &mut self,
-    current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_strikethrough(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -1146,7 +1227,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.advance_md(&mut children, SKIP_NONE);
         break;
       }
-      if self.should_end_inline_element(current_indent) {
+      if self.should_end_inline_element(&mut children) {
         self.emit_diagnostic(Diagnostic::UnclosedStrikethrough {
           start_offset: open_offset,
           end_offset: self.offset(),
@@ -1164,7 +1245,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         return (self.emit(SyntaxKind::Strikethrough, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdStrikethrough) {
-        if let Some(ctx) = self.synchronize_strikethrough(current_indent, &mut children) {
+        if let Some(ctx) = self.synchronize_strikethrough(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);
           return (self.emit(SyntaxKind::Strikethrough, &children), Some(ctx));
         }
@@ -1176,11 +1257,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   // Stop on `~~`, EOF, or end of inline element.
-  fn synchronize_strikethrough(
-    &mut self,
-    current_indent: usize,
-    children: &mut Vec<GreenNode>,
-  ) -> Option<ExprCtx> {
+  fn synchronize_strikethrough(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
@@ -1188,7 +1265,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == "~~";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
-        || self.should_end_inline_element(current_indent)
+        || self.should_end_inline_element(children)
       {
         break None;
       }
@@ -1205,10 +1282,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a text run: consecutive plain text, including surrounding whitespace.
   /// Consumes leading and trailing spaces.
-  pub(in crate::parse) fn parse_text(
-    &mut self,
-    _current_indent: usize,
-  ) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_text(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mut children = vec![];
 
     loop {
@@ -1223,6 +1297,29 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     (self.emit(SyntaxKind::Text, &children), None)
+  }
+
+  /// Consume a newline and the expected prefix on the next line.
+  fn consume_md_newline_and_prefix(&mut self, children: &mut Vec<GreenNode>) -> bool {
+    // Consume trailing whitespace and the newline
+    self.advance_md(children, SKIP_TRAILING_WS);
+
+    // Consume tokens matching the expected prefix token kinds
+    let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for expected_kind in &expected_tokens {
+      let peek = self.lex_ctx.peek_md(SKIP_NONE);
+      if peek.token.kind() != *expected_kind {
+        self.emit_diagnostic(Diagnostic::MissingExpectMdPrefix {
+          expected_prefix: format!("{:?}", expected_tokens),
+          start_offset: self.offset(),
+          end_offset: self.offset(),
+        });
+        return false;
+      }
+      self.advance_md(children, SKIP_NONE);
+    }
+
+    true
   }
 
   // If the next token should be handled by an outer context, return that context.
@@ -1243,27 +1340,30 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Whether the current inline element should end due to EOF or a line boundary.
-  /// Does not consume any tokens.
-  fn should_end_inline_element(&mut self, current_indent: usize) -> bool {
+  /// Consumes the newline and prefix if present.
+  fn should_end_inline_element(&mut self, children: &mut Vec<GreenNode>) -> bool {
     let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
     if next_kind == SyntaxKind::Eof {
       return true;
     }
     if next_kind == SyntaxKind::Newline {
-      // Peek past the newline and any leading whitespace on the next line
-      let after = self.lex_ctx.peek_md_nth(2, SKIP_LEADING_WS);
+      self.consume_md_newline_and_prefix(children);
+      let after = self.lex_ctx.peek_md(SKIP_NONE);
       if matches!(after.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
-        return true; // blank line
+        return true;
       }
-      if after.indent_depth <= current_indent && after.token.kind() == SyntaxKind::MdSymbol {
+      if !self.peek_matches_md_prefix() {
+        return true;
+      }
+      if after.token.kind() == SyntaxKind::MdSymbol {
         let text: String = after.token.text().collect();
         let first = text.chars().next().unwrap_or('\0');
         if matches!(first, '#' | '-' | '*' | '+' | '>' | '|' | ':') {
           return true;
         }
       }
-      if after.indent_depth <= current_indent && after.token.kind() == SyntaxKind::Number {
-        return true; // ordered list item
+      if after.token.kind() == SyntaxKind::MdNumber {
+        return true;
       }
     }
     false
@@ -1286,7 +1386,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
         // `![` starts a media embed
         if text == "!" {
-          let second = self.lex_ctx.peek_md_nth(2, SKIP_NONE);
+          let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
           return second.token.kind() == SyntaxKind::LBracket;
         }
         false
@@ -1295,13 +1395,30 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
+  /// Peek and check if upcoming tokens match the expected prefix.
+  /// Must be called after consuming a newline.
+  fn peek_matches_md_prefix(&mut self) -> bool {
+    let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for (idx, expected_kind) in expected_tokens.iter().enumerate() {
+      let peek = self.lex_ctx.peek_md_nth(idx, SKIP_NONE);
+      if peek.token.kind() != *expected_kind {
+        return false;
+      }
+    }
+    true
+  }
+
   /// Whether the next non-leading-whitespace token starts a block-level element.
-  /// INVARIANT: Must be called right after consuming a newline.
+  /// INVARIANT: Must be called right after consuming a newline
   fn is_md_block_start(&mut self) -> bool {
+    if !self.peek_matches_md_prefix() {
+      return false;
+    }
+
     let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
     if next.token.kind() != SyntaxKind::MdSymbol {
       // Number can start an ordered list item: `1. ...`
-      return next.token.kind() == SyntaxKind::Number;
+      return next.token.kind() == SyntaxKind::MdNumber;
     }
     let text: String = next.token.text().collect();
     let first = match text.chars().next() {
@@ -1311,7 +1428,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // `![` starts a media embed block: requires the `!` to be followed by `[`
     if text == "!" {
-      let second = self.lex_ctx.peek_md_nth(2, SKIP_LEADING_WS);
+      let second = self.lex_ctx.peek_md_nth(1, SKIP_LEADING_WS);
       return second.token.kind() == SyntaxKind::LBracket;
     }
 
@@ -1320,7 +1437,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       '#'  // heading
       | '-' | '*' | '+' // bullet list
       | '>' // blockquote or toggle list
-      | '|' // table (may introduce false positives, but acceptable)
+      | '|' // table
       | ':' // callout/footnote/bibliography (:::)
     )
   }

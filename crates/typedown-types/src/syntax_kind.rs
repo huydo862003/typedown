@@ -28,8 +28,6 @@ pub enum SyntaxKind {
   ToggleList,
   ToggleListItem,
   CalloutBlock,      // ::: label ... :::
-  FootnoteBlock,     // ::: footnote ... :::
-  BibliographyBlock, // ::: bibtex ... :::
   Link,              // [text](url)
   Media,             // ![alt](src)
   FootnoteRef,       // [^key]
@@ -101,6 +99,7 @@ pub enum SyntaxKind {
 
   // Markdown mode tokens
   MdSymbol,    // any consecutive special chars (#, **, ~~, ---, :::, etc.)
+  MdNumber,    // integer only (for ordered list markers like `1.`, `23.`)
   HtmlEntity,  // &name; or &#digits; or &#xhex; (e.g. &amp;, &#42;, &#x2A;)
 
   // Trivia
