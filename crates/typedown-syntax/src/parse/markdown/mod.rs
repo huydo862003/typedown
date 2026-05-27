@@ -329,12 +329,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       if next_kind == SyntaxKind::Newline {
-        self.consume_md_newline_and_prefix(&mut children);
-        let next = self.lex_ctx.peek_md(SKIP_NONE);
-        if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+        if !self.consume_md_newline_and_prefix(&mut children) {
           break;
         }
-        if !self.peek_matches_md_prefix() {
+        let next = self.lex_ctx.peek_md(SKIP_NONE);
+        if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
           break;
         }
         // Same-level bullet starts a new list item
@@ -362,13 +361,137 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse an ordered list: `1. ...`.
+  /// INVARIANT: The next tokens must be MdNumber and MdSymbol dot.
   pub(in crate::parse) fn parse_ordered_list(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdNumber,
+      "[ParseCtx::parse_ordered_list] Expected MdNumber"
+    );
+    debug_assert!(
+      self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.text().collect::<String>() == ".",
+      "[ParseCtx::parse_ordered_list] Expected . after MdNumber"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdOrderedList);
+
+    // Parse first list item
+    let (item, early_exit) = self.parse_ordered_list_item();
+    children.push(item);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdOrderedList) {
+      self.expr_ctx_stack.exit(ExprCtx::MdOrderedList);
+      return (self.emit(SyntaxKind::OrderedList, &children), early_exit);
+    }
+
+    // Parse remaining list items
+    loop {
+      // Consume newline + prefix, then check for next item
+      if !self.consume_md_newline_and_prefix(&mut children) {
+        break;
+      }
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if next.token.kind() != SyntaxKind::MdNumber {
+        break;
+      }
+      // Verify `.` follows the number
+      let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+      if dot.token.kind() != SyntaxKind::MdSymbol || dot.token.text().collect::<String>() != "." {
+        break;
+      }
+
+      let (item, early_exit) = self.parse_ordered_list_item();
+      children.push(item);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdOrderedList) {
+        self.expr_ctx_stack.exit(ExprCtx::MdOrderedList);
+        return (self.emit(SyntaxKind::OrderedList, &children), early_exit);
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdOrderedList);
+    (self.emit(SyntaxKind::OrderedList, &children), None)
   }
 
-  /// Parse an ordered list item.
-  pub(in crate::parse) fn parse_ordered_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// Parse an ordered list item: `1. content`.
+  /// INVARIANT: Next token must be MdNumber followed by `.`.
+  fn parse_ordered_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdNumber,
+      "[ParseCtx::parse_ordered_list_item] Expected MdNumber"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdOrderedListItem);
+
+    // Consume the number
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Consume `.`
+    self.consume_md_if(
+      &mut children,
+      SKIP_NONE,
+      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ".",
+      Diagnostic::MissingSyntaxNode {
+        expected: SyntaxKind::OrderedListItem,
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      },
+    );
+
+    // Require a space after `.`
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Whitespace {
+      self.emit_diagnostic(Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Parse block elements until end of list item
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if next_kind == SyntaxKind::Eof {
+        break;
+      }
+      if next_kind == SyntaxKind::Newline {
+        if !self.consume_md_newline_and_prefix(&mut children) {
+          break;
+        }
+        let next = self.lex_ctx.peek_md(SKIP_NONE);
+        if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+          break;
+        }
+        // Next ordered item starts a new list item
+        if next.token.kind() == SyntaxKind::MdNumber {
+          let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+          if dot.token.kind() == SyntaxKind::MdSymbol
+            && dot.token.text().collect::<String>() == "."
+          {
+            break;
+          }
+        }
+        continue;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      children.push(block);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdOrderedListItem) {
+        self.expr_ctx_stack.exit(ExprCtx::MdOrderedListItem);
+        return (
+          self.emit(SyntaxKind::OrderedListItem, &children),
+          early_exit,
+        );
+      }
+      if early_exit == Some(ExprCtx::MdOrderedListItem) {
+        break;
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdOrderedListItem);
+    (self.emit(SyntaxKind::OrderedListItem, &children), None)
   }
 
   /// Parse a toggle list: `>- ...`.

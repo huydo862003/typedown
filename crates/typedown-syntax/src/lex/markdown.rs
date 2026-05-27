@@ -80,7 +80,10 @@ impl<S: Utf8Stream> LexCtx<S> {
             self.emit(SyntaxKind::DqStrEnd)
           }
           _ => {
-            self.markdown_lex_ctx.interp_stack.push(InterpContext::MdDqString);
+            self
+              .markdown_lex_ctx
+              .interp_stack
+              .push(InterpContext::MdDqString);
             self.emit(SyntaxKind::DqStrStart)
           }
         }
@@ -93,7 +96,10 @@ impl<S: Utf8Stream> LexCtx<S> {
             self.emit(SyntaxKind::SqStrEnd)
           }
           _ => {
-            self.markdown_lex_ctx.interp_stack.push(InterpContext::MdSqString);
+            self
+              .markdown_lex_ctx
+              .interp_stack
+              .push(InterpContext::MdSqString);
             self.emit(SyntaxKind::SqStrStart)
           }
         }
@@ -632,5 +638,6 @@ fn is_md_symbol_char(char: char) -> bool {
       | '='
       | '+'
       | '%'
+      | '.'
   )
 }
