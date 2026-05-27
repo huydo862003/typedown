@@ -27,6 +27,16 @@ pub struct ParseResult<'a> {
   diagnostics: &'a [Diagnostic],
 }
 
+impl<'a> ParseResult<'a> {
+  pub fn ast(&self) -> &GreenNode {
+    &self.ast
+  }
+
+  pub fn diagnostics(&self) -> &[Diagnostic] {
+    self.diagnostics
+  }
+}
+
 impl<S: Utf8Stream> ParseCtx<S> {
   pub fn new(stream: S, cache: Rc<RefCell<Cache>>) -> ParseCtx<S> {
     Self {

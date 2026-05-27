@@ -312,7 +312,7 @@ mod tests {
   fn md_number() {
     let tokens = lex_markdown("42");
     assert_eq!(tokens.len(), 2); // Number + Eof
-    assert_eq!(tokens[0], (SyntaxKind::Number, "42".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::MdNumber, "42".to_string()));
   }
 
   #[test]
