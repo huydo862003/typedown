@@ -21,18 +21,175 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let mut children = vec![];
     self.expr_ctx_stack.enter(ExprCtx::MarkdownBody);
 
-    todo!();
+    loop {
+      // Skip blank lines
+      while self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Newline {
+        self.advance_md(&mut children, SKIP_NONE);
+      }
+
+      if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Eof {
+        break;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      children.push(block);
+
+      if early_exit == Some(ExprCtx::MarkdownBody) {
+        // Consume erroneous tokens until EOF
+        let mut error_children = vec![];
+        loop {
+          let next = self.lex_ctx.peek_md(SKIP_NONE);
+          if next.token.kind() == SyntaxKind::Eof {
+            break;
+          }
+          self.advance_md(&mut error_children, SKIP_NONE);
+        }
+        if !error_children.is_empty() {
+          children.push(self.emit(SyntaxKind::Error, &error_children));
+        }
+        break;
+      }
+      if early_exit.is_some() {
+        // Unexpected early exit from a child: consume as error
+        let mut error_children = vec![];
+        loop {
+          let next = self.lex_ctx.peek_md(SKIP_NONE);
+          if next.token.kind() == SyntaxKind::Eof {
+            break;
+          }
+          self.advance_md(&mut error_children, SKIP_NONE);
+        }
+        if !error_children.is_empty() {
+          children.push(self.emit(SyntaxKind::Error, &error_children));
+        }
+        break;
+      }
+    }
 
     self.expr_ctx_stack.exit(ExprCtx::MarkdownBody);
     self.emit(SyntaxKind::Body, &children)
   }
 
+  /// Parse a block-level element.
+  /// INVARIANT: Must be at start of line with prefix already consumed.
   pub(in crate::parse) fn parse_md_block_element(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.mode() == LexMode::MarkdownBody,
+      "[ParseCtx::parse_md_block_element] Lex mode must be MarkdownBody"
+    );
+
+    let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+    match next.token.kind() {
+      SyntaxKind::Eof => {
+        let mut children = vec![];
+        self.advance_md(&mut children, SKIP_NONE);
+        (self.emit(SyntaxKind::Error, &children), None)
+      }
+      SyntaxKind::Newline => {
+        // Blank line: consume and return empty
+        let mut children = vec![];
+        self.advance_md(&mut children, SKIP_NONE);
+        (self.emit(SyntaxKind::Text, &children), None)
+      }
+      SyntaxKind::MdNumber => {
+        // Check for ordered list: `1. ...`
+        let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+        if dot.token.kind() == SyntaxKind::MdSymbol && dot.token.text().collect::<String>() == "." {
+          self.parse_ordered_list()
+        } else {
+          self.parse_paragraph()
+        }
+      }
+      SyntaxKind::MdSymbol => {
+        let text: String = next.token.text().collect();
+        let first = text.chars().next().unwrap_or('\0');
+        match first {
+          '#' => self.parse_heading(),
+          '-' | '*' | '+' => self.parse_bullet_list(),
+          '>' => {
+            if text == ">-" {
+              self.parse_toggle_list()
+            } else {
+              self.parse_blockquote()
+            }
+          }
+          '|' => self.parse_table(),
+          ':' if text == ":::" => self.parse_callout_block(),
+          '!' => {
+            let second = self.lex_ctx.peek_md_nth(1, SKIP_LEADING_WS);
+            if second.token.kind() == SyntaxKind::LBracket {
+              self.parse_media()
+            } else {
+              self.parse_paragraph()
+            }
+          }
+          _ => self.parse_paragraph(),
+        }
+      }
+      _ => self.parse_paragraph(),
+    }
   }
 
+  /// Parse an inline element.
+  /// INVARIANT: Must not be at a Newline or EOF.
   pub(in crate::parse) fn parse_md_inline_element(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      !matches!(
+        self.lex_ctx.peek_md(SKIP_NONE).token.kind(),
+        SyntaxKind::Newline | SyntaxKind::Eof
+      ),
+      "[ParseCtx::parse_md_inline_element] Must not be at Newline or EOF"
+    );
+
+    let next = self.lex_ctx.peek_md(SKIP_NONE);
+    match next.token.kind() {
+      SyntaxKind::LBracket => {
+        // Check for footnote ref `[^`, citation `[@`, or link `[`
+        let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+        if second.token.kind() == SyntaxKind::MdSymbol {
+          let text: String = second.token.text().collect();
+          if text == "^" {
+            return self.parse_footnote_ref();
+          }
+          if text == "@" {
+            return self.parse_citation();
+          }
+        }
+        self.parse_link()
+      }
+      SyntaxKind::MdSymbol => {
+        let text: String = next.token.text().collect();
+        match text.as_str() {
+          "***" => self.parse_bold_italic(),
+          "**" => self.parse_bold(),
+          "*" | "_" => self.parse_italic(),
+          "~~" => self.parse_strikethrough(),
+          "!" => {
+            let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+            if second.token.kind() == SyntaxKind::LBracket {
+              self.parse_media()
+            } else {
+              self.parse_text()
+            }
+          }
+          _ => self.parse_text(),
+        }
+      }
+      SyntaxKind::InterpStart => {
+        // TODO: parse interpolation
+        self.parse_text()
+      }
+      SyntaxKind::InlineMath
+      | SyntaxKind::MathBlock
+      | SyntaxKind::InlineCode
+      | SyntaxKind::CodeBlock => {
+        // These are already lexed as single tokens
+        let mut children = vec![];
+        self.advance_md(&mut children, SKIP_NONE);
+        (self.emit(SyntaxKind::Text, &children), None)
+      }
+      _ => self.parse_text(),
+    }
   }
 
   /// Parse a heading: `# ...`, `## ...`, etc.
