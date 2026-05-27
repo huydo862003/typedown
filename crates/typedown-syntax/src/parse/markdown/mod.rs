@@ -369,7 +369,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     debug_assert!(
       self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-        && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.text().collect::<String>() == ".",
+        && self
+          .lex_ctx
+          .peek_md_nth(1, SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ".",
       "[ParseCtx::parse_ordered_list] Expected . after MdNumber"
     );
 
@@ -467,8 +473,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // Next ordered item starts a new list item
         if next.token.kind() == SyntaxKind::MdNumber {
           let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
-          if dot.token.kind() == SyntaxKind::MdSymbol
-            && dot.token.text().collect::<String>() == "."
+          if dot.token.kind() == SyntaxKind::MdSymbol && dot.token.text().collect::<String>() == "."
           {
             break;
           }
@@ -495,13 +500,153 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a toggle list: `>- ...`.
+  /// INVARIANT: Next token must be MdSymbol `>-`.
   pub(in crate::parse) fn parse_toggle_list(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ">-",
+      "[ParseCtx::parse_toggle_list] Expected >-"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdToggleList);
+
+    // Parse first toggle item
+    let (item, early_exit) = self.parse_toggle_list_item();
+    children.push(item);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleList) {
+      self.expr_ctx_stack.exit(ExprCtx::MdToggleList);
+      return (self.emit(SyntaxKind::ToggleList, &children), early_exit);
+    }
+
+    // Parse remaining toggle items
+    loop {
+      if !self.consume_md_newline_and_prefix(&mut children) {
+        break;
+      }
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if next.token.kind() != SyntaxKind::MdSymbol || next.token.text().collect::<String>() != ">-"
+      {
+        break;
+      }
+
+      let (item, early_exit) = self.parse_toggle_list_item();
+      children.push(item);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleList) {
+        self.expr_ctx_stack.exit(ExprCtx::MdToggleList);
+        return (self.emit(SyntaxKind::ToggleList, &children), early_exit);
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdToggleList);
+    (self.emit(SyntaxKind::ToggleList, &children), None)
   }
 
-  /// Parse a toggle list item.
-  pub(in crate::parse) fn parse_toggle_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// Parse a toggle list item: `>- summary\n\n   details`.
+  /// INVARIANT: Next token must be MdSymbol `>-`.
+  fn parse_toggle_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ">-",
+      "[ParseCtx::parse_toggle_list_item] Expected >-"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdToggleListItem);
+
+    // Consume `>-`
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Require a space after `>-`
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Whitespace {
+      self.emit_diagnostic(Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset: self.offset(),
+        end_offset: self.offset(),
+      });
+    } else {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Parse summary: inline elements on this line
+    let mut summary_children = vec![];
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if matches!(next_kind, SyntaxKind::Newline | SyntaxKind::Eof) {
+        break;
+      }
+      let (inline, early_exit) = self.parse_md_inline_element();
+      summary_children.push(inline);
+      if early_exit.is_some() {
+        children.push(self.emit(SyntaxKind::ToggleListSummary, &summary_children));
+        self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
+        return (self.emit(SyntaxKind::ToggleListItem, &children), early_exit);
+      }
+    }
+    children.push(self.emit(SyntaxKind::ToggleListSummary, &summary_children));
+
+    // Check for blank line separating summary from details
+    let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+    if next_kind == SyntaxKind::Eof {
+      self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
+      return (self.emit(SyntaxKind::ToggleListItem, &children), None);
+    }
+
+    // Consume the newline after summary
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Check for blank line
+    let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+    if next_kind != SyntaxKind::Newline {
+      // No blank line: no details section
+      self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
+      return (self.emit(SyntaxKind::ToggleListItem, &children), None);
+    }
+
+    // Consume the blank line
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Parse details: block elements until end of toggle item
+    let mut details_children = vec![];
+    loop {
+      if !self.consume_md_newline_and_prefix(&mut children) {
+        break;
+      }
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+        break;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      details_children.push(block);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleListItem) {
+        children.push(self.emit(SyntaxKind::ToggleListDetails, &details_children));
+        self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
+        return (self.emit(SyntaxKind::ToggleListItem, &children), early_exit);
+      }
+      if early_exit == Some(ExprCtx::MdToggleListItem) {
+        break;
+      }
+    }
+    if !details_children.is_empty() {
+      children.push(self.emit(SyntaxKind::ToggleListDetails, &details_children));
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
+    (self.emit(SyntaxKind::ToggleListItem, &children), None)
   }
 
   /// Parse a callout block: `::: label ... :::`.

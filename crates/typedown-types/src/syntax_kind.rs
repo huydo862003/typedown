@@ -27,6 +27,8 @@ pub enum SyntaxKind {
   OrderedListItem,
   ToggleList,
   ToggleListItem,
+  ToggleListSummary,
+  ToggleListDetails,
   CalloutBlock,      // ::: label ... :::
   Link,              // [text](url)
   Media,             // ![alt](src)
