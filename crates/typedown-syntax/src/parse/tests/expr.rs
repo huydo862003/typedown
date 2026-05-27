@@ -1,4 +1,6 @@
 use super::helpers::*;
+use typedown_types::diagnostic::Diagnostic;
+use typedown_types::syntax_kind::SyntaxKind;
 
 fn parse_expr(input: &str) -> String {
   let program = format!("---\nkey: {}\n---\n", input);
@@ -33,10 +35,30 @@ fn parse_expr(input: &str) -> String {
   render_tree(value)
 }
 
-fn parse_expr_with_diagnostics(input: &str) -> Vec<String> {
+fn parse_expr_with_diagnostics(
+  input: &str,
+) -> (String, Vec<typedown_types::diagnostic::Diagnostic>) {
   let full = format!("---\nkey: {}\n---\n", input);
-  let (_, diagnostics) = parse(&full);
-  diagnostics.iter().map(|d| format!("{:?}", d)).collect()
+  let (ast, diagnostics) = parse(&full);
+  let root = ast.as_node().unwrap();
+  let frontmatter = root.children()[0].as_node().unwrap();
+  let mapping = frontmatter
+    .children()
+    .iter()
+    .find(|c| {
+      c.is_node()
+        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::BlockMappingLit
+    })
+    .expect("Expected BlockMapping in frontmatter");
+  let entry = mapping.as_node().unwrap().children()[0].as_node().unwrap();
+  let value = entry
+    .children()
+    .iter()
+    .rev()
+    .find(|c| c.is_node())
+    .expect("Expected value in mapping entry");
+  let tree = render_tree(value);
+  (tree, diagnostics)
 }
 
 #[test]
@@ -470,7 +492,6 @@ fn parse_unary_minus_right_side() {
   assert_eq!(tree, expected);
 }
 
-
 #[test]
 fn parse_comparison() {
   let tree = parse_expr("1 == 2");
@@ -523,4 +544,159 @@ fn parse_precedence() {
       " "
       "3")))"#;
   assert_eq!(tree, expected);
+}
+
+#[test]
+fn error_missing_operand() {
+  let (tree, diags) = parse_expr_with_diagnostics("1 +");
+  let expected = r#"(MappingEntryValue
+  (BinaryExpr
+    (NumberLit
+      " "
+      "1")
+    " "
+    "+"
+    (PrimaryExpr)))"#;
+  assert_eq!(tree, expected);
+  assert!(diags.iter().any(|d| matches!(
+    d,
+    Diagnostic::MissingSyntaxNode {
+      expected: SyntaxKind::PrimaryExpr,
+      ..
+    }
+  )));
+}
+
+#[test]
+fn error_unclosed_paren() {
+  let (tree, diags) = parse_expr_with_diagnostics("(1");
+  let expected = r#"(MappingEntryValue
+  (ParenExpr
+    " "
+    "("
+    (NumberLit
+      "1")
+    "\n"
+    (Error
+      "---")))"#;
+  assert_eq!(tree, expected);
+  assert!(diags.iter().any(|d| matches!(
+    d,
+    Diagnostic::MissingSyntaxNode {
+      expected: SyntaxKind::RParen,
+      ..
+    }
+  )));
+}
+
+#[test]
+fn error_unclosed_list() {
+  let (tree, _diags) = parse_expr_with_diagnostics("[1, 2");
+  let expected = r#"(MappingEntryValue
+  (ListLit
+    " "
+    "["
+    (NumberLit
+      "1")
+    ","
+    (NumberLit
+      " "
+      "2")))"#;
+  assert_eq!(tree, expected);
+}
+
+#[test]
+fn error_unclosed_dict() {
+  let (tree, _diags) = parse_expr_with_diagnostics("{a: 1");
+  let expected = r#"(MappingEntryValue
+  (DictLit
+    " "
+    "{"
+    (DictEntry
+      (DictEntryKey
+        "a")
+      ":"
+      (DictEntryValue
+        (NumberLit
+          " "
+          "1")))))"#;
+  assert_eq!(tree, expected);
+}
+
+#[test]
+fn error_unclosed_string() {
+  let (tree, diags) = parse_expr_with_diagnostics(r#""hello"#);
+  let expected = r#"(MappingEntryValue
+  (StrLit
+    " "
+    "\""
+    "hello"))"#;
+  assert_eq!(tree, expected);
+  assert!(
+    diags
+      .iter()
+      .any(|d| matches!(d, Diagnostic::UnterminatedString { .. }))
+  );
+}
+
+#[test]
+fn error_missing_value_in_mapping() {
+  let (tree, diags) = parse_expr_with_diagnostics("{a:}");
+  let expected = r#"(MappingEntryValue
+  (DictLit
+    " "
+    "{"
+    (DictEntry
+      (DictEntryKey
+        "a")
+      ":"
+      (DictEntryValue))
+    "}"))"#;
+  assert_eq!(tree, expected);
+  assert!(diags.iter().any(|d| matches!(
+    d,
+    Diagnostic::MissingSyntaxNode {
+      expected: SyntaxKind::DictEntryValue,
+      ..
+    }
+  )));
+}
+
+#[test]
+fn error_extra_comma_in_list() {
+  let (tree, diags) = parse_expr_with_diagnostics("[1,,2]");
+  let expected = r#"(MappingEntryValue
+  (ListLit
+    " "
+    "["
+    (NumberLit
+      "1")
+    ","
+    (PrimaryExpr)
+    ","
+    (NumberLit
+      "2")
+    "]"))"#;
+  assert_eq!(tree, expected);
+  assert!(diags.iter().any(|d| matches!(
+    d,
+    Diagnostic::MissingSyntaxNode {
+      expected: SyntaxKind::PrimaryExpr,
+      ..
+    }
+  )));
+}
+
+#[test]
+fn error_empty_expression() {
+  let (tree, diags) = parse_expr_with_diagnostics("");
+  let expected = r#"(MappingEntryValue)"#;
+  assert_eq!(tree, expected);
+  assert!(diags.iter().any(|d| matches!(
+    d,
+    Diagnostic::MissingSyntaxNode {
+      expected: SyntaxKind::MappingEntryValue,
+      ..
+    }
+  )));
 }
