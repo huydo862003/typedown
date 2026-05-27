@@ -12,12 +12,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// General expression, including formula and yaml.
   pub(in crate::parse) fn parse_expr(&mut self) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS | SKIP_COMMENT, mode);
+    let peek = self.lex_ctx.peek(SKIP_WS | SKIP_COMMENT, mode);
 
     match peek.token.kind() {
       SyntaxKind::Newline => {
         let peek_after = self.lex_ctx.peek(
-          SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+          SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
           mode,
         );
         if peek_after.token.kind() == SyntaxKind::YamlIndent {
@@ -468,7 +468,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let offset = self.offset();
     self.consume(
       &mut children,
-      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
       mode,
       SyntaxKind::YamlIndent,
       Diagnostic::MissingSyntaxNode {
@@ -480,7 +480,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Peek to decide: `-` means sequence, `ident` means mapping
     let peek = self.lex_ctx.peek(
-      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
       mode,
     );
 
@@ -507,7 +507,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Parse items
     loop {
       let peek = self.lex_ctx.peek(
-        SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+        SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
         mode,
       );
 
@@ -547,7 +547,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume `-`
     self.advance(
       &mut children,
-      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
       mode,
     );
 
@@ -700,9 +700,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Colon
-    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS, mode);
+    let peek = self.lex_ctx.peek(SKIP_WS, mode);
     if peek.token.kind() == SyntaxKind::Colon {
-      self.advance(&mut children, SKIP_MIDDLE_WS, mode);
+      self.advance(&mut children, SKIP_WS, mode);
     } else {
       // Missing colon: emit diagnostic but continue to parse value
       self.diagnostics.push(Diagnostic::MissingSyntaxNode {
@@ -818,7 +818,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let offset = self.offset();
     self.consume(
       &mut children,
-      SKIP_TRAILING_WS | SKIP_COMMENT,
+      SKIP_WS | SKIP_COMMENT,
       mode,
       SyntaxKind::Newline,
       Diagnostic::MissingSyntaxNode {
@@ -876,7 +876,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let offset = self.offset();
     self.consume(
       &mut children,
-      SKIP_TRAILING_WS | SKIP_COMMENT,
+      SKIP_WS | SKIP_COMMENT,
       mode,
       SyntaxKind::Newline,
       Diagnostic::MissingSyntaxNode {
@@ -922,7 +922,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     loop {
       let peek = self.lex_ctx.peek(
-        SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+        SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
         mode,
       );
 
@@ -963,7 +963,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let mut children = vec![];
 
     let peek = self.lex_ctx.peek(
-      SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+      SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
       mode,
     );
 
@@ -980,7 +980,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let offset = self.offset();
       self.consume(
         &mut children,
-        SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+        SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
         mode,
         SyntaxKind::Ident,
         Diagnostic::MissingSyntaxNode {
@@ -994,9 +994,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Colon
-    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS, mode);
+    let peek = self.lex_ctx.peek(SKIP_WS, mode);
     if peek.token.kind() == SyntaxKind::Colon {
-      self.advance(&mut children, SKIP_MIDDLE_WS, mode);
+      self.advance(&mut children, SKIP_WS, mode);
     } else {
       self.diagnostics.push(Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::Colon,
@@ -1006,13 +1006,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Value: check for newline + indent (nested block) or inline expression
-    let peek = self.lex_ctx.peek(SKIP_MIDDLE_WS | SKIP_COMMENT, mode);
+    let peek = self.lex_ctx.peek(SKIP_WS | SKIP_COMMENT, mode);
     match peek.token.kind() {
       // Newline: could be a nested block (seq or mapping)
       SyntaxKind::Newline => {
         // Peek past the newline to see if indent follows
         let peek_after = self.lex_ctx.peek(
-          SKIP_NEWLINE | SKIP_TRAILING_WS | SKIP_STANDALONE_WS | SKIP_COMMENT,
+          SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
           mode,
         );
         if peek_after.token.kind() == SyntaxKind::YamlIndent {

@@ -7,7 +7,7 @@ use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
 use crate::green::{GreenNode, SyntaxToken};
 use crate::lex::ctx::LexMode;
-use crate::parse::constants::{SKIP_LEADING_WS, SKIP_NONE, SKIP_TRAILING_WS};
+use crate::parse::constants::{SKIP_NONE, SKIP_WS};
 
 // Markdown body parsing
 // We distinguish between block elements and inline elements
@@ -78,7 +78,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       "[ParseCtx::parse_md_block_element] Lex mode must be MarkdownBody"
     );
 
-    let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+    let next = self.lex_ctx.peek_md(SKIP_WS);
     match next.token.kind() {
       SyntaxKind::Eof => {
         let mut children = vec![];
@@ -116,7 +116,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           '|' => self.parse_table(),
           ':' if text == ":::" => self.parse_callout_block(),
           '!' => {
-            let second = self.lex_ctx.peek_md_nth(1, SKIP_LEADING_WS);
+            let second = self.lex_ctx.peek_md_nth(1, SKIP_WS);
             if second.token.kind() == SyntaxKind::LBracket {
               self.parse_media()
             } else {
@@ -226,7 +226,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Require at least one inline element
     let has_inline = {
-      let next = self.lex_ctx.peek_md(SKIP_TRAILING_WS);
+      let next = self.lex_ctx.peek_md(SKIP_WS);
       !matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof)
     };
     if !has_inline {
@@ -424,7 +424,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
     // Verify separator row starts with `|` followed by `-`
     let next = self.lex_ctx.peek_md(SKIP_NONE);
-    let next2 = self.lex_ctx.peek_md_nth(1, SKIP_LEADING_WS);
+    let next2 = self.lex_ctx.peek_md_nth(1, SKIP_WS);
     let is_separator = next.token.kind() == SyntaxKind::MdSymbol
       && next.token.text().collect::<String>() == "|"
       && next2.token.kind() == SyntaxKind::MdSymbol
@@ -1046,7 +1046,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume the newline after the label (skip trailing whitespace)
     self.consume_md(
       &mut children,
-      SKIP_TRAILING_WS,
+      SKIP_WS,
       SyntaxKind::Newline,
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::Newline,
@@ -1093,7 +1093,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume closing `:::`
     self.consume_md_if(
       &mut children,
-      SKIP_LEADING_WS,
+      SKIP_WS,
       |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ":::",
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::CalloutBlock,
@@ -1111,7 +1111,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let current = self.expr_ctx_stack.current().unwrap();
     let mut error_children = vec![];
     let result = loop {
-      let peek = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+      let peek = self.lex_ctx.peek_md(SKIP_WS);
       let is_closing =
         peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == ":::";
       if is_closing || peek.token.kind() == SyntaxKind::Eof {
@@ -1921,7 +1921,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Consume a newline and the expected prefix on the next line.
   fn consume_md_newline_and_prefix(&mut self, children: &mut Vec<GreenNode>) -> bool {
     // Consume trailing whitespace and the newline
-    self.advance_md(children, SKIP_TRAILING_WS);
+    self.advance_md(children, SKIP_WS);
 
     // Consume tokens matching the expected prefix token kinds
     let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
@@ -2034,7 +2034,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       return false;
     }
 
-    let next = self.lex_ctx.peek_md(SKIP_LEADING_WS);
+    let next = self.lex_ctx.peek_md(SKIP_WS);
     if next.token.kind() != SyntaxKind::MdSymbol {
       // Number can start an ordered list item: `1. ...`
       return next.token.kind() == SyntaxKind::MdNumber;
@@ -2047,7 +2047,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // `![` starts a media embed block: requires the `!` to be followed by `[`
     if text == "!" {
-      let second = self.lex_ctx.peek_md_nth(1, SKIP_LEADING_WS);
+      let second = self.lex_ctx.peek_md_nth(1, SKIP_WS);
       return second.token.kind() == SyntaxKind::LBracket;
     }
 

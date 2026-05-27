@@ -38,3 +38,14 @@ fn parse_expr_with_diagnostics(input: &str) -> Vec<String> {
   let (_, diagnostics) = parse(&full);
   diagnostics.iter().map(|d| format!("{:?}", d)).collect()
 }
+
+#[test]
+fn parse_num_lit() {
+  let tree = parse_expr("1");
+  let expected =
+r#"(MappingEntryValue
+  (NumberLit
+    " "
+    "1"))"#;
+  assert_eq!(tree, expected);
+}

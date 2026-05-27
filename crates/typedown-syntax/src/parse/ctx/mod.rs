@@ -7,6 +7,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
 
+use super::constants::SKIP_NONE;
 use crate::{
   green::{GreenNode, SyntaxToken, cache::Cache},
   lex::ctx::{LexCtx, LexMode, LexResult},
@@ -238,6 +239,38 @@ impl<S: Utf8Stream> ParseCtx<S> {
       LexMode::YamlFrontmatter => self.consume_yaml_if(children, skip, predicate, diagnostic),
       LexMode::MarkdownBody => self.consume_md_if(children, skip, predicate, diagnostic),
     }
+  }
+
+  /// Consume everything until newline or EOF.
+  pub(in crate::parse) fn expect_end_of_line(
+    &mut self,
+    children: &mut Vec<GreenNode>,
+    diagnostic: Diagnostic,
+  ) -> bool {
+    let mut has_error = false;
+    loop {
+      let peek = self.lex_ctx.peek_yaml(SKIP_NONE);
+      match peek.token.kind() {
+        SyntaxKind::Newline => {
+          self.advance_yaml(children, SKIP_NONE);
+          break;
+        }
+        SyntaxKind::Eof => break,
+        SyntaxKind::Whitespace | SyntaxKind::YamlComment => {
+          self.advance_yaml(children, SKIP_NONE);
+        }
+        _ => {
+          self.advance_yaml(children, SKIP_NONE);
+          let bad = children.pop().unwrap();
+          children.push(self.emit(SyntaxKind::Error, &[bad]));
+          if !has_error {
+            self.diagnostics.push(diagnostic.clone());
+            has_error = true;
+          }
+        }
+      }
+    }
+    !has_error
   }
 
   /// Current byte offset in the source stream.

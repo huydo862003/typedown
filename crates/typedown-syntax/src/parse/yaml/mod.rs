@@ -3,8 +3,8 @@
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 
 use super::constants::*;
-use super::ctx::expr_ctx::ExprCtx;
 use super::ctx::ParseCtx;
+use super::ctx::expr_ctx::ExprCtx;
 use crate::green::GreenNode;
 use crate::lex::ctx::LexMode;
 use typedown_types::syntax_kind::SyntaxKind;
@@ -35,10 +35,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Expect newline after opening ---
-    self.consume_yaml(
+    self.expect_end_of_line(
       &mut children,
-      SKIP_TRAILING_WS | SKIP_COMMENT,
-      SyntaxKind::Newline,
       Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
         start_offset: self.offset(),
         end_offset: self.offset(),
@@ -65,7 +63,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let start_offset = self.offset();
     self.consume_yaml_if(
       &mut children,
-      SKIP_NEWLINE | SKIP_DEDENT,
+      SKIP_NEWLINE | SKIP_WS | SKIP_DEDENT,
       |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
       Diagnostic::MissingFrontmatterMarker {
         offset: start_offset,
@@ -83,10 +81,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Expect newline after closing ---
-    self.consume_yaml(
+    self.expect_end_of_line(
       &mut children,
-      SKIP_TRAILING_WS | SKIP_COMMENT,
-      SyntaxKind::Newline,
       Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
         start_offset: self.offset(),
         end_offset: self.offset(),
@@ -147,7 +143,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   fn should_end_yaml_frontmatter(&mut self) -> bool {
     let peek = self
       .lex_ctx
-      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_STANDALONE_WS | SKIP_TRAILING_WS);
+      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_WS | SKIP_DEDENT);
 
     match peek.token.kind() {
       SyntaxKind::Eof => true,
