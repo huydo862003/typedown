@@ -128,10 +128,14 @@ impl ExprCtxStack {
     &self.md_prefix_tokens
   }
 
-  /// Whether indentation should be ignored.
-  /// Return true if any context on the stack ignores indentation (flow constructs)
-  pub(in crate::parse) fn should_ignore_indent(&self) -> bool {
-    self.stack.iter().any(|e| e.ctx.should_ignore_indent())
+  /// Whether expressions should skip indent/dedent tokens.
+  pub(in crate::parse) fn should_expr_skip_indent(&self) -> bool {
+    self.stack.iter().any(|e| e.ctx.should_expr_skip_indent())
+  }
+
+  /// Whether expressions can span across newlines.
+  pub(in crate::parse) fn should_expr_span_newline(&self) -> bool {
+    self.stack.iter().any(|e| e.ctx.should_expr_span_newline())
   }
 
   /// Find the innermost context that can handle the given token.
@@ -177,8 +181,16 @@ impl ExprCtx {
     }
   }
 
-  /// Whether indentation is irrelevant in this context (flow constructs).
-  pub(in crate::parse) fn should_ignore_indent(self) -> bool {
+  /// Whether expressions in this context should skip indent/dedent tokens.
+  pub(in crate::parse) fn should_expr_skip_indent(self) -> bool {
+    matches!(
+      self,
+      ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call
+    )
+  }
+
+  /// Whether expressions in this context can span across newlines.
+  pub(in crate::parse) fn should_expr_span_newline(self) -> bool {
     matches!(
       self,
       ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call
