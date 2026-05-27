@@ -20,6 +20,7 @@ pub enum SyntaxKind {
   Blockquote,
   Table,
   TableRow,
+  TableSeparatorRow,
   TableCell,
   BulletList,
   BulletListItem,

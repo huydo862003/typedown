@@ -47,6 +47,12 @@ pub(in crate::parse) enum ExprCtx {
   MdToggleList,
   /// Inside a toggle list item
   MdToggleListItem,
+  /// Inside a table
+  MdTable,
+  /// Inside a table row, closed by Newline
+  MdTableRow,
+  /// Inside a table cell, closed by `|`
+  MdTableCell,
 
   /// Inside the text part of a markdown link or media: `[text]`
   MdLinkText,
@@ -192,6 +198,7 @@ impl ExprCtx {
         (ExprCtx::MdBoldItalic, "***") => true,
         (ExprCtx::MdStrikethrough, "~~") => true,
         (ExprCtx::MdCalloutBlock(_), ":::") => true,
+        (ExprCtx::MdTableCell, "|") => true,
         _ => false,
       };
     }
@@ -227,6 +234,11 @@ impl ExprCtx {
       | (ExprCtx::MdToggleList, SyntaxKind::Eof)
       | (ExprCtx::MdToggleListItem, SyntaxKind::Newline)
       | (ExprCtx::MdToggleListItem, SyntaxKind::Eof)
+      | (ExprCtx::MdTable, SyntaxKind::Eof)
+      | (ExprCtx::MdTableRow, SyntaxKind::Newline)
+      | (ExprCtx::MdTableRow, SyntaxKind::Eof)
+      | (ExprCtx::MdTableCell, SyntaxKind::Newline)
+      | (ExprCtx::MdTableCell, SyntaxKind::Eof)
       | (ExprCtx::MdLinkText, SyntaxKind::RBracket)
       | (ExprCtx::MdLinkText, SyntaxKind::Newline)
       | (ExprCtx::MdLinkText, SyntaxKind::Eof)

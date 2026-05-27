@@ -226,18 +226,212 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a table: `| ... | ... |`.
+  /// INVARIANT: Next token must be MdSymbol `|`.
   pub(in crate::parse) fn parse_table(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == "|",
+      "[ParseCtx::parse_table] Expected |"
+    );
+
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdTable);
+
+    // Parse header row
+    let (row, col_count, early_exit) = self.parse_table_row();
+    let expected_cols = col_count;
+    children.push(row);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
+      self.expr_ctx_stack.exit(ExprCtx::MdTable);
+      return (self.emit(SyntaxKind::Table, &children), early_exit);
+    }
+
+    // Parse required separator row
+    let sep_start = self.offset();
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Newline
+      || !self.consume_md_newline_and_prefix(&mut children)
+    {
+      self.emit_diagnostic(Diagnostic::MissingTableSeparatorRow {
+        start_offset: sep_start,
+        end_offset: self.offset(),
+      });
+      self.expr_ctx_stack.exit(ExprCtx::MdTable);
+      return (self.emit(SyntaxKind::Table, &children), None);
+    }
+    // Verify separator row starts with `|` followed by `-`
+    let next = self.lex_ctx.peek_md(SKIP_NONE);
+    let next2 = self.lex_ctx.peek_md_nth(1, SKIP_LEADING_WS);
+    let is_separator = next.token.kind() == SyntaxKind::MdSymbol
+      && next.token.text().collect::<String>() == "|"
+      && next2.token.kind() == SyntaxKind::MdSymbol
+      && next2.token.text().collect::<String>().starts_with('-');
+    if !is_separator {
+      self.emit_diagnostic(Diagnostic::MissingTableSeparatorRow {
+        start_offset: sep_start,
+        end_offset: self.offset(),
+      });
+      self.expr_ctx_stack.exit(ExprCtx::MdTable);
+      return (self.emit(SyntaxKind::Table, &children), None);
+    }
+    let (sep, early_exit) = self.parse_table_separator_row();
+    children.push(sep);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
+      self.expr_ctx_stack.exit(ExprCtx::MdTable);
+      return (self.emit(SyntaxKind::Table, &children), early_exit);
+    }
+
+    // Parse body rows
+    loop {
+      if self.lex_ctx.peek_md(SKIP_NONE).token.kind() != SyntaxKind::Newline {
+        break;
+      }
+      if !self.consume_md_newline_and_prefix(&mut children) {
+        break;
+      }
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if next.token.kind() != SyntaxKind::MdSymbol || next.token.text().collect::<String>() != "|" {
+        break;
+      }
+
+      let row_start = self.offset();
+      let (row, col_count, early_exit) = self.parse_table_row();
+      if col_count != expected_cols {
+        self.emit_diagnostic(Diagnostic::TableColumnCountMismatch {
+          expected: expected_cols,
+          found: col_count,
+          start_offset: row_start,
+          end_offset: self.offset(),
+        });
+      }
+      children.push(row);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
+        self.expr_ctx_stack.exit(ExprCtx::MdTable);
+        return (self.emit(SyntaxKind::Table, &children), early_exit);
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdTable);
+    (self.emit(SyntaxKind::Table, &children), None)
   }
 
-  /// Parse a table row.
-  pub(in crate::parse) fn parse_table_row(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// Parse a table row: `| cell | cell |`.
+  /// Returns the node, cell count, and early exit context.
+  /// INVARIANT: Next token must be MdSymbol `|`.
+  fn parse_table_row(&mut self) -> (GreenNode, usize, Option<ExprCtx>) {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == "|",
+      "[ParseCtx::parse_table_row] Expected |"
+    );
+
+    let mut children = vec![];
+    let mut cell_count = 0;
+
+    self.expr_ctx_stack.enter(ExprCtx::MdTableRow);
+
+    // Consume leading `|`
+    self.advance_md(&mut children, SKIP_NONE);
+
+    loop {
+      // Check for end of row
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+        break;
+      }
+
+      // Parse a cell
+      let (cell, early_exit) = self.parse_table_cell();
+      children.push(cell);
+      cell_count += 1;
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTableRow) {
+        self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
+        return (
+          self.emit(SyntaxKind::TableRow, &children),
+          cell_count,
+          early_exit,
+        );
+      }
+
+      // Consume `|` separator
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == "|" {
+        self.advance_md(&mut children, SKIP_NONE);
+      } else {
+        break;
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
+    (self.emit(SyntaxKind::TableRow, &children), cell_count, None)
   }
 
-  /// Parse a table cell.
-  pub(in crate::parse) fn parse_table_cell(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    todo!()
+  /// Parse a table separator row: `| --- | --- |`.
+  /// INVARIANT: Next token must be MdSymbol `|`.
+  fn parse_table_separator_row(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdTableRow);
+
+    // Consume everything until Newline or EOF
+    loop {
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+        break;
+      }
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
+    (self.emit(SyntaxKind::TableSeparatorRow, &children), None)
+  }
+
+  /// Parse a table cell: inline content until `|` or end of line.
+  fn parse_table_cell(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdTableCell);
+
+    // Skip leading whitespace
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Whitespace {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    loop {
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+      // End on `|`, Newline, or EOF
+      if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+        break;
+      }
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == "|" {
+        break;
+      }
+
+      let (inline, early_exit) = self.parse_md_inline_element();
+      children.push(inline);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTableCell) {
+        self.expr_ctx_stack.exit(ExprCtx::MdTableCell);
+        return (self.emit(SyntaxKind::TableCell, &children), early_exit);
+      }
+      if early_exit == Some(ExprCtx::MdTableCell) {
+        break;
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdTableCell);
+    (self.emit(SyntaxKind::TableCell, &children), None)
   }
 
   /// Parse a bullet list: `- ...` or `* ...` or `+ ...`.

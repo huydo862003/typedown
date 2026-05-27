@@ -171,4 +171,18 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// A table is missing the required separator row after the header.
+  MissingTableSeparatorRow {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A table row has a different number of columns than the header row.
+  TableColumnCountMismatch {
+    expected: usize,
+    found: usize,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }
