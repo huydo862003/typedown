@@ -127,14 +127,20 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
 
   /// Peek at the next non-skipped YAML token without consuming.
   pub fn peek_yaml(&mut self, skip: u16) -> YamlLexResult {
+    self.peek_yaml_nth(0, skip)
+  }
+
+  /// Peek at the nth non-skipped YAML token without consuming (0-indexed).
+  pub fn peek_yaml_nth(&mut self, nth: usize, skip: u16) -> YamlLexResult {
     debug_assert!(
       self.lex_ctx.mode() == LexMode::YamlFrontmatter,
-      "[PeekableLexCtx::peek_yaml] Lex mode must be YamlFrontmatter"
+      "[PeekableLexCtx::peek_yaml_nth] Lex mode must be YamlFrontmatter"
     );
 
     let saved_after_newline = self.after_newline;
     let saved_yaml_indent = self.yaml_indent;
     let mut prefetch: VecDeque<LexResult> = VecDeque::new();
+    let mut found = 0;
 
     let result = loop {
       let lex_result = self.lex();
@@ -150,11 +156,16 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       }
 
       if !self.should_skip(token.kind(), skip) {
-        break LexResult { token, diagnostic };
+        if found == nth {
+          break LexResult { token, diagnostic };
+        }
+        found += 1;
       }
     };
 
-    self.token_buffer.extend(prefetch);
+    for token in prefetch.into_iter().rev() {
+      self.token_buffer.push_front(token);
+    }
     let peeked_indent = self.yaml_indent;
 
     // Restore state to pre-peek
@@ -197,7 +208,9 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       }
     };
 
-    self.token_buffer.extend(prefetch);
+    for token in prefetch.into_iter().rev() {
+      self.token_buffer.push_front(token);
+    }
 
     // Restore state to pre-peek
     self.after_newline = saved_after_newline;

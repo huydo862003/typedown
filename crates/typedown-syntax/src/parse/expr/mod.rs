@@ -5,6 +5,7 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::Sy
 use super::constants::*;
 use crate::{
   green::GreenNode,
+  lex::ctx::LexMode,
   parse::ctx::{ParseCtx, expr_ctx::ExprCtx},
 };
 
