@@ -977,7 +977,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
 
         match peek.token.kind() {
-          SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+          SyntaxKind::YamlDedent => {
+            // Consume the dedent matching the indent we consumed
+            self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+            break;
+          }
+          SyntaxKind::Eof => break,
           SyntaxKind::Ident | SyntaxKind::Colon => {
             let (entry, early_exit) = self.parse_block_mapping_entry();
             children.push(entry);
