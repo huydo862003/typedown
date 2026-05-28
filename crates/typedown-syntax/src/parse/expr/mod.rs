@@ -515,18 +515,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
       .lex_ctx
       .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
 
-    if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
-      let (seq, early_exit) = self.parse_block_seq_lit();
-      children.push(seq);
-      (self.emit(SyntaxKind::BlockSeqLit, &children), early_exit)
-    } else {
-      let (mapping, early_exit) = self.parse_block_mapping_lit();
-      children.push(mapping);
-      (
-        self.emit(SyntaxKind::BlockMappingLit, &children),
-        early_exit,
-      )
+    let (node, kind, early_exit) =
+      if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
+        let (seq, early_exit) = self.parse_block_seq_lit();
+        (seq, SyntaxKind::BlockSeqLit, early_exit)
+      } else {
+        let (mapping, early_exit) = self.parse_block_mapping_lit();
+        (mapping, SyntaxKind::BlockMappingLit, early_exit)
+      };
+    children.push(node);
+
+    // Consume the matching dedent
+    let dedent_peek = self.lex_ctx.peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    if dedent_peek.token.kind() == SyntaxKind::YamlDedent {
+      self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
     }
+
+    (self.emit(kind, &children), early_exit)
   }
 
   /// Parse a block sequence literal: lines starting with `-`.
