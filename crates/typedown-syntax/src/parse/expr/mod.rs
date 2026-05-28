@@ -27,12 +27,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
           self.parse_formula_expr()
         }
       }
-      // `|` or `>` at the start: block scalar
+      // `|`, `>`, or `-` at the start
       SyntaxKind::YamlOp => {
         let text: String = peek.token.text().collect();
         match text.as_str() {
           "|" => self.parse_literal_block_str_lit(),
           ">" => self.parse_folded_block_str_lit(),
+          "-" => {
+            let after = self.lex_ctx.peek_yaml_nth(1, SKIP_NONE);
+            if after.token.kind() == SyntaxKind::Whitespace {
+              self.parse_block_seq_lit()
+            } else {
+              self.parse_formula_expr()
+            }
+          }
           _ => self.parse_formula_expr(),
         }
       }
@@ -945,11 +953,16 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(entry);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
       self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-      return (self.emit(SyntaxKind::BlockMappingLit, &children), early_exit);
+      return (
+        self.emit(SyntaxKind::BlockMappingLit, &children),
+        early_exit,
+      );
     }
 
     // Check for continuation entries on indented lines
-    let peek = self.lex_ctx.peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    let peek = self
+      .lex_ctx
+      .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
     if peek.token.kind() == SyntaxKind::YamlIndent {
       // Consume indent and parse remaining entries like block_mapping_lit
       self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
