@@ -36,6 +36,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
           _ => self.parse_formula_expr(),
         }
       }
+      // Ident followed by colon: inline mapping
+      // We need to handle this specially as in the following case:
+      // -  key: value
+      // #^^
+      // # this is not an indent
+      //    key2: value2
+      // #^^
+      // # this is an indent
+      SyntaxKind::Ident if mode == LexMode::YamlFrontmatter => {
+        let after_ident = self.lex_ctx.peek_yaml_nth(1, SKIP_WS | SKIP_COMMENT);
+        if after_ident.token.kind() == SyntaxKind::Colon {
+          self.parse_inline_block_mapping_lit()
+        } else {
+          self.parse_formula_expr()
+        }
+      }
       // Everything else: formula expression
       _ => self.parse_formula_expr(),
     }
@@ -914,6 +930,64 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     (self.emit(SyntaxKind::FoldedBlockStrLit, &children), None)
+  }
+
+  /// Parse an inline block mapping: starts with `key: value` on the current line.
+  /// Continuation entries require an indent on subsequent lines.
+  /// INVARIANT: Next token must be Ident followed by Colon.
+  fn parse_inline_block_mapping_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+    let mut children = vec![];
+    self.expr_ctx_stack.enter(ExprCtx::BlockMap);
+
+    // Parse first entry on the current line
+    let (entry, early_exit) = self.parse_block_mapping_entry();
+    children.push(entry);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
+      self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+      return (self.emit(SyntaxKind::BlockMappingLit, &children), early_exit);
+    }
+
+    // Check for continuation entries on indented lines
+    let peek = self.lex_ctx.peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    if peek.token.kind() == SyntaxKind::YamlIndent {
+      // Consume indent and parse remaining entries like block_mapping_lit
+      self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+      loop {
+        let peek = self
+          .lex_ctx
+          .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+
+        match peek.token.kind() {
+          SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+          SyntaxKind::Ident | SyntaxKind::Colon => {
+            let (entry, early_exit) = self.parse_block_mapping_entry();
+            children.push(entry);
+            if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
+              self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+              return (
+                self.emit(SyntaxKind::BlockMappingLit, &children),
+                early_exit,
+              );
+            }
+          }
+          _ => {
+            let handler = self.expr_ctx_stack.find_handler(&peek.token);
+            if handler.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
+              self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+              return (self.emit(SyntaxKind::BlockMappingLit, &children), handler);
+            }
+            if let Some(ctx) = self.synchronize_block_mapping(&mut children) {
+              self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+              return (self.emit(SyntaxKind::BlockMappingLit, &children), Some(ctx));
+            }
+          }
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::BlockMap);
+    (self.emit(SyntaxKind::BlockMappingLit, &children), None)
   }
 
   /// Parse a block mapping literal (indentation-based `key: value` pairs).
