@@ -299,12 +299,17 @@ impl<S: Utf8Stream> LexCtx<S> {
   /* Symbols */
 
   pub(in crate::lex) fn lex_markdown_symbol(&mut self) -> LexResult {
-    loop {
-      match self.peek() {
-        Utf8Result::Char(char) if is_md_symbol_char(char) => {
-          self.advance_avoid_invalid_utf8();
-        }
-        _ => break,
+    let first = match self.peek() {
+      Utf8Result::Char(char) => char,
+      _ => unreachable!(),
+    };
+    self.advance_avoid_invalid_utf8();
+    // Consume consecutive runs of the same symbol character
+    while let Utf8Result::Char(char) = self.peek() {
+      if char == first {
+        self.advance_avoid_invalid_utf8();
+      } else {
+        break;
       }
     }
     self.emit(SyntaxKind::MdSymbol)

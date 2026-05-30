@@ -100,7 +100,7 @@ pub enum SyntaxKind {
   YamlIndent,
 
   // Markdown mode tokens
-  MdSymbol,    // any consecutive special chars (#, **, ~~, ---, :::, etc.)
+  MdSymbol,    // a single special char (#, *, ~, -, :, ., etc.)
   MdNumber,    // integer only (for ordered list markers like `1.`, `23.`)
   HtmlEntity,  // &name; or &#digits; or &#xhex; (e.g. &amp;, &#42;, &#x2A;)
 
