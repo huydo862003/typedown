@@ -102,27 +102,28 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
       SyntaxKind::MdSymbol => {
         let text: String = next.token.text().collect();
-        let first = text.chars().next().unwrap_or('\0');
-        match first {
-          '#' => self.parse_heading(),
-          '-' | '*' | '+' => self.parse_bullet_list(),
-          '>' => {
-            if text == ">-" {
-              self.parse_toggle_list()
+        match text.as_str() {
+          "-" | "*" | "+" => {
+            let after = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+            if after.token.kind() == SyntaxKind::Whitespace {
+              self.parse_bullet_list()
             } else {
-              self.parse_blockquote()
+              self.parse_paragraph()
             }
           }
-          '|' => self.parse_table(),
-          ':' if text == ":::" => self.parse_callout_block(),
-          '!' => {
-            let second = self.lex_ctx.peek_md_nth(1, SKIP_WS);
+          ">-" => self.parse_toggle_list(),
+          ">" => self.parse_blockquote(),
+          "|" => self.parse_table(),
+          ":::" => self.parse_callout_block(),
+          "!" => {
+            let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
             if second.token.kind() == SyntaxKind::LBracket {
               self.parse_media()
             } else {
               self.parse_paragraph()
             }
           }
+          _ if text.chars().all(|c| c == '#') => self.parse_heading(),
           _ => self.parse_paragraph(),
         }
       }
