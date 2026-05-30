@@ -7,7 +7,7 @@ use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
 use crate::green::{GreenNode, SyntaxToken};
 use crate::lex::ctx::LexMode;
-use crate::parse::constants::{SKIP_NONE, SKIP_WS};
+use crate::parse::constants::{SKIP_NEWLINE, SKIP_NONE, SKIP_WS};
 
 // Markdown body parsing
 // We distinguish between block elements and inline elements
@@ -72,6 +72,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a block-level element.
   /// INVARIANT: Must be at start of line with prefix already consumed.
+  /// INVARIANT: Block elements do not consume their trailing newline as one newline can end multiple block elements
   pub(in crate::parse) fn parse_md_block_element(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.mode() == LexMode::MarkdownBody,
@@ -91,15 +92,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.advance_md(&mut children, SKIP_NONE);
         (self.emit(SyntaxKind::Text, &children), None)
       }
-      _ if self.is_heading_start() => self.parse_heading(),
-      _ if self.is_toggle_list_start() => self.parse_toggle_list(),
-      _ if self.is_blockquote_start() => self.parse_blockquote(),
-      _ if self.is_bullet_list_start() => self.parse_bullet_list(),
-      _ if self.is_ordered_list_start() => self.parse_ordered_list(),
-      _ if self.is_table_start() => self.parse_table(),
-      _ if self.is_callout_start() => self.parse_callout_block(),
-      _ if self.is_media_block_start() => self.parse_media(),
-      _ if self.is_code_or_math_block_start() => {
+      _ if self.is_heading_start(SKIP_NONE) => self.parse_heading(),
+      _ if self.is_toggle_list_start(SKIP_NONE) => self.parse_toggle_list(),
+      _ if self.is_blockquote_start(SKIP_NONE) => self.parse_blockquote(),
+      _ if self.is_bullet_list_start(SKIP_NONE) => self.parse_bullet_list(),
+      _ if self.is_ordered_list_start(SKIP_NONE) => self.parse_ordered_list(),
+      _ if self.is_table_start(SKIP_NONE) => self.parse_table(),
+      _ if self.is_callout_start(SKIP_NONE) => self.parse_callout_block(),
+      _ if self.is_media_block_start(SKIP_NONE) => self.parse_media(),
+      _ if self.is_code_or_math_block_start(SKIP_NONE) => {
         let mut children = vec![];
         let kind = next.token.kind();
         self.advance_md(&mut children, SKIP_NONE);
@@ -226,12 +227,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
     }
 
-    // Consume the trailing newline if present
-    let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
-    if next_kind == SyntaxKind::Newline {
-      self.advance_md(&mut children, SKIP_NONE);
-    }
-
     (self.emit(SyntaxKind::Heading, &children), None)
   }
 
@@ -260,38 +255,30 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
 
-      // Consume the newline
-      self.advance_md(&mut children, SKIP_NONE);
-
-      // Decide whether to continue on the next line
+      // Peek past the newline to decide whether to continue
       let prefix_len = self.expr_ctx_stack.md_prefix_tokens().len();
-      let after_prefix = self.lex_ctx.peek_md_nth(prefix_len, SKIP_NONE);
+      let after_prefix = self.lex_ctx.peek_md_nth(prefix_len, SKIP_NEWLINE);
       if matches!(
         after_prefix.token.kind(),
         SyntaxKind::Newline | SyntaxKind::Eof
       ) {
-        // Blank line: end paragraph
         break;
       }
-      if !self.peek_md_prefix() {
-        // Prefix mismatch: end paragraph
-        break;
-      }
-      if self.is_md_block_start() {
-        // Check if there's extra indentation after the prefix
-        let after_prefix_kind = after_prefix.token.kind();
-        if after_prefix_kind == SyntaxKind::Whitespace {
-          // Indented block: parse as a nested child of this paragraph
-          let (block, early_exit) = self.parse_md_block_element();
-          children.push(block);
-          if early_exit.is_some() {
-            return (self.emit(SyntaxKind::Paragraph, &children), early_exit);
-          }
-        } else {
-          // Block at same indent: end paragraph
+      {
+        let expected = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+        let prefix_ok = expected.iter().enumerate().all(|(idx, expected_token)| {
+          self.lex_ctx.peek_md_nth(idx, SKIP_NEWLINE).token == *expected_token
+        });
+        if !prefix_ok {
           break;
         }
       }
+      if self.is_md_any_block_start(SKIP_NEWLINE) {
+        break;
+      }
+
+      // Paragraph continues onto the next line, consume the newline
+      self.advance_md(&mut children, SKIP_NONE);
     }
 
     (self.emit(SyntaxKind::Paragraph, &children), None)
@@ -833,9 +820,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn parse_toggle_list(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-        && self.lex_ctx.peek_md(SKIP_NONE).token.text().collect::<String>() == ">"
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ">"
         && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-        && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.text().collect::<String>() == "-",
+        && self
+          .lex_ctx
+          .peek_md_nth(1, SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == "-",
       "[ParseCtx::parse_toggle_list] Expected > followed by -"
     );
 
@@ -883,9 +882,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
   fn parse_toggle_list_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-        && self.lex_ctx.peek_md(SKIP_NONE).token.text().collect::<String>() == ">"
+        && self
+          .lex_ctx
+          .peek_md(SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == ">"
         && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-        && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.text().collect::<String>() == "-",
+        && self
+          .lex_ctx
+          .peek_md_nth(1, SKIP_NONE)
+          .token
+          .text()
+          .collect::<String>()
+          == "-",
       "[ParseCtx::parse_toggle_list_item] Expected > followed by -"
     );
 
@@ -2030,99 +2041,106 @@ impl<S: Utf8Stream> ParseCtx<S> {
       return false;
     }
 
-    self.is_heading_start()
-      || self.is_bullet_list_start()
-      || self.is_ordered_list_start()
-      || self.is_blockquote_start()
-      || self.is_toggle_list_start()
-      || self.is_table_start()
-      || self.is_callout_start()
-      || self.is_media_block_start()
-      || self.is_code_or_math_block_start()
+    self.is_md_any_block_start(SKIP_NONE)
   }
 }
 
 // Block element start detection helpers
 impl<S: Utf8Stream> ParseCtx<S> {
-  /// Whether the next token starts a heading (`#`, `##`, etc.)
-  fn is_heading_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_heading_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     next.token.kind() == SyntaxKind::MdSymbol && next.token.text().all(|c| c == '#')
   }
 
-  /// Whether the next tokens start a bullet list (`- `, `* `, `+ `)
-  fn is_bullet_list_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_bullet_list_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
     let text: String = next.token.text().collect();
     matches!(text.as_str(), "-" | "*" | "+")
-      && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::Whitespace
+      && self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::Whitespace
   }
 
-  /// Whether the next tokens start an ordered list (`1. `)
-  fn is_ordered_list_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_ordered_list_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     if next.token.kind() != SyntaxKind::MdNumber {
       return false;
     }
-    let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
+    let dot = self.lex_ctx.peek_md_nth(1, skip);
     dot.token.kind() == SyntaxKind::MdSymbol && dot.token.text().collect::<String>() == "."
   }
 
-  /// Whether the next token starts a blockquote (`>` not followed by `-`)
-  fn is_blockquote_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_blockquote_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
     let text: String = next.token.text().collect();
     text == ">"
-      && !(self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-        && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.text().collect::<String>() == "-")
+      && !(self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::MdSymbol
+        && self
+          .lex_ctx
+          .peek_md_nth(1, skip)
+          .token
+          .text()
+          .collect::<String>()
+          == "-")
   }
 
-  /// Whether the next tokens start a toggle list (`>-`)
-  fn is_toggle_list_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_toggle_list_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
     let text: String = next.token.text().collect();
     text == ">"
-      && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
-      && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.text().collect::<String>() == "-"
+      && self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::MdSymbol
+      && self
+        .lex_ctx
+        .peek_md_nth(1, skip)
+        .token
+        .text()
+        .collect::<String>()
+        == "-"
   }
 
-  /// Whether the next token starts a table (`|`)
-  fn is_table_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_table_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == "|"
   }
 
-  /// Whether the next token starts a callout block (`:::`)
-  fn is_callout_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_callout_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == ":::"
   }
 
-  /// Whether the next tokens start a media block (`![`)
-  fn is_media_block_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_media_block_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
     next.token.text().collect::<String>() == "!"
-      && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::LBracket
+      && self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::LBracket
   }
 
-  /// Whether the next token is a code block or math block
-  fn is_code_or_math_block_start(&mut self) -> bool {
-    let next = self.lex_ctx.peek_md(SKIP_NONE);
+  fn is_code_or_math_block_start(&mut self, skip: u16) -> bool {
+    let next = self.lex_ctx.peek_md(skip);
     matches!(
       next.token.kind(),
       SyntaxKind::CodeBlock | SyntaxKind::MathBlock
     )
+  }
+
+  fn is_md_any_block_start(&mut self, skip: u16) -> bool {
+    self.is_heading_start(skip)
+      || self.is_bullet_list_start(skip)
+      || self.is_ordered_list_start(skip)
+      || self.is_blockquote_start(skip)
+      || self.is_toggle_list_start(skip)
+      || self.is_table_start(skip)
+      || self.is_callout_start(skip)
+      || self.is_media_block_start(skip)
+      || self.is_code_or_math_block_start(skip)
   }
 }
