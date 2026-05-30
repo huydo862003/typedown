@@ -301,7 +301,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // Blank line: end paragraph
         break;
       }
-      if !self.peek_matches_md_prefix() {
+      if !self.peek_md_prefix() {
         // Prefix mismatch: end paragraph
         break;
       }
@@ -1924,24 +1924,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     (self.emit(SyntaxKind::Text, &children), None)
   }
 
-  /// Peek whether the next token (a newline) is followed by the expected prefix.
-  /// Does not consume anything.
-  /// INVARIANT: The next token must be a Newline.
-  fn peek_md_newline_and_prefix(&mut self) -> bool {
-    debug_assert!(
-      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Newline,
-      "[ParseCtx::peek_md_newline_and_prefix] Expected next token to be Newline"
-    );
-    let expected_tokens: Vec<SyntaxToken> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
-    for (idx, expected_token) in expected_tokens.iter().enumerate() {
-      let peek = self.lex_ctx.peek_md_nth(idx + 1, SKIP_NONE);
-      if peek.token != *expected_token {
-        return false;
-      }
-    }
-    true
-  }
-
   /// Consume a newline and the expected prefix on the next line.
   fn consume_md_newline_and_prefix(&mut self, children: &mut Vec<GreenNode>) -> bool {
     // Consume trailing whitespace and the newline
@@ -1995,7 +1977,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if matches!(after.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
         return true;
       }
-      if !self.peek_matches_md_prefix() {
+      if !self.peek_md_prefix() {
         return true;
       }
       if after.token.kind() == SyntaxKind::MdSymbol {
@@ -2041,9 +2023,27 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
+  /// Peek whether the next token is a a newline & is followed by the expected prefix.
+  /// Does not consume anything.
+  /// INVARIANT: The next token must be a Newline.
+  fn peek_md_newline_and_prefix(&mut self) -> bool {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Newline,
+      "[ParseCtx::peek_md_newline_and_prefix] Expected next token to be Newline"
+    );
+    let expected_tokens: Vec<SyntaxToken> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for (idx, expected_token) in expected_tokens.iter().enumerate() {
+      let peek = self.lex_ctx.peek_md_nth(idx + 1, SKIP_NONE);
+      if peek.token != *expected_token {
+        return false;
+      }
+    }
+    true
+  }
+
   /// Peek and check if upcoming tokens match the expected prefix.
-  /// Must be called after consuming a newline.
-  fn peek_matches_md_prefix(&mut self) -> bool {
+  /// INVARIANT: Must be called after consuming a newline.
+  fn peek_md_prefix(&mut self) -> bool {
     let expected_tokens: Vec<SyntaxToken> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
     for (idx, expected_token) in expected_tokens.iter().enumerate() {
       let peek = self.lex_ctx.peek_md_nth(idx, SKIP_NONE);
@@ -2057,40 +2057,37 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Whether the next non-leading-whitespace token starts a block-level element.
   /// INVARIANT: Must be called right after consuming a newline
   fn is_md_block_start(&mut self) -> bool {
-    if !self.peek_matches_md_prefix() {
+    if !self.peek_md_prefix() {
       return false;
     }
 
     let next = self.lex_ctx.peek_md(SKIP_WS);
+    // Code blocks and math blocks introduce block starts
     if matches!(
       next.token.kind(),
       SyntaxKind::CodeBlock | SyntaxKind::MathBlock
     ) {
       return true;
     }
+
     if next.token.kind() != SyntaxKind::MdSymbol {
       // Number can start an ordered list item: `1. ...`
       return next.token.kind() == SyntaxKind::MdNumber;
     }
     let text: String = next.token.text().collect();
-    let first = match text.chars().next() {
-      Some(char) => char,
-      None => return false,
-    };
-
-    // `![` starts a media embed block: requires the `!` to be followed by `[`
-    if text == "!" {
-      let second = self.lex_ctx.peek_md_nth(1, SKIP_WS);
-      return second.token.kind() == SyntaxKind::LBracket;
+    match text.as_str() {
+      // `-`, `*`, `+` only start a bullet list if followed by whitespace
+      "-" | "*" | "+" => {
+        let after = self.lex_ctx.peek_md_nth(1, SKIP_WS);
+        after.token.kind() == SyntaxKind::Whitespace
+      }
+      // `![` starts a media embed block
+      "!" => {
+        let second = self.lex_ctx.peek_md_nth(1, SKIP_WS);
+        second.token.kind() == SyntaxKind::LBracket
+      }
+      ">" | ">-" | "|" | ":::" => true,
+      _ => text.chars().all(|c| c == '#'),
     }
-
-    matches!(
-      first,
-      '#'  // heading
-      | '-' | '*' | '+' // bullet list
-      | '>' // blockquote or toggle list
-      | '|' // table
-      | ':' // callout/footnote/bibliography (:::)
-    )
   }
 }
