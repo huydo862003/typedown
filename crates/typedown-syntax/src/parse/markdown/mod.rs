@@ -177,8 +177,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
       }
       SyntaxKind::InterpStart => {
-        // TODO: parse interpolation
-        self.parse_text()
+        let (fragment, early_exit) = self.parse_interp_fragment(0);
+        (fragment, early_exit)
       }
       SyntaxKind::InlineMath
       | SyntaxKind::MathBlock
