@@ -86,6 +86,13 @@ impl PartialEq for SyntaxToken {
 
 impl Eq for SyntaxToken {}
 
+impl std::fmt::Debug for SyntaxToken {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let text: String = self.text().collect();
+    write!(f, "{:?}({:?})", self.kind(), text)
+  }
+}
+
 impl Hash for SyntaxToken {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);

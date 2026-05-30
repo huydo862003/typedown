@@ -40,11 +40,12 @@ impl<'a> ParseResult<'a> {
 
 impl<S: Utf8Stream> ParseCtx<S> {
   pub fn new(stream: S, cache: Rc<RefCell<Cache>>) -> ParseCtx<S> {
+    let expr_ctx_stack = ExprCtxStack::new(cache.clone());
     Self {
       cache: cache.clone(),
       lex_ctx: PeekableLexCtx::new(LexCtx::new(stream, cache)),
       diagnostics: Vec::new(),
-      expr_ctx_stack: ExprCtxStack::new(),
+      expr_ctx_stack,
       ast: None,
     }
   }

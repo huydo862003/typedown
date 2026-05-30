@@ -1,8 +1,10 @@
 //! Expression context for error recovery during parsing.
 
+use std::{cell::RefCell, rc::Rc};
+
 use typedown_types::syntax_kind::SyntaxKind;
 
-use crate::green::SyntaxToken;
+use crate::green::{SyntaxToken, cache::Cache};
 
 /// Expression context stack entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,14 +83,16 @@ struct ExprStackEntry {
 /// Stack of expression contexts for error recovery in expressions.
 pub(in crate::parse) struct ExprCtxStack {
   stack: Vec<ExprStackEntry>,
-  /// Accumulated MD line prefix as a sequence of expected token kinds.
-  md_prefix_tokens: Vec<SyntaxKind>,
+  cache: Rc<RefCell<Cache>>,
+  /// Accumulated MD line prefix as a sequence of expected tokens.
+  md_prefix_tokens: Vec<SyntaxToken>,
 }
 
 impl ExprCtxStack {
-  pub(in crate::parse) fn new() -> Self {
+  pub(in crate::parse) fn new(cache: Rc<RefCell<Cache>>) -> Self {
     Self {
       stack: Vec::new(),
+      cache,
       md_prefix_tokens: Vec::new(),
     }
   }
@@ -96,7 +100,7 @@ impl ExprCtxStack {
   /// Push a context onto the stack.
   pub(in crate::parse) fn enter(&mut self, ctx: ExprCtx) {
     let before = self.md_prefix_tokens.len();
-    ctx.push_md_prefix_tokens(&mut self.md_prefix_tokens);
+    self.push_md_prefix_tokens(ctx);
     let prefix_token_count = (self.md_prefix_tokens.len() - before) as u16;
     self.stack.push(ExprStackEntry {
       ctx,
@@ -123,8 +127,8 @@ impl ExprCtxStack {
     self.stack.last().map(|e| e.ctx)
   }
 
-  /// The accumulated expected MD prefix token kinds.
-  pub(in crate::parse) fn md_prefix_tokens(&self) -> &[SyntaxKind] {
+  /// The accumulated expected MD prefix tokens.
+  pub(in crate::parse) fn md_prefix_tokens(&self) -> &[SyntaxToken] {
     &self.md_prefix_tokens
   }
 
@@ -136,6 +140,32 @@ impl ExprCtxStack {
   /// Whether expressions can span across newlines.
   pub(in crate::parse) fn should_expr_span_newline(&self) -> bool {
     self.stack.iter().any(|e| e.ctx.should_expr_span_newline())
+  }
+
+  /// Push expected prefix tokens for the given context.
+  fn push_md_prefix_tokens(&mut self, ctx: ExprCtx) {
+    let mut cache = self.cache.borrow_mut();
+    match ctx {
+      ExprCtx::MdBlockQuote => {
+        self.md_prefix_tokens.push(cache.token(SyntaxKind::MdSymbol, b">"));
+        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+      }
+      ExprCtx::MdUnorderedListItem => {
+        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+      }
+      ExprCtx::MdOrderedListItem => {
+        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+      }
+      ExprCtx::MdToggleListItem => {
+        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+      }
+      ExprCtx::MdCalloutBlock(parent_prefix_count) => {
+        if parent_prefix_count > 0 {
+          self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+        }
+      }
+      _ => {}
+    }
   }
 
   /// Find the innermost context that can handle the given token.
@@ -154,31 +184,6 @@ impl ExprCtxStack {
 impl ExprCtx {
   pub(in crate::parse) fn is_md_callout_block(self) -> bool {
     matches!(self, ExprCtx::MdCalloutBlock(_))
-  }
-
-  /// Push this context's expected prefix tokens.
-  fn push_md_prefix_tokens(self, tokens: &mut Vec<SyntaxKind>) {
-    match self {
-      ExprCtx::MdBlockQuote => {
-        tokens.push(SyntaxKind::MdSymbol);
-        tokens.push(SyntaxKind::Whitespace);
-      }
-      ExprCtx::MdUnorderedListItem => {
-        tokens.push(SyntaxKind::Whitespace);
-      }
-      ExprCtx::MdOrderedListItem => {
-        tokens.push(SyntaxKind::Whitespace);
-      }
-      ExprCtx::MdToggleListItem => {
-        tokens.push(SyntaxKind::Whitespace);
-      }
-      ExprCtx::MdCalloutBlock(parent_prefix_count) => {
-        if parent_prefix_count > 0 {
-          tokens.push(SyntaxKind::Whitespace);
-        }
-      }
-      _ => {}
-    }
   }
 
   /// Whether expressions in this context should skip indent/dedent tokens.

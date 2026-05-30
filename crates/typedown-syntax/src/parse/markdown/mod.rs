@@ -1932,10 +1932,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Newline,
       "[ParseCtx::peek_md_newline_and_prefix] Expected next token to be Newline"
     );
-    let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
-    for (idx, expected_kind) in expected_tokens.iter().enumerate() {
+    let expected_tokens: Vec<SyntaxToken> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for (idx, expected_token) in expected_tokens.iter().enumerate() {
       let peek = self.lex_ctx.peek_md_nth(idx + 1, SKIP_NONE);
-      if peek.token.kind() != *expected_kind {
+      if peek.token != *expected_token {
         return false;
       }
     }
@@ -1947,11 +1947,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume trailing whitespace and the newline
     self.advance_md(children, SKIP_WS);
 
-    // Consume tokens matching the expected prefix token kinds
-    let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
-    for expected_kind in &expected_tokens {
+    // Consume tokens matching the expected prefix tokens
+    let expected_tokens: Vec<SyntaxToken> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for expected_token in &expected_tokens {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
-      if peek.token.kind() != *expected_kind {
+      if peek.token != *expected_token {
         self.emit_diagnostic(Diagnostic::MissingExpectMdPrefix {
           expected_prefix: format!("{:?}", expected_tokens),
           start_offset: self.offset(),
@@ -2044,10 +2044,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Peek and check if upcoming tokens match the expected prefix.
   /// Must be called after consuming a newline.
   fn peek_matches_md_prefix(&mut self) -> bool {
-    let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
-    for (idx, expected_kind) in expected_tokens.iter().enumerate() {
+    let expected_tokens: Vec<SyntaxToken> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for (idx, expected_token) in expected_tokens.iter().enumerate() {
       let peek = self.lex_ctx.peek_md_nth(idx, SKIP_NONE);
-      if peek.token.kind() != *expected_kind {
+      if peek.token != *expected_token {
         return false;
       }
     }
