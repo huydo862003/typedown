@@ -127,6 +127,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
           _ => self.parse_paragraph(),
         }
       }
+      SyntaxKind::CodeBlock | SyntaxKind::MathBlock => {
+        let mut children = vec![];
+        self.advance_md(&mut children, SKIP_NONE);
+        let kind = next.token.kind();
+        (self.emit(kind, &children), None)
+      }
       _ => self.parse_paragraph(),
     }
   }
@@ -180,10 +186,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         let (fragment, early_exit) = self.parse_interp_fragment(0);
         (fragment, early_exit)
       }
-      SyntaxKind::InlineMath
-      | SyntaxKind::MathBlock
-      | SyntaxKind::InlineCode
-      | SyntaxKind::CodeBlock => {
+      SyntaxKind::InlineMath | SyntaxKind::InlineCode => {
         // These are already lexed as single tokens
         let mut children = vec![];
         self.advance_md(&mut children, SKIP_NONE);
@@ -1985,6 +1988,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if after.token.kind() == SyntaxKind::MdNumber {
         return true;
       }
+      if matches!(
+        after.token.kind(),
+        SyntaxKind::CodeBlock | SyntaxKind::MathBlock
+      ) {
+        return true;
+      }
     }
     false
   }
@@ -1995,10 +2004,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     match next.token.kind() {
       SyntaxKind::LBracket => true,
       SyntaxKind::InterpStart => true,
-      SyntaxKind::InlineMath
-      | SyntaxKind::MathBlock
-      | SyntaxKind::InlineCode
-      | SyntaxKind::CodeBlock => true,
+      SyntaxKind::InlineMath | SyntaxKind::InlineCode => true,
       SyntaxKind::MdSymbol => {
         let text: String = next.token.text().collect();
         if matches!(text.as_str(), "*" | "_" | "**" | "***" | "~~") {
@@ -2036,6 +2042,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     let next = self.lex_ctx.peek_md(SKIP_WS);
+    if matches!(
+      next.token.kind(),
+      SyntaxKind::CodeBlock | SyntaxKind::MathBlock
+    ) {
+      return true;
+    }
     if next.token.kind() != SyntaxKind::MdSymbol {
       // Number can start an ordered list item: `1. ...`
       return next.token.kind() == SyntaxKind::MdNumber;
