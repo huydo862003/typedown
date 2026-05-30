@@ -697,7 +697,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let (value, early_exit) = self.parse_expr(block_indent);
     children.push(value);
 
-    (self.emit(SyntaxKind::SequenceItem, &children), early_exit)
+    (self.emit(SyntaxKind::YamlSequenceItem, &children), early_exit)
   }
 
   /// Parse a flow mapping literal: `{key: value, ...}`.
@@ -1196,11 +1196,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Missing key: `:` seen immediately
     if peek.token.kind() == SyntaxKind::Colon {
       self.diagnostics.push(Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MappingEntryKey,
+        expected: SyntaxKind::YamlMappingEntryKey,
         start_offset: self.offset(),
         end_offset: self.offset(),
       });
-      children.push(self.emit(SyntaxKind::MappingEntryKey, &[]));
+      children.push(self.emit(SyntaxKind::YamlMappingEntryKey, &[]));
     } else {
       // Key (identifier)
       let offset = self.offset();
@@ -1211,12 +1211,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
         mode,
         SyntaxKind::Ident,
         Diagnostic::MissingSyntaxNode {
-          expected: SyntaxKind::MappingEntryKey,
+          expected: SyntaxKind::YamlMappingEntryKey,
           start_offset: offset,
           end_offset: self.offset(),
         },
       );
-      children.push(self.emit(SyntaxKind::MappingEntryKey, &key_children));
+      children.push(self.emit(SyntaxKind::YamlMappingEntryKey, &key_children));
     }
 
     // Colon
@@ -1240,36 +1240,36 @@ impl<S: Utf8Stream> ParseCtx<S> {
         let peek_after = self.lex_ctx.peek_yaml(SKIP_WCN);
         if peek_after.token.kind() == SyntaxKind::YamlIndent && peek_after.block_indent > block_indent {
           let (nested, early_exit) = self.parse_block_seq_or_mapping(vec![], peek_after.block_indent);
-          children.push(self.emit(SyntaxKind::MappingEntryValue, &[nested]));
-          return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
+          children.push(self.emit(SyntaxKind::YamlMappingEntryValue, &[nested]));
+          return (self.emit(SyntaxKind::YamlMappingEntry, &children), early_exit);
         } else {
           self.advance(&mut children, SKIP_WCN, mode);
           self.diagnostics.push(Diagnostic::MissingSyntaxNode {
-            expected: SyntaxKind::MappingEntryValue,
+            expected: SyntaxKind::YamlMappingEntryValue,
             start_offset: self.offset(),
             end_offset: self.offset(),
           });
-          children.push(self.emit(SyntaxKind::MappingEntryValue, &[]));
+          children.push(self.emit(SyntaxKind::YamlMappingEntryValue, &[]));
         }
       }
       // EOF: missing value
       SyntaxKind::Eof => {
         self.diagnostics.push(Diagnostic::MissingSyntaxNode {
-          expected: SyntaxKind::MappingEntryValue,
+          expected: SyntaxKind::YamlMappingEntryValue,
           start_offset: self.offset(),
           end_offset: self.offset(),
         });
-        children.push(self.emit(SyntaxKind::MappingEntryValue, &[]));
+        children.push(self.emit(SyntaxKind::YamlMappingEntryValue, &[]));
       }
       // Inline value
       _ => {
         let (value, early_exit) = self.parse_expr(block_indent);
-        children.push(self.emit(SyntaxKind::MappingEntryValue, &[value]));
-        return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
+        children.push(self.emit(SyntaxKind::YamlMappingEntryValue, &[value]));
+        return (self.emit(SyntaxKind::YamlMappingEntry, &children), early_exit);
       }
     }
 
-    (self.emit(SyntaxKind::MappingEntry, &children), None)
+    (self.emit(SyntaxKind::YamlMappingEntry, &children), None)
   }
 
   /// Parse a double-quoted string literal with interpolation: `"content ${expr} content"`.

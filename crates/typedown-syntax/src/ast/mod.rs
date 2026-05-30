@@ -29,3 +29,11 @@ fn children<T: AstNode>(parent: &RedNode) -> impl Iterator<Item = T> {
 /// The root of a TDR file: frontmatter + body.
 #[derive(AstNode)]
 pub struct SourceFile(RedNode);
+
+/// The YAML frontmatter
+#[derive(AstNode)]
+pub struct YamlFrontmatter(RedNode);
+
+/// The markdown body
+#[derive(AstNode)]
+pub struct MdBody(RedNode);

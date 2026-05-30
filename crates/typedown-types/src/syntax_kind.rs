@@ -5,41 +5,41 @@ pub enum SyntaxKind {
   SourceFile = 0, // root: frontmatter + body
 
   // Frontmatter (YAML mode) nodes
-  Frontmatter = 100,
-  Mapping,           // block mapping (indentation-based)
-  MappingEntry,      // one key: value pair in block mapping
-  MappingEntryKey,   // key in a block mapping entry
-  MappingEntryValue, // value in a block mapping entry
-  Sequence,
-  SequenceItem, // one - item
+  YamlFrontmatter = 100,
+  YamlMapping,           // block mapping (indentation-based)
+  YamlMappingEntry,      // one key: value pair in block mapping
+  YamlMappingEntryKey,   // key in a block mapping entry
+  YamlMappingEntryValue, // value in a block mapping entry
+  YamlSequence,
+  YamlSequenceItem, // one - item
 
   // Body (Markdown mode) nodes
-  Body = 200,
-  Heading,
-  Paragraph,
-  Blockquote,
-  Table,
-  TableRow,
-  TableSeparatorRow,
-  TableCell,
-  BulletList,
-  BulletListItem,
-  OrderedList,
-  OrderedListItem,
-  ToggleList,
-  ToggleListItem,
-  ToggleListSummary,
-  ToggleListDetails,
-  CalloutBlock,      // ::: label ... :::
-  Link,              // [text](url)
-  Media,             // ![alt](src)
-  FootnoteRef,       // [^key]
-  Citation,          // [@key]
-  Bold,              // **text**
-  Italic,            // *text* or _text_
-  BoldItalic,        // ***text***
-  Strikethrough,     // ~~text~~
-  Text,              // plain text run
+  MdBody = 200,
+  MdHeading,
+  MdParagraph,
+  MdBlockquote,
+  MdTable,
+  MdTableRow,
+  MdTableSeparatorRow,
+  MdTableCell,
+  MdBulletList,
+  MdBulletListItem,
+  MdOrderedList,
+  MdOrderedListItem,
+  MdToggleList,
+  MdToggleListItem,
+  MdToggleListSummary,
+  MdToggleListDetails,
+  MdCalloutBlock,  // ::: label ... :::
+  MdLink,          // [text](url)
+  MdMedia,         // ![alt](src)
+  MdFootnoteRef,   // [^key]
+  MdCitation,      // [@key]
+  MdBold,          // **text**
+  MdItalic,        // *text* or _text_
+  MdBoldItalic,    // ***text***
+  MdStrikethrough, // ~~text~~
+  MdText,          // plain text run
 
   // Expression nodes
   Expr = 300,
@@ -100,9 +100,9 @@ pub enum SyntaxKind {
   YamlIndent,
 
   // Markdown mode tokens
-  MdSymbol,    // a single special char (#, *, ~, -, :, ., etc.)
-  MdNumber,    // integer only (for ordered list markers like `1.`, `23.`)
-  HtmlEntity,  // &name; or &#digits; or &#xhex; (e.g. &amp;, &#42;, &#x2A;)
+  MdSymbol,   // a single special char (#, *, ~, -, :, ., etc.)
+  MdNumber,   // integer only (for ordered list markers like `1.`, `23.`)
+  MdHtmlEntity, // &name; or &#digits; or &#xhex; (e.g. &amp;, &#42;, &#x2A;)
 
   // Trivia
   Whitespace = 600,

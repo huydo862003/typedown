@@ -27,7 +27,7 @@ fn parse_expr(input: &str) -> String {
     .unwrap()
     .children()
     .iter()
-    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::MappingEntry)
+    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::YamlMappingEntry)
     .expect("Expected MappingEntry in BlockMapping")
     .as_node()
     .unwrap();
@@ -63,7 +63,7 @@ fn parse_expr_with_diagnostics(
     .unwrap()
     .children()
     .iter()
-    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::MappingEntry)
+    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::YamlMappingEntry)
     .expect("Expected MappingEntry in BlockMapping")
     .as_node()
     .unwrap();
@@ -712,7 +712,7 @@ fn error_empty_expression() {
   assert!(diags.iter().any(|d| matches!(
     d,
     Diagnostic::MissingSyntaxNode {
-      expected: SyntaxKind::MappingEntryValue,
+      expected: SyntaxKind::YamlMappingEntryValue,
       ..
     }
   )));

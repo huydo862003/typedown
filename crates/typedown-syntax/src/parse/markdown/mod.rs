@@ -67,7 +67,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MarkdownBody);
-    self.emit(SyntaxKind::Body, &children)
+    self.emit(SyntaxKind::MdBody, &children)
   }
 
   /// Parse a block-level element.
@@ -90,7 +90,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // Blank line: consume and return empty
         let mut children = vec![];
         self.advance_md(&mut children, SKIP_NONE);
-        (self.emit(SyntaxKind::Text, &children), None)
+        (self.emit(SyntaxKind::MdText, &children), None)
       }
       _ if self.is_heading_start(SKIP_NONE) => self.parse_heading(),
       _ if self.is_toggle_list_start(SKIP_NONE) => self.parse_toggle_list(),
@@ -163,7 +163,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // These are already lexed as single tokens
         let mut children = vec![];
         self.advance_md(&mut children, SKIP_NONE);
-        (self.emit(SyntaxKind::Text, &children), None)
+        (self.emit(SyntaxKind::MdText, &children), None)
       }
       _ => self.parse_text(),
     }
@@ -208,7 +208,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     };
     if !has_inline {
       self.emit_diagnostic(Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Text,
+        expected: SyntaxKind::MdText,
         start_offset: self.offset(),
         end_offset: self.offset(),
       });
@@ -222,12 +222,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
         let (inline, early_exit) = self.parse_md_inline_element();
         children.push(inline);
         if early_exit.is_some() {
-          return (self.emit(SyntaxKind::Heading, &children), early_exit);
+          return (self.emit(SyntaxKind::MdHeading, &children), early_exit);
         }
       }
     }
 
-    (self.emit(SyntaxKind::Heading, &children), None)
+    (self.emit(SyntaxKind::MdHeading, &children), None)
   }
 
   /// Parse a paragraph: consecutive non-blank text lines.
@@ -245,7 +245,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         let (inline, early_exit) = self.parse_md_inline_element();
         children.push(inline);
         if early_exit.is_some() {
-          return (self.emit(SyntaxKind::Paragraph, &children), early_exit);
+          return (self.emit(SyntaxKind::MdParagraph, &children), early_exit);
         }
       }
 
@@ -281,7 +281,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance_md(&mut children, SKIP_NONE);
     }
 
-    (self.emit(SyntaxKind::Paragraph, &children), None)
+    (self.emit(SyntaxKind::MdParagraph, &children), None)
   }
 
   /// Parse a blockquote: `> ...`.
@@ -334,7 +334,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(block);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdBlockQuote) {
         self.expr_ctx_stack.exit(ExprCtx::MdBlockQuote);
-        return (self.emit(SyntaxKind::Blockquote, &children), early_exit);
+        return (self.emit(SyntaxKind::MdBlockquote, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdBlockQuote) {
         break;
@@ -342,7 +342,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdBlockQuote);
-    (self.emit(SyntaxKind::Blockquote, &children), None)
+    (self.emit(SyntaxKind::MdBlockquote, &children), None)
   }
 
   /// Parse a table: `| ... | ... |`.
@@ -370,7 +370,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(row);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
       self.expr_ctx_stack.exit(ExprCtx::MdTable);
-      return (self.emit(SyntaxKind::Table, &children), early_exit);
+      return (self.emit(SyntaxKind::MdTable, &children), early_exit);
     }
 
     // Parse required separator row
@@ -383,7 +383,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         end_offset: self.offset(),
       });
       self.expr_ctx_stack.exit(ExprCtx::MdTable);
-      return (self.emit(SyntaxKind::Table, &children), None);
+      return (self.emit(SyntaxKind::MdTable, &children), None);
     }
     // Verify separator row starts with `|` followed by `-`
     let next = self.lex_ctx.peek_md(SKIP_NONE);
@@ -398,13 +398,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
         end_offset: self.offset(),
       });
       self.expr_ctx_stack.exit(ExprCtx::MdTable);
-      return (self.emit(SyntaxKind::Table, &children), None);
+      return (self.emit(SyntaxKind::MdTable, &children), None);
     }
     let (sep, early_exit) = self.parse_table_separator_row();
     children.push(sep);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
       self.expr_ctx_stack.exit(ExprCtx::MdTable);
-      return (self.emit(SyntaxKind::Table, &children), early_exit);
+      return (self.emit(SyntaxKind::MdTable, &children), early_exit);
     }
 
     // Parse body rows
@@ -433,12 +433,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(row);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
         self.expr_ctx_stack.exit(ExprCtx::MdTable);
-        return (self.emit(SyntaxKind::Table, &children), early_exit);
+        return (self.emit(SyntaxKind::MdTable, &children), early_exit);
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdTable);
-    (self.emit(SyntaxKind::Table, &children), None)
+    (self.emit(SyntaxKind::MdTable, &children), None)
   }
 
   /// Parse a table row: `| cell | cell |`.
@@ -479,7 +479,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTableRow) {
         self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
         return (
-          self.emit(SyntaxKind::TableRow, &children),
+          self.emit(SyntaxKind::MdTableRow, &children),
           cell_count,
           early_exit,
         );
@@ -495,7 +495,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
-    (self.emit(SyntaxKind::TableRow, &children), cell_count, None)
+    (self.emit(SyntaxKind::MdTableRow, &children), cell_count, None)
   }
 
   /// Parse a table separator row: `| --- | --- |`.
@@ -515,7 +515,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
-    (self.emit(SyntaxKind::TableSeparatorRow, &children), None)
+    (self.emit(SyntaxKind::MdTableSeparatorRow, &children), None)
   }
 
   /// Parse a table cell: inline content until `|` or end of line.
@@ -543,7 +543,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(inline);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTableCell) {
         self.expr_ctx_stack.exit(ExprCtx::MdTableCell);
-        return (self.emit(SyntaxKind::TableCell, &children), early_exit);
+        return (self.emit(SyntaxKind::MdTableCell, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdTableCell) {
         break;
@@ -551,7 +551,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdTableCell);
-    (self.emit(SyntaxKind::TableCell, &children), None)
+    (self.emit(SyntaxKind::MdTableCell, &children), None)
   }
 
   /// Parse a bullet list: `- ...` or `* ...` or `+ ...`.
@@ -578,7 +578,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedList) {
       self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
-      return (self.emit(SyntaxKind::BulletList, &children), early_exit);
+      return (self.emit(SyntaxKind::MdBulletList, &children), early_exit);
     }
 
     // Parse remaining list items
@@ -600,12 +600,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(item);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedList) {
         self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
-        return (self.emit(SyntaxKind::BulletList, &children), early_exit);
+        return (self.emit(SyntaxKind::MdBulletList, &children), early_exit);
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
-    (self.emit(SyntaxKind::BulletList, &children), None)
+    (self.emit(SyntaxKind::MdBulletList, &children), None)
   }
 
   /// Parse a bullet list item: `- content` or `* content` or `+ content`.
@@ -664,7 +664,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(block);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedListItem) {
         self.expr_ctx_stack.exit(ExprCtx::MdUnorderedListItem);
-        return (self.emit(SyntaxKind::BulletListItem, &children), early_exit);
+        return (self.emit(SyntaxKind::MdBulletListItem, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdUnorderedListItem) {
         break;
@@ -672,7 +672,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdUnorderedListItem);
-    (self.emit(SyntaxKind::BulletListItem, &children), None)
+    (self.emit(SyntaxKind::MdBulletListItem, &children), None)
   }
 
   /// Parse an ordered list: `1. ...`.
@@ -703,7 +703,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdOrderedList) {
       self.expr_ctx_stack.exit(ExprCtx::MdOrderedList);
-      return (self.emit(SyntaxKind::OrderedList, &children), early_exit);
+      return (self.emit(SyntaxKind::MdOrderedList, &children), early_exit);
     }
 
     // Parse remaining list items
@@ -726,12 +726,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(item);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdOrderedList) {
         self.expr_ctx_stack.exit(ExprCtx::MdOrderedList);
-        return (self.emit(SyntaxKind::OrderedList, &children), early_exit);
+        return (self.emit(SyntaxKind::MdOrderedList, &children), early_exit);
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdOrderedList);
-    (self.emit(SyntaxKind::OrderedList, &children), None)
+    (self.emit(SyntaxKind::MdOrderedList, &children), None)
   }
 
   /// Parse an ordered list item: `1. content`.
@@ -755,7 +755,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ".",
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::OrderedListItem,
+        expected: SyntaxKind::MdOrderedListItem,
         start_offset: self.offset(),
         end_offset: self.offset(),
       },
@@ -802,7 +802,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdOrderedListItem) {
         self.expr_ctx_stack.exit(ExprCtx::MdOrderedListItem);
         return (
-          self.emit(SyntaxKind::OrderedListItem, &children),
+          self.emit(SyntaxKind::MdOrderedListItem, &children),
           early_exit,
         );
       }
@@ -812,7 +812,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdOrderedListItem);
-    (self.emit(SyntaxKind::OrderedListItem, &children), None)
+    (self.emit(SyntaxKind::MdOrderedListItem, &children), None)
   }
 
   /// Parse a toggle list: `>- ...`.
@@ -847,7 +847,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleList) {
       self.expr_ctx_stack.exit(ExprCtx::MdToggleList);
-      return (self.emit(SyntaxKind::ToggleList, &children), early_exit);
+      return (self.emit(SyntaxKind::MdToggleList, &children), early_exit);
     }
 
     // Parse remaining toggle items
@@ -869,12 +869,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(item);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleList) {
         self.expr_ctx_stack.exit(ExprCtx::MdToggleList);
-        return (self.emit(SyntaxKind::ToggleList, &children), early_exit);
+        return (self.emit(SyntaxKind::MdToggleList, &children), early_exit);
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdToggleList);
-    (self.emit(SyntaxKind::ToggleList, &children), None)
+    (self.emit(SyntaxKind::MdToggleList, &children), None)
   }
 
   /// Parse a toggle list item: `>- summary\n\n   details`.
@@ -928,18 +928,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let (inline, early_exit) = self.parse_md_inline_element();
       summary_children.push(inline);
       if early_exit.is_some() {
-        children.push(self.emit(SyntaxKind::ToggleListSummary, &summary_children));
+        children.push(self.emit(SyntaxKind::MdToggleListSummary, &summary_children));
         self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-        return (self.emit(SyntaxKind::ToggleListItem, &children), early_exit);
+        return (self.emit(SyntaxKind::MdToggleListItem, &children), early_exit);
       }
     }
-    children.push(self.emit(SyntaxKind::ToggleListSummary, &summary_children));
+    children.push(self.emit(SyntaxKind::MdToggleListSummary, &summary_children));
 
     // Check for blank line separating summary from details
     let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
     if next_kind == SyntaxKind::Eof {
       self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-      return (self.emit(SyntaxKind::ToggleListItem, &children), None);
+      return (self.emit(SyntaxKind::MdToggleListItem, &children), None);
     }
 
     // Consume the newline after summary
@@ -950,7 +950,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if next_kind != SyntaxKind::Newline {
       // No blank line: no details section
       self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-      return (self.emit(SyntaxKind::ToggleListItem, &children), None);
+      return (self.emit(SyntaxKind::MdToggleListItem, &children), None);
     }
 
     // Consume the blank line
@@ -970,20 +970,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let (block, early_exit) = self.parse_md_block_element();
       details_children.push(block);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleListItem) {
-        children.push(self.emit(SyntaxKind::ToggleListDetails, &details_children));
+        children.push(self.emit(SyntaxKind::MdToggleListDetails, &details_children));
         self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-        return (self.emit(SyntaxKind::ToggleListItem, &children), early_exit);
+        return (self.emit(SyntaxKind::MdToggleListItem, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdToggleListItem) {
         break;
       }
     }
     if !details_children.is_empty() {
-      children.push(self.emit(SyntaxKind::ToggleListDetails, &details_children));
+      children.push(self.emit(SyntaxKind::MdToggleListDetails, &details_children));
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-    (self.emit(SyntaxKind::ToggleListItem, &children), None)
+    (self.emit(SyntaxKind::MdToggleListItem, &children), None)
   }
 
   /// Parse a callout block: `::: label ... :::`.
@@ -1066,12 +1066,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(block);
       if early_exit.is_some_and(|ctx| !ctx.is_md_callout_block()) {
         self.expr_ctx_stack.exit(callout_ctx);
-        return (self.emit(SyntaxKind::CalloutBlock, &children), early_exit);
+        return (self.emit(SyntaxKind::MdCalloutBlock, &children), early_exit);
       }
       if early_exit.is_some_and(|ctx| ctx.is_md_callout_block()) {
         if let Some(ctx) = self.synchronize_callout_block(&mut children) {
           self.expr_ctx_stack.exit(callout_ctx);
-          return (self.emit(SyntaxKind::CalloutBlock, &children), Some(ctx));
+          return (self.emit(SyntaxKind::MdCalloutBlock, &children), Some(ctx));
         }
       }
     }
@@ -1082,14 +1082,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_WS,
       |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ":::",
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::CalloutBlock,
+        expected: SyntaxKind::MdCalloutBlock,
         start_offset: open_offset,
         end_offset: self.offset(),
       },
     );
 
     self.expr_ctx_stack.exit(callout_ctx);
-    (self.emit(SyntaxKind::CalloutBlock, &children), None)
+    (self.emit(SyntaxKind::MdCalloutBlock, &children), None)
   }
 
   // Stop on `:::` at matching indent, or EOF.
@@ -1130,7 +1130,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::LBracket,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Link,
+        expected: SyntaxKind::MdLink,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1139,7 +1139,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Link, &children), handler);
+      return (self.emit(SyntaxKind::MdLink, &children), handler);
     }
 
     self.expr_ctx_stack.enter(ExprCtx::MdLinkText);
@@ -1155,7 +1155,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           end_offset: self.offset(),
         });
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::Link, &children), None);
+        return (self.emit(SyntaxKind::MdLink, &children), None);
       }
 
       let (inline, early_exit) = self.parse_md_inline_element();
@@ -1163,13 +1163,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdLinkText) {
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::Link, &children), early_exit);
+        return (self.emit(SyntaxKind::MdLink, &children), early_exit);
       }
 
       if early_exit == Some(ExprCtx::MdLinkText) {
         if let Some(ctx) = self.synchronize_link_text(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-          return (self.emit(SyntaxKind::Link, &children), Some(ctx));
+          return (self.emit(SyntaxKind::MdLink, &children), Some(ctx));
         }
       }
     }
@@ -1180,7 +1180,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::RBracket,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Link,
+        expected: SyntaxKind::MdLink,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1190,7 +1190,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Link, &children), handler);
+      return (self.emit(SyntaxKind::MdLink, &children), handler);
     }
 
     // Consume `(`
@@ -1199,7 +1199,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::LParen,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Link,
+        expected: SyntaxKind::MdLink,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1208,7 +1208,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Link, &children), handler);
+      return (self.emit(SyntaxKind::MdLink, &children), handler);
     }
 
     self.expr_ctx_stack.enter(ExprCtx::MdLinkUrl);
@@ -1221,14 +1221,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
         SyntaxKind::RParen | SyntaxKind::Newline | SyntaxKind::Eof => break,
         _ => {
           if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkUrl, &mut url_children) {
-            children.push(self.emit(SyntaxKind::Text, &url_children));
+            children.push(self.emit(SyntaxKind::MdText, &url_children));
             self.expr_ctx_stack.exit(ExprCtx::MdLinkUrl);
-            return (self.emit(SyntaxKind::Link, &children), Some(ctx));
+            return (self.emit(SyntaxKind::MdLink, &children), Some(ctx));
           }
         }
       }
     }
-    children.push(self.emit(SyntaxKind::Text, &url_children));
+    children.push(self.emit(SyntaxKind::MdText, &url_children));
 
     // Consume `)`
     let ok = self.consume_md(
@@ -1236,7 +1236,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::RParen,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Link,
+        expected: SyntaxKind::MdLink,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1246,10 +1246,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Link, &children), handler);
+      return (self.emit(SyntaxKind::MdLink, &children), handler);
     }
 
-    (self.emit(SyntaxKind::Link, &children), None)
+    (self.emit(SyntaxKind::MdLink, &children), None)
   }
 
   /// Parse a media embed: `![alt](src)`.
@@ -1280,7 +1280,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "!",
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Media,
+        expected: SyntaxKind::MdMedia,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1289,7 +1289,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Media, &children), handler);
+      return (self.emit(SyntaxKind::MdMedia, &children), handler);
     }
 
     // Consume `[`
@@ -1298,7 +1298,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::LBracket,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Media,
+        expected: SyntaxKind::MdMedia,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1307,7 +1307,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Media, &children), handler);
+      return (self.emit(SyntaxKind::MdMedia, &children), handler);
     }
 
     self.expr_ctx_stack.enter(ExprCtx::MdLinkText);
@@ -1319,7 +1319,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
       if self.should_end_inline_element(&mut children) {
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::Media, &children), None);
+        return (self.emit(SyntaxKind::MdMedia, &children), None);
       }
 
       let (inline, early_exit) = self.parse_md_inline_element();
@@ -1327,13 +1327,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdLinkText) {
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::Media, &children), early_exit);
+        return (self.emit(SyntaxKind::MdMedia, &children), early_exit);
       }
 
       if early_exit == Some(ExprCtx::MdLinkText) {
         if let Some(ctx) = self.synchronize_link_text(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-          return (self.emit(SyntaxKind::Media, &children), Some(ctx));
+          return (self.emit(SyntaxKind::MdMedia, &children), Some(ctx));
         }
       }
     }
@@ -1344,7 +1344,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::RBracket,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Media,
+        expected: SyntaxKind::MdMedia,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1354,7 +1354,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Media, &children), handler);
+      return (self.emit(SyntaxKind::MdMedia, &children), handler);
     }
 
     // Consume `(`
@@ -1363,7 +1363,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::LParen,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Media,
+        expected: SyntaxKind::MdMedia,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1372,7 +1372,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Media, &children), handler);
+      return (self.emit(SyntaxKind::MdMedia, &children), handler);
     }
 
     self.expr_ctx_stack.enter(ExprCtx::MdLinkUrl);
@@ -1385,14 +1385,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
         SyntaxKind::RParen | SyntaxKind::Newline | SyntaxKind::Eof => break,
         _ => {
           if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkUrl, &mut url_children) {
-            children.push(self.emit(SyntaxKind::Text, &url_children));
+            children.push(self.emit(SyntaxKind::MdText, &url_children));
             self.expr_ctx_stack.exit(ExprCtx::MdLinkUrl);
-            return (self.emit(SyntaxKind::Media, &children), Some(ctx));
+            return (self.emit(SyntaxKind::MdMedia, &children), Some(ctx));
           }
         }
       }
     }
-    children.push(self.emit(SyntaxKind::Text, &url_children));
+    children.push(self.emit(SyntaxKind::MdText, &url_children));
 
     // Consume `)`
     let ok = self.consume_md(
@@ -1400,7 +1400,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::RParen,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Media,
+        expected: SyntaxKind::MdMedia,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1410,10 +1410,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let handler = self
         .expr_ctx_stack
         .find_handler(&self.lex_ctx.peek_md(SKIP_NONE).token);
-      return (self.emit(SyntaxKind::Media, &children), handler);
+      return (self.emit(SyntaxKind::MdMedia, &children), handler);
     }
 
-    (self.emit(SyntaxKind::Media, &children), None)
+    (self.emit(SyntaxKind::MdMedia, &children), None)
   }
 
   // Stop on `]`, Newline, EOF, or end of inline element.
@@ -1464,7 +1464,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "^",
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Citation,
+        expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1475,7 +1475,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::Ident,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Citation,
+        expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1486,14 +1486,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::RBracket,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Citation,
+        expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
         end_offset: open_offset,
       },
     );
 
     self.expr_ctx_stack.exit(ExprCtx::MdCitation);
-    (self.emit(SyntaxKind::Citation, &children), None)
+    (self.emit(SyntaxKind::MdCitation, &children), None)
   }
 
   /// Parse a citation: `[@key]`.
@@ -1515,7 +1515,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "@",
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Citation,
+        expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1526,7 +1526,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::Ident,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Citation,
+        expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
         end_offset: open_offset,
       },
@@ -1537,14 +1537,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_NONE,
       SyntaxKind::RBracket,
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::Citation,
+        expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
         end_offset: open_offset,
       },
     );
 
     self.expr_ctx_stack.exit(ExprCtx::MdCitation);
-    (self.emit(SyntaxKind::Citation, &children), None)
+    (self.emit(SyntaxKind::MdCitation, &children), None)
   }
 
   /// Parse bold text: `**text**`.
@@ -1591,18 +1591,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(inline);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdBold) {
         self.expr_ctx_stack.exit(ExprCtx::MdBold);
-        return (self.emit(SyntaxKind::Bold, &children), early_exit);
+        return (self.emit(SyntaxKind::MdBold, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdBold) {
         if let Some(ctx) = self.synchronize_bold(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdBold);
-          return (self.emit(SyntaxKind::Bold, &children), Some(ctx));
+          return (self.emit(SyntaxKind::MdBold, &children), Some(ctx));
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdBold);
-    (self.emit(SyntaxKind::Bold, &children), None)
+    (self.emit(SyntaxKind::MdBold, &children), None)
   }
 
   // Stop on `**`, EOF, or end of inline element.
@@ -1680,18 +1680,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(inline);
       if early_exit.is_some_and(|c| c != ctx) {
         self.expr_ctx_stack.exit(ctx);
-        return (self.emit(SyntaxKind::Italic, &children), early_exit);
+        return (self.emit(SyntaxKind::MdItalic, &children), early_exit);
       }
       if early_exit == Some(ctx) {
         if let Some(propagate) = self.synchronize_italic(&opening, &mut children) {
           self.expr_ctx_stack.exit(ctx);
-          return (self.emit(SyntaxKind::Italic, &children), Some(propagate));
+          return (self.emit(SyntaxKind::MdItalic, &children), Some(propagate));
         }
       }
     }
 
     self.expr_ctx_stack.exit(ctx);
-    (self.emit(SyntaxKind::Italic, &children), None)
+    (self.emit(SyntaxKind::MdItalic, &children), None)
   }
 
   // Stop on `*`/`_` matching `opening`, EOF, or end of inline element.
@@ -1770,18 +1770,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(inline);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdBoldItalic) {
         self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
-        return (self.emit(SyntaxKind::BoldItalic, &children), early_exit);
+        return (self.emit(SyntaxKind::MdBoldItalic, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdBoldItalic) {
         if let Some(ctx) = self.synchronize_bold_italic(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
-          return (self.emit(SyntaxKind::BoldItalic, &children), Some(ctx));
+          return (self.emit(SyntaxKind::MdBoldItalic, &children), Some(ctx));
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
-    (self.emit(SyntaxKind::BoldItalic, &children), None)
+    (self.emit(SyntaxKind::MdBoldItalic, &children), None)
   }
 
   // Stop on `***`, EOF, or end of inline element.
@@ -1851,18 +1851,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(inline);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdStrikethrough) {
         self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);
-        return (self.emit(SyntaxKind::Strikethrough, &children), early_exit);
+        return (self.emit(SyntaxKind::MdStrikethrough, &children), early_exit);
       }
       if early_exit == Some(ExprCtx::MdStrikethrough) {
         if let Some(ctx) = self.synchronize_strikethrough(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);
-          return (self.emit(SyntaxKind::Strikethrough, &children), Some(ctx));
+          return (self.emit(SyntaxKind::MdStrikethrough, &children), Some(ctx));
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);
-    (self.emit(SyntaxKind::Strikethrough, &children), None)
+    (self.emit(SyntaxKind::MdStrikethrough, &children), None)
   }
 
   // Stop on `~~`, EOF, or end of inline element.
@@ -1905,7 +1905,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance_md(&mut children, SKIP_NONE);
     }
 
-    (self.emit(SyntaxKind::Text, &children), None)
+    (self.emit(SyntaxKind::MdText, &children), None)
   }
 
   /// Consume a newline and the expected prefix on the next line.

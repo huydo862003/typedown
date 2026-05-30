@@ -205,7 +205,7 @@ impl<S: Utf8Stream> LexCtx<S> {
             if count > 0 {
               if let Utf8Result::Char(';') = self.peek() {
                 self.advance_avoid_invalid_utf8();
-                return self.emit(SyntaxKind::HtmlEntity);
+                return self.emit(SyntaxKind::MdHtmlEntity);
               }
             }
           }
@@ -222,7 +222,7 @@ impl<S: Utf8Stream> LexCtx<S> {
             if count > 0 {
               if let Utf8Result::Char(';') = self.peek() {
                 self.advance_avoid_invalid_utf8();
-                return self.emit(SyntaxKind::HtmlEntity);
+                return self.emit(SyntaxKind::MdHtmlEntity);
               }
             }
           }
@@ -246,7 +246,7 @@ impl<S: Utf8Stream> LexCtx<S> {
           // Valid named entity: commit name + `;` into text_buffer and emit
           self.text_buffer.push_str(&name);
           self.advance_avoid_invalid_utf8(); // consume `;`
-          return self.emit(SyntaxKind::HtmlEntity);
+          return self.emit(SyntaxKind::MdHtmlEntity);
         }
         // Invalid entity (no `;`): emit `&` as MdSymbol, queue name as Ident
         let ampersand_token = self.emit(SyntaxKind::MdSymbol);

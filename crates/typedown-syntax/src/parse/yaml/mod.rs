@@ -79,7 +79,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       },
     );
 
-    self.emit(SyntaxKind::Frontmatter, &children)
+    self.emit(SyntaxKind::YamlFrontmatter, &children)
   }
 
   /// Error recovery: skip tokens until `---` or EOF is found.

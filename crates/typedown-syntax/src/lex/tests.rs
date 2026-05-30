@@ -385,25 +385,25 @@ mod tests {
   #[test]
   fn md_html_entity_named() {
     let tokens = lex_markdown("&amp;");
-    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&amp;".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::MdHtmlEntity, "&amp;".to_string()));
   }
 
   #[test]
   fn md_html_entity_numeric_decimal() {
     let tokens = lex_markdown("&#42;");
-    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&#42;".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::MdHtmlEntity, "&#42;".to_string()));
   }
 
   #[test]
   fn md_html_entity_numeric_hex() {
     let tokens = lex_markdown("&#x2A;");
-    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&#x2A;".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::MdHtmlEntity, "&#x2A;".to_string()));
   }
 
   #[test]
   fn md_html_entity_numeric_hex_lowercase() {
     let tokens = lex_markdown("&#x2a;");
-    assert_eq!(tokens[0], (SyntaxKind::HtmlEntity, "&#x2a;".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::MdHtmlEntity, "&#x2a;".to_string()));
   }
 
   #[test]
