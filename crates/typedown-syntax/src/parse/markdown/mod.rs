@@ -364,10 +364,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       if matches!(next_kind, SyntaxKind::Newline) {
-        self.consume_md_newline_and_prefix(&mut children);
-        if !self.peek_matches_md_prefix() {
+        if !self.peek_md_newline_and_prefix() {
           break;
         }
+        self.consume_md_newline_and_prefix(&mut children);
         continue;
       }
 
@@ -684,9 +684,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       if next_kind == SyntaxKind::Newline {
-        if !self.consume_md_newline_and_prefix(&mut children) {
+        if !self.peek_md_newline_and_prefix() {
           break;
         }
+        self.consume_md_newline_and_prefix(&mut children);
         let next = self.lex_ctx.peek_md(SKIP_NONE);
         if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
           break;
@@ -818,9 +819,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       if next_kind == SyntaxKind::Newline {
-        if !self.consume_md_newline_and_prefix(&mut children) {
+        if !self.peek_md_newline_and_prefix() {
           break;
         }
+        self.consume_md_newline_and_prefix(&mut children);
         let next = self.lex_ctx.peek_md(SKIP_NONE);
         if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
           break;
@@ -1920,6 +1922,24 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     (self.emit(SyntaxKind::Text, &children), None)
+  }
+
+  /// Peek whether the next token (a newline) is followed by the expected prefix.
+  /// Does not consume anything.
+  /// INVARIANT: The next token must be a Newline.
+  fn peek_md_newline_and_prefix(&mut self) -> bool {
+    debug_assert!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Newline,
+      "[ParseCtx::peek_md_newline_and_prefix] Expected next token to be Newline"
+    );
+    let expected_tokens: Vec<SyntaxKind> = self.expr_ctx_stack.md_prefix_tokens().to_vec();
+    for (idx, expected_kind) in expected_tokens.iter().enumerate() {
+      let peek = self.lex_ctx.peek_md_nth(idx + 1, SKIP_NONE);
+      if peek.token.kind() != *expected_kind {
+        return false;
+      }
+    }
+    true
   }
 
   /// Consume a newline and the expected prefix on the next line.
