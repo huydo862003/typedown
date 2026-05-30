@@ -216,7 +216,6 @@ impl ExprCtx {
 
     match (self, token.kind()) {
       (ExprCtx::YamlFrontmatter, SyntaxKind::YamlIndent)
-      | (ExprCtx::YamlFrontmatter, SyntaxKind::YamlDedent)
       | (ExprCtx::YamlFrontmatter, SyntaxKind::Eof)
       | (ExprCtx::MarkdownBody, SyntaxKind::Eof)
       | (ExprCtx::Interp, SyntaxKind::InterpEnd)
@@ -231,9 +230,7 @@ impl ExprCtx {
       | (ExprCtx::Call, SyntaxKind::RParen)
       | (ExprCtx::Call, SyntaxKind::Comma)
       | (ExprCtx::BlockSeq, SyntaxKind::Newline)
-      | (ExprCtx::BlockSeq, SyntaxKind::YamlDedent)
       | (ExprCtx::BlockMap, SyntaxKind::Newline)
-      | (ExprCtx::BlockMap, SyntaxKind::YamlDedent)
       | (ExprCtx::MdBlockQuote, SyntaxKind::Newline)
       | (ExprCtx::MdBlockQuote, SyntaxKind::Eof)
       | (ExprCtx::MdOrderedList, SyntaxKind::Eof)

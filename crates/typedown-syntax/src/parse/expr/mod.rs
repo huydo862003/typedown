@@ -11,51 +11,53 @@ use crate::{
 
 impl<S: Utf8Stream> ParseCtx<S> {
   /// General expression, including formula and yaml.
-  pub(in crate::parse) fn parse_expr(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_expr(
+    &mut self,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
 
     // Consume all leading whitespaces and comments
-    let mut prefix = vec![];
+    let mut children = vec![];
     loop {
       let peek = self.lex_ctx.peek_yaml(SKIP_NONE);
       match peek.token.kind() {
         SyntaxKind::Whitespace | SyntaxKind::YamlComment => {
           let result = self.lex_ctx.lex();
-          prefix.push(GreenNode::from_token(result.token));
+          children.push(GreenNode::from_token(result.token));
         }
         _ => break,
       }
     }
 
-    let peek = self.lex_ctx.peek(SKIP_WS | SKIP_COMMENT, mode);
+    let peek = self.lex_ctx.peek_yaml(SKIP_WC);
 
     match peek.token.kind() {
       SyntaxKind::Newline => {
-        let peek_after = self
-          .lex_ctx
-          .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+        let peek_after = self.lex_ctx.peek_yaml(SKIP_WCN);
         if peek_after.token.kind() == SyntaxKind::YamlIndent {
-          self.parse_block_seq_or_mapping(prefix)
+          self.parse_block_seq_or_mapping(children, peek_after.indent)
         } else {
-          // No indent after newline: parse as formula (will likely produce an error)
-          self.parse_formula_expr(prefix)
+          // No indent after newline: parse as formula
+          self.parse_formula_expr(children, block_indent)
         }
       }
       // `|`, `>`, or `-` at the start
       SyntaxKind::YamlOp => {
         let text: String = peek.token.text().collect();
         match text.as_str() {
-          "|" => self.parse_literal_block_str_lit(prefix),
-          ">" => self.parse_folded_block_str_lit(prefix),
+          "|" => self.parse_literal_block_str_lit(children, block_indent),
+          ">" => self.parse_folded_block_str_lit(children, block_indent),
           "-" => {
             let after = self.lex_ctx.peek_yaml_nth(1, SKIP_NONE);
             if after.token.kind() == SyntaxKind::Whitespace {
-              self.parse_inline_block_seq_lit(prefix)
+              let inline_indent = peek.indent;
+              self.parse_inline_block_seq_lit(children, inline_indent)
             } else {
-              self.parse_formula_expr(prefix)
+              self.parse_formula_expr(children, block_indent)
             }
           }
-          _ => self.parse_formula_expr(prefix),
+          _ => self.parse_formula_expr(children, block_indent),
         }
       }
       // Ident followed by colon: inline mapping
@@ -67,20 +69,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
       // #^^
       // # this is an indent
       SyntaxKind::Ident if mode == LexMode::YamlFrontmatter => {
-        let after_ident = self.lex_ctx.peek_yaml_nth(1, SKIP_WS | SKIP_COMMENT);
+        let after_ident = self.lex_ctx.peek_yaml_nth(1, SKIP_WC);
         if after_ident.token.kind() == SyntaxKind::Colon {
-          self.parse_inline_block_mapping_lit(prefix)
+          let inline_indent = peek.indent;
+          self.parse_inline_block_mapping_lit(children, inline_indent)
         } else {
-          self.parse_formula_expr(prefix)
+          self.parse_formula_expr(children, block_indent)
         }
       }
       // Everything else: formula expression
-      _ => self.parse_formula_expr(prefix),
+      _ => self.parse_formula_expr(children, block_indent),
     }
   }
 
-  fn expr_skip_flags(&self) -> u16 {
-    let mut skip = SKIP_WS | SKIP_COMMENT;
+  // Based on context, determine which trivia we should skip
+  fn formula_expr_skip_flags(&self) -> u16 {
+    let mut skip = SKIP_WC;
     if self.expr_ctx_stack.should_expr_span_newline() {
       skip |= SKIP_NEWLINE;
     }
@@ -90,36 +94,38 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Formula expressions: Pratt-parsed expressions that follow most programming language rules
   pub(in crate::parse) fn parse_formula_expr(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
-    self.pratt_parse_expr(0, prefix)
+    self.pratt_parse_expr(0, children, block_indent)
   }
 
   fn pratt_parse_expr(
     &mut self,
     min_bp: u8,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
 
-    // Handle prefix operators
-    let peek = self.lex_ctx.peek(self.expr_skip_flags(), mode);
+    // Handle children operators
+    let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
     let (mut lhs, early_exit) = if peek.token.kind() == SyntaxKind::YamlOp {
       let op_text: String = peek.token.text().collect();
-      if let Some(((), right_bp)) = prefix_binding_power(&op_text) {
-        let mut children = prefix;
-        // Consume the prefix operator
-        self.advance(&mut children, self.expr_skip_flags(), mode);
-        // Parse operand with the prefix's right binding power
-        let (operand, exit) = self.pratt_parse_expr(right_bp, vec![]);
+      if let Some(((), right_bp)) = children_binding_power(&op_text) {
+        let mut children = children;
+        // Consume the children operator
+        self.advance(&mut children, self.formula_expr_skip_flags(), mode);
+        // Parse operand with the children's right binding power
+        let (operand, exit) = self.pratt_parse_expr(right_bp, vec![], block_indent);
         children.push(operand);
         (self.emit(SyntaxKind::UnaryExpr, &children), exit)
       } else {
-        // Not a prefix op, parse as primary
-        self.parse_primary_expr(prefix)
+        // Not a children op, parse as primary
+        self.parse_primary_expr(children, block_indent)
       }
     } else {
-      self.parse_primary_expr(prefix)
+      self.parse_primary_expr(children, block_indent)
     };
 
     if early_exit.is_some() {
@@ -128,11 +134,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Infix/postfix loop
     loop {
-      let peek = self.lex_ctx.peek(self.expr_skip_flags(), mode);
+      let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
 
       // Check for call expression: ident followed by `(`
       if peek.token.kind() == SyntaxKind::LParen {
-        let (node, exit) = self.parse_call_expr(lhs);
+        let (node, exit) = self.parse_call_expr(lhs, block_indent);
         lhs = node;
         if exit.is_some() {
           return (lhs, exit);
@@ -153,7 +159,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           break;
         }
         let mut children = vec![lhs];
-        self.advance(&mut children, self.expr_skip_flags(), mode);
+        self.advance(&mut children, self.formula_expr_skip_flags(), mode);
         lhs = self.emit(SyntaxKind::UnaryExpr, &children);
         continue;
       }
@@ -165,9 +171,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
         let mut children = vec![lhs];
         // Consume the infix operator
-        self.advance(&mut children, self.expr_skip_flags(), mode);
+        self.advance(&mut children, self.formula_expr_skip_flags(), mode);
         // Parse right-hand side
-        let (rhs, exit) = self.pratt_parse_expr(right_bp, vec![]);
+        let (rhs, exit) = self.pratt_parse_expr(right_bp, vec![], block_indent);
         children.push(rhs);
         lhs = self.emit(SyntaxKind::BinaryExpr, &children);
         if exit.is_some() {
@@ -185,10 +191,19 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
   /// Parse a call expression: `callee(arg1, arg2, ...)`.
   /// `callee` has already been parsed and is passed in.
-  fn parse_call_expr(&mut self, callee: GreenNode) -> (GreenNode, Option<ExprCtx>) {
+  fn parse_call_expr(
+    &mut self,
+    callee: GreenNode,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
-      self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind() == SyntaxKind::LParen,
+      self
+        .lex_ctx
+        .peek(self.formula_expr_skip_flags(), mode)
+        .token
+        .kind()
+        == SyntaxKind::LParen,
       "[ParseCtx::parse_call_expr] Expected next token to be LParen"
     );
 
@@ -196,10 +211,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.expr_ctx_stack.enter(ExprCtx::Call);
 
     // Consume `(`
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
 
     // Check for empty args `()`
-    let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+    let peek = self.lex_ctx.peek(SKIP_WCN, mode);
     if peek.token.kind() == SyntaxKind::RParen {
       self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
       self.expr_ctx_stack.exit(ExprCtx::Call);
@@ -207,7 +222,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Parse first argument
-    let (arg, early_exit) = self.parse_expr();
+    let (arg, early_exit) = self.parse_expr(block_indent);
     children.push(arg);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
       self.expr_ctx_stack.exit(ExprCtx::Call);
@@ -232,7 +247,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             break;
           }
 
-          let (arg, early_exit) = self.parse_expr();
+          let (arg, early_exit) = self.parse_expr(block_indent);
           children.push(arg);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
             self.expr_ctx_stack.exit(ExprCtx::Call);
@@ -288,21 +303,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a primary expression (an operand): literal, ident, paren, etc.
   pub(in crate::parse) fn parse_primary_expr(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let peek = self.lex_ctx.peek(self.expr_skip_flags(), mode);
+    let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
 
     match peek.token.kind() {
-      SyntaxKind::Number => self.parse_number_lit(prefix),
-      SyntaxKind::DqStrStart => self.parse_dq_str_lit(prefix),
-      SyntaxKind::SqStrStart => self.parse_sq_str_lit(prefix),
-      SyntaxKind::InlineCode | SyntaxKind::CodeBlock => self.parse_code_lit(prefix),
-      SyntaxKind::InlineMath | SyntaxKind::MathBlock => self.parse_math_lit(prefix),
-      SyntaxKind::Ident => self.parse_ident_lit(prefix),
-      SyntaxKind::LParen => self.parse_paren_expr(prefix),
-      SyntaxKind::LBracket => self.parse_list_lit(prefix),
-      SyntaxKind::LBrace => self.parse_dict_lit(prefix),
+      SyntaxKind::Number => self.parse_number_lit(children, block_indent),
+      SyntaxKind::DqStrStart => self.parse_dq_str_lit(children, block_indent),
+      SyntaxKind::SqStrStart => self.parse_sq_str_lit(children, block_indent),
+      SyntaxKind::InlineCode | SyntaxKind::CodeBlock => self.parse_code_lit(children, block_indent),
+      SyntaxKind::InlineMath | SyntaxKind::MathBlock => self.parse_math_lit(children, block_indent),
+      SyntaxKind::Ident => self.parse_ident_lit(children, block_indent),
+      SyntaxKind::LParen => self.parse_paren_expr(children, block_indent),
+      SyntaxKind::LBracket => self.parse_list_lit(children, block_indent),
+      SyntaxKind::LBrace => self.parse_dict_lit(children, block_indent),
       _ => {
         // Check if an outer context can handle this token
         let handler = self.expr_ctx_stack.find_handler(&peek.token);
@@ -313,11 +329,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
             start_offset: self.offset(),
             end_offset: self.offset(),
           });
-          (self.emit(SyntaxKind::PrimaryExpr, &prefix), handler)
+          (self.emit(SyntaxKind::PrimaryExpr, &children), handler)
         } else {
           // No one can handle it: consume as error
-          let mut children = prefix;
-          self.advance(&mut children, self.expr_skip_flags(), mode);
+          let mut children = children;
+          self.advance(&mut children, self.formula_expr_skip_flags(), mode);
           let bad = children.pop().unwrap();
           children.push(self.emit(SyntaxKind::Error, &[bad]));
           self.diagnostics.push(Diagnostic::MissingSyntaxNode {
@@ -334,7 +350,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a parenthesized expression: `(expr)`.
   pub(in crate::parse) fn parse_paren_expr(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self
@@ -345,7 +362,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         == SyntaxKind::LParen,
       "[ParseCtx::parse_paren_expr] Expected next token to be LParen"
     );
-    let mut children = prefix;
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::Paren);
 
     // Consume `(`
@@ -363,7 +380,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     // Parse inner expression
-    let (inner, early_exit) = self.parse_formula_expr(vec![]);
+    let (inner, early_exit) = self.parse_formula_expr(vec![], block_indent);
     children.push(inner);
 
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::Paren) {
@@ -392,11 +409,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a flow list literal: `[expr, expr, ...]`.
   pub(in crate::parse) fn parse_list_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
-    let outer_skip = self.expr_skip_flags()
+    let outer_skip = self.formula_expr_skip_flags()
       | if self.expr_ctx_stack.should_expr_skip_indent() {
-        SKIP_INDENT_DEDENT
+        SKIP_INDENT
       } else {
         0
       };
@@ -411,7 +429,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     let mode = self.lex_ctx.mode();
-    let mut children = prefix;
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::List);
 
     // Consume `[`
@@ -437,7 +455,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Parse first item (no leading comma)
-    let (item, early_exit) = self.parse_expr();
+    let (item, early_exit) = self.parse_expr(block_indent);
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::List) {
       self.expr_ctx_stack.exit(ExprCtx::List);
@@ -464,7 +482,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             break;
           }
 
-          let (item, early_exit) = self.parse_expr();
+          let (item, early_exit) = self.parse_expr(block_indent);
           children.push(item);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::List) {
             self.expr_ctx_stack.exit(ExprCtx::List);
@@ -524,16 +542,17 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a block expression (sequence or mapping) after a newline.
   pub(in crate::parse) fn parse_block_seq_or_mapping(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let mut children = prefix;
+    let mut children = children;
 
     // Consume indent
     let offset = self.offset();
     self.consume(
       &mut children,
-      SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
+      SKIP_WCN,
       mode,
       SyntaxKind::YamlIndent,
       Diagnostic::MissingSyntaxNode {
@@ -544,41 +563,28 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     // Peek to decide: `-` means sequence, `ident` means mapping
-    let peek = self
-      .lex_ctx
-      .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    let peek = self.lex_ctx.peek(SKIP_WCN, mode);
 
-    let (node, kind, early_exit) =
-      if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
-        let (seq, early_exit) = self.parse_block_seq_lit();
-        (seq, SyntaxKind::BlockSeqLit, early_exit)
-      } else {
-        let (mapping, early_exit) = self.parse_block_mapping_lit();
-        (mapping, SyntaxKind::BlockMappingLit, early_exit)
-      };
-    children.push(node);
-
-    // Consume the matching dedent
-    let dedent_peek = self
-      .lex_ctx
-      .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
-    if dedent_peek.token.kind() == SyntaxKind::YamlDedent {
-      self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
+      self.parse_block_seq_lit(children, block_indent)
+    } else {
+      self.parse_block_mapping_lit(children, block_indent)
     }
-
-    (self.emit(kind, &children), early_exit)
   }
 
-  /// Parse a block sequence literal: lines starting with `-`.
-  /// Continuation entries require an indent on subsequent lines.
+  /// Parse a block sequence literal: Start with `-` on the current line, not on a new line with indentation
   /// INVARIANT: Next token must be - followed by a whitespace.
-  fn parse_inline_block_seq_lit(&mut self, prefix: Vec<GreenNode>) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_inline_block_seq_lit(
+    &mut self,
+    children: Vec<GreenNode>,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let mut children = prefix;
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::BlockSeq);
 
     // Parse first item on the current line
-    let (item, early_exit) = self.parse_block_seq_item();
+    let (item, early_exit) = self.parse_block_seq_item(block_indent);
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
       self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
@@ -597,15 +603,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
 
+        if self.is_block_dedent(&peek.token, block_indent) {
+          break;
+        }
         match peek.token.kind() {
-          SyntaxKind::YamlDedent => {
-            // Consume the dedent matching the indent we consumed
+          SyntaxKind::YamlIndent => {
             self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
-            break;
           }
-          SyntaxKind::Eof => break,
           SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => {
-            let (item, early_exit) = self.parse_block_seq_item();
+            let (item, early_exit) = self.parse_block_seq_item(block_indent);
             children.push(item);
             if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
               self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
@@ -631,9 +637,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     (self.emit(SyntaxKind::BlockSeqLit, &children), None)
   }
 
-  pub(in crate::parse) fn parse_block_seq_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_block_seq_lit(
+    &mut self,
+    children: Vec<GreenNode>,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let mut children = vec![];
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::BlockSeq);
 
     // Parse items
@@ -642,10 +652,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
         .lex_ctx
         .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
 
+      if self.is_block_dedent(&peek.token, block_indent) {
+        break;
+      }
       match peek.token.kind() {
-        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+        SyntaxKind::YamlIndent => {
+          self.advance(&mut children, SKIP_WCN, mode);
+        }
         SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => {
-          let (item, early_exit) = self.parse_block_seq_item();
+          let (item, early_exit) = self.parse_block_seq_item(block_indent);
           children.push(item);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
             self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
@@ -671,15 +686,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a single block sequence item: `- expr`.
-  fn parse_block_seq_item(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  fn parse_block_seq_item(&mut self, block_indent: usize) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     let mut children = vec![];
 
     // Consume `-`
-    self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    self.advance(&mut children, SKIP_WCN, mode);
 
     // Parse the value expression
-    let (value, early_exit) = self.parse_expr();
+    let (value, early_exit) = self.parse_expr(block_indent);
     children.push(value);
 
     (self.emit(SyntaxKind::SequenceItem, &children), early_exit)
@@ -688,11 +703,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a flow mapping literal: `{key: value, ...}`.
   pub(in crate::parse) fn parse_dict_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
-    let outer_skip = self.expr_skip_flags()
+    let outer_skip = self.formula_expr_skip_flags()
       | if self.expr_ctx_stack.should_expr_skip_indent() {
-        SKIP_INDENT_DEDENT
+        SKIP_INDENT
       } else {
         0
       };
@@ -707,7 +723,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     let mode = self.lex_ctx.mode();
-    let mut children = prefix;
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::Dict);
 
     // Consume `{`
@@ -733,7 +749,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Parse first entry
-    let (entry, early_exit) = self.parse_dict_entry_lit();
+    let (entry, early_exit) = self.parse_dict_entry_lit(block_indent);
     children.push(entry);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::Dict) {
       self.expr_ctx_stack.exit(ExprCtx::Dict);
@@ -760,7 +776,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             break;
           }
 
-          let (entry, early_exit) = self.parse_dict_entry_lit();
+          let (entry, early_exit) = self.parse_dict_entry_lit(block_indent);
           children.push(entry);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::Dict) {
             self.expr_ctx_stack.exit(ExprCtx::Dict);
@@ -796,7 +812,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a single mapping entry: `key: value`.
-  fn parse_dict_entry_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  fn parse_dict_entry_lit(&mut self, block_indent: usize) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     let mut children = vec![];
 
@@ -856,7 +872,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         (self.emit(SyntaxKind::DictEntry, &children), None)
       }
       _ => {
-        let (value_expr, early_exit) = self.parse_expr();
+        let (value_expr, early_exit) = self.parse_expr(block_indent);
         children.push(self.emit(SyntaxKind::DictEntryValue, &[value_expr]));
         (self.emit(SyntaxKind::DictEntry, &children), early_exit)
       }
@@ -883,13 +899,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
     result
   }
 
-  // Stop on `-` (YamlOp), YamlDedent, Newline, Eof
+  // Stop on `-` (YamlOp), dedentation, Newline, Eof
   fn synchronize_block_seq(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
       match peek.token.kind() {
-        SyntaxKind::YamlDedent | SyntaxKind::Newline | SyntaxKind::Eof => break None,
+        SyntaxKind::YamlIndent | SyntaxKind::Newline | SyntaxKind::Eof => break None,
         SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => break None,
         _ => {
           if let Some(ctx) = self.consume_or_delegate(ExprCtx::BlockSeq, &mut error_children) {
@@ -904,7 +920,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     result
   }
 
-  // Stop on Ident, Colon, YamlDedent, Newline, Eof
+  // Stop on Ident, Colon, Dedentation, Newline, Eof
   fn synchronize_block_mapping(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let mut error_children = vec![];
     let result = loop {
@@ -912,7 +928,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       match peek.token.kind() {
         SyntaxKind::Ident
         | SyntaxKind::Colon
-        | SyntaxKind::YamlDedent
+        | SyntaxKind::YamlIndent
         | SyntaxKind::Newline
         | SyntaxKind::Eof => break None,
         _ => {
@@ -931,21 +947,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a literal block string: `|` followed by indented content.
   pub(in crate::parse) fn parse_literal_block_str_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       {
-        let peek = self.lex_ctx.peek(self.expr_skip_flags(), mode);
+        let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
         peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "|"
       },
       "[ParseCtx::parse_literal_block_str_lit] Expected next token to be `|`"
     );
 
-    let mut children = prefix;
+    let mut children = children;
 
     // Consume `|`
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
 
     // Expect newline after `|`
     let offset = self.offset();
@@ -978,12 +995,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume content until dedent or EOF
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
-      match peek.token.kind() {
-        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
-        _ => {
-          self.advance(&mut children, SKIP_NONE, mode);
-        }
+      if self.is_block_dedent(&peek.token, block_indent) {
+        break;
       }
+      self.advance(&mut children, SKIP_NONE, mode);
     }
 
     (self.emit(SyntaxKind::LiteralBlockStrLit, &children), None)
@@ -992,21 +1007,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a folded block string: `>` followed by indented content.
   pub(in crate::parse) fn parse_folded_block_str_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       {
-        let peek = self.lex_ctx.peek(self.expr_skip_flags(), mode);
+        let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
         peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == ">"
       },
       "[ParseCtx::parse_folded_block_str_lit] Expected next token to be `>`"
     );
 
-    let mut children = prefix;
+    let mut children = children;
 
     // Consume `>`
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
 
     // Expect newline after `>`
     let offset = self.offset();
@@ -1039,30 +1055,25 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume content until dedent or EOF
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
-      match peek.token.kind() {
-        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
-        _ => {
-          self.advance(&mut children, SKIP_NONE, mode);
-        }
+      if self.is_block_dedent(&peek.token, block_indent) {
+        break;
       }
+      self.advance(&mut children, SKIP_NONE, mode);
     }
 
     (self.emit(SyntaxKind::FoldedBlockStrLit, &children), None)
   }
 
-  /// Parse an inline block mapping: starts with `key: value` on the current line.
-  /// Continuation entries require an indent on subsequent lines.
-  /// INVARIANT: Next token must be Ident followed by Colon.
+  /// Parse an inline block mapping: starts with `key: value` on the current line (not on a newline with indentation).
   fn parse_inline_block_mapping_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    mut children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let mut children = vec![];
     self.expr_ctx_stack.enter(ExprCtx::BlockMap);
 
-    // Parse first entry on the current line, passing prefix so whitespace lands inside the entry
-    let (entry, early_exit) = self.parse_block_mapping_entry(prefix);
+    let (entry, early_exit) = self.parse_block_mapping_entry(vec![], block_indent);
     children.push(entry);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
       self.expr_ctx_stack.exit(ExprCtx::BlockMap);
@@ -1077,22 +1088,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
       .lex_ctx
       .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
     if peek.token.kind() == SyntaxKind::YamlIndent {
-      // Consume indent and parse remaining entries like block_mapping_lit
       self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
       loop {
         let peek = self
           .lex_ctx
           .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
 
+        if self.is_block_dedent(&peek.token, block_indent) {
+          break;
+        }
         match peek.token.kind() {
-          SyntaxKind::YamlDedent => {
-            // Consume the dedent matching the indent we consumed
+          SyntaxKind::YamlIndent => {
             self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
-            break;
           }
-          SyntaxKind::Eof => break,
           SyntaxKind::Ident | SyntaxKind::Colon => {
-            let (entry, early_exit) = self.parse_block_mapping_entry(vec![]);
+            let (entry, early_exit) = self.parse_block_mapping_entry(vec![], block_indent);
             children.push(entry);
             if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
               self.expr_ctx_stack.exit(ExprCtx::BlockMap);
@@ -1122,20 +1132,27 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a block mapping literal (indentation-based `key: value` pairs).
-  pub(in crate::parse) fn parse_block_mapping_lit(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_block_mapping_lit(
+    &mut self,
+    children: Vec<GreenNode>,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let mut children = vec![];
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::BlockMap);
 
     loop {
-      let peek = self
-        .lex_ctx
-        .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+      let peek = self.lex_ctx.peek(SKIP_WCN, mode);
 
+      if self.is_block_dedent(&peek.token, block_indent) {
+        break;
+      }
       match peek.token.kind() {
-        SyntaxKind::YamlDedent | SyntaxKind::Eof => break,
+        SyntaxKind::YamlIndent => {
+          self.advance(&mut children, SKIP_WCN, mode);
+        }
         SyntaxKind::Ident | SyntaxKind::Colon => {
-          let (entry, early_exit) = self.parse_block_mapping_entry(vec![]);
+          let (entry, early_exit) = self.parse_block_mapping_entry(vec![], block_indent);
           children.push(entry);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
             self.expr_ctx_stack.exit(ExprCtx::BlockMap);
@@ -1164,13 +1181,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse a single block mapping entry: `key: value`.
-  fn parse_block_mapping_entry(&mut self, prefix: Vec<GreenNode>) -> (GreenNode, Option<ExprCtx>) {
+  fn parse_block_mapping_entry(
+    &mut self,
+    children: Vec<GreenNode>,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
-    let mut children = prefix;
+    let mut children = children;
 
-    let peek = self
-      .lex_ctx
-      .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
+    let peek = self.lex_ctx.peek(SKIP_WCN, mode);
 
     // Missing key: `:` seen immediately
     if peek.token.kind() == SyntaxKind::Colon {
@@ -1183,9 +1202,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
     } else {
       // Key (identifier)
       let offset = self.offset();
+      let mut key_children = vec![];
       self.consume(
-        &mut children,
-        SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT,
+        &mut key_children,
+        SKIP_WCN,
         mode,
         SyntaxKind::Ident,
         Diagnostic::MissingSyntaxNode {
@@ -1194,8 +1214,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           end_offset: self.offset(),
         },
       );
-      let key_token = children.pop().unwrap();
-      children.push(self.emit(SyntaxKind::MappingEntryKey, &[key_token]));
+      children.push(self.emit(SyntaxKind::MappingEntryKey, &key_children));
     }
 
     // Colon
@@ -1211,20 +1230,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Value: check for newline + indent (nested block) or inline expression
-    let peek = self.lex_ctx.peek(SKIP_WS | SKIP_COMMENT, mode);
+    let peek = self.lex_ctx.peek(SKIP_WC, mode);
     match peek.token.kind() {
       // Newline: could be a nested block (seq or mapping)
       SyntaxKind::Newline => {
         // Peek past the newline to see if indent follows
-        let peek_after = self
-          .lex_ctx
-          .peek(SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
-        if peek_after.token.kind() == SyntaxKind::YamlIndent {
-          let (nested, early_exit) = self.parse_block_seq_or_mapping(vec![]);
+        let peek_after = self.lex_ctx.peek_yaml(SKIP_WCN);
+        if peek_after.token.kind() == SyntaxKind::YamlIndent
+          && peek_after.indent > block_indent
+        {
+          let (nested, early_exit) = self.parse_block_seq_or_mapping(vec![], peek_after.indent);
           children.push(self.emit(SyntaxKind::MappingEntryValue, &[nested]));
           return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
         } else {
-          // Empty value (newline without indent)
+          self.advance(&mut children, SKIP_WCN, mode);
           self.diagnostics.push(Diagnostic::MissingSyntaxNode {
             expected: SyntaxKind::MappingEntryValue,
             start_offset: self.offset(),
@@ -1233,8 +1252,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(self.emit(SyntaxKind::MappingEntryValue, &[]));
         }
       }
-      // Dedent or EOF: missing value
-      SyntaxKind::YamlDedent | SyntaxKind::Eof => {
+      // EOF: missing value
+      SyntaxKind::Eof => {
         self.diagnostics.push(Diagnostic::MissingSyntaxNode {
           expected: SyntaxKind::MappingEntryValue,
           start_offset: self.offset(),
@@ -1244,7 +1263,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
       // Inline value
       _ => {
-        let (value, early_exit) = self.parse_expr();
+        let (value, early_exit) = self.parse_expr(block_indent);
         children.push(self.emit(SyntaxKind::MappingEntryValue, &[value]));
         return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
       }
@@ -1256,17 +1275,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a double-quoted string literal with interpolation: `"content ${expr} content"`.
   pub(in crate::parse) fn parse_dq_str_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
-      self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind() == SyntaxKind::DqStrStart,
+      self
+        .lex_ctx
+        .peek(self.formula_expr_skip_flags(), mode)
+        .token
+        .kind()
+        == SyntaxKind::DqStrStart,
       "[ParseCtx::parse_dq_str_lit] Expected next token to be DqStrStart"
     );
 
-    let mut children = prefix;
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::DqString);
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
 
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
@@ -1276,7 +1301,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           break;
         }
         SyntaxKind::InterpStart => {
-          let (fragment, early_exit) = self.parse_interp_fragment();
+          let (fragment, early_exit) = self.parse_interp_fragment(block_indent);
           children.push(fragment);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::DqString) {
             self.expr_ctx_stack.exit(ExprCtx::DqString);
@@ -1284,7 +1309,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           }
         }
         SyntaxKind::InlineMath => {
-          let (math, early_exit) = self.parse_math_lit(vec![]);
+          let (math, early_exit) = self.parse_math_lit(vec![], block_indent);
           children.push(math);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::DqString) {
             self.expr_ctx_stack.exit(ExprCtx::DqString);
@@ -1308,17 +1333,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a single-quoted string literal with interpolation: `'content ${expr} content'`.
   pub(in crate::parse) fn parse_sq_str_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
-      self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind() == SyntaxKind::SqStrStart,
+      self
+        .lex_ctx
+        .peek(self.formula_expr_skip_flags(), mode)
+        .token
+        .kind()
+        == SyntaxKind::SqStrStart,
       "[ParseCtx::parse_sq_str_lit] Expected next token to be SqStrStart"
     );
 
-    let mut children = prefix;
+    let mut children = children;
     self.expr_ctx_stack.enter(ExprCtx::SqString);
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
 
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
@@ -1328,7 +1359,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           break;
         }
         SyntaxKind::InterpStart => {
-          let (fragment, early_exit) = self.parse_interp_fragment();
+          let (fragment, early_exit) = self.parse_interp_fragment(block_indent);
           children.push(fragment);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::SqString) {
             self.expr_ctx_stack.exit(ExprCtx::SqString);
@@ -1336,7 +1367,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           }
         }
         SyntaxKind::InlineMath => {
-          let (math, early_exit) = self.parse_math_lit(vec![]);
+          let (math, early_exit) = self.parse_math_lit(vec![], block_indent);
           children.push(math);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::SqString) {
             self.expr_ctx_stack.exit(ExprCtx::SqString);
@@ -1358,7 +1389,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Parse an interpolation fragment: `${...}` inside a string.
-  pub(in crate::parse) fn parse_interp_fragment(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::parse) fn parse_interp_fragment(
+    &mut self,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       self.lex_ctx.peek(SKIP_NONE, mode).token.kind() == SyntaxKind::InterpStart,
@@ -1372,7 +1406,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.advance(&mut children, SKIP_NONE, mode);
 
     // Parse the expression inside
-    let (inner, early_exit) = self.parse_formula_expr(vec![]);
+    let (inner, early_exit) = self.parse_formula_expr(vec![], block_indent);
     children.push(inner);
 
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::Interp) {
@@ -1402,18 +1436,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Wraps a single InlineMath or MathBlock token.
   pub(in crate::parse) fn parse_math_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       matches!(
-        self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind(),
+        self
+          .lex_ctx
+          .peek(self.formula_expr_skip_flags(), mode)
+          .token
+          .kind(),
         SyntaxKind::InlineMath | SyntaxKind::MathBlock
       ),
       "[ParseCtx::parse_math_lit] Expected next token to be InlineMath or MathBlock"
     );
-    let mut children = prefix;
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    let mut children = children;
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
     (self.emit(SyntaxKind::MathLit, &children), None)
   }
 
@@ -1421,18 +1460,23 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Wraps a single InlineCode or CodeBlock token.
   pub(in crate::parse) fn parse_code_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
       matches!(
-        self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind(),
+        self
+          .lex_ctx
+          .peek(self.formula_expr_skip_flags(), mode)
+          .token
+          .kind(),
         SyntaxKind::InlineCode | SyntaxKind::CodeBlock
       ),
       "[ParseCtx::parse_code_lit] Expected next token to be InlineCode or CodeBlock"
     );
-    let mut children = prefix;
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    let mut children = children;
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
     (self.emit(SyntaxKind::CodeLit, &children), None)
   }
 
@@ -1440,15 +1484,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Wraps a single Number token.
   pub(in crate::parse) fn parse_number_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
-      self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind() == SyntaxKind::Number,
+      self
+        .lex_ctx
+        .peek(self.formula_expr_skip_flags(), mode)
+        .token
+        .kind()
+        == SyntaxKind::Number,
       "[ParseCtx::parse_number_lit] Expected next token to be Number"
     );
-    let mut children = prefix;
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    let mut children = children;
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
     (self.emit(SyntaxKind::NumberLit, &children), None)
   }
 
@@ -1456,15 +1506,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Wraps a single Ident token.
   pub(in crate::parse) fn parse_ident_lit(
     &mut self,
-    prefix: Vec<GreenNode>,
+    children: Vec<GreenNode>,
+    block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
-      self.lex_ctx.peek(self.expr_skip_flags(), mode).token.kind() == SyntaxKind::Ident,
+      self
+        .lex_ctx
+        .peek(self.formula_expr_skip_flags(), mode)
+        .token
+        .kind()
+        == SyntaxKind::Ident,
       "[ParseCtx::parse_ident_lit] Expected next token to be Ident"
     );
-    let mut children = prefix;
-    self.advance(&mut children, self.expr_skip_flags(), mode);
+    let mut children = children;
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
     (self.emit(SyntaxKind::IdentLit, &children), None)
   }
 
@@ -1486,7 +1542,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 }
 
-pub(in crate::parse) fn prefix_binding_power(op: &str) -> Option<((), u8)> {
+pub(in crate::parse) fn children_binding_power(op: &str) -> Option<((), u8)> {
   let bp = match op {
     _ if op.starts_with('!') => 1,
     "~" | "-" | "+" => 15,

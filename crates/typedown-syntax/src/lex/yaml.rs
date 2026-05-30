@@ -128,10 +128,6 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Indentation */
 
-  fn current_indent(&self) -> usize {
-    *self.yaml_lex_ctx.indent_stack.last().unwrap_or(&0)
-  }
-
   pub(in crate::lex) fn lex_yaml_indent(&mut self) -> Option<LexResult> {
     self.yaml_lex_ctx.at_line_start = false;
 
@@ -155,7 +151,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       }
     }
 
-    // Empty line: emit one Whitespace token per char, no indent/dedent
+    // Empty line: emit one Whitespace token per char, no indent
     if matches!(
       self.peek(),
       Utf8Result::Char('\n') | Utf8Result::Char('\r') | Utf8Result::Eof
@@ -209,55 +205,12 @@ impl<S: Utf8Stream> LexCtx<S> {
       None
     };
 
-    let current = self.current_indent();
-
-    if indent > current {
-      self.yaml_lex_ctx.indent_stack.push(indent);
-      self.text_buffer.clear();
+    // Emit YamlIndent for any leading whitespace on a non-empty line
+    if !self.text_buffer.is_empty() {
       return Some(match diagnostic {
         Some(diag) => self.emit_with(SyntaxKind::YamlIndent, diag),
         None => self.emit(SyntaxKind::YamlIndent),
       });
-    } else if indent < current {
-      let mut dedents = 0;
-      while let Some(&top) = self.yaml_lex_ctx.indent_stack.last() {
-        if top > indent {
-          self.yaml_lex_ctx.indent_stack.pop();
-          dedents += 1;
-        } else {
-          break;
-        }
-      }
-
-      let diagnostic = if indent != self.current_indent() {
-        Some(diagnostic.unwrap_or(Diagnostic::UnmatchedDedent {
-          indent,
-          start_offset: start,
-          end_offset: self.stream.offset(),
-        }))
-      } else {
-        diagnostic
-      };
-
-      if dedents > 0 {
-        self.text_buffer.clear();
-        let first = match diagnostic {
-          Some(diag) => self.emit_with(SyntaxKind::YamlDedent, diag),
-          None => self.emit(SyntaxKind::YamlDedent),
-        };
-        for _ in 1..dedents {
-          self.pending_tokens.push(LexResult {
-            token: self.cache.borrow_mut().token(SyntaxKind::YamlDedent, &[]),
-            diagnostic: None,
-          });
-        }
-        return Some(first);
-      }
-    }
-
-    // Same indent level: emit whitespace if any was consumed
-    if !self.text_buffer.is_empty() {
-      return Some(self.emit(SyntaxKind::Whitespace));
     }
 
     None

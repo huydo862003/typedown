@@ -5,7 +5,7 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 use super::constants::*;
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
-use crate::green::GreenNode;
+use crate::green::{GreenNode, SyntaxToken};
 use crate::lex::ctx::LexMode;
 use typedown_types::syntax_kind::SyntaxKind;
 
@@ -63,22 +63,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let start_offset = self.offset();
     self.consume_yaml_if(
       &mut children,
-      SKIP_NEWLINE | SKIP_WS | SKIP_DEDENT,
+      SKIP_NEWLINE | SKIP_WS | SKIP_INDENT,
       |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
       Diagnostic::MissingFrontmatterMarker {
         offset: start_offset,
       },
     );
-    let end_offset = self.offset();
-
-    if self.lex_ctx.yaml_indent() != 0 {
-      self
-        .diagnostics
-        .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
-          start_offset,
-          end_offset,
-        });
-    }
 
     // Expect newline after closing ---
     self.expect_end_of_line(
@@ -124,7 +114,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.expr_ctx_stack.enter(ExprCtx::YamlFrontmatter);
 
     let early_exit = if !self.should_end_yaml_frontmatter() {
-      let (mapping, early_exit) = self.parse_block_mapping_lit();
+      let (mapping, early_exit) = self.parse_block_mapping_lit(vec![], 0);
       children.push(mapping);
       early_exit
     } else {
@@ -137,13 +127,22 @@ impl<S: Utf8Stream> ParseCtx<S> {
 }
 
 impl<S: Utf8Stream> ParseCtx<S> {
+  /// Whether the token is EOF or a YamlIndent with less than the current block indent.
+  pub(in crate::parse) fn is_block_dedent(&self, token: &SyntaxToken, block_indent: usize) -> bool {
+    match token.kind() {
+      SyntaxKind::Eof => true,
+      SyntaxKind::YamlIndent => token.text().count() < block_indent,
+      _ => false,
+    }
+  }
+
   /// YAML should end when encounter:
   /// - EOF
   /// - Triple dash at indent level 0
   fn should_end_yaml_frontmatter(&mut self) -> bool {
     let peek = self
       .lex_ctx
-      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_WS | SKIP_DEDENT);
+      .peek_yaml(SKIP_NEWLINE | SKIP_COMMENT | SKIP_WS | SKIP_INDENT);
 
     match peek.token.kind() {
       SyntaxKind::Eof => true,

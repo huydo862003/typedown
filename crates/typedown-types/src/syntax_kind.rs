@@ -98,7 +98,6 @@ pub enum SyntaxKind {
   YamlOp,      // operators: +, -, ., ->, ==, !string, etc.
   YamlComment, // # ...
   YamlIndent,
-  YamlDedent,
 
   // Markdown mode tokens
   MdSymbol,    // any consecutive special chars (#, **, ~~, ---, :::, etc.)

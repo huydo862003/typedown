@@ -7,17 +7,17 @@ use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use crate::{
   lex::ctx::{LexCtx, LexMode, LexResult},
-  parse::constants::{SKIP_COMMENT, SKIP_DEDENT, SKIP_INDENT, SKIP_NEWLINE, SKIP_WS},
+  parse::constants::{SKIP_COMMENT, SKIP_INDENT, SKIP_NEWLINE, SKIP_WS},
 };
 
 pub struct YamlLexResult {
   result: LexResult,
-  /// Absolute YAML indent depth at the peeked token.
-  pub indent: isize,
+  /// The most recent YamlIndent text length seen while reaching this token.
+  pub indent: usize,
 }
 
 impl YamlLexResult {
-  pub(in crate::parse) fn new(result: LexResult, indent: isize) -> Self {
+  pub(in crate::parse) fn new(result: LexResult, indent: usize) -> Self {
     Self { result, indent }
   }
 }
@@ -68,8 +68,10 @@ pub struct PeekableLexCtx<S: Utf8Stream> {
   token_buffer: VecDeque<LexResult>,
   /// Whether the last non-whitespace token was a Newline (or we're at start of input).
   after_newline: bool,
-  /// Cumulative YAML indent depth.
-  yaml_indent: isize,
+  /// Total text length of all tokens since the last newline (column offset).
+  token_indent: usize,
+  /// The text length of the most recent YamlIndent token (the line's leading indentation).
+  block_indent: usize,
 }
 
 impl<S: Utf8Stream> PeekableLexCtx<S> {
@@ -78,16 +80,17 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       lex_ctx,
       token_buffer: VecDeque::default(),
       after_newline: true,
-      yaml_indent: 0,
+      token_indent: 0,
+      block_indent: 0,
     }
   }
 
-  pub fn yaml_indent(&self) -> isize {
-    debug_assert!(
-      self.lex_ctx.mode() == LexMode::YamlFrontmatter,
-      "[PeekableLexCtx::yaml_indent] Lex mode must be YamlFrontmatter"
-    );
-    self.yaml_indent
+  pub fn token_indent(&self) -> usize {
+    self.token_indent
+  }
+
+  pub fn block_indent(&self) -> usize {
+    self.block_indent
   }
 
   pub fn lex(&mut self) -> LexResult {
@@ -97,18 +100,23 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       None => self.lex_ctx.lex(),
     };
 
-    // Track YAML indent depth
     match result.token.kind() {
-      SyntaxKind::YamlIndent => self.yaml_indent += 1,
-      SyntaxKind::YamlDedent => self.yaml_indent -= 1,
-      _ => {}
-    }
-
-    // Track line position
-    match result.token.kind() {
-      SyntaxKind::Newline => self.after_newline = true,
-      SyntaxKind::Whitespace => {} // whitespace doesn't change line position
-      _ => self.after_newline = false,
+      SyntaxKind::Newline => {
+        self.after_newline = true;
+        self.token_indent = 0;
+        self.block_indent = 0;
+      }
+      SyntaxKind::YamlIndent => {
+        self.block_indent = result.token.text().count();
+        self.token_indent += self.block_indent;
+      }
+      SyntaxKind::Whitespace => {
+        self.token_indent += result.token.text().count();
+      }
+      _ => {
+        self.token_indent += result.token.text().count();
+        self.after_newline = false;
+      }
     }
 
     result
@@ -138,7 +146,8 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     );
 
     let saved_after_newline = self.after_newline;
-    let saved_yaml_indent = self.yaml_indent;
+    let saved_token_indent = self.token_indent;
+    let saved_block_indent = self.block_indent;
     let mut prefetch: VecDeque<LexResult> = VecDeque::new();
     let mut found = 0;
 
@@ -166,11 +175,11 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
     for token in prefetch.into_iter().rev() {
       self.token_buffer.push_front(token);
     }
-    let peeked_indent = self.yaml_indent;
 
-    // Restore state to pre-peek
+    let peeked_indent = self.token_indent;
     self.after_newline = saved_after_newline;
-    self.yaml_indent = saved_yaml_indent;
+    self.token_indent = saved_token_indent;
+    self.block_indent = saved_block_indent;
 
     YamlLexResult::new(result, peeked_indent)
   }
@@ -225,7 +234,6 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       SyntaxKind::YamlComment => skip & SKIP_COMMENT != 0,
       SyntaxKind::Newline => skip & SKIP_NEWLINE != 0,
       SyntaxKind::YamlIndent => skip & SKIP_INDENT != 0,
-      SyntaxKind::YamlDedent => skip & SKIP_DEDENT != 0,
       _ => false,
     }
   }
