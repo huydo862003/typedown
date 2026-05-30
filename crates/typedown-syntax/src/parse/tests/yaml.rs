@@ -417,7 +417,6 @@ fn inline_nested_sequence() {
   - - 1
   - - 2"#,
   );
-  eprintln!("{}", tree);
   assert!(tree.contains("BlockSeqLit"));
 }
 
@@ -521,12 +520,8 @@ fn inline_nested_sequence_multi_items() {
   - - 3
     - 4"#
   );
-  let (ast, diags) = parse(&full);
+  let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
-  for d in &diags {
-    eprintln!("DIAG: {:?}", d);
-  }
   assert!(!tree.contains("Error"));
 }
 
@@ -554,12 +549,8 @@ config:
 extra:
   enabled: true"#
   );
-  let (ast, diags) = parse(&full);
+  let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
-  for d in &diags {
-    eprintln!("DIAG: {:?}", d);
-  }
   assert!(!tree.contains("Error"));
 }
 
@@ -946,7 +937,6 @@ fn seq_with_folded_block_string() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(tree.contains("FoldedBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
@@ -964,7 +954,6 @@ fn seq_with_literal_block_string() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(tree.contains("LiteralBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
@@ -981,7 +970,6 @@ title: hello"#
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(tree.contains("FoldedBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
@@ -998,7 +986,6 @@ title: hello"#
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(tree.contains("LiteralBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
@@ -1022,7 +1009,6 @@ settings:
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(tree.contains("FoldedBlockStrLit"));
   assert!(tree.contains("LiteralBlockStrLit"));
   assert!(!tree.contains("Error"));
@@ -1041,7 +1027,6 @@ fn deep_nested_with_block_string() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(tree.contains("FoldedBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
@@ -1059,6 +1044,5 @@ fn seq_empty_dash_then_nested() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  eprintln!("{}", tree);
   assert!(!tree.contains("Error"));
 }
