@@ -2,8 +2,9 @@
 //! Each AST type checks the SyntaxKind on cast, providing a type-safe API
 //! over the generic tree structure.
 
+use typedown_macros::AstNode;
+
 use crate::red::RedNode;
-use typedown_types::syntax_kind::SyntaxKind;
 
 /// All AST nodes implement this trait.
 pub trait AstNode: Sized {
@@ -26,16 +27,5 @@ fn children<T: AstNode>(parent: &RedNode) -> impl Iterator<Item = T> {
 /* Top-level nodes */
 
 /// The root of a TDR file: frontmatter + body.
+#[derive(AstNode)]
 pub struct SourceFile(RedNode);
-
-impl AstNode for SourceFile {
-  fn cast(syntax: RedNode) -> Option<Self> {
-    match syntax.kind() {
-      SyntaxKind::SourceFile => Some(Self(syntax)),
-      _ => None,
-    }
-  }
-  fn syntax(&self) -> &RedNode {
-    &self.0
-  }
-}
