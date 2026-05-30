@@ -36,7 +36,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::Newline => {
         let peek_after = self.lex_ctx.peek_yaml(SKIP_WCN);
         if peek_after.token.kind() == SyntaxKind::YamlIndent {
-          self.parse_block_seq_or_mapping(children, peek_after.indent)
+          self.parse_block_seq_or_mapping(children, peek_after.block_indent)
         } else {
           // No indent after newline: parse as formula
           self.parse_formula_expr(children, block_indent)
@@ -51,7 +51,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           "-" => {
             let after = self.lex_ctx.peek_yaml_nth(1, SKIP_NONE);
             if after.token.kind() == SyntaxKind::Whitespace {
-              let inline_indent = peek.indent;
+              let inline_indent = peek.token_indent - peek.token.text().count();
               self.parse_inline_block_seq_lit(children, inline_indent)
             } else {
               self.parse_formula_expr(children, block_indent)
@@ -71,7 +71,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::Ident if mode == LexMode::YamlFrontmatter => {
         let after_ident = self.lex_ctx.peek_yaml_nth(1, SKIP_WC);
         if after_ident.token.kind() == SyntaxKind::Colon {
-          let inline_indent = peek.indent;
+          let inline_indent = peek.token_indent - peek.token.text().count();
           self.parse_inline_block_mapping_lit(children, inline_indent)
         } else {
           self.parse_formula_expr(children, block_indent)
@@ -980,7 +980,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Expect indent
     let offset = self.offset();
-    self.consume(
+    let indent_token = self.consume(
       &mut children,
       SKIP_NONE,
       mode,
@@ -991,11 +991,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
         end_offset: self.offset(),
       },
     );
+    let content_indent = self.lex_ctx.token_indent();
 
     // Consume content until dedent or EOF
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
-      if self.is_block_dedent(&peek.token, block_indent) {
+      if self.is_block_dedent(&peek.token, content_indent) {
         break;
       }
       self.advance(&mut children, SKIP_NONE, mode);
@@ -1040,7 +1041,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Expect indent
     let offset = self.offset();
-    self.consume(
+    let indent_token = self.consume(
       &mut children,
       SKIP_NONE,
       mode,
@@ -1051,11 +1052,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
         end_offset: self.offset(),
       },
     );
+    let content_indent = self.lex_ctx.token_indent();
 
     // Consume content until dedent or EOF
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
-      if self.is_block_dedent(&peek.token, block_indent) {
+      if self.is_block_dedent(&peek.token, content_indent) {
         break;
       }
       self.advance(&mut children, SKIP_NONE, mode);
@@ -1236,10 +1238,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::Newline => {
         // Peek past the newline to see if indent follows
         let peek_after = self.lex_ctx.peek_yaml(SKIP_WCN);
-        if peek_after.token.kind() == SyntaxKind::YamlIndent
-          && peek_after.indent > block_indent
-        {
-          let (nested, early_exit) = self.parse_block_seq_or_mapping(vec![], peek_after.indent);
+        if peek_after.token.kind() == SyntaxKind::YamlIndent && peek_after.block_indent > block_indent {
+          let (nested, early_exit) = self.parse_block_seq_or_mapping(vec![], peek_after.block_indent);
           children.push(self.emit(SyntaxKind::MappingEntryValue, &[nested]));
           return (self.emit(SyntaxKind::MappingEntry, &children), early_exit);
         } else {

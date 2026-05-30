@@ -49,97 +49,111 @@ mod tests {
   #[test]
   fn yaml_triple_dash() {
     let tokens = lex_yaml("---");
-    assert_eq!(tokens[0], (SyntaxKind::YamlOp, "---".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::YamlOp, "---".to_string()));
   }
 
   #[test]
   fn yaml_colon() {
     let tokens = lex_yaml(":");
-    assert_eq!(tokens[0], (SyntaxKind::Colon, ":".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Colon, ":".to_string()));
   }
 
   #[test]
   fn yaml_ident() {
     let tokens = lex_yaml("hello_world");
-    assert_eq!(tokens[0], (SyntaxKind::Ident, "hello_world".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "hello_world".to_string()));
   }
 
   #[test]
   fn yaml_number_integer() {
     let tokens = lex_yaml("42");
-    assert_eq!(tokens[0], (SyntaxKind::Number, "42".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Number, "42".to_string()));
   }
 
   #[test]
   fn yaml_number_decimal() {
     let tokens = lex_yaml("3.14");
-    assert_eq!(tokens[0], (SyntaxKind::Number, "3.14".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Number, "3.14".to_string()));
   }
 
   #[test]
   fn yaml_number_scientific() {
     let tokens = lex_yaml("2.5e10");
-    assert_eq!(tokens[0], (SyntaxKind::Number, "2.5e10".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Number, "2.5e10".to_string()));
   }
 
   #[test]
   fn yaml_number_trailing_dot() {
     let tokens = lex_yaml("1.");
-    assert_eq!(tokens[0], (SyntaxKind::Number, "1.".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Number, "1.".to_string()));
   }
 
   #[test]
   fn yaml_number_missing_exponent_digits() {
     let tokens = lex_yaml("2.5E+");
-    assert_eq!(tokens[0].0, SyntaxKind::Error);
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1].0, SyntaxKind::Error);
   }
 
   #[test]
   fn yaml_dq_string() {
     let tokens = lex_yaml("\"hello\"");
-    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::DqStrContent, "hello".to_string()));
-    assert_eq!(tokens[2], (SyntaxKind::DqStrEnd, "\"".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::DqStrContent, "hello".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::DqStrEnd, "\"".to_string()));
   }
 
   #[test]
   fn yaml_sq_string() {
     let tokens = lex_yaml("'hello'");
-    assert_eq!(tokens[0], (SyntaxKind::SqStrStart, "'".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::SqStrContent, "hello".to_string()));
-    assert_eq!(tokens[2], (SyntaxKind::SqStrEnd, "'".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::SqStrStart, "'".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::SqStrContent, "hello".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::SqStrEnd, "'".to_string()));
   }
 
   #[test]
   fn yaml_empty_string() {
     let tokens = lex_yaml("\"\"");
-    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::DqStrEnd, "\"".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::DqStrEnd, "\"".to_string()));
   }
 
   #[test]
   fn yaml_string_with_escape() {
     let tokens = lex_yaml("\"he\\\"llo\"");
-    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
     assert_eq!(
-      tokens[1],
+      tokens[2],
       (SyntaxKind::DqStrContent, "he\\\"llo".to_string())
     );
-    assert_eq!(tokens[2], (SyntaxKind::DqStrEnd, "\"".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::DqStrEnd, "\"".to_string()));
   }
 
   #[test]
   fn yaml_unterminated_string() {
     let tokens = lex_yaml("\"hello\n");
-    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
-    assert_eq!(tokens[1].0, SyntaxKind::Error);
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[2].0, SyntaxKind::Error);
   }
 
   #[test]
   fn yaml_comment() {
     let tokens = lex_yaml("# this is a comment");
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
     assert_eq!(
-      tokens[0],
+      tokens[1],
       (SyntaxKind::YamlComment, "# this is a comment".to_string())
     );
   }
@@ -163,9 +177,10 @@ mod tests {
   fn yaml_whitespace_after_token() {
     // Whitespace after a token emits Whitespace
     let tokens = lex_yaml("a b");
-    assert_eq!(tokens[0], (SyntaxKind::Ident, "a".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::Whitespace, " ".to_string()));
-    assert_eq!(tokens[2], (SyntaxKind::Ident, "b".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "a".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::Whitespace, " ".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::Ident, "b".to_string()));
   }
 
   #[test]
@@ -184,53 +199,58 @@ mod tests {
   fn yaml_bang_op() {
     // ! immediately followed by alpha is a tag, emitted as a single YamlOp
     let tokens = lex_yaml("!string");
-    assert_eq!(tokens[0], (SyntaxKind::YamlOp, "!string".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::YamlOp, "!string".to_string()));
   }
 
   #[test]
   fn yaml_bang_equals_op() {
     let tokens = lex_yaml("!=");
-    assert_eq!(tokens[0], (SyntaxKind::YamlOp, "!=".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::YamlOp, "!=".to_string()));
   }
 
   #[test]
   fn yaml_arrow_op() {
     let tokens = lex_yaml("->");
-    assert_eq!(tokens[0], (SyntaxKind::YamlOp, "->".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::YamlOp, "->".to_string()));
   }
 
   #[test]
   fn yaml_brackets() {
     let tokens = lex_yaml("[]{}(),");
-    assert_eq!(tokens[0], (SyntaxKind::LBracket, "[".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::RBracket, "]".to_string()));
-    assert_eq!(tokens[2], (SyntaxKind::LBrace, "{".to_string()));
-    assert_eq!(tokens[3], (SyntaxKind::RBrace, "}".to_string()));
-    assert_eq!(tokens[4], (SyntaxKind::LParen, "(".to_string()));
-    assert_eq!(tokens[5], (SyntaxKind::RParen, ")".to_string()));
-    assert_eq!(tokens[6], (SyntaxKind::Comma, ",".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::LBracket, "[".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::RBracket, "]".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::LBrace, "{".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::RBrace, "}".to_string()));
+    assert_eq!(tokens[5], (SyntaxKind::LParen, "(".to_string()));
+    assert_eq!(tokens[6], (SyntaxKind::RParen, ")".to_string()));
+    assert_eq!(tokens[7], (SyntaxKind::Comma, ",".to_string()));
   }
 
   #[test]
   fn yaml_interp_in_string() {
     let tokens = lex_yaml("\"hello ${name}\"");
-    assert_eq!(tokens[0], (SyntaxKind::DqStrStart, "\"".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::DqStrContent, "hello ".to_string()));
-    assert_eq!(tokens[2], (SyntaxKind::InterpStart, "${".to_string()));
-    assert_eq!(tokens[3], (SyntaxKind::Ident, "name".to_string()));
-    assert_eq!(tokens[4], (SyntaxKind::InterpEnd, "}".to_string()));
-    assert_eq!(tokens[5], (SyntaxKind::DqStrEnd, "\"".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::DqStrContent, "hello ".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::InterpStart, "${".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::Ident, "name".to_string()));
+    assert_eq!(tokens[5], (SyntaxKind::InterpEnd, "}".to_string()));
+    assert_eq!(tokens[6], (SyntaxKind::DqStrEnd, "\"".to_string()));
   }
 
   #[test]
   fn yaml_mapping_line() {
     let tokens = lex_yaml("key: \"value\"");
-    assert_eq!(tokens[0], (SyntaxKind::Ident, "key".to_string()));
-    assert_eq!(tokens[1], (SyntaxKind::Colon, ":".to_string()));
-    assert_eq!(tokens[2], (SyntaxKind::Whitespace, " ".to_string()));
-    assert_eq!(tokens[3], (SyntaxKind::DqStrStart, "\"".to_string()));
-    assert_eq!(tokens[4], (SyntaxKind::DqStrContent, "value".to_string()));
-    assert_eq!(tokens[5], (SyntaxKind::DqStrEnd, "\"".to_string()));
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::Ident, "key".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::Colon, ":".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::Whitespace, " ".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[5], (SyntaxKind::DqStrContent, "value".to_string()));
+    assert_eq!(tokens[6], (SyntaxKind::DqStrEnd, "\"".to_string()));
   }
 
   /* Markdown mode tests */

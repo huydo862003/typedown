@@ -91,9 +91,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if self.lex_ctx.should_skip(result.token.kind(), skip) {
         children.push(GreenNode::from_token(result.token));
       } else {
-        let indent = self.lex_ctx.token_indent();
+        let token_indent = self.lex_ctx.token_indent();
+        let block_indent = self.lex_ctx.block_indent();
         children.push(GreenNode::from_token(result.token.clone()));
-        return YamlLexResult::new(result, indent);
+        return YamlLexResult::new(result, token_indent, block_indent);
       }
     }
   }

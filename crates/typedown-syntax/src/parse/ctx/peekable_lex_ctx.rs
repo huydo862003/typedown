@@ -12,13 +12,15 @@ use crate::{
 
 pub struct YamlLexResult {
   result: LexResult,
-  /// The most recent YamlIndent text length seen while reaching this token.
-  pub indent: usize,
+  /// Total text length of all tokens since the last newline (column offset).
+  pub token_indent: usize,
+  /// The text length of the most recent YamlIndent token (the line's leading indentation).
+  pub block_indent: usize,
 }
 
 impl YamlLexResult {
-  pub(in crate::parse) fn new(result: LexResult, indent: usize) -> Self {
-    Self { result, indent }
+  pub(in crate::parse) fn new(result: LexResult, token_indent: usize, block_indent: usize) -> Self {
+    Self { result, token_indent, block_indent }
   }
 }
 
@@ -176,12 +178,13 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       self.token_buffer.push_front(token);
     }
 
-    let peeked_indent = self.token_indent;
+    let peeked_token_indent = self.token_indent;
+    let peeked_block_indent = self.block_indent;
     self.after_newline = saved_after_newline;
     self.token_indent = saved_token_indent;
     self.block_indent = saved_block_indent;
 
-    YamlLexResult::new(result, peeked_indent)
+    YamlLexResult::new(result, peeked_token_indent, peeked_block_indent)
   }
 
   /// Peek at the next non-skipped Markdown token without consuming.

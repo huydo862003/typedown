@@ -21,8 +21,16 @@ fn parse_expr(input: &str) -> String {
     })
     .expect("Expected BlockMapping in frontmatter");
 
-  // Find they `key: ...` entry
-  let entry = mapping.as_node().unwrap().children()[0].as_node().unwrap();
+  // Find the `key: ...` entry
+  let entry = mapping
+    .as_node()
+    .unwrap()
+    .children()
+    .iter()
+    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::MappingEntry)
+    .expect("Expected MappingEntry in BlockMapping")
+    .as_node()
+    .unwrap();
 
   // Find the last node child which should be the value expression
   let value = entry
@@ -50,7 +58,15 @@ fn parse_expr_with_diagnostics(
         && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::BlockMappingLit
     })
     .expect("Expected BlockMapping in frontmatter");
-  let entry = mapping.as_node().unwrap().children()[0].as_node().unwrap();
+  let entry = mapping
+    .as_node()
+    .unwrap()
+    .children()
+    .iter()
+    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::MappingEntry)
+    .expect("Expected MappingEntry in BlockMapping")
+    .as_node()
+    .unwrap();
   let value = entry
     .children()
     .iter()
@@ -577,6 +593,7 @@ fn error_unclosed_paren() {
     (NumberLit
       "1")
     "\n"
+    ""
     (Error
       "---")))"#;
   assert_eq!(tree, expected);

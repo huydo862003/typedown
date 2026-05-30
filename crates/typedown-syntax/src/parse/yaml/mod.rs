@@ -24,7 +24,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Consume opening ---
     let ok = self.consume_yaml_if(
       &mut children,
-      SKIP_NONE,
+      SKIP_INDENT,
       |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
       Diagnostic::MissingFrontmatterMarker {
         offset: self.offset(),
@@ -146,7 +146,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     match peek.token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "---" => peek.indent == 0,
+      SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "---" => peek.block_indent == 0,
       _ => false,
     }
   }

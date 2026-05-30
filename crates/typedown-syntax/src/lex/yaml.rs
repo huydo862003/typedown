@@ -18,7 +18,9 @@ impl<S: Utf8Stream> LexCtx<S> {
         return self.lex_yaml_resume_string();
       }
       Some(InterpContext::MdDqString) | Some(InterpContext::MdSqString) => {
-        unreachable!("[LexCtx::lex_yaml_frontmatter] MdDqString/MdSqString context cannot appear in YAML mode")
+        unreachable!(
+          "[LexCtx::lex_yaml_frontmatter] MdDqString/MdSqString context cannot appear in YAML mode"
+        )
       }
       None => {}
     }
@@ -205,7 +207,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       None
     };
 
-    // Emit YamlIndent for any leading whitespace on a non-empty line
+    // Emit YamlIndent for any non-empty line (including 0-indented lines)
     if !self.text_buffer.is_empty() {
       return Some(match diagnostic {
         Some(diag) => self.emit_with(SyntaxKind::YamlIndent, diag),
@@ -213,7 +215,8 @@ impl<S: Utf8Stream> LexCtx<S> {
       });
     }
 
-    None
+    // Emit a zero-width YamlIndent for 0-indented non-empty lines
+    Some(self.emit(SyntaxKind::YamlIndent))
   }
 
   /* Whitespace */

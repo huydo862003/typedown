@@ -22,10 +22,11 @@ fn parse_frontmatter_with_diagnostics(input: &str) -> (String, Vec<Diagnostic>) 
 fn empty_frontmatter() {
   let tree = parse_frontmatter(r#""#);
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
-  (BlockMappingLit)
   "\n"
+  ""
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -52,9 +53,11 @@ key: 1
 fn single_key_value() {
   let tree = parse_frontmatter(r#"key: 1"#);
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "key")
@@ -62,8 +65,9 @@ fn single_key_value() {
       (MappingEntryValue
         (NumberLit
           " "
-          "1"))))
-  "\n"
+          "1")))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -76,9 +80,11 @@ fn multiple_key_values() {
 b: 2"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "a")
@@ -87,16 +93,18 @@ b: 2"#,
         (NumberLit
           " "
           "1")))
+    "\n"
+    ""
     (MappingEntry
       (MappingEntryKey
-        "\n"
         "b")
       ":"
       (MappingEntryValue
         (NumberLit
           " "
-          "2"))))
-  "\n"
+          "2")))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -107,9 +115,11 @@ b: 2"#,
 fn string_value() {
   let tree = parse_frontmatter(r#"title: "hello""#);
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "title")
@@ -119,8 +129,9 @@ fn string_value() {
           " "
           "\""
           "hello"
-          "\""))))
-  "\n"
+          "\"")))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -131,9 +142,11 @@ fn string_value() {
 fn flow_list_value() {
   let tree = parse_frontmatter(r#"tags: [1, 2]"#);
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "tags")
@@ -148,8 +161,9 @@ fn flow_list_value() {
           (NumberLit
             " "
             "2")
-          "]"))))
-  "\n"
+          "]")))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -164,9 +178,11 @@ fn block_sequence() {
   - 2"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "items")
@@ -186,8 +202,9 @@ fn block_sequence() {
             "-"
             (NumberLit
               " "
-              "2"))))))
-  "\n"
+              "2")))))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -201,9 +218,11 @@ fn nested_mapping() {
   inner: 1"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "outer")
@@ -219,8 +238,9 @@ fn nested_mapping() {
             (MappingEntryValue
               (NumberLit
                 " "
-                "1")))))))
-  "\n"
+                "1"))))))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -235,9 +255,11 @@ fn sequence_in_mapping() {
   - b"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "key")
@@ -257,8 +279,9 @@ fn sequence_in_mapping() {
             "-"
             (IdentLit
               " "
-              "b"))))))
-  "\n"
+              "b")))))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -273,9 +296,11 @@ fn mapping_in_sequence() {
   - name: bob"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "items")
@@ -308,8 +333,9 @@ fn mapping_in_sequence() {
                 (MappingEntryValue
                   (IdentLit
                     " "
-                    "bob")))))))))
-  "\n"
+                    "bob"))))))))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -328,9 +354,11 @@ fn nested_sequence() {
     - 4"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "matrix")
@@ -374,8 +402,9 @@ fn nested_sequence() {
                 "-"
                 (NumberLit
                   " "
-                  "4"))))))))
-  "\n"
+                  "4")))))))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -415,9 +444,11 @@ fn multi_entry_inline_mapping() {
     age: 25"#,
   );
   let expected = r#"(Frontmatter
+  ""
   "---"
   "\n"
   (BlockMappingLit
+    ""
     (MappingEntry
       (MappingEntryKey
         "items")
@@ -471,8 +502,9 @@ fn multi_entry_inline_mapping() {
                 (MappingEntryValue
                   (NumberLit
                     " "
-                    "25")))))))))
-  "\n"
+                    "25"))))))))
+    "\n"
+    "")
   "---"
   "\n")"#;
   assert_eq!(tree, expected);
@@ -549,9 +581,11 @@ fn seq_alternating_list_and_map() {
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
   (Frontmatter
+    ""
     "---"
     "\n"
     (BlockMappingLit
+      ""
       (MappingEntry
         (MappingEntryKey
           "data")
@@ -575,14 +609,14 @@ fn seq_alternating_list_and_map() {
                   "-"
                   (NumberLit
                     " "
-                    "20"))))
-            "\n"
-            "    "
-            (SequenceItem
-              "-"
-              (NumberLit
-                " "
-                "30"))
+                    "20"))
+                "\n"
+                "    "
+                (SequenceItem
+                  "-"
+                  (NumberLit
+                    " "
+                    "30"))))
             "\n"
             "  "
             (SequenceItem
@@ -624,8 +658,9 @@ fn seq_alternating_list_and_map() {
                   "-"
                   (NumberLit
                     " "
-                    "50"))))))))
-    "\n"
+                    "50")))))))
+      "\n"
+      "")
     "---"
     "\n")
   (Body))"#;
@@ -673,9 +708,11 @@ settings:
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
   (Frontmatter
+    ""
     "---"
     "\n"
     (BlockMappingLit
+      ""
       (MappingEntry
         (MappingEntryKey
           "teams")
@@ -683,7 +720,7 @@ settings:
         (MappingEntryValue
           (BlockSeqLit
             "\n"
-            ""
+            "  "
             (SequenceItem
               "-"
               (BlockMappingLit
@@ -695,21 +732,21 @@ settings:
                   (MappingEntryValue
                     (BlockSeqLit
                       "\n"
-                      ""
+                      "      "
                       (SequenceItem
                         "-"
                         (IdentLit
                           " "
                           "alice"))
                       "\n"
-                      ""
+                      "      "
                       (SequenceItem
                         "-"
                         (IdentLit
                           " "
                           "bob")))))
                 "\n"
-                ""
+                "    "
                 (MappingEntry
                   (MappingEntryKey
                     "projects")
@@ -717,21 +754,21 @@ settings:
                   (MappingEntryValue
                     (BlockSeqLit
                       "\n"
-                      ""
+                      "      "
                       (SequenceItem
                         "-"
                         (IdentLit
                           " "
                           "alpha"))
                       "\n"
-                      ""
+                      "      "
                       (SequenceItem
                         "-"
                         (IdentLit
                           " "
                           "beta")))))))
             "\n"
-            ""
+            "  "
             (SequenceItem
               "-"
               (BlockMappingLit
@@ -743,14 +780,14 @@ settings:
                   (MappingEntryValue
                     (BlockSeqLit
                       "\n"
-                      ""
+                      "      "
                       (SequenceItem
                         "-"
                         (IdentLit
                           " "
                           "charlie")))))
                 "\n"
-                ""
+                "    "
                 (MappingEntry
                   (MappingEntryKey
                     "projects")
@@ -758,12 +795,14 @@ settings:
                   (MappingEntryValue
                     (BlockSeqLit
                       "\n"
-                      ""
+                      "      "
                       (SequenceItem
                         "-"
                         (IdentLit
                           " "
                           "gamma"))))))))))
+      "\n"
+      ""
       (MappingEntry
         (MappingEntryKey
           "settings")
@@ -771,7 +810,7 @@ settings:
         (MappingEntryValue
           (BlockMappingLit
             "\n"
-            ""
+            "  "
             (MappingEntry
               (MappingEntryKey
                 "debug")
@@ -779,8 +818,9 @@ settings:
               (MappingEntryValue
                 (IdentLit
                   " "
-                  "true")))))))
-    "\n"
+                  "true"))))))
+      "\n"
+      "")
     "---"
     "\n")
   (Body))"#;
@@ -803,9 +843,11 @@ fn inline_seq_first_map_then_list() {
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
   (Frontmatter
+    ""
     "---"
     "\n"
     (BlockMappingLit
+      ""
       (MappingEntry
         (MappingEntryKey
           "mixed")
@@ -867,8 +909,9 @@ fn inline_seq_first_map_then_list() {
                   (MappingEntryValue
                     (NumberLit
                       " "
-                      "3")))))))))
-    "\n"
+                      "3")))
+                "\n"
+                ""))))))
     "---"
     "\n")
   (Body))"#;
@@ -887,5 +930,135 @@ fn seq_mixed_single_and_multi_inner() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
+  assert!(!tree.contains("Error"));
+}
+
+// Sequence items with folded block strings
+#[test]
+fn seq_with_folded_block_string() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"key:
+  - >
+    hello
+    world
+  - value2"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
+  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(!tree.contains("Error"));
+}
+
+// Sequence items with literal block strings
+#[test]
+fn seq_with_literal_block_string() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"key:
+  - |
+    line1
+    line2
+  - other"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
+  assert!(tree.contains("LiteralBlockStrLit"));
+  assert!(!tree.contains("Error"));
+}
+
+// Mapping with folded block string value
+#[test]
+fn mapping_with_folded_block_string() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"desc: >
+  this is
+  folded
+title: hello"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
+  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(!tree.contains("Error"));
+}
+
+// Mapping with literal block string value
+#[test]
+fn mapping_with_literal_block_string() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"desc: |
+  line one
+  line two
+title: hello"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
+  assert!(tree.contains("LiteralBlockStrLit"));
+  assert!(!tree.contains("Error"));
+}
+
+// Mixed: mapping values are sequences with block strings and nested mappings
+#[test]
+fn complex_mixed_block_strings_and_nesting() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"items:
+  - name: alice
+    bio: >
+      alice is
+      great
+  - name: bob
+    bio: |
+      bob is
+      cool
+settings:
+  debug: true"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
+  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(tree.contains("LiteralBlockStrLit"));
+  assert!(!tree.contains("Error"));
+}
+
+// Deeply nested: map -> seq -> map -> folded block string
+#[test]
+fn deep_nested_with_block_string() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"outer:
+  - inner:
+      desc: >
+        nested
+        folded"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
+  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(!tree.contains("Error"));
+}
+
+// Sequence with empty items followed by nested content
+#[test]
+fn seq_empty_dash_then_nested() {
+  let full = format!(
+    "---\n{}\n---\n",
+    r#"matrix:
+  -
+    - 1
+    - 2
+  - 3"#
+  );
+  let (ast, _) = parse(&full);
+  let tree = render_tree(&ast);
+  eprintln!("{}", tree);
   assert!(!tree.contains("Error"));
 }
