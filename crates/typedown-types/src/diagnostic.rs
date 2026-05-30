@@ -1,6 +1,6 @@
 /// Compilation diagnostics.
 /// When multiple variants match, use the first (most specific) one.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Diagnostic {
   /* Lexer diagnostics */
   /// Expected a specific character but reached end of input.
@@ -131,6 +131,12 @@ pub enum Diagnostic {
   /// Expected a specific syntax node or token but it was missing.
   MissingSyntaxNode {
     expected: crate::syntax_kind::SyntaxKind,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A link was opened with `[` but never closed with `](url)`.
+  UnclosedLink {
     start_offset: usize,
     end_offset: usize,
   },

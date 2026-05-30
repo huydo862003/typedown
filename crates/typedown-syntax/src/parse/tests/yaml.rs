@@ -33,7 +33,7 @@ fn empty_frontmatter() {
 }
 
 #[test]
-fn error_missing_closing_marker() {
+fn recover_yaml_missing_closing_marker() {
   let full = r#"---
 key: 1
 "#;
@@ -41,10 +41,26 @@ key: 1
   let root = ast.as_node().unwrap();
   let frontmatter = &root.children()[0];
   let tree = render_tree(frontmatter);
-  assert!(tree.starts_with("(Frontmatter"));
-  assert!(diags
-    .iter()
-    .any(|d| matches!(d, Diagnostic::MissingFrontmatterMarker { .. })));
+  assert_eq!(tree, r####"(Frontmatter
+  ""
+  "---"
+  "\n"
+  (BlockMappingLit
+    ""
+    (MappingEntry
+      (MappingEntryKey
+        "key")
+      ":"
+      (MappingEntryValue
+        (NumberLit
+          " "
+          "1"))))
+  "\n"
+  (Error
+    ""))"####);
+  assert_eq!(diags, vec![
+    Diagnostic::MissingFrontmatterMarker { offset: 11 },
+  ]);
 }
 
 // Mapping
@@ -568,7 +584,8 @@ fn seq_alternating_list_and_map() {
   - - 40
     - 50"#
   );
-  let (ast, _diags) = parse(&full);
+  let (ast, diags) = parse(&full);
+  assert_eq!(diags, vec![]);
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
   (Frontmatter
@@ -658,7 +675,7 @@ fn seq_alternating_list_and_map() {
   assert_eq!(tree, expected);
 }
 
-// Deeply nested: sequence of sequences of sequences
+// Deeply nested sequence of sequences of sequences
 #[test]
 fn triple_nested_sequence() {
   let full = format!(
@@ -830,7 +847,8 @@ fn inline_seq_first_map_then_list() {
     - y
   - c: 3"#
   );
-  let (ast, _diags) = parse(&full);
+  let (ast, diags) = parse(&full);
+  assert_eq!(diags, vec![]);
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
   (Frontmatter

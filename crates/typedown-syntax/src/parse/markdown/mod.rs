@@ -1150,6 +1150,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       if self.should_end_inline_element(&mut children) {
+        self.emit_diagnostic(Diagnostic::UnclosedLink {
+          start_offset: open_offset,
+          end_offset: self.offset(),
+        });
         self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
         return (self.emit(SyntaxKind::Link, &children), None);
       }
