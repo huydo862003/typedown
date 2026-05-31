@@ -297,8 +297,28 @@ pub struct InterpFragment(RedNode);
 #[derive(AstNode)]
 pub struct MathLit(RedNode);
 
+impl MathLit {
+  pub fn value(&self) -> Option<String> {
+    child::<InlineMath>(&self.0)
+      .and_then(|n| n.value())
+      .or_else(|| child::<MathBlock>(&self.0).and_then(|n| n.value()))
+  }
+}
+
 #[derive(AstNode)]
 pub struct CodeLit(RedNode);
+
+impl CodeLit {
+  pub fn label(&self) -> Option<String> {
+    child::<CodeBlock>(&self.0).and_then(|n| n.label())
+  }
+
+  pub fn value(&self) -> Option<String> {
+    child::<InlineCode>(&self.0)
+      .and_then(|n| n.value())
+      .or_else(|| child::<CodeBlock>(&self.0).and_then(|n| n.value()))
+  }
+}
 
 #[derive(AstNode)]
 pub struct NumberLit(RedNode);
