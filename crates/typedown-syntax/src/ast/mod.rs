@@ -131,6 +131,12 @@ impl YamlSequenceItem {
 #[derive(AstNode)]
 pub struct MdBody(RedNode);
 
+#[wrapper_ast_node(SyntaxKind = [MdHeading, MdParagraph, MdBlockquote, MdTable, MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock])]
+pub struct MdBlockElement(RedNode);
+
+#[wrapper_ast_node(SyntaxKind = [MdLink, MdMedia, MdFootnoteRef, MdCitation, MdBold, MdItalic, MdBoldItalic, MdStrikethrough, MdText])]
+pub struct MdInlineElement(RedNode);
+
 /// The Markdown heading
 /// Represented by: ## Heading
 #[derive(AstNode)]
