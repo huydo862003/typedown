@@ -5,6 +5,7 @@
 use typedown_macros::AstNode;
 use typedown_types::either::Either;
 use typedown_types::syntax_kind::SyntaxKind;
+use typedown_types::unescape::{unescape, unescape_html_entity};
 
 use crate::red::RedNode;
 
@@ -260,6 +261,17 @@ pub struct MdStrikethrough(RedNode);
 #[derive(AstNode)]
 pub struct MdText(RedNode);
 
+/// An HTML entity in markdown text, e.g. &amp; &#42; &#x2A;
+#[derive(AstNode)]
+pub struct MdHtmlEntity(RedNode);
+
+impl MdHtmlEntity {
+  pub fn decode(&self) -> Option<String> {
+    let raw = self.0.as_token()?.text()?.to_string();
+    Some(unescape_html_entity(&raw))
+  }
+}
+
 // Expression nodes
 #[derive(AstNode)]
 pub struct Expr(RedNode);
@@ -303,7 +315,8 @@ impl StrLit {
   pub fn fragments(&self) -> impl Iterator<Item = Either<String, InterpFragment>> {
     self.0.children().filter_map(|child| match child.kind() {
       SyntaxKind::DqStrContent | SyntaxKind::SqStrContent => {
-        Some(Either::Left(child.as_token()?.text()?.to_string()))
+        let raw = child.as_token()?.text()?.to_string();
+        Some(Either::Left(unescape(&raw).unwrap_or(raw)))
       }
       // Interp is currently not supported inside string literals
       SyntaxKind::LiteralBlockStrLit | SyntaxKind::FoldedBlockStrLit => {
