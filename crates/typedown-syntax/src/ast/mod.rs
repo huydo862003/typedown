@@ -312,11 +312,72 @@ pub struct Tag(RedNode);
 #[derive(AstNode)]
 pub struct InlineMath(RedNode);
 
+impl InlineMath {
+  pub fn value(&self) -> Option<String> {
+    let text = self.0.as_token()?.text()?;
+    let fence_count = text.chars().take_while(|c| *c == '$').count();
+    // Strip opening and closing fence
+    let content = text.get(fence_count..text.len().checked_sub(fence_count)?)?;
+    Some(content.to_string())
+  }
+}
+
 #[derive(AstNode)]
 pub struct MathBlock(RedNode);
+
+impl MathBlock {
+  pub fn value(&self) -> Option<String> {
+    let text = self.0.as_token()?.text()?;
+    let fence_count = text.chars().take_while(|c| *c == '$').count();
+    // Skip opening fence then the newline
+    let after_fence = text.get(fence_count..)?;
+    let content_start = after_fence.find('\n')? + 1;
+    let content = after_fence.get(content_start..)?;
+    // Strip closing fence
+    let content = content.get(..content.len().checked_sub(fence_count)?)?;
+    Some(content.to_string())
+  }
+}
 
 #[derive(AstNode)]
 pub struct InlineCode(RedNode);
 
+impl InlineCode {
+  pub fn value(&self) -> Option<String> {
+    let text = self.0.as_token()?.text()?;
+    let fence_count = text.chars().take_while(|c| *c == '`').count();
+    // Strip opening and closing fence
+    let content = text.get(fence_count..text.len().checked_sub(fence_count)?)?;
+    Some(content.to_string())
+  }
+}
+
 #[derive(AstNode)]
 pub struct CodeBlock(RedNode);
+
+impl CodeBlock {
+  pub fn label(&self) -> Option<String> {
+    let text = self.0.as_token()?.text()?;
+    let fence_count = text.chars().take_while(|c| *c == '`').count();
+    let after_fence = text.get(fence_count..)?;
+    let label_end = after_fence.find('\n')?;
+    let label = after_fence.get(..label_end)?.trim();
+    if label.is_empty() {
+      None
+    } else {
+      Some(label.to_string())
+    }
+  }
+
+  pub fn value(&self) -> Option<String> {
+    let text = self.0.as_token()?.text()?;
+    let fence_count = text.chars().take_while(|c| *c == '`').count();
+    // Skip opening fence and optional language tag, then the newline
+    let after_fence = text.get(fence_count..)?;
+    let content_start = after_fence.find('\n')? + 1;
+    let content = after_fence.get(content_start..)?;
+    // Strip closing fence
+    let content = content.get(..content.len().checked_sub(fence_count)?)?;
+    Some(content.to_string())
+  }
+}
