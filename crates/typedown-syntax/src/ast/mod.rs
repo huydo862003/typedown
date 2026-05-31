@@ -3,6 +3,7 @@
 //! over the generic tree structure.
 
 use typedown_macros::AstNode;
+use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::red::RedNode;
 
@@ -31,11 +32,13 @@ fn children<T: AstNode>(parent: &RedNode) -> impl Iterator<Item = T> {
 pub struct SourceFile(RedNode);
 
 impl SourceFile {
-  fn frontmatter(&mut self) -> Option<YamlFrontmatter> {
+  /// Return the frontmatter of the source file
+  fn frontmatter(&self) -> Option<YamlFrontmatter> {
     child::<YamlFrontmatter>(&self.0)
   }
 
-  fn body(&mut self) -> Option<MdBody> {
+  /// Return the body of the source file
+  fn body(&self) -> Option<MdBody> {
     child::<MdBody>(&self.0)
   }
 }
@@ -44,13 +47,59 @@ impl SourceFile {
 #[derive(AstNode)]
 pub struct YamlFrontmatter(RedNode);
 
+impl YamlFrontmatter {
+  /// Return the top-level mapping in the frontmatter
+  fn mapping(&self) -> Option<YamlMapping> {
+    child::<YamlMapping>(&self.0)
+  }
+}
+
 /// The YAML mapping
 #[derive(AstNode)]
 pub struct YamlMapping(RedNode);
 
+impl YamlMapping {
+  /// Return an iterator over the mapping keys
+  pub fn keys(&self) -> impl Iterator<Item = String> {
+    children::<YamlMappingEntry>(&self.0).filter_map(|e| e.key())
+  }
+
+  /// Return an iterator over the mapping values
+  pub fn values(&self) -> impl Iterator<Item = Expr> {
+    children::<YamlMappingEntry>(&self.0).filter_map(|e| e.value())
+  }
+
+  /// Return an iterator over the entries
+  pub fn entries(&self) -> impl Iterator<Item = (String, Expr)> {
+    children::<YamlMappingEntry>(&self.0).filter_map(|e| e.entry())
+  }
+}
+
 /// The YAML mapping's key-value pair
 #[derive(AstNode)]
 pub struct YamlMappingEntry(RedNode);
+
+impl YamlMappingEntry {
+  /// Return the key of this mapping entry
+  pub fn key(&self) -> Option<String> {
+    self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::YamlMappingEntryKey)
+      .map(|v| v.chars().collect::<String>())
+  }
+
+  /// Return the value of this mapping entry
+  pub fn value(&self) -> Option<Expr> {
+    let red_node = self.0.children().find(|c| c.kind() == SyntaxKind::Expr)?;
+    Expr::cast(red_node)
+  }
+
+  /// Return the entry of this mapping entry
+  pub fn entry(&self) -> Option<(String, Expr)> {
+    Some((self.key()?, self.value()?))
+  }
+}
 
 /// The YAML sequence
 #[derive(AstNode)]
