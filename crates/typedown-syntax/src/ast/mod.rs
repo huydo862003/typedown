@@ -2,7 +2,7 @@
 //! Each AST type checks the SyntaxKind on cast, providing a type-safe API
 //! over the generic tree structure.
 
-use typedown_macros::AstNode;
+use typedown_macros::{AstNode, wrapper_ast_node};
 use typedown_types::either::Either;
 use typedown_types::syntax_kind::SyntaxKind;
 use typedown_types::unescape::{unescape, unescape_html_entity};
@@ -93,8 +93,11 @@ impl YamlMappingEntry {
 
   /// Return the value of this mapping entry
   pub fn value(&self) -> Option<Expr> {
-    let red_node = self.0.children().find(|c| c.kind() == SyntaxKind::Expr)?;
-    Expr::cast(red_node)
+    let entry_value = self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::YamlMappingEntryValue)?;
+    entry_value.children().find_map(Expr::cast)
   }
 
   /// Return the entry of this mapping entry
@@ -120,8 +123,7 @@ pub struct YamlSequenceItem(RedNode);
 impl YamlSequenceItem {
   /// Return the value of this sequence item
   pub fn value(&self) -> Option<Expr> {
-    let red_node = self.0.children().find(|c| c.kind() == SyntaxKind::Expr)?;
-    Expr::cast(red_node)
+    self.0.children().find_map(Expr::cast)
   }
 }
 
@@ -273,7 +275,7 @@ impl MdHtmlEntity {
 }
 //
 // Expression nodes
-#[derive(AstNode)]
+#[wrapper_ast_node(SyntaxKind = [PrimaryExpr, ParenExpr, CallExpr, UnaryExpr, BinaryExpr])]
 pub struct Expr(RedNode);
 
 #[derive(AstNode)]

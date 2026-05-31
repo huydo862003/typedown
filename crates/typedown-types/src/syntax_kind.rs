@@ -43,8 +43,7 @@ pub enum SyntaxKind {
   MdText,          // plain text run
 
   // Expression nodes
-  Expr = 300,
-  PrimaryExpr, // An operand in an expression
+  PrimaryExpr = 300, // An operand in an expression
   ParenExpr,   // (expr)
   CallExpr,    // func(args)
   UnaryExpr,
