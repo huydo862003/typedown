@@ -697,7 +697,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let (value, early_exit) = self.parse_expr(block_indent);
     children.push(value);
 
-    (self.emit(SyntaxKind::YamlSequenceItem, &children), early_exit)
+    (
+      self.emit(SyntaxKind::YamlSequenceItem, &children),
+      early_exit,
+    )
   }
 
   /// Parse a flow mapping literal: `{key: value, ...}`.
@@ -1002,7 +1005,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance(&mut children, SKIP_NONE, mode);
     }
 
-    (self.emit(SyntaxKind::LiteralBlockStrLit, &children), None)
+    let literal_block_str_lit = self.emit(SyntaxKind::LiteralBlockStrLit, &children);
+    (self.emit(SyntaxKind::StrLit, &[literal_block_str_lit]), None)
   }
 
   /// Parse a folded block string: `>` followed by indented content.
@@ -1063,7 +1067,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance(&mut children, SKIP_NONE, mode);
     }
 
-    (self.emit(SyntaxKind::FoldedBlockStrLit, &children), None)
+    let folded_block_str_lit = self.emit(SyntaxKind::FoldedBlockStrLit, &children);
+    (self.emit(SyntaxKind::StrLit, &[folded_block_str_lit]), None)
   }
 
   /// Parse an inline block mapping: starts with `key: value` on the current line (not on a newline with indentation).
@@ -1238,10 +1243,16 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::Newline => {
         // Peek past the newline to see if indent follows
         let peek_after = self.lex_ctx.peek_yaml(SKIP_WCN);
-        if peek_after.token.kind() == SyntaxKind::YamlIndent && peek_after.block_indent > block_indent {
-          let (nested, early_exit) = self.parse_block_seq_or_mapping(vec![], peek_after.block_indent);
+        if peek_after.token.kind() == SyntaxKind::YamlIndent
+          && peek_after.block_indent > block_indent
+        {
+          let (nested, early_exit) =
+            self.parse_block_seq_or_mapping(vec![], peek_after.block_indent);
           children.push(self.emit(SyntaxKind::YamlMappingEntryValue, &[nested]));
-          return (self.emit(SyntaxKind::YamlMappingEntry, &children), early_exit);
+          return (
+            self.emit(SyntaxKind::YamlMappingEntry, &children),
+            early_exit,
+          );
         } else {
           self.advance(&mut children, SKIP_WCN, mode);
           self.diagnostics.push(Diagnostic::MissingSyntaxNode {
@@ -1265,7 +1276,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       _ => {
         let (value, early_exit) = self.parse_expr(block_indent);
         children.push(self.emit(SyntaxKind::YamlMappingEntryValue, &[value]));
-        return (self.emit(SyntaxKind::YamlMappingEntry, &children), early_exit);
+        return (
+          self.emit(SyntaxKind::YamlMappingEntry, &children),
+          early_exit,
+        );
       }
     }
 
