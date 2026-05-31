@@ -131,10 +131,26 @@ impl YamlSequenceItem {
 #[derive(AstNode)]
 pub struct MdBody(RedNode);
 
-#[wrapper_ast_node(SyntaxKind = [MdHeading, MdParagraph, MdBlockquote, MdTable, MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock])]
+#[wrapper_ast_node(SyntaxKind = [
+  MdHeading, MdParagraph, MdBlockquote, MdTable,
+  MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock,
+  MdLink, MdMedia, MdFootnoteRef, MdCitation,
+  MdBold, MdItalic, MdBoldItalic, MdStrikethrough,
+  MdText, MdHtmlEntity,
+])]
+pub struct MdNode(RedNode);
+
+#[wrapper_ast_node(SyntaxKind = [
+  MdHeading, MdParagraph, MdBlockquote, MdTable,
+  MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock,
+])]
 pub struct MdBlockElement(RedNode);
 
-#[wrapper_ast_node(SyntaxKind = [MdLink, MdMedia, MdFootnoteRef, MdCitation, MdBold, MdItalic, MdBoldItalic, MdStrikethrough, MdText])]
+#[wrapper_ast_node(SyntaxKind = [
+  MdLink, MdMedia, MdFootnoteRef, MdCitation,
+  MdBold, MdItalic, MdBoldItalic, MdStrikethrough,
+  MdText,
+])]
 pub struct MdInlineElement(RedNode);
 
 /// The Markdown heading
@@ -269,6 +285,12 @@ pub struct MdStrikethrough(RedNode);
 #[derive(AstNode)]
 pub struct MdText(RedNode);
 
+impl MdText {
+  pub fn value(&self) -> String {
+    self.0.text()
+  }
+}
+
 /// An HTML entity in markdown text, e.g. &amp; &#42; &#x2A;
 #[derive(AstNode)]
 pub struct MdHtmlEntity(RedNode);
@@ -281,7 +303,11 @@ impl MdHtmlEntity {
 }
 
 // Expression nodes
-#[wrapper_ast_node(SyntaxKind = [NumberLit, StrLit, CodeLit, MathLit, IdentLit, ListLit, DictLit, ParenExpr, CallExpr, UnaryExpr, BinaryExpr])]
+#[wrapper_ast_node(SyntaxKind = [
+  NumberLit, StrLit, CodeLit, MathLit, IdentLit,
+  ListLit, DictLit,
+  ParenExpr, CallExpr, UnaryExpr, BinaryExpr,
+])]
 pub struct Expr(RedNode);
 
 pub enum LitKind {
@@ -304,7 +330,10 @@ pub enum LitValue {
   Dict(Vec<DictEntry>),
 }
 
-#[wrapper_ast_node(SyntaxKind = [NumberLit, StrLit, CodeLit, MathLit, IdentLit, ListLit, DictLit])]
+#[wrapper_ast_node(SyntaxKind = [
+  NumberLit, StrLit, CodeLit, MathLit, IdentLit,
+  ListLit, DictLit,
+])]
 pub struct Lit(RedNode);
 
 impl Lit {
