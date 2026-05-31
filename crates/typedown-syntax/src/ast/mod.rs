@@ -131,6 +131,12 @@ impl YamlSequenceItem {
 #[derive(AstNode)]
 pub struct MdBody(RedNode);
 
+impl MdBody {
+  pub fn block_elements(&self) -> impl Iterator<Item = MdBlockElement> {
+    children::<MdBlockElement>(&self.0)
+  }
+}
+
 #[wrapper_ast_node(SyntaxKind = [
   MdHeading, MdParagraph, MdBlockquote, MdTable,
   MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock,
@@ -184,10 +190,22 @@ impl MdHeading {
 #[derive(AstNode)]
 pub struct MdParagraph(RedNode);
 
+impl MdParagraph {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
+
 /// The Markdown blockquote
 /// Represented by: > Blockquote
 #[derive(AstNode)]
 pub struct MdBlockquote(RedNode);
+
+impl MdBlockquote {
+  pub fn block_elements(&self) -> impl Iterator<Item = MdBlockElement> {
+    children::<MdBlockElement>(&self.0)
+  }
+}
 
 /// The Markdown table
 /// Represented by:
@@ -231,6 +249,12 @@ impl MdTableHeaderRow {
 #[derive(AstNode)]
 pub struct MdTableCell(RedNode);
 
+impl MdTableCell {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
+
 /// The Markdown bullet list
 /// Represented by:
 /// - item 1
@@ -247,6 +271,12 @@ impl MdBulletList {
 /// The Markdown bullet list item
 #[derive(AstNode)]
 pub struct MdBulletListItem(RedNode);
+
+impl MdBulletListItem {
+  pub fn block_elements(&self) -> impl Iterator<Item = MdBlockElement> {
+    children::<MdBlockElement>(&self.0)
+  }
+}
 
 /// The Markdown ordered list
 /// Represented by:
@@ -266,13 +296,17 @@ impl MdOrderedList {
 pub struct MdOrderedListItem(RedNode);
 
 impl MdOrderedListItem {
+  pub fn block_elements(&self) -> impl Iterator<Item = MdBlockElement> {
+    children::<MdBlockElement>(&self.0)
+  }
+
   /// Returns the numeric index of this list item (e.g. 1, 2, 3).
   pub fn index(&self) -> Option<usize> {
-    self
-      .0
-      .children()
-      .next()
-      .and_then(|child| child.as_token().and_then(|token| token.text().and_then(|text| text.parse().ok())))
+    self.0.children().next().and_then(|child| {
+      child
+        .as_token()
+        .and_then(|token| token.text().and_then(|text| text.parse().ok()))
+    })
   }
 }
 
@@ -310,9 +344,21 @@ impl MdToggleListItem {
 #[derive(AstNode)]
 pub struct MdToggleListSummary(RedNode);
 
+impl MdToggleListSummary {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
+
 /// The Markdown toggle list item details
 #[derive(AstNode)]
 pub struct MdToggleListDetails(RedNode);
+
+impl MdToggleListDetails {
+  pub fn block_elements(&self) -> impl Iterator<Item = MdBlockElement> {
+    children::<MdBlockElement>(&self.0)
+  }
+}
 
 /// The Markdown callout block
 /// Represented by:
@@ -405,20 +451,44 @@ impl MdCitation {
 #[derive(AstNode)]
 pub struct MdBold(RedNode);
 
+impl MdBold {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
+
 /// The Markdown italic text
 /// Represented by: _italic_ or *italic*
 #[derive(AstNode)]
 pub struct MdItalic(RedNode);
+
+impl MdItalic {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
 
 /// The Markdown bolditalic text
 /// Represented by: ***italic***
 #[derive(AstNode)]
 pub struct MdBoldItalic(RedNode);
 
+impl MdBoldItalic {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
+
 /// The Markdown strikethrough text
 /// Represented by: ~strikethrough~
 #[derive(AstNode)]
 pub struct MdStrikethrough(RedNode);
+
+impl MdStrikethrough {
+  pub fn inline_elements(&self) -> impl Iterator<Item = MdInlineElement> {
+    children::<MdInlineElement>(&self.0)
+  }
+}
 
 /// The Markdown plaintext
 /// Represented by: text
