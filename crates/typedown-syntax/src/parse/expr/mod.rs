@@ -983,7 +983,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Expect indent
     let offset = self.offset();
-    let indent_token = self.consume(
+    self.consume(
       &mut children,
       SKIP_NONE,
       mode,
@@ -996,6 +996,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
     let content_indent = self.lex_ctx.token_indent();
 
+    if content_indent <= block_indent {
+      self.emit_diagnostic(Diagnostic::InsufficientBlockIndent {
+        expected_more_than: block_indent,
+        found: content_indent,
+        start_offset: offset,
+        end_offset: self.offset(),
+      });
+    }
+
     // Consume content until dedent or EOF
     loop {
       let peek = self.lex_ctx.peek(SKIP_NONE, mode);
@@ -1006,7 +1015,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     let literal_block_str_lit = self.emit(SyntaxKind::LiteralBlockStrLit, &children);
-    (self.emit(SyntaxKind::StrLit, &[literal_block_str_lit]), None)
+    (
+      self.emit(SyntaxKind::StrLit, &[literal_block_str_lit]),
+      None,
+    )
   }
 
   /// Parse a folded block string: `>` followed by indented content.
@@ -1045,7 +1057,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     // Expect indent
     let offset = self.offset();
-    let indent_token = self.consume(
+    self.consume(
       &mut children,
       SKIP_NONE,
       mode,
@@ -1057,6 +1069,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
       },
     );
     let content_indent = self.lex_ctx.token_indent();
+
+    if content_indent <= block_indent {
+      self.emit_diagnostic(Diagnostic::InsufficientBlockIndent {
+        expected_more_than: block_indent,
+        found: content_indent,
+        start_offset: offset,
+        end_offset: self.offset(),
+      });
+    }
 
     // Consume content until dedent or EOF
     loop {
@@ -1084,10 +1105,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(entry);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
       self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-      return (
-        self.emit(SyntaxKind::YamlMapping, &children),
-        early_exit,
-      );
+      return (self.emit(SyntaxKind::YamlMapping, &children), early_exit);
     }
 
     // Check for continuation entries on indented lines
@@ -1113,10 +1131,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             children.push(entry);
             if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
               self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-              return (
-                self.emit(SyntaxKind::YamlMapping, &children),
-                early_exit,
-              );
+              return (self.emit(SyntaxKind::YamlMapping, &children), early_exit);
             }
           }
           _ => {
@@ -1163,10 +1178,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(entry);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
             self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-            return (
-              self.emit(SyntaxKind::YamlMapping, &children),
-              early_exit,
-            );
+            return (self.emit(SyntaxKind::YamlMapping, &children), early_exit);
           }
         }
         _ => {

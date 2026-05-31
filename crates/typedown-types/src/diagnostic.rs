@@ -191,4 +191,12 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// The indent of a block string content is not greater than the enclosing block indent.
+  InsufficientBlockIndent {
+    expected_more_than: usize,
+    found: usize,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

@@ -36,6 +36,14 @@ impl RedNode {
     self.0.parent.clone()
   }
 
+  /// Collect all token text under this node into a String.
+  pub fn text(&self) -> String {
+    match self.0.green.as_token() {
+      Some(token) => token.text().unwrap_or("").to_string(),
+      None => self.children().map(|child| child.text()).collect(),
+    }
+  }
+
   pub fn children(&self) -> RedNodeChildren {
     let green_node = self.0.green.as_node();
     RedNodeChildren {

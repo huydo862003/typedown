@@ -41,7 +41,9 @@ key: 1
   let root = ast.as_node().unwrap();
   let frontmatter = &root.children()[0];
   let tree = render_tree(frontmatter);
-  assert_eq!(tree, r####"(Frontmatter
+  assert_eq!(
+    tree,
+    r####"(Frontmatter
   ""
   "---"
   "\n"
@@ -57,10 +59,12 @@ key: 1
           "1"))))
   "\n"
   (Error
-    ""))"####);
-  assert_eq!(diags, vec![
-    Diagnostic::MissingFrontmatterMarker { offset: 11 },
-  ]);
+    ""))"####
+  );
+  assert_eq!(
+    diags,
+    vec![Diagnostic::MissingFrontmatterMarker { offset: 11 },]
+  );
 }
 
 // Mapping
@@ -1063,4 +1067,36 @@ fn seq_empty_dash_then_nested() {
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
   assert!(!tree.contains("Error"));
+}
+
+// Literal block string with insufficient indent emits InsufficientBlockIndent
+#[test]
+fn literal_block_str_insufficient_indent() {
+  let (_, diags) = parse_frontmatter_with_diagnostics(
+    r#"outer:
+  desc: |
+  line one
+"#,
+  );
+  assert!(
+    diags
+      .iter()
+      .any(|d| matches!(d, Diagnostic::InsufficientBlockIndent { .. }))
+  );
+}
+
+// Folded block string with insufficient indent emits InsufficientBlockIndent
+#[test]
+fn folded_block_str_insufficient_indent() {
+  let (_, diags) = parse_frontmatter_with_diagnostics(
+    r#"outer:
+  desc: >
+  line one
+"#,
+  );
+  assert!(
+    diags
+      .iter()
+      .any(|d| matches!(d, Diagnostic::InsufficientBlockIndent { .. }))
+  );
 }
