@@ -365,7 +365,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.expr_ctx_stack.enter(ExprCtx::MdTable);
 
     // Parse header row
-    let (row, col_count, early_exit) = self.parse_table_row();
+    let (row, col_count, early_exit) = self.parse_table_row(false);
     let expected_cols = col_count;
     children.push(row);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTable) {
@@ -421,7 +421,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
 
       let row_start = self.offset();
-      let (row, col_count, early_exit) = self.parse_table_row();
+      let (row, col_count, early_exit) = self.parse_table_row(true);
       if col_count != expected_cols {
         self.emit_diagnostic(Diagnostic::TableColumnCountMismatch {
           expected: expected_cols,
@@ -444,7 +444,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Parse a table row: `| cell | cell |`.
   /// Returns the node, cell count, and early exit context.
   /// INVARIANT: Next token must be MdSymbol `|`.
-  fn parse_table_row(&mut self) -> (GreenNode, usize, Option<ExprCtx>) {
+  fn parse_table_row(&mut self, is_data_row: bool) -> (GreenNode, usize, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -456,6 +456,12 @@ impl<S: Utf8Stream> ParseCtx<S> {
           == "|",
       "[ParseCtx::parse_table_row] Expected |"
     );
+
+    let row_kind = if is_data_row {
+      SyntaxKind::MdTableDataRow
+    } else {
+      SyntaxKind::MdTableHeaderRow
+    };
 
     let mut children = vec![];
     let mut cell_count = 0;
@@ -479,7 +485,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTableRow) {
         self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
         return (
-          self.emit(SyntaxKind::MdTableRow, &children),
+          self.emit(row_kind, &children),
           cell_count,
           early_exit,
         );
@@ -495,7 +501,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
-    (self.emit(SyntaxKind::MdTableRow, &children), cell_count, None)
+    (
+      self.emit(row_kind, &children),
+      cell_count,
+      None,
+    )
   }
 
   /// Parse a table separator row: `| --- | --- |`.
@@ -664,7 +674,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(block);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedListItem) {
         self.expr_ctx_stack.exit(ExprCtx::MdUnorderedListItem);
-        return (self.emit(SyntaxKind::MdBulletListItem, &children), early_exit);
+        return (
+          self.emit(SyntaxKind::MdBulletListItem, &children),
+          early_exit,
+        );
       }
       if early_exit == Some(ExprCtx::MdUnorderedListItem) {
         break;
@@ -930,7 +943,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if early_exit.is_some() {
         children.push(self.emit(SyntaxKind::MdToggleListSummary, &summary_children));
         self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-        return (self.emit(SyntaxKind::MdToggleListItem, &children), early_exit);
+        return (
+          self.emit(SyntaxKind::MdToggleListItem, &children),
+          early_exit,
+        );
       }
     }
     children.push(self.emit(SyntaxKind::MdToggleListSummary, &summary_children));
@@ -972,7 +988,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdToggleListItem) {
         children.push(self.emit(SyntaxKind::MdToggleListDetails, &details_children));
         self.expr_ctx_stack.exit(ExprCtx::MdToggleListItem);
-        return (self.emit(SyntaxKind::MdToggleListItem, &children), early_exit);
+        return (
+          self.emit(SyntaxKind::MdToggleListItem, &children),
+          early_exit,
+        );
       }
       if early_exit == Some(ExprCtx::MdToggleListItem) {
         break;
@@ -1851,7 +1870,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
       children.push(inline);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdStrikethrough) {
         self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);
-        return (self.emit(SyntaxKind::MdStrikethrough, &children), early_exit);
+        return (
+          self.emit(SyntaxKind::MdStrikethrough, &children),
+          early_exit,
+        );
       }
       if early_exit == Some(ExprCtx::MdStrikethrough) {
         if let Some(ctx) = self.synchronize_strikethrough(&mut children) {
