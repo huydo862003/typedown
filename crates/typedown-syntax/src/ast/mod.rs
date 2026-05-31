@@ -30,6 +30,16 @@ fn children<T: AstNode>(parent: &RedNode) -> impl Iterator<Item = T> {
 #[derive(AstNode)]
 pub struct SourceFile(RedNode);
 
+impl SourceFile {
+  fn frontmatter(&mut self) -> Option<YamlFrontmatter> {
+    child::<YamlFrontmatter>(&self.0)
+  }
+
+  fn body(&mut self) -> Option<MdBody> {
+    child::<MdBody>(&self.0)
+  }
+}
+
 /// The YAML frontmatter
 #[derive(AstNode)]
 pub struct YamlFrontmatter(RedNode);
