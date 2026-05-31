@@ -17,7 +17,7 @@ mod tests {
     loop {
       let result = lexer.lex();
       let kind = result.token.kind();
-      let text: String = result.token.text().collect();
+      let text: String = result.token.chars().collect();
       tokens.push((kind, text));
       if kind == SyntaxKind::Eof {
         break;
@@ -35,7 +35,7 @@ mod tests {
     loop {
       let result = lexer.lex();
       let kind = result.token.kind();
-      let text: String = result.token.text().collect();
+      let text: String = result.token.chars().collect();
       tokens.push((kind, text));
       if kind == SyntaxKind::Eof {
         break;

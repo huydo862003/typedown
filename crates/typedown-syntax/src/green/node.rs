@@ -65,6 +65,10 @@ impl SyntaxNode {
     unsafe { (*self.0).text_len }
   }
 
+  pub fn chars(&self) -> impl Iterator<Item = char> {
+    self.children().iter().flat_map(|c| c.chars())
+  }
+
   pub fn n_children(&self) -> u32 {
     unsafe { (*self.0).n_children }
   }

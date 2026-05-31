@@ -2,7 +2,7 @@
 //! Which gives green node identity and the child nodes now contain a back pointers to their
 //! parents
 
-use std::rc::Rc;
+use std::{ops::Deref, rc::Rc};
 
 use crate::green::{GreenNode, node::SyntaxNode};
 use typedown_types::syntax_kind::SyntaxKind;
@@ -40,10 +40,18 @@ impl RedNode {
     let green_node = self.0.green.as_node();
     RedNodeChildren {
       parent: self.clone(),
-      green_node,
+      green_node: green_node.map(|n| n.clone()),
       index: 0,
       offset: self.0.offset,
     }
+  }
+}
+
+impl Deref for RedNode {
+  type Target = GreenNode;
+
+  fn deref(&self) -> &Self::Target {
+    &self.0.green
   }
 }
 

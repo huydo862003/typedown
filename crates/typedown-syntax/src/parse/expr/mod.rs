@@ -44,14 +44,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
       // `|`, `>`, or `-` at the start
       SyntaxKind::YamlOp => {
-        let text: String = peek.token.text().collect();
+        let text: String = peek.token.chars().collect();
         match text.as_str() {
           "|" => self.parse_literal_block_str_lit(children, block_indent),
           ">" => self.parse_folded_block_str_lit(children, block_indent),
           "-" => {
             let after = self.lex_ctx.peek_yaml_nth(1, SKIP_NONE);
             if after.token.kind() == SyntaxKind::Whitespace {
-              let inline_indent = peek.token_indent - peek.token.text().count();
+              let inline_indent = peek.token_indent - peek.token.chars().count();
               self.parse_inline_block_seq_lit(children, inline_indent)
             } else {
               self.parse_formula_expr(children, block_indent)
@@ -71,7 +71,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::Ident if mode == LexMode::YamlFrontmatter => {
         let after_ident = self.lex_ctx.peek_yaml_nth(1, SKIP_WC);
         if after_ident.token.kind() == SyntaxKind::Colon {
-          let inline_indent = peek.token_indent - peek.token.text().count();
+          let inline_indent = peek.token_indent - peek.token.chars().count();
           self.parse_inline_block_mapping_lit(children, inline_indent)
         } else {
           self.parse_formula_expr(children, block_indent)
@@ -111,7 +111,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Handle children operators
     let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
     let (mut lhs, early_exit) = if peek.token.kind() == SyntaxKind::YamlOp {
-      let op_text: String = peek.token.text().collect();
+      let op_text: String = peek.token.chars().collect();
       if let Some(((), right_bp)) = children_binding_power(&op_text) {
         let mut children = children;
         // Consume the children operator
@@ -151,7 +151,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
 
-      let op_text: String = peek.token.text().collect();
+      let op_text: String = peek.token.chars().collect();
 
       // Check postfix first
       if let Some((left_bp, ())) = postfix_binding_power(&op_text) {
@@ -565,7 +565,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Peek to decide: `-` means sequence, `ident` means mapping
     let peek = self.lex_ctx.peek(SKIP_WCN, mode);
 
-    if peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "-" {
+    if peek.token.kind() == SyntaxKind::YamlOp && peek.token.chars().collect::<String>() == "-" {
       self.parse_block_seq_lit(children, block_indent)
     } else {
       self.parse_block_mapping_lit(children, block_indent)
@@ -610,7 +610,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           SyntaxKind::YamlIndent => {
             self.advance(&mut children, SKIP_NEWLINE | SKIP_WS | SKIP_COMMENT, mode);
           }
-          SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => {
+          SyntaxKind::YamlOp if peek.token.chars().collect::<String>() == "-" => {
             let (item, early_exit) = self.parse_block_seq_item(block_indent);
             children.push(item);
             if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
@@ -659,7 +659,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         SyntaxKind::YamlIndent => {
           self.advance(&mut children, SKIP_WCN, mode);
         }
-        SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => {
+        SyntaxKind::YamlOp if peek.token.chars().collect::<String>() == "-" => {
           let (item, early_exit) = self.parse_block_seq_item(block_indent);
           children.push(item);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
@@ -909,7 +909,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
       match peek.token.kind() {
         SyntaxKind::YamlIndent | SyntaxKind::Newline | SyntaxKind::Eof => break None,
-        SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "-" => break None,
+        SyntaxKind::YamlOp if peek.token.chars().collect::<String>() == "-" => break None,
         _ => {
           if let Some(ctx) = self.consume_or_delegate(ExprCtx::BlockSeq, &mut error_children) {
             break Some(ctx);
@@ -957,7 +957,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     debug_assert!(
       {
         let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
-        peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == "|"
+        peek.token.kind() == SyntaxKind::YamlOp && peek.token.chars().collect::<String>() == "|"
       },
       "[ParseCtx::parse_literal_block_str_lit] Expected next token to be `|`"
     );
@@ -1019,7 +1019,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     debug_assert!(
       {
         let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
-        peek.token.kind() == SyntaxKind::YamlOp && peek.token.text().collect::<String>() == ">"
+        peek.token.kind() == SyntaxKind::YamlOp && peek.token.chars().collect::<String>() == ">"
       },
       "[ParseCtx::parse_folded_block_str_lit] Expected next token to be `>`"
     );

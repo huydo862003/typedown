@@ -25,7 +25,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let ok = self.consume_yaml_if(
       &mut children,
       SKIP_INDENT,
-      |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
+      |token| token.kind() == SyntaxKind::YamlOp && token.chars().collect::<String>() == "---",
       Diagnostic::MissingFrontmatterMarker {
         offset: self.offset(),
       },
@@ -64,7 +64,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.consume_yaml_if(
       &mut children,
       SKIP_NEWLINE | SKIP_WS | SKIP_INDENT,
-      |token| token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---",
+      |token| token.kind() == SyntaxKind::YamlOp && token.chars().collect::<String>() == "---",
       Diagnostic::MissingFrontmatterMarker {
         offset: start_offset,
       },
@@ -91,7 +91,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let kind = result.token.kind();
 
       let is_target = (kind == SyntaxKind::YamlOp
-        && result.token.text().collect::<String>() == "---")
+        && result.token.chars().collect::<String>() == "---")
         || kind == SyntaxKind::Eof;
 
       if is_target {
@@ -131,7 +131,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn is_block_dedent(&self, token: &SyntaxToken, block_indent: usize) -> bool {
     match token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlIndent => token.text().count() < block_indent,
+      SyntaxKind::YamlIndent => token.chars().count() < block_indent,
       _ => false,
     }
   }
@@ -146,7 +146,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     match peek.token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if peek.token.text().collect::<String>() == "---" => peek.block_indent == 0,
+      SyntaxKind::YamlOp if peek.token.chars().collect::<String>() == "---" => peek.block_indent == 0,
       _ => false,
     }
   }

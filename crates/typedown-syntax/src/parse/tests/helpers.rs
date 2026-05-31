@@ -22,7 +22,7 @@ pub(crate) fn render_tree(node: &GreenNode) -> String {
     let pad = "  ".repeat(indent);
     if node.is_token() {
       let token = node.as_token().unwrap();
-      let text: String = token.text().collect();
+      let text: String = token.chars().collect();
       format!("{}{:?}", pad, text)
     } else {
       let node = node.as_node().unwrap();

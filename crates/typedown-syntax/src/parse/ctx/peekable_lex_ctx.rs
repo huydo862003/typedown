@@ -109,14 +109,14 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
         self.block_indent = 0;
       }
       SyntaxKind::YamlIndent => {
-        self.block_indent = result.token.text().count();
+        self.block_indent = result.token.chars().count();
         self.token_indent += self.block_indent;
       }
       SyntaxKind::Whitespace => {
-        self.token_indent += result.token.text().count();
+        self.token_indent += result.token.chars().count();
       }
       _ => {
-        self.token_indent += result.token.text().count();
+        self.token_indent += result.token.chars().count();
         self.after_newline = false;
       }
     }
@@ -162,7 +162,7 @@ impl<S: Utf8Stream> PeekableLexCtx<S> {
       if token.kind() == SyntaxKind::Eof {
         break LexResult { token, diagnostic };
       }
-      if token.kind() == SyntaxKind::YamlOp && token.text().collect::<String>() == "---" {
+      if token.kind() == SyntaxKind::YamlOp && token.chars().collect::<String>() == "---" {
         break LexResult { token, diagnostic };
       }
 

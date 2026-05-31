@@ -33,13 +33,18 @@ impl SyntaxToken {
     unsafe { (*self.0).kind }
   }
 
-  pub fn text(&self) -> impl Iterator<Item = char> {
+  pub fn chars(&self) -> impl Iterator<Item = char> {
     let bytes = unsafe { &(*self.0).bytes };
     bytes
       .iter()
-      .map(|b| u32::from(*b))
+      .cloned()
+      .map(|b| u32::from(b))
       .map(|val| char::from_u32(val))
       .map(|maybe_char| maybe_char.unwrap_or('\u{FFFD}'))
+  }
+
+  pub fn text(&self) -> Option<&str> {
+    unsafe { str::from_utf8(&(*self.0).bytes).ok() }
   }
 
   pub fn bytes(&self) -> &[u8] {
@@ -88,7 +93,7 @@ impl Eq for SyntaxToken {}
 
 impl std::fmt::Debug for SyntaxToken {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let text: String = self.text().collect();
+    let text: String = self.chars().collect();
     write!(f, "{:?}({:?})", self.kind(), text)
   }
 }
@@ -96,7 +101,7 @@ impl std::fmt::Debug for SyntaxToken {
 impl Hash for SyntaxToken {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
-    self.text().collect::<String>().hash(state);
+    self.chars().collect::<String>().hash(state);
   }
 }
 

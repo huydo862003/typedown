@@ -127,7 +127,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // Check for footnote ref `[^`, citation `[@`, or link `[`
         let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
         if second.token.kind() == SyntaxKind::MdSymbol {
-          let text: String = second.token.text().collect();
+          let text: String = second.token.chars().collect();
           if text == "^" {
             return self.parse_footnote_ref();
           }
@@ -138,7 +138,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.parse_link()
       }
       SyntaxKind::MdSymbol => {
-        let text: String = next.token.text().collect();
+        let text: String = next.token.chars().collect();
         match text.as_str() {
           "***" => self.parse_bold_italic(),
           "**" => self.parse_bold(),
@@ -173,7 +173,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// INVARIANT: The next token should be a hash sequence
   pub(in crate::parse) fn parse_heading(&mut self) -> (GreenNode, Option<ExprCtx>) {
     fn is_hash(token: &SyntaxToken) -> bool {
-      token.kind() == SyntaxKind::MdSymbol && token.text().all(|c| c == '#')
+      token.kind() == SyntaxKind::MdSymbol && token.chars().all(|c| c == '#')
     }
     debug_assert!(
       is_hash(&self.lex_ctx.peek_md(SKIP_NONE).token),
@@ -293,7 +293,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == ">",
       "[ParseCtx::parse_blockquote] Expected >"
@@ -354,7 +354,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "|",
       "[ParseCtx::parse_table] Expected |"
@@ -389,9 +389,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let next = self.lex_ctx.peek_md(SKIP_NONE);
     let next2 = self.lex_ctx.peek_md_nth(1, SKIP_WS);
     let is_separator = next.token.kind() == SyntaxKind::MdSymbol
-      && next.token.text().collect::<String>() == "|"
+      && next.token.chars().collect::<String>() == "|"
       && next2.token.kind() == SyntaxKind::MdSymbol
-      && next2.token.text().collect::<String>().starts_with('-');
+      && next2.token.chars().collect::<String>().starts_with('-');
     if !is_separator {
       self.emit_diagnostic(Diagnostic::MissingTableSeparatorRow {
         start_offset: sep_start,
@@ -416,7 +416,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       let next = self.lex_ctx.peek_md(SKIP_NONE);
-      if next.token.kind() != SyntaxKind::MdSymbol || next.token.text().collect::<String>() != "|" {
+      if next.token.kind() != SyntaxKind::MdSymbol || next.token.chars().collect::<String>() != "|" {
         break;
       }
 
@@ -451,7 +451,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "|",
       "[ParseCtx::parse_table_row] Expected |"
@@ -493,7 +493,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
       // Consume `|` separator
       let next = self.lex_ctx.peek_md(SKIP_NONE);
-      if next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == "|" {
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|" {
         self.advance_md(&mut children, SKIP_NONE);
       } else {
         break;
@@ -545,7 +545,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
         break;
       }
-      if next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == "|" {
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|" {
         break;
       }
 
@@ -571,7 +571,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       {
         let peek = self.lex_ctx.peek_md(SKIP_NONE);
         peek.token.kind() == SyntaxKind::MdSymbol && {
-          let text: String = peek.token.text().collect();
+          let text: String = peek.token.chars().collect();
           text == "-" || text == "*" || text == "+"
         }
       },
@@ -579,7 +579,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     let mut children = vec![];
-    let bullet: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+    let bullet: String = self.lex_ctx.peek_md(SKIP_NONE).token.chars().collect();
 
     self.expr_ctx_stack.enter(ExprCtx::MdUnorderedList);
 
@@ -601,7 +601,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if next.token.kind() != SyntaxKind::MdSymbol {
         break;
       }
-      let text: String = next.token.text().collect();
+      let text: String = next.token.chars().collect();
       if text != bullet {
         break;
       }
@@ -624,7 +624,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     debug_assert!(
       {
         let peek = self.lex_ctx.peek_md(SKIP_NONE);
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == bullet
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == bullet
       },
       "[ParseCtx::parse_bullet_list_item] Expected bullet marker"
     );
@@ -663,7 +663,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         }
         // Same-level bullet starts a new list item
         if next.token.kind() == SyntaxKind::MdSymbol
-          && next.token.text().collect::<String>() == bullet
+          && next.token.chars().collect::<String>() == bullet
         {
           break;
         }
@@ -701,7 +701,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md_nth(1, SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == ".",
       "[ParseCtx::parse_ordered_list] Expected . after MdNumber"
@@ -731,7 +731,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
       // Verify `.` follows the number
       let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
-      if dot.token.kind() != SyntaxKind::MdSymbol || dot.token.text().collect::<String>() != "." {
+      if dot.token.kind() != SyntaxKind::MdSymbol || dot.token.chars().collect::<String>() != "." {
         break;
       }
 
@@ -766,7 +766,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.consume_md_if(
       &mut children,
       SKIP_NONE,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ".",
+      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == ".",
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::MdOrderedListItem,
         start_offset: self.offset(),
@@ -802,7 +802,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // Next ordered item starts a new list item
         if next.token.kind() == SyntaxKind::MdNumber {
           let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
-          if dot.token.kind() == SyntaxKind::MdSymbol && dot.token.text().collect::<String>() == "."
+          if dot.token.kind() == SyntaxKind::MdSymbol && dot.token.chars().collect::<String>() == "."
           {
             break;
           }
@@ -837,7 +837,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == ">"
         && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
@@ -845,7 +845,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md_nth(1, SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "-",
       "[ParseCtx::parse_toggle_list] Expected > followed by -"
@@ -871,9 +871,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let next = self.lex_ctx.peek_md(SKIP_NONE);
       let next_next = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
       if next.token.kind() != SyntaxKind::MdSymbol
-        || next.token.text().collect::<String>() != ">"
+        || next.token.chars().collect::<String>() != ">"
         || next_next.token.kind() != SyntaxKind::MdSymbol
-        || next_next.token.text().collect::<String>() != "-"
+        || next_next.token.chars().collect::<String>() != "-"
       {
         break;
       }
@@ -899,7 +899,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == ">"
         && self.lex_ctx.peek_md_nth(1, SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
@@ -907,7 +907,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md_nth(1, SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "-",
       "[ParseCtx::parse_toggle_list_item] Expected > followed by -"
@@ -1014,7 +1014,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == ":::",
       "[ParseCtx::parse_callout_block] Expected :::"
@@ -1076,7 +1076,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       // The closing `:::` should appear right after the parent prefix
       let closing_pos = parent_prefix_count;
       let next = self.lex_ctx.peek_md_nth(closing_pos, SKIP_NONE);
-      if next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == ":::"
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == ":::"
       {
         break;
       }
@@ -1099,7 +1099,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.consume_md_if(
       &mut children,
       SKIP_WS,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == ":::",
+      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == ":::",
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::MdCalloutBlock,
         start_offset: open_offset,
@@ -1118,7 +1118,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_WS);
       let is_closing =
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == ":::";
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == ":::";
       if is_closing || peek.token.kind() == SyntaxKind::Eof {
         break None;
       }
@@ -1280,7 +1280,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "!",
       "[ParseCtx::parse_media] Expected !"
@@ -1297,7 +1297,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let ok = self.consume_md_if(
       &mut children,
       SKIP_NONE,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "!",
+      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == "!",
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::MdMedia,
         start_offset: open_offset,
@@ -1467,7 +1467,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       {
         let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
         second.token.kind() == SyntaxKind::MdSymbol
-          && second.token.text().collect::<String>() == "^"
+          && second.token.chars().collect::<String>() == "^"
       },
       "[ParseCtx::parse_footnote_ref] Expected ^ after ["
     );
@@ -1481,7 +1481,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.consume_md_if(
       &mut children,
       SKIP_NONE,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "^",
+      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == "^",
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
@@ -1532,7 +1532,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.consume_md_if(
       &mut children,
       SKIP_NONE,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.text().collect::<String>() == "@",
+      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == "@",
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::MdCitation,
         start_offset: open_offset,
@@ -1577,7 +1577,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "**",
       "[ParseCtx::parse_bold] Expected opening **"
@@ -1590,7 +1590,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.advance_md(&mut children, SKIP_NONE);
 
     loop {
-      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.chars().collect();
       if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol && text == "**" {
         self.advance_md(&mut children, SKIP_NONE);
         break;
@@ -1630,7 +1630,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
       let is_closing =
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == "**";
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == "**";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
         || self.should_end_inline_element(children)
@@ -1652,7 +1652,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   /// Leading whitespace must already be consumed by the caller.
   /// Trailing whitespace after the closing delimiter is not consumed.
   pub(in crate::parse) fn parse_italic(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    let opening: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+    let opening: String = self.lex_ctx.peek_md(SKIP_NONE).token.chars().collect();
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && (opening == "*" || opening == "_"),
@@ -1671,7 +1671,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.advance_md(&mut children, SKIP_NONE);
 
     loop {
-      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.chars().collect();
       if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && (text == "*" || text == "_")
       {
@@ -1727,7 +1727,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
-      let text: String = peek.token.text().collect();
+      let text: String = peek.token.chars().collect();
       let is_closing = peek.token.kind() == SyntaxKind::MdSymbol && (text == "*" || text == "_");
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
@@ -1756,7 +1756,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "***",
       "[ParseCtx::parse_bold_italic] Expected opening ***"
@@ -1769,7 +1769,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.advance_md(&mut children, SKIP_NONE);
 
     loop {
-      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.chars().collect();
       if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol && text == "***" {
         self.advance_md(&mut children, SKIP_NONE);
         break;
@@ -1809,7 +1809,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
       let is_closing =
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == "***";
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == "***";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
         || self.should_end_inline_element(children)
@@ -1837,7 +1837,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .lex_ctx
           .peek_md(SKIP_NONE)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "~~",
       "[ParseCtx::parse_strikethrough] Expected opening ~~"
@@ -1850,7 +1850,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.advance_md(&mut children, SKIP_NONE);
 
     loop {
-      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.text().collect();
+      let text: String = self.lex_ctx.peek_md(SKIP_NONE).token.chars().collect();
       if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol && text == "~~" {
         self.advance_md(&mut children, SKIP_NONE);
         break;
@@ -1893,7 +1893,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
       let is_closing =
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.text().collect::<String>() == "~~";
+        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == "~~";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
         || self.should_end_inline_element(children)
@@ -1987,7 +1987,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         return true;
       }
       if after.token.kind() == SyntaxKind::MdSymbol {
-        let text: String = after.token.text().collect();
+        let text: String = after.token.chars().collect();
         let first = text.chars().next().unwrap_or('\0');
         if matches!(first, '#' | '-' | '*' | '+' | '>' | '|' | ':') {
           return true;
@@ -2014,7 +2014,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SyntaxKind::InterpStart => true,
       SyntaxKind::InlineMath | SyntaxKind::InlineCode => true,
       SyntaxKind::MdSymbol => {
-        let text: String = next.token.text().collect();
+        let text: String = next.token.chars().collect();
         if matches!(text.as_str(), "*" | "_" | "**" | "***" | "~~") {
           return true;
         }
@@ -2075,7 +2075,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 impl<S: Utf8Stream> ParseCtx<S> {
   fn is_heading_start(&mut self, skip: u16) -> bool {
     let next = self.lex_ctx.peek_md(skip);
-    next.token.kind() == SyntaxKind::MdSymbol && next.token.text().all(|c| c == '#')
+    next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().all(|c| c == '#')
   }
 
   fn is_bullet_list_start(&mut self, skip: u16) -> bool {
@@ -2083,7 +2083,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
-    let text: String = next.token.text().collect();
+    let text: String = next.token.chars().collect();
     matches!(text.as_str(), "-" | "*" | "+")
       && self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::Whitespace
   }
@@ -2094,7 +2094,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       return false;
     }
     let dot = self.lex_ctx.peek_md_nth(1, skip);
-    dot.token.kind() == SyntaxKind::MdSymbol && dot.token.text().collect::<String>() == "."
+    dot.token.kind() == SyntaxKind::MdSymbol && dot.token.chars().collect::<String>() == "."
   }
 
   fn is_blockquote_start(&mut self, skip: u16) -> bool {
@@ -2102,14 +2102,14 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
-    let text: String = next.token.text().collect();
+    let text: String = next.token.chars().collect();
     text == ">"
       && !(self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::MdSymbol
         && self
           .lex_ctx
           .peek_md_nth(1, skip)
           .token
-          .text()
+          .chars()
           .collect::<String>()
           == "-")
   }
@@ -2119,26 +2119,26 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
-    let text: String = next.token.text().collect();
+    let text: String = next.token.chars().collect();
     text == ">"
       && self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::MdSymbol
       && self
         .lex_ctx
         .peek_md_nth(1, skip)
         .token
-        .text()
+        .chars()
         .collect::<String>()
         == "-"
   }
 
   fn is_table_start(&mut self, skip: u16) -> bool {
     let next = self.lex_ctx.peek_md(skip);
-    next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == "|"
+    next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|"
   }
 
   fn is_callout_start(&mut self, skip: u16) -> bool {
     let next = self.lex_ctx.peek_md(skip);
-    next.token.kind() == SyntaxKind::MdSymbol && next.token.text().collect::<String>() == ":::"
+    next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == ":::"
   }
 
   fn is_media_block_start(&mut self, skip: u16) -> bool {
@@ -2146,7 +2146,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if next.token.kind() != SyntaxKind::MdSymbol {
       return false;
     }
-    next.token.text().collect::<String>() == "!"
+    next.token.chars().collect::<String>() == "!"
       && self.lex_ctx.peek_md_nth(1, skip).token.kind() == SyntaxKind::LBracket
   }
 

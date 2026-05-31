@@ -5,6 +5,7 @@ pub mod node;
 pub mod token;
 
 use std::hash::{Hash, Hasher};
+use typedown_types::either::Either;
 
 pub use node::SyntaxNode;
 pub use token::SyntaxToken;
@@ -40,28 +41,24 @@ impl GreenNode {
     self.0 & 1 == 1
   }
 
-  /// Returns a new owned handle to the inner Node (ref-count bumped via Node::clone).
+  /// Returns a new borrowed handle to the inner Node.
   /// Returns None if this child is a token.
-  pub fn as_node(&self) -> Option<SyntaxNode> {
+  pub fn as_node(&self) -> Option<&SyntaxNode> {
     if !self.is_node() {
       return None;
     }
-    let tmp = SyntaxNode(self.0 as *const _);
-    let cloned = tmp.clone();
-    std::mem::forget(tmp);
-    Some(cloned)
+    let ptr = self.0 as *const _;
+    unsafe { Some(&*ptr) }
   }
 
-  /// Returns a new owned handle to the inner Token (ref-count bumped via Token::clone).
+  /// Returns a borrowed handle to the inner Token.
   /// Returns None if this child is a node.
-  pub fn as_token(&self) -> Option<SyntaxToken> {
+  pub fn as_token(&self) -> Option<&SyntaxToken> {
     if !self.is_token() {
       return None;
     }
-    let tmp = SyntaxToken((self.0 & !1) as *const _);
-    let cloned = tmp.clone();
-    std::mem::forget(tmp);
-    Some(cloned)
+    let ptr = (self.0 & !1) as *const _;
+    unsafe { Some(&*ptr) }
   }
 
   pub fn kind(&self) -> typedown_types::syntax_kind::SyntaxKind {
@@ -77,6 +74,18 @@ impl GreenNode {
       self.as_token().unwrap().text_len()
     } else {
       self.as_node().unwrap().text_len()
+    }
+  }
+
+  // We need to use Box<dyn Iterator> here due to rust cannot resolve recursive opaque types
+  // TIL: Rust iterator type is really opaque and hardly writable. It mirrors the operations you've performed on the iterator. I think this is used for optimization
+  pub fn chars<'a>(
+    &'a self,
+  ) -> Either<impl Iterator<Item = char>, Box<dyn Iterator<Item = char> + 'a>> {
+    if self.is_token() {
+      Either::Left(self.as_token().unwrap().chars())
+    } else {
+      Either::Right(Box::new(self.as_node().unwrap().chars()))
     }
   }
 }

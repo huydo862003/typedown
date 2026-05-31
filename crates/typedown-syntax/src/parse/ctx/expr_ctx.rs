@@ -205,7 +205,7 @@ impl ExprCtx {
   /// Whether this context can handle the given token.
   pub(in crate::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
     if matches!(token.kind(), SyntaxKind::YamlOp | SyntaxKind::MdSymbol) {
-      let text: String = token.text().collect();
+      let text: String = token.chars().collect();
       return match (self, text.as_str()) {
         (ExprCtx::YamlFrontmatter, "---") => true,
         (ExprCtx::MdBold, "**") => true,
