@@ -416,7 +416,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
       let next = self.lex_ctx.peek_md(SKIP_NONE);
-      if next.token.kind() != SyntaxKind::MdSymbol || next.token.chars().collect::<String>() != "|" {
+      if next.token.kind() != SyntaxKind::MdSymbol || next.token.chars().collect::<String>() != "|"
+      {
         break;
       }
 
@@ -484,16 +485,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
       cell_count += 1;
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTableRow) {
         self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
-        return (
-          self.emit(row_kind, &children),
-          cell_count,
-          early_exit,
-        );
+        return (self.emit(row_kind, &children), cell_count, early_exit);
       }
 
       // Consume `|` separator
       let next = self.lex_ctx.peek_md(SKIP_NONE);
-      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|" {
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|"
+      {
         self.advance_md(&mut children, SKIP_NONE);
       } else {
         break;
@@ -501,11 +499,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdTableRow);
-    (
-      self.emit(row_kind, &children),
-      cell_count,
-      None,
-    )
+    (self.emit(row_kind, &children), cell_count, None)
   }
 
   /// Parse a table separator row: `| --- | --- |`.
@@ -545,7 +539,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
         break;
       }
-      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|" {
+      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|"
+      {
         break;
       }
 
@@ -624,7 +619,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     debug_assert!(
       {
         let peek = self.lex_ctx.peek_md(SKIP_NONE);
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == bullet
+        peek.token.kind() == SyntaxKind::MdSymbol
+          && peek.token.chars().collect::<String>() == bullet
       },
       "[ParseCtx::parse_bullet_list_item] Expected bullet marker"
     );
@@ -802,7 +798,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
         // Next ordered item starts a new list item
         if next.token.kind() == SyntaxKind::MdNumber {
           let dot = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
-          if dot.token.kind() == SyntaxKind::MdSymbol && dot.token.chars().collect::<String>() == "."
+          if dot.token.kind() == SyntaxKind::MdSymbol
+            && dot.token.chars().collect::<String>() == "."
           {
             break;
           }
@@ -1076,7 +1073,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       // The closing `:::` should appear right after the parent prefix
       let closing_pos = parent_prefix_count;
       let next = self.lex_ctx.peek_md_nth(closing_pos, SKIP_NONE);
-      if next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == ":::"
+      if next.token.kind() == SyntaxKind::MdSymbol
+        && next.token.chars().collect::<String>() == ":::"
       {
         break;
       }
@@ -1117,8 +1115,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_WS);
-      let is_closing =
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == ":::";
+      let is_closing = peek.token.kind() == SyntaxKind::MdSymbol
+        && peek.token.chars().collect::<String>() == ":::";
       if is_closing || peek.token.kind() == SyntaxKind::Eof {
         break None;
       }
@@ -1163,34 +1161,34 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     self.expr_ctx_stack.enter(ExprCtx::MdLinkText);
 
-    // Consume inline elements until `]` or end of inline element
+    // Collect alt text tokens until `]`, Newline, or EOF
+    let mut alt_children = vec![];
     loop {
-      if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::RBracket {
-        break;
-      }
-      if self.should_end_inline_element(&mut children) {
-        self.emit_diagnostic(Diagnostic::UnclosedLink {
-          start_offset: open_offset,
-          end_offset: self.offset(),
-        });
-        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::MdLink, &children), None);
-      }
-
-      let (inline, early_exit) = self.parse_md_inline_element();
-      children.push(inline);
-
-      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdLinkText) {
-        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::MdLink, &children), early_exit);
-      }
-
-      if early_exit == Some(ExprCtx::MdLinkText) {
-        if let Some(ctx) = self.synchronize_link_text(&mut children) {
-          self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-          return (self.emit(SyntaxKind::MdLink, &children), Some(ctx));
+      let peek = self.lex_ctx.peek_md(SKIP_NONE);
+      match peek.token.kind() {
+        SyntaxKind::RBracket | SyntaxKind::Newline | SyntaxKind::Eof => break,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkText, &mut alt_children) {
+            children.push(self.emit(SyntaxKind::MdText, &alt_children));
+            self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+            return (self.emit(SyntaxKind::MdLink, &children), Some(ctx));
+          }
         }
       }
+    }
+    let is_unclosed = !matches!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind(),
+      SyntaxKind::RBracket
+    );
+    children.push(self.emit(SyntaxKind::MdText, &alt_children));
+
+    if is_unclosed {
+      self.emit_diagnostic(Diagnostic::UnclosedLink {
+        start_offset: open_offset,
+        end_offset: self.offset(),
+      });
+      self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+      return (self.emit(SyntaxKind::MdLink, &children), None);
     }
 
     // Consume `]`
@@ -1331,30 +1329,34 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     self.expr_ctx_stack.enter(ExprCtx::MdLinkText);
 
-    // Consume inline elements until `]` or end of inline element
+    // Collect alt text tokens until `]`, Newline, or EOF
+    let mut alt_children = vec![];
     loop {
-      if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::RBracket {
-        break;
-      }
-      if self.should_end_inline_element(&mut children) {
-        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::MdMedia, &children), None);
-      }
-
-      let (inline, early_exit) = self.parse_md_inline_element();
-      children.push(inline);
-
-      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdLinkText) {
-        self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-        return (self.emit(SyntaxKind::MdMedia, &children), early_exit);
-      }
-
-      if early_exit == Some(ExprCtx::MdLinkText) {
-        if let Some(ctx) = self.synchronize_link_text(&mut children) {
-          self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
-          return (self.emit(SyntaxKind::MdMedia, &children), Some(ctx));
+      let peek = self.lex_ctx.peek_md(SKIP_NONE);
+      match peek.token.kind() {
+        SyntaxKind::RBracket | SyntaxKind::Newline | SyntaxKind::Eof => break,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkText, &mut alt_children) {
+            children.push(self.emit(SyntaxKind::MdText, &alt_children));
+            self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+            return (self.emit(SyntaxKind::MdMedia, &children), Some(ctx));
+          }
         }
       }
+    }
+    let is_unclosed = !matches!(
+      self.lex_ctx.peek_md(SKIP_NONE).token.kind(),
+      SyntaxKind::RBracket
+    );
+    children.push(self.emit(SyntaxKind::MdText, &alt_children));
+
+    if is_unclosed {
+      self.emit_diagnostic(Diagnostic::UnclosedLink {
+        start_offset: open_offset,
+        end_offset: self.offset(),
+      });
+      self.expr_ctx_stack.exit(ExprCtx::MdLinkText);
+      return (self.emit(SyntaxKind::MdMedia, &children), None);
     }
 
     // Consume `]`
@@ -1808,8 +1810,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let mut error_children = vec![];
     let result = loop {
       let peek = self.lex_ctx.peek_md(SKIP_NONE);
-      let is_closing =
-        peek.token.kind() == SyntaxKind::MdSymbol && peek.token.chars().collect::<String>() == "***";
+      let is_closing = peek.token.kind() == SyntaxKind::MdSymbol
+        && peek.token.chars().collect::<String>() == "***";
       if is_closing
         || peek.token.kind() == SyntaxKind::Eof
         || self.should_end_inline_element(children)

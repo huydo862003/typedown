@@ -130,15 +130,18 @@ A paragraph with **bold** and *italic*.
           (MdLink
             "["
             (MdText
-              "link"
-              "]"
-              "("
-              "url"
-              ")")
-            "\n")
+              "link")
+            "]"
+            "("
+            (MdText
+              "url")
+            ")")))
+      "\n"
+      (MdBulletListItem
+        "-"
+        " "
+        (MdParagraph
           (MdText
-            "-"
-            " "
             "plain"
             " "
             "item")))

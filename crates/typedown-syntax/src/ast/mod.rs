@@ -224,6 +224,16 @@ pub struct MdToggleList(RedNode);
 #[derive(AstNode)]
 pub struct MdToggleListItem(RedNode);
 
+impl MdToggleListItem {
+  pub fn summary(&self) -> Option<MdToggleListSummary> {
+    child::<MdToggleListSummary>(&self.0)
+  }
+
+  pub fn details(&self) -> Option<MdToggleListDetails> {
+    child::<MdToggleListDetails>(&self.0)
+  }
+}
+
 /// The Markdown toggle list item summary
 #[derive(AstNode)]
 pub struct MdToggleListSummary(RedNode);
@@ -239,6 +249,22 @@ pub struct MdToggleListDetails(RedNode);
 /// :::
 #[derive(AstNode)]
 pub struct MdCalloutBlock(RedNode);
+
+impl MdCalloutBlock {
+  pub fn label(&self) -> Option<String> {
+    self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::Ident)?
+      .as_token()?
+      .text()
+      .map(str::to_string)
+  }
+
+  pub fn value(&self) -> impl Iterator<Item = MdNode> {
+    self.0.children().filter_map(MdNode::cast)
+  }
+}
 
 /// The Markdown link
 /// Represented by: [alt](link)

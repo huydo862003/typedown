@@ -507,12 +507,13 @@ fn parse_link_simple() {
       (MdLink
         "["
         (MdText
-          "text"
-          "]"
-          "("
-          "url"
-          ")")
-        "\n"))))"####
+          "text")
+        "]"
+        "("
+        (MdText
+          "url")
+        ")"))
+    "\n"))"####
   );
 }
 
@@ -536,14 +537,15 @@ fn parse_media_simple() {
       "!"
       "["
       (MdText
-        "alt"
-        "]"
-        "("
+        "alt")
+      "]"
+      "("
+      (MdText
         "image"
         "."
-        "png"
-        ")")
-      "\n")))"####
+        "png")
+      ")")
+    "\n"))"####
   );
 }
 
@@ -736,12 +738,13 @@ fn parse_paragraph_with_inline() {
       (MdLink
         "["
         (MdText
-          "link"
-          "]"
-          "("
-          "url"
-          ")")
-        "\n"))))"####
+          "link")
+        "]"
+        "("
+        (MdText
+          "url")
+        ")"))
+    "\n"))"####
   );
 }
 
@@ -864,12 +867,13 @@ fn parse_blockquote_with_link() {
         (MdLink
           "["
           (MdText
-            "here"
-            "]"
-            "("
-            "url"
-            ")")
-          "\n")))))"####
+            "here")
+          "]"
+          "("
+          (MdText
+            "url")
+          ")")))
+    "\n"))"####
   );
 }
 
@@ -972,17 +976,18 @@ fn parse_link_in_list_item() {
           (MdLink
             "["
             (MdText
-              "here"
-              "]"
-              "("
-              "url"
-              ")"
-              " "
-              "for"
-              " "
-              "info")
-            "\n")))
-      "")))"####
+              "here")
+            "]"
+            "("
+            (MdText
+              "url")
+            ")")
+          (MdText
+            " "
+            "for"
+            " "
+            "info")))
+      "\n")))"####
   );
 }
 
@@ -1010,16 +1015,18 @@ fn parse_media_in_paragraph() {
         "!"
         "["
         (MdText
-          "photo"
-          "]"
-          "("
+          "photo")
+        "]"
+        "("
+        (MdText
           "img"
           "."
-          "png"
-          ")"
-          " "
-          "here")
-        "\n"))))"####
+          "png")
+        ")")
+      (MdText
+        " "
+        "here"))
+    "\n"))"####
   );
 }
 
@@ -1586,26 +1593,28 @@ fn parse_ordered_list_with_links() {
           (MdLink
             "["
             (MdText
-              "first"
-              "]"
-              "("
-              "a"
-              ")")
-            "\n")
-          (MdText
-            "2"
-            "."
-            " ")
+              "first")
+            "]"
+            "("
+            (MdText
+              "a")
+            ")")))
+      "\n"
+      (MdOrderedListItem
+        "2"
+        "."
+        " "
+        (MdParagraph
           (MdLink
             "["
             (MdText
-              "second"
-              "]"
-              "("
-              "b"
-              ")")
-            "\n")))
-      "")))"####
+              "second")
+            "]"
+            "("
+            (MdText
+              "b")
+            ")")))
+      "\n")))"####
   );
 }
 
@@ -1629,34 +1638,39 @@ fn parse_multiple_links_in_paragraph() {
       (MdLink
         "["
         (MdText
-          "a"
-          "]"
-          "("
-          "x"
-          ")"
-          " "
-          "and"
-          " ")
-        (MdLink
-          "["
-          (MdText
-            "b"
-            "]"
-            "("
-            "y"
-            ")"
-            " "
-            "and"
-            " ")
-          (MdLink
-            "["
-            (MdText
-              "c"
-              "]"
-              "("
-              "z"
-              ")")
-            "\n"))))))"####
+          "a")
+        "]"
+        "("
+        (MdText
+          "x")
+        ")")
+      (MdText
+        " "
+        "and"
+        " ")
+      (MdLink
+        "["
+        (MdText
+          "b")
+        "]"
+        "("
+        (MdText
+          "y")
+        ")")
+      (MdText
+        " "
+        "and"
+        " ")
+      (MdLink
+        "["
+        (MdText
+          "c")
+        "]"
+        "("
+        (MdText
+          "z")
+        ")"))
+    "\n"))"####
   );
 }
 
@@ -1686,36 +1700,41 @@ fn parse_table_with_links() {
           (MdLink
             "["
             (MdText
-              "a"
-              "]"
-              "("
-              "x"
-              ")"
-              " "
-              "|"
-              " ")
-            (MdLink
-              "["
-              (MdText
-                "b"
-                "]"
-                "("
-                "y"
-                ")"
-                " "
-                "|")
-              "\n")
+              "a")
+            "]"
+            "("
             (MdText
-              "|"
-              " "
-              "---"
-              " "
-              "|"
-              " "
-              "---"
-              " "
-              "|")
-            "\n"))
+              "x")
+            ")")
+          (MdText
+            " "
+            "|"
+            " ")
+          (MdLink
+            "["
+            (MdText
+              "b")
+            "]"
+            "("
+            (MdText
+              "y")
+            ")")
+          (MdText
+            " "
+            "|")))
+      "\n"
+      (MdTableSeparatorRow
+        "|"
+        " "
+        "---"
+        " "
+        "|"
+        " "
+        "---"
+        " "
+        "|")
+      "\n"
+      (MdTableDataRow
         "|"
         (MdTableCell
           " "
@@ -1757,8 +1776,8 @@ fn recover_unclosed_link() {
           " "
           "without"
           " "
-          "closing")
-        "\n"))))"####
+          "closing")))
+    "\n"))"####
   );
   assert_eq!(
     diags,

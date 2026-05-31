@@ -45,7 +45,7 @@ impl Parse for WrapperArgs {
 
 /// Attribute macro for synthetic AST nodes that wrap multiple SyntaxKind variants.
 /// Usage:
-/// ```
+/// ```ignore
 /// #[wrapper_ast_node(SyntaxKind = [KindA, KindB])]
 /// pub struct MyNode(RedNode);
 /// ```
