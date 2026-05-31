@@ -41,24 +41,25 @@ impl GreenNode {
     self.0 & 1 == 1
   }
 
-  /// Returns a new borrowed handle to the inner Node.
+  /// Returns a borrowed handle to the inner Node.
   /// Returns None if this child is a token.
   pub fn as_node(&self) -> Option<&SyntaxNode> {
     if !self.is_node() {
       return None;
     }
-    let ptr = self.0 as *const _;
-    unsafe { Some(&*ptr) }
+    unsafe { Some(&*(&self.0 as *const usize as *const SyntaxNode)) }
   }
 
-  /// Returns a borrowed handle to the inner Token.
+  /// Returns an owned handle to the inner Token (ref-count bumped via Token::clone).
   /// Returns None if this child is a node.
-  pub fn as_token(&self) -> Option<&SyntaxToken> {
+  pub fn as_token(&self) -> Option<SyntaxToken> {
     if !self.is_token() {
       return None;
     }
-    let ptr = (self.0 & !1) as *const _;
-    unsafe { Some(&*ptr) }
+    let tmp = SyntaxToken((self.0 & !1) as *const _);
+    let cloned = tmp.clone();
+    std::mem::forget(tmp);
+    Some(cloned)
   }
 
   pub fn kind(&self) -> typedown_types::syntax_kind::SyntaxKind {
@@ -83,7 +84,14 @@ impl GreenNode {
     &'a self,
   ) -> Either<impl Iterator<Item = char>, Box<dyn Iterator<Item = char> + 'a>> {
     if self.is_token() {
-      Either::Left(self.as_token().unwrap().chars())
+      let token = self.as_token().unwrap();
+      // Collect bytes first so the iterator owns its data independent of token's lifetime.
+      let bytes = token.bytes().to_vec();
+      Either::Left(
+        bytes
+          .into_iter()
+          .map(|b| char::from_u32(u32::from(b)).unwrap_or('\u{FFFD}')),
+      )
     } else {
       Either::Right(Box::new(self.as_node().unwrap().chars()))
     }

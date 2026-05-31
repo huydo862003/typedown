@@ -101,7 +101,7 @@ impl std::fmt::Debug for SyntaxToken {
 impl Hash for SyntaxToken {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.kind().hash(state);
-    self.chars().collect::<String>().hash(state);
+    self.bytes().hash(state);
   }
 }
 
