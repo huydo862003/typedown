@@ -405,8 +405,44 @@ impl ListItem {
 #[derive(AstNode)]
 pub struct DictLit(RedNode);
 
+impl DictLit {
+  pub fn entries(&self) -> impl Iterator<Item = DictEntry> {
+    children::<DictEntry>(&self.0)
+  }
+
+  pub fn keys(&self) -> impl Iterator<Item = String> {
+    children::<DictEntry>(&self.0).filter_map(|e| e.key())
+  }
+
+  pub fn values(&self) -> impl Iterator<Item = Expr> {
+    children::<DictEntry>(&self.0).filter_map(|e| e.value())
+  }
+}
+
 #[derive(AstNode)]
 pub struct DictEntry(RedNode);
+
+impl DictEntry {
+  pub fn key(&self) -> Option<String> {
+    self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::DictEntryKey)
+      .map(|n| n.text())
+  }
+
+  pub fn value(&self) -> Option<Expr> {
+    let red_node = self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::DictEntryValue)?;
+    child::<Expr>(&red_node)
+  }
+
+  pub fn entry(&self) -> Option<(String, Expr)> {
+    Some((self.key()?, self.value()?))
+  }
+}
 
 #[derive(AstNode)]
 pub struct StrLit(RedNode);
