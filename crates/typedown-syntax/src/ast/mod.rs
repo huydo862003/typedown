@@ -279,6 +279,23 @@ pub struct Expr(RedNode);
 #[derive(AstNode)]
 pub struct CallExpr(RedNode);
 
+impl CallExpr {
+  /// Return the callee expression
+  pub fn callee(&self) -> Option<Expr> {
+    children::<Expr>(&self.0).next()
+  }
+
+  /// Return all argument expressions
+  pub fn args(&self) -> Vec<Expr> {
+    children::<Expr>(&self.0).skip(1).collect()
+  }
+
+  /// Return the nth argument (0-indexed)
+  pub fn arg(&self, n: usize) -> Option<Expr> {
+    children::<Expr>(&self.0).skip(1).nth(n)
+  }
+}
+
 #[derive(AstNode)]
 pub struct UnaryExpr(RedNode);
 
@@ -365,7 +382,13 @@ pub struct NumberLit(RedNode);
 
 impl NumberLit {
   pub fn value(&self) -> Option<String> {
-    self.0.children().find(|c| c.kind() == SyntaxKind::Number)?.as_token()?.text().map(str::to_string)
+    self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::Number)?
+      .as_token()?
+      .text()
+      .map(str::to_string)
   }
 }
 
@@ -374,7 +397,13 @@ pub struct IdentLit(RedNode);
 
 impl IdentLit {
   pub fn value(&self) -> Option<String> {
-    self.0.children().find(|c| c.kind() == SyntaxKind::Ident)?.as_token()?.text().map(str::to_string)
+    self
+      .0
+      .children()
+      .find(|c| c.kind() == SyntaxKind::Ident)?
+      .as_token()?
+      .text()
+      .map(str::to_string)
   }
 }
 
