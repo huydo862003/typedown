@@ -1,4 +1,4 @@
-use typedown_types::diagnostic::Diagnostic;
+use typedown_types::diagnostic::{self, Diagnostic};
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{InterpContext, LexCtx, LexResult};
@@ -173,6 +173,19 @@ impl<S: Utf8Stream> LexCtx<S> {
             },
           );
         }
+        Utf8Result::Char('\n') | Utf8Result::Char('\r') => {
+          let start = self.stream.offset() - self.text_buffer.len();
+          let end = self.stream.offset();
+          if !is_block {
+            return self.emit_with(
+              SyntaxKind::Error,
+              Diagnostic::UnterminatedMathBlock {
+                start_offset: start,
+                end_offset: end,
+              },
+            );
+          }
+        }
         _ => {
           self.advance_avoid_invalid_utf8();
         }
@@ -325,6 +338,12 @@ impl<S: Utf8Stream> LexCtx<S> {
       fence_count += 1;
     }
 
+    while let Utf8Result::Char(c) = self.peek()
+      && (c.is_alphanumeric() || c.is_whitespace() && c != '\n')
+    {
+      self.advance_avoid_invalid_utf8();
+    }
+
     // Check if content starts with a newline (block) or not (inline)
     let is_block = matches!(self.peek(), Utf8Result::Char('\n') | Utf8Result::Char('\r'));
 
@@ -359,6 +378,19 @@ impl<S: Utf8Stream> LexCtx<S> {
               end_offset: end,
             },
           );
+        }
+        Utf8Result::Char('\n') | Utf8Result::Char('\r') => {
+          let start = self.stream.offset() - self.text_buffer.len();
+          let end = self.stream.offset();
+          if !is_block {
+            return self.emit_with(
+              SyntaxKind::Error,
+              Diagnostic::UnterminatedCodeBlock {
+                start_offset: start,
+                end_offset: end,
+              },
+            );
+          }
         }
         _ => {
           self.advance_avoid_invalid_utf8();
