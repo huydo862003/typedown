@@ -55,7 +55,24 @@ pub fn wrapper_ast_node(attr: TokenStream, item: TokenStream) -> TokenStream {
   let item_ast: syn::DeriveInput = syn::parse(item).unwrap();
 
   let name = &item_ast.ident;
-  let kinds = args.kinds.iter();
+  let kinds: Vec<_> = args.kinds.iter().collect();
+
+  let from_impls = kinds.iter().map(|kind| {
+    quote! {
+      impl From<#kind> for #name {
+        fn from(node: #kind) -> Self {
+          Self(node.syntax().clone())
+        }
+      }
+
+      impl TryFrom<#name> for #kind {
+        type Error = ();
+        fn try_from(node: #name) -> Result<Self, ()> {
+          Self::cast(node.0).ok_or(())
+        }
+      }
+    }
+  });
 
   let generated = quote! {
     #item_ast
@@ -71,6 +88,8 @@ pub fn wrapper_ast_node(attr: TokenStream, item: TokenStream) -> TokenStream {
         &self.0
       }
     }
+
+    #(#from_impls)*
   };
   generated.into()
 }

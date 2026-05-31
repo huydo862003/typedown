@@ -279,10 +279,77 @@ impl MdHtmlEntity {
     Some(unescape_html_entity(&raw))
   }
 }
-//
+
 // Expression nodes
-#[wrapper_ast_node(SyntaxKind = [PrimaryExpr, ParenExpr, CallExpr, UnaryExpr, BinaryExpr])]
+#[wrapper_ast_node(SyntaxKind = [NumberLit, StrLit, CodeLit, MathLit, IdentLit, ListLit, DictLit, ParenExpr, CallExpr, UnaryExpr, BinaryExpr])]
 pub struct Expr(RedNode);
+
+pub enum LitKind {
+  NumberLit(NumberLit),
+  StrLit(StrLit),
+  CodeLit(CodeLit),
+  MathLit(MathLit),
+  IdentLit(IdentLit),
+  ListLit(ListLit),
+  DictLit(DictLit),
+}
+
+pub enum LitValue {
+  Number(f64),
+  Str(Vec<Either<String, InterpFragment>>),
+  Code(String),
+  Math(String),
+  Ident(String),
+  List(Vec<ListItem>),
+  Dict(Vec<DictEntry>),
+}
+
+#[wrapper_ast_node(SyntaxKind = [NumberLit, StrLit, CodeLit, MathLit, IdentLit, ListLit, DictLit])]
+pub struct Lit(RedNode);
+
+impl Lit {
+  pub fn kind(&self) -> Option<LitKind> {
+    match self.0.kind() {
+      SyntaxKind::NumberLit => Some(LitKind::NumberLit(NumberLit::cast(self.0.clone())?)),
+      SyntaxKind::StrLit => Some(LitKind::StrLit(StrLit::cast(self.0.clone())?)),
+      SyntaxKind::CodeLit => Some(LitKind::CodeLit(CodeLit::cast(self.0.clone())?)),
+      SyntaxKind::MathLit => Some(LitKind::MathLit(MathLit::cast(self.0.clone())?)),
+      SyntaxKind::IdentLit => Some(LitKind::IdentLit(IdentLit::cast(self.0.clone())?)),
+      SyntaxKind::ListLit => Some(LitKind::ListLit(ListLit::cast(self.0.clone())?)),
+      SyntaxKind::DictLit => Some(LitKind::DictLit(DictLit::cast(self.0.clone())?)),
+      _ => None,
+    }
+  }
+
+  pub fn value(&self) -> Option<LitValue> {
+    match self.0.kind() {
+      SyntaxKind::NumberLit => Some(LitValue::Number(NumberLit::cast(self.0.clone())?.value()?)),
+      SyntaxKind::StrLit => {
+        let fragments = StrLit::cast(self.0.clone())?.fragments().collect();
+        Some(LitValue::Str(fragments))
+      }
+      SyntaxKind::CodeLit => Some(LitValue::Code(CodeLit::cast(self.0.clone())?.value()?)),
+      SyntaxKind::MathLit => Some(LitValue::Math(MathLit::cast(self.0.clone())?.value()?)),
+      SyntaxKind::IdentLit => Some(LitValue::Ident(IdentLit::cast(self.0.clone())?.value()?)),
+      SyntaxKind::ListLit => Some(LitValue::List(
+        ListLit::cast(self.0.clone())?.items().collect(),
+      )),
+      SyntaxKind::DictLit => Some(LitValue::Dict(
+        DictLit::cast(self.0.clone())?.entries().collect(),
+      )),
+      _ => None,
+    }
+  }
+}
+
+#[derive(AstNode)]
+pub struct ParenExpr(RedNode);
+
+impl ParenExpr {
+  pub fn expr(&self) -> Option<Expr> {
+    self.0.children().find_map(Expr::cast)
+  }
+}
 
 #[derive(AstNode)]
 pub struct YamlOp(RedNode);
@@ -518,14 +585,15 @@ impl CodeLit {
 pub struct NumberLit(RedNode);
 
 impl NumberLit {
-  pub fn value(&self) -> Option<String> {
+  pub fn value(&self) -> Option<f64> {
     self
       .0
       .children()
       .find(|c| c.kind() == SyntaxKind::Number)?
       .as_token()?
-      .text()
-      .map(str::to_string)
+      .text()?
+      .parse()
+      .ok()
   }
 }
 
