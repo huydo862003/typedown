@@ -25,57 +25,57 @@ A paragraph with **bold** and *italic*.
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "title")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (IdentLit
             " "
             "test")))
       "\n"
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "tags")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (BlockSeqLit
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (IdentLit
                 " "
                 "rust"))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (IdentLit
                 " "
                 "parser")))))
       "\n"
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "config")
         ":"
-        (MappingEntryValue
-          (BlockMappingLit
+        (YamlMappingEntryValue
+          (YamlMapping
             "\n"
             "  "
-            (MappingEntry
-              (MappingEntryKey
+            (YamlMappingEntry
+              (YamlMappingEntryKey
                 "debug")
               ":"
-              (MappingEntryValue
+              (YamlMappingEntryValue
                 (IdentLit
                   " "
                   "true"))))))
@@ -83,60 +83,60 @@ A paragraph with **bold** and *italic*.
       "")
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Title"))
     "\n"
     "\n"
-    (Paragraph
-      (Text
+    (MdParagraph
+      (MdText
         "A"
         " "
         "paragraph"
         " "
         "with"
         " ")
-      (Bold
+      (MdBold
         "**"
-        (Text
+        (MdText
           "bold")
         "**")
-      (Text
+      (MdText
         " "
         "and"
         " ")
-      (Italic
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "italic")
         "*")
-      (Text
+      (MdText
         "."))
     "\n"
     "\n"
-    (BulletList
-      (BulletListItem
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "with"
             " ")
-          (Link
+          (MdLink
             "["
-            (Text
+            (MdText
               "link"
               "]"
               "("
               "url"
               ")")
             "\n")
-          (Text
+          (MdText
             "-"
             " "
             "plain"
@@ -144,11 +144,11 @@ A paragraph with **bold** and *italic*.
             "item")))
       "\n")
     "\n"
-    (Blockquote
+    (MdBlockquote
       ">"
       " "
-      (Paragraph
-        (Text
+      (MdParagraph
+        (MdText
           "A"
           " "
           "blockquote")))
@@ -174,33 +174,34 @@ world
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "desc")
         ":"
-        (MappingEntryValue
-          (FoldedBlockStrLit
-            " "
-            ">"
-            "\n"
-            "  "
-            "folded"
-            "\n"
-            "  "
-            "text"
-            "\n")))
+        (YamlMappingEntryValue
+          (StrLit
+            (FoldedBlockStrLit
+              " "
+              ">"
+              "\n"
+              "  "
+              "folded"
+              "\n"
+              "  "
+              "text"
+              "\n"))))
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "title")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (IdentLit
             " "
             "hi")))
@@ -208,16 +209,16 @@ world
       "")
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Hello"))
     "\n"
     "\n"
-    (Paragraph
-      (Text
+    (MdParagraph
+      (MdText
         "world"))
     "\n"))"####
   );
@@ -238,17 +239,17 @@ paragraph here
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "title")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (IdentLit
             " "
             "hello")))
@@ -256,16 +257,16 @@ paragraph here
       "")
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Welcome"))
     "\n"
     "\n"
-    (Paragraph
-      (Text
+    (MdParagraph
+      (MdText
         "paragraph"
         " "
         "here"))
@@ -291,38 +292,38 @@ tags:
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "title")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (IdentLit
             " "
             "hello")))
       "\n"
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "tags")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (BlockSeqLit
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (IdentLit
                 " "
                 "a"))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (IdentLit
                 " "
@@ -331,20 +332,20 @@ tags:
       "")
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Heading"))
     "\n"
     "\n"
-    (BulletList
-      (BulletListItem
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "list"
             " "
             "item")))

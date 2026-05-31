@@ -21,7 +21,7 @@ fn parse_frontmatter_with_diagnostics(input: &str) -> (String, Vec<Diagnostic>) 
 #[test]
 fn empty_frontmatter() {
   let tree = parse_frontmatter(r#""#);
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
@@ -43,17 +43,17 @@ key: 1
   let tree = render_tree(frontmatter);
   assert_eq!(
     tree,
-    r####"(Frontmatter
+    r####"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "key")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (NumberLit
           " "
           "1"))))
@@ -72,17 +72,17 @@ key: 1
 #[test]
 fn single_key_value() {
   let tree = parse_frontmatter(r#"key: 1"#);
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "key")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (NumberLit
           " "
           "1")))
@@ -99,27 +99,27 @@ fn multiple_key_values() {
     r#"a: 1
 b: 2"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "a")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (NumberLit
           " "
           "1")))
     "\n"
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "b")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (NumberLit
           " "
           "2")))
@@ -134,17 +134,17 @@ b: 2"#,
 #[test]
 fn string_value() {
   let tree = parse_frontmatter(r#"title: "hello""#);
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "title")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (StrLit
           " "
           "\""
@@ -161,17 +161,17 @@ fn string_value() {
 #[test]
 fn flow_list_value() {
   let tree = parse_frontmatter(r#"tags: [1, 2]"#);
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "tags")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (ListLit
           " "
           "["
@@ -197,28 +197,28 @@ fn block_sequence() {
   - 1
   - 2"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "items")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (BlockSeqLit
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
             (NumberLit
               " "
               "1"))
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
             (NumberLit
               " "
@@ -237,25 +237,25 @@ fn nested_mapping() {
     r#"outer:
   inner: 1"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "outer")
       ":"
-      (MappingEntryValue
-        (BlockMappingLit
+      (YamlMappingEntryValue
+        (YamlMapping
           "\n"
           "  "
-          (MappingEntry
-            (MappingEntryKey
+          (YamlMappingEntry
+            (YamlMappingEntryKey
               "inner")
             ":"
-            (MappingEntryValue
+            (YamlMappingEntryValue
               (NumberLit
                 " "
                 "1"))))))
@@ -274,28 +274,28 @@ fn sequence_in_mapping() {
   - a
   - b"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "key")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (BlockSeqLit
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
             (IdentLit
               " "
               "a"))
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
             (IdentLit
               " "
@@ -315,29 +315,29 @@ fn mapping_in_sequence() {
   - name: alice
   - name: bob"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "items")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (BlockSeqLit
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
-            (BlockMappingLit
+            (YamlMapping
               " "
-              (MappingEntry
-                (MappingEntryKey
+              (YamlMappingEntry
+                (YamlMappingEntryKey
                   "name")
                 ":"
-                (MappingEntryValue
+                (YamlMappingEntryValue
                   (IdentLit
                     " "
                     "alice")))
@@ -346,11 +346,11 @@ fn mapping_in_sequence() {
               (Error
                 "-"
                 " ")
-              (MappingEntry
-                (MappingEntryKey
+              (YamlMappingEntry
+                (YamlMappingEntryKey
                   "name")
                 ":"
-                (MappingEntryValue
+                (YamlMappingEntryValue
                   (IdentLit
                     " "
                     "bob"))))))))
@@ -373,52 +373,52 @@ fn nested_sequence() {
     - 3
     - 4"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "matrix")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (BlockSeqLit
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
             (BlockSeqLit
               "\n"
               "    "
-              (SequenceItem
+              (YamlSequenceItem
                 "-"
                 (NumberLit
                   " "
                   "1"))
               "\n"
               "    "
-              (SequenceItem
+              (YamlSequenceItem
                 "-"
                 (NumberLit
                   " "
                   "2"))))
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
             (BlockSeqLit
               "\n"
               "    "
-              (SequenceItem
+              (YamlSequenceItem
                 "-"
                 (NumberLit
                   " "
                   "3"))
               "\n"
               "    "
-              (SequenceItem
+              (YamlSequenceItem
                 "-"
                 (NumberLit
                   " "
@@ -462,63 +462,63 @@ fn multi_entry_inline_mapping() {
   - name: bob
     age: 25"#,
   );
-  let expected = r#"(Frontmatter
+  let expected = r#"(YamlFrontmatter
   ""
   "---"
   "\n"
-  (BlockMappingLit
+  (YamlMapping
     ""
-    (MappingEntry
-      (MappingEntryKey
+    (YamlMappingEntry
+      (YamlMappingEntryKey
         "items")
       ":"
-      (MappingEntryValue
+      (YamlMappingEntryValue
         (BlockSeqLit
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
-            (BlockMappingLit
+            (YamlMapping
               " "
-              (MappingEntry
-                (MappingEntryKey
+              (YamlMappingEntry
+                (YamlMappingEntryKey
                   "name")
                 ":"
-                (MappingEntryValue
+                (YamlMappingEntryValue
                   (IdentLit
                     " "
                     "alice")))
               "\n"
               "    "
-              (MappingEntry
-                (MappingEntryKey
+              (YamlMappingEntry
+                (YamlMappingEntryKey
                   "age")
                 ":"
-                (MappingEntryValue
+                (YamlMappingEntryValue
                   (NumberLit
                     " "
                     "30")))))
           "\n"
           "  "
-          (SequenceItem
+          (YamlSequenceItem
             "-"
-            (BlockMappingLit
+            (YamlMapping
               " "
-              (MappingEntry
-                (MappingEntryKey
+              (YamlMappingEntry
+                (YamlMappingEntryKey
                   "name")
                 ":"
-                (MappingEntryValue
+                (YamlMappingEntryValue
                   (IdentLit
                     " "
                     "bob")))
               "\n"
               "    "
-              (MappingEntry
-                (MappingEntryKey
+              (YamlMappingEntry
+                (YamlMappingEntryKey
                   "age")
                 ":"
-                (MappingEntryValue
+                (YamlMappingEntryValue
                   (NumberLit
                     " "
                     "25"))))))))
@@ -592,81 +592,81 @@ fn seq_alternating_list_and_map() {
   assert_eq!(diags, vec![]);
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "data")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (BlockSeqLit
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (BlockSeqLit
                 " "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (NumberLit
                     " "
                     "10"))
                 "\n"
                 "    "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (NumberLit
                     " "
                     "20"))
                 "\n"
                 "    "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (NumberLit
                     " "
                     "30"))))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
-              (BlockMappingLit
+              (YamlMapping
                 " "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "key")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (IdentLit
                       " "
                       "value")))
                 "\n"
                 "    "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "other")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (IdentLit
                       " "
                       "stuff")))))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (BlockSeqLit
                 " "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (NumberLit
                     " "
                     "40"))
                 "\n"
                 "    "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (NumberLit
                     " "
@@ -675,7 +675,7 @@ fn seq_alternating_list_and_map() {
       "")
     "---"
     "\n")
-  (Body))"#;
+  (MdBody))"#;
   assert_eq!(tree, expected);
 }
 
@@ -719,115 +719,115 @@ settings:
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "teams")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (BlockSeqLit
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
-              (BlockMappingLit
+              (YamlMapping
                 " "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "members")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (BlockSeqLit
                       "\n"
                       "      "
-                      (SequenceItem
+                      (YamlSequenceItem
                         "-"
                         (IdentLit
                           " "
                           "alice"))
                       "\n"
                       "      "
-                      (SequenceItem
+                      (YamlSequenceItem
                         "-"
                         (IdentLit
                           " "
                           "bob")))))
                 "\n"
                 "    "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "projects")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (BlockSeqLit
                       "\n"
                       "      "
-                      (SequenceItem
+                      (YamlSequenceItem
                         "-"
                         (IdentLit
                           " "
                           "alpha"))
                       "\n"
                       "      "
-                      (SequenceItem
+                      (YamlSequenceItem
                         "-"
                         (IdentLit
                           " "
                           "beta")))))))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
-              (BlockMappingLit
+              (YamlMapping
                 " "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "members")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (BlockSeqLit
                       "\n"
                       "      "
-                      (SequenceItem
+                      (YamlSequenceItem
                         "-"
                         (IdentLit
                           " "
                           "charlie")))))
                 "\n"
                 "    "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "projects")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (BlockSeqLit
                       "\n"
                       "      "
-                      (SequenceItem
+                      (YamlSequenceItem
                         "-"
                         (IdentLit
                           " "
                           "gamma"))))))))))
       "\n"
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "settings")
         ":"
-        (MappingEntryValue
-          (BlockMappingLit
+        (YamlMappingEntryValue
+          (YamlMapping
             "\n"
             "  "
-            (MappingEntry
-              (MappingEntryKey
+            (YamlMappingEntry
+              (YamlMappingEntryKey
                 "debug")
               ":"
-              (MappingEntryValue
+              (YamlMappingEntryValue
                 (IdentLit
                   " "
                   "true"))))))
@@ -835,7 +835,7 @@ settings:
       "")
     "---"
     "\n")
-  (Body))"#;
+  (MdBody))"#;
   assert_eq!(tree, expected);
 }
 
@@ -855,71 +855,71 @@ fn inline_seq_first_map_then_list() {
   assert_eq!(diags, vec![]);
   let tree = render_tree(&ast);
   let expected = r#"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
-    (BlockMappingLit
+    (YamlMapping
       ""
-      (MappingEntry
-        (MappingEntryKey
+      (YamlMappingEntry
+        (YamlMappingEntryKey
           "mixed")
         ":"
-        (MappingEntryValue
+        (YamlMappingEntryValue
           (BlockSeqLit
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
-              (BlockMappingLit
+              (YamlMapping
                 " "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "a")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (NumberLit
                       " "
                       "1")))
                 "\n"
                 "    "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "b")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (NumberLit
                       " "
                       "2")))))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
               (BlockSeqLit
                 " "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (IdentLit
                     " "
                     "x"))
                 "\n"
                 "    "
-                (SequenceItem
+                (YamlSequenceItem
                   "-"
                   (IdentLit
                     " "
                     "y"))))
             "\n"
             "  "
-            (SequenceItem
+            (YamlSequenceItem
               "-"
-              (BlockMappingLit
+              (YamlMapping
                 " "
-                (MappingEntry
-                  (MappingEntryKey
+                (YamlMappingEntry
+                  (YamlMappingEntryKey
                     "c")
                   ":"
-                  (MappingEntryValue
+                  (YamlMappingEntryValue
                     (NumberLit
                       " "
                       "3")))
@@ -927,7 +927,7 @@ fn inline_seq_first_map_then_list() {
                 ""))))))
     "---"
     "\n")
-  (Body))"#;
+  (MdBody))"#;
   assert_eq!(tree, expected);
 }
 

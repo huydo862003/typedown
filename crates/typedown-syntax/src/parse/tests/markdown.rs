@@ -22,16 +22,16 @@ fn parse_paragraph_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "hello"
         " "
         "world"))
@@ -47,18 +47,18 @@ fn parse_heading_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Hello"))
     "\n"))"####
   );
@@ -74,32 +74,32 @@ fn parse_heading_levels() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "H"
         "1"))
     "\n"
-    (Heading
+    (MdHeading
       "##"
       " "
-      (Text
+      (MdText
         "H"
         "2"))
     "\n"
-    (Heading
+    (MdHeading
       "###"
       " "
-      (Text
+      (MdText
         "H"
         "3"))
     "\n"))"####
@@ -115,29 +115,29 @@ fn parse_bullet_list_dash() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (BulletList
-      (BulletListItem
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "1")))
       "\n"
-      (BulletListItem
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "2")))
@@ -154,29 +154,29 @@ fn parse_bullet_list_star() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (BulletList
-      (BulletListItem
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
         "*"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "1")))
       "\n"
-      (BulletListItem
+      (MdBulletListItem
         "*"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "2")))
@@ -193,29 +193,29 @@ fn parse_bullet_list_plus() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (BulletList
-      (BulletListItem
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
         "+"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "1")))
       "\n"
-      (BulletListItem
+      (MdBulletListItem
         "+"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "item"
             " "
             "2")))
@@ -232,29 +232,29 @@ fn parse_ordered_list_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (OrderedList
-      (OrderedListItem
+  (MdBody
+    (MdOrderedList
+      (MdOrderedListItem
         "1"
         "."
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "first")))
       "\n"
-      (OrderedListItem
+      (MdOrderedListItem
         "2"
         "."
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "second")))
       "\n")))"####
   );
@@ -268,19 +268,19 @@ fn parse_blockquote_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Blockquote
+  (MdBody
+    (MdBlockquote
       ">"
       " "
-      (Paragraph
-        (Text
+      (MdParagraph
+        (MdText
           "quoted"
           " "
           "text")))
@@ -298,20 +298,20 @@ fn parse_table_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Table
-      (TableRow
+  (MdBody
+    (MdTable
+      (MdTableHeaderRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Text
+          (MdText
             "a"
             " "
             "|"
@@ -320,7 +320,7 @@ fn parse_table_simple() {
             " "
             "|")))
       "\n"
-      (TableSeparatorRow
+      (MdTableSeparatorRow
         "|"
         " "
         "---"
@@ -331,11 +331,11 @@ fn parse_table_simple() {
         " "
         "|")
       "\n"
-      (TableRow
+      (MdTableDataRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Text
+          (MdText
             "1"
             " "
             "|"
@@ -357,21 +357,21 @@ fn parse_toggle_list_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (ToggleList
-      (ToggleListItem
+  (MdBody
+    (MdToggleList
+      (MdToggleListItem
         ">"
         "-"
         " "
-        (ToggleListSummary
-          (Text
+        (MdToggleListSummary
+          (MdText
             "summary"))
         "\n"
         "\n"
@@ -381,9 +381,9 @@ fn parse_toggle_list_simple() {
         "details"
         " "
         "\n"
-        (ToggleListDetails
-          (Paragraph
-            (Text
+        (MdToggleListDetails
+          (MdParagraph
+            (MdText
               "here"))))
       "")))"####
   );
@@ -399,23 +399,23 @@ content
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (CalloutBlock
+  (MdBody
+    (MdCalloutBlock
       ":::"
       " "
       "note"
       "\n"
-      (Paragraph
-        (Text
+      (MdParagraph
+        (MdText
           "content"))
-      (Text
+      (MdText
         "\n")
       ":::")
     "\n"))"####
@@ -432,14 +432,14 @@ code
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
+  (MdBody
     (CodeBlock
       "```\ncode\n```")
     "\n"))"####
@@ -453,14 +453,14 @@ fn parse_body_empty() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body))"####
+  (MdBody))"####
   );
 }
 
@@ -471,14 +471,14 @@ fn parse_body_only_blank_lines() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
+  (MdBody
     "\n"
     "\n"
     "\n"))"####
@@ -495,18 +495,18 @@ fn parse_link_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Link
+  (MdBody
+    (MdParagraph
+      (MdLink
         "["
-        (Text
+        (MdText
           "text"
           "]"
           "("
@@ -524,18 +524,18 @@ fn parse_media_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Media
+  (MdBody
+    (MdMedia
       "!"
       "["
-      (Text
+      (MdText
         "alt"
         "]"
         "("
@@ -555,18 +555,18 @@ fn parse_bold_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Bold
+  (MdBody
+    (MdParagraph
+      (MdBold
         "**"
-        (Text
+        (MdText
           "bold")
         "**"))
     "\n"))"####
@@ -581,18 +581,18 @@ fn parse_italic_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Italic
+  (MdBody
+    (MdParagraph
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "italic")
         "*"))
     "\n"))"####
@@ -607,18 +607,18 @@ fn parse_bold_italic_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (BoldItalic
+  (MdBody
+    (MdParagraph
+      (MdBoldItalic
         "***"
-        (Text
+        (MdText
           "bold"
           " "
           "italic")
@@ -635,18 +635,18 @@ fn parse_strikethrough_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Strikethrough
+  (MdBody
+    (MdParagraph
+      (MdStrikethrough
         "~~"
-        (Text
+        (MdText
           "struck")
         "~~"))
     "\n"))"####
@@ -661,16 +661,16 @@ fn parse_inline_code_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "`code`"))
     "\n"))"####
   );
@@ -684,16 +684,16 @@ fn parse_citation_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Citation
+  (MdBody
+    (MdParagraph
+      (MdCitation
         "["
         "@"
         "key"
@@ -712,30 +712,30 @@ fn parse_paragraph_with_inline() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "Hello"
         " ")
-      (Italic
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "world")
         "*")
-      (Text
+      (MdText
         " "
         "and"
         " ")
-      (Link
+      (MdLink
         "["
-        (Text
+        (MdText
           "link"
           "]"
           "("
@@ -753,24 +753,24 @@ fn parse_bold_in_paragraph() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "Hello"
         " ")
-      (Bold
+      (MdBold
         "**"
-        (Text
+        (MdText
           "world")
         "**")
-      (Text
+      (MdText
         "!"))
     "\n"))"####
   );
@@ -784,23 +784,23 @@ fn parse_italic_in_heading() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Italic
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "emphasis")
         "*")
-      (Text
+      (MdText
         " "
         "title"))
     "\n"))"####
@@ -815,23 +815,23 @@ fn parse_heading_with_strikethrough() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Strikethrough
+      (MdStrikethrough
         "~~"
-        (Text
+        (MdText
           "old")
         "~~")
-      (Text
+      (MdText
         " "
         "new"))
     "\n"))"####
@@ -846,24 +846,24 @@ fn parse_blockquote_with_link() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Blockquote
+  (MdBody
+    (MdBlockquote
       ">"
       " "
-      (Paragraph
-        (Text
+      (MdParagraph
+        (MdText
           "see"
           " ")
-        (Link
+        (MdLink
           "["
-          (Text
+          (MdText
             "here"
             "]"
             "("
@@ -881,24 +881,24 @@ fn parse_strikethrough_in_blockquote() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Blockquote
+  (MdBody
+    (MdBlockquote
       ">"
       " "
-      (Paragraph
-        (Strikethrough
+      (MdParagraph
+        (MdStrikethrough
           "~~"
-          (Text
+          (MdText
             "removed")
           "~~")
-        (Text
+        (MdText
           " "
           "text")))
     "\n"))"####
@@ -914,32 +914,32 @@ fn parse_list_with_bold() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (BulletList
-      (BulletListItem
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Bold
+        (MdParagraph
+          (MdBold
             "**"
-            (Text
+            (MdText
               "bold"
               " "
               "item")
             "**")))
       "\n"
-      (BulletListItem
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "normal")))
       "\n")))"####
   );
@@ -953,25 +953,25 @@ fn parse_link_in_list_item() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (BulletList
-      (BulletListItem
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "see"
             " ")
-          (Link
+          (MdLink
             "["
-            (Text
+            (MdText
               "here"
               "]"
               "("
@@ -994,22 +994,22 @@ fn parse_media_in_paragraph() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "See"
         " ")
-      (Media
+      (MdMedia
         "!"
         "["
-        (Text
+        (MdText
           "photo"
           "]"
           "("
@@ -1031,25 +1031,25 @@ fn parse_nested_bold_in_italic() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Italic
+  (MdBody
+    (MdParagraph
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "hello"
           " ")
-        (Bold
+        (MdBold
           "**"
-          (Text
+          (MdText
             "world")
-          (BoldItalic
+          (MdBoldItalic
             "***"
             "\n"))))))"####
   );
@@ -1065,40 +1065,40 @@ fn parse_table_with_bold_cells() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Table
-      (TableRow
+  (MdBody
+    (MdTable
+      (MdTableHeaderRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Bold
+          (MdBold
             "**"
-            (Text
+            (MdText
               "h")
             "**")
-          (Text
+          (MdText
             " "
             "|")))
       "\n"
-      (TableSeparatorRow
+      (MdTableSeparatorRow
         "|"
         " "
         "---"
         " "
         "|")
       "\n"
-      (TableRow
+      (MdTableDataRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Text
+          (MdText
             "cell"
             " "
             "|")))
@@ -1118,23 +1118,23 @@ Second paragraph.
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "First"
         " "
         "paragraph"
         ".")
       "\n"
       "\n"
-      (Text
+      (MdText
         "Second"
         " "
         "paragraph"
@@ -1155,30 +1155,30 @@ text
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "One"))
     "\n"
     "\n"
-    (Paragraph
-      (Text
+    (MdParagraph
+      (MdText
         "text"))
     "\n"
     "\n"
-    (Heading
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Two"))
     "\n"))"####
   );
@@ -1197,42 +1197,42 @@ Some text.
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Heading
+  (MdBody
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "Title"))
     "\n"
     "\n"
-    (Paragraph
-      (Text
+    (MdParagraph
+      (MdText
         "Some"
         " "
         "text"
         "."))
     "\n"
     "\n"
-    (BulletList
-      (BulletListItem
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "a")))
       "\n"
-      (BulletListItem
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "b")))
       "\n")))"####
   );
@@ -1250,43 +1250,43 @@ text
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Table
-      (TableRow
+  (MdBody
+    (MdTable
+      (MdTableHeaderRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Text
+          (MdText
             "h"
             " "
             "|")))
       "\n"
-      (TableSeparatorRow
+      (MdTableSeparatorRow
         "|"
         " "
         "-"
         " "
         "|")
       "\n"
-      (TableRow
+      (MdTableDataRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Text
+          (MdText
             "c"
             " "
             "|")))
       "\n")
     "\n"
-    (Paragraph
-      (Text
+    (MdParagraph
+      (MdText
         "text"))
     "\n"))"####
   );
@@ -1302,28 +1302,28 @@ fn parse_blockquote_then_list() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Blockquote
+  (MdBody
+    (MdBlockquote
       ">"
       " "
-      (Paragraph
-        (Text
+      (MdParagraph
+        (MdText
           "quoted")))
     "\n"
     "\n"
-    (BulletList
-      (BulletListItem
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "listed")))
       "\n")))"####
   );
@@ -1340,34 +1340,34 @@ fn parse_list_then_heading() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (BulletList
-      (BulletListItem
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "a")))
       "\n"
-      (BulletListItem
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "b")))
       "\n")
     "\n"
-    (Heading
+    (MdHeading
       "#"
       " "
-      (Text
+      (MdText
         "After"))
     "\n"))"####
   );
@@ -1384,38 +1384,38 @@ fn parse_ordered_then_unordered() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (OrderedList
-      (OrderedListItem
+  (MdBody
+    (MdOrderedList
+      (MdOrderedListItem
         "1"
         "."
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "first")))
       "\n"
-      (OrderedListItem
+      (MdOrderedListItem
         "2"
         "."
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "second")))
       "\n")
     "\n"
-    (BulletList
-      (BulletListItem
+    (MdBulletList
+      (MdBulletListItem
         "-"
         " "
-        (Paragraph
-          (Text
+        (MdParagraph
+          (MdText
             "bullet")))
       "\n")))"####
   );
@@ -1431,16 +1431,16 @@ fn parse_interpolation_in_paragraph() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "hello"
         " ")
       (InterpFragment
@@ -1448,7 +1448,7 @@ fn parse_interpolation_in_paragraph() {
         (IdentLit
           "name")
         "}")
-      (Text
+      (MdText
         " "
         "world"))
     "\n"))"####
@@ -1463,23 +1463,23 @@ fn parse_inline_math_simple() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Text
+  (MdBody
+    (MdParagraph
+      (MdText
         "the"
         " "
         "formula"
         " ")
-      (Text
+      (MdText
         "$E=mc^2$")
-      (Text
+      (MdText
         " "
         "is"))
     "\n"))"####
@@ -1494,30 +1494,30 @@ fn parse_bold_and_italic_mixed() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Bold
+  (MdBody
+    (MdParagraph
+      (MdBold
         "**"
-        (Text
+        (MdText
           "bold")
         "**")
-      (Text
+      (MdText
         " "
         "and"
         " ")
-      (Italic
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "italic")
         "*")
-      (Text
+      (MdText
         " "
         "text"))
     "\n"))"####
@@ -1532,28 +1532,28 @@ fn parse_bold_then_strikethrough() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Bold
+  (MdBody
+    (MdParagraph
+      (MdBold
         "**"
-        (Text
+        (MdText
           "bold")
         "**")
-      (Text
+      (MdText
         " ")
-      (Strikethrough
+      (MdStrikethrough
         "~~"
-        (Text
+        (MdText
           "struck")
         "~~")
-      (Text
+      (MdText
         " "
         "end"))
     "\n"))"####
@@ -1569,36 +1569,36 @@ fn parse_ordered_list_with_links() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (OrderedList
-      (OrderedListItem
+  (MdBody
+    (MdOrderedList
+      (MdOrderedListItem
         "1"
         "."
         " "
-        (Paragraph
-          (Link
+        (MdParagraph
+          (MdLink
             "["
-            (Text
+            (MdText
               "first"
               "]"
               "("
               "a"
               ")")
             "\n")
-          (Text
+          (MdText
             "2"
             "."
             " ")
-          (Link
+          (MdLink
             "["
-            (Text
+            (MdText
               "second"
               "]"
               "("
@@ -1617,18 +1617,18 @@ fn parse_multiple_links_in_paragraph() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Link
+  (MdBody
+    (MdParagraph
+      (MdLink
         "["
-        (Text
+        (MdText
           "a"
           "]"
           "("
@@ -1637,9 +1637,9 @@ fn parse_multiple_links_in_paragraph() {
           " "
           "and"
           " ")
-        (Link
+        (MdLink
           "["
-          (Text
+          (MdText
             "b"
             "]"
             "("
@@ -1648,9 +1648,9 @@ fn parse_multiple_links_in_paragraph() {
             " "
             "and"
             " ")
-          (Link
+          (MdLink
             "["
-            (Text
+            (MdText
               "c"
               "]"
               "("
@@ -1670,22 +1670,22 @@ fn parse_table_with_links() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Table
-      (TableRow
+  (MdBody
+    (MdTable
+      (MdTableHeaderRow
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Link
+          (MdLink
             "["
-            (Text
+            (MdText
               "a"
               "]"
               "("
@@ -1694,9 +1694,9 @@ fn parse_table_with_links() {
               " "
               "|"
               " ")
-            (Link
+            (MdLink
               "["
-              (Text
+              (MdText
                 "b"
                 "]"
                 "("
@@ -1705,7 +1705,7 @@ fn parse_table_with_links() {
                 " "
                 "|")
               "\n")
-            (Text
+            (MdText
               "|"
               " "
               "---"
@@ -1717,9 +1717,9 @@ fn parse_table_with_links() {
               "|")
             "\n"))
         "|"
-        (TableCell
+        (MdTableCell
           " "
-          (Text
+          (MdText
             "1"
             " "
             "|"
@@ -1741,18 +1741,18 @@ fn recover_unclosed_link() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Link
+  (MdBody
+    (MdParagraph
+      (MdLink
         "["
-        (Text
+        (MdText
           "text"
           " "
           "without"
@@ -1777,18 +1777,18 @@ fn recover_unclosed_bold() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Bold
+  (MdBody
+    (MdParagraph
+      (MdBold
         "**"
-        (Text
+        (MdText
           "unclosed"
           " "
           "bold")
@@ -1811,27 +1811,27 @@ fn recover_mismatched_inline_formatting() {
   assert_eq!(
     tree,
     r####"(SourceFile
-  (Frontmatter
+  (YamlFrontmatter
     ""
     "---"
     "\n"
     ""
     "---"
     "\n")
-  (Body
-    (Paragraph
-      (Italic
+  (MdBody
+    (MdParagraph
+      (MdItalic
         "*"
-        (Text
+        (MdText
           "italic"
           " ")
-        (Bold
+        (MdBold
           "**"
-          (Text
+          (MdText
             "and"
             " "
             "bold")
-          (Italic
+          (MdItalic
             "*"
             "\n"))))))"####
   );

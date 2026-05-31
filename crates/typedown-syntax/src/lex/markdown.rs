@@ -185,6 +185,7 @@ impl<S: Utf8Stream> LexCtx<S> {
               },
             );
           }
+          self.advance_avoid_invalid_utf8();
         }
         _ => {
           self.advance_avoid_invalid_utf8();
@@ -391,6 +392,7 @@ impl<S: Utf8Stream> LexCtx<S> {
               },
             );
           }
+          self.advance_avoid_invalid_utf8();
         }
         _ => {
           self.advance_avoid_invalid_utf8();

@@ -80,7 +80,7 @@ fn parse_expr_with_diagnostics(
 #[test]
 fn parse_number_literal() {
   let tree = parse_expr("1");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (NumberLit
     " "
     "1"))"#;
@@ -90,7 +90,7 @@ fn parse_number_literal() {
 #[test]
 fn parse_decimal_literal() {
   let tree = parse_expr("3.14");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (NumberLit
     " "
     "3.14"))"#;
@@ -100,7 +100,7 @@ fn parse_decimal_literal() {
 #[test]
 fn parse_double_quoted_string() {
   let tree = parse_expr(r#""hello""#);
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (StrLit
     " "
     "\""
@@ -112,7 +112,7 @@ fn parse_double_quoted_string() {
 #[test]
 fn parse_single_quoted_string() {
   let tree = parse_expr("'hello'");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (StrLit
     " "
     "'"
@@ -124,7 +124,7 @@ fn parse_single_quoted_string() {
 #[test]
 fn parse_identifier_literal() {
   let tree = parse_expr("true");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (IdentLit
     " "
     "true"))"#;
@@ -134,7 +134,7 @@ fn parse_identifier_literal() {
 #[test]
 fn parse_list_literal() {
   let tree = parse_expr("[1, 2]");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ListLit
     " "
     "["
@@ -151,7 +151,7 @@ fn parse_list_literal() {
 #[test]
 fn parse_binary_expression() {
   let tree = parse_expr("1 + 2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -167,7 +167,7 @@ fn parse_binary_expression() {
 #[test]
 fn parse_parenthesized_expression() {
   let tree = parse_expr("(1)");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ParenExpr
     " "
     "("
@@ -180,7 +180,7 @@ fn parse_parenthesized_expression() {
 #[test]
 fn parse_subtraction() {
   let tree = parse_expr("3 - 1");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -196,7 +196,7 @@ fn parse_subtraction() {
 #[test]
 fn parse_multiplication() {
   let tree = parse_expr("2 * 3");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -212,7 +212,7 @@ fn parse_multiplication() {
 #[test]
 fn parse_division() {
   let tree = parse_expr("6 / 2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -228,7 +228,7 @@ fn parse_division() {
 #[test]
 fn parse_unary_negation() {
   let tree = parse_expr("-1");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (UnaryExpr
     " "
     "-"
@@ -240,7 +240,7 @@ fn parse_unary_negation() {
 #[test]
 fn parse_precedence_multiply_add() {
   let tree = parse_expr("1 + 2 * 3");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -262,7 +262,7 @@ fn parse_precedence_multiply_add() {
 #[test]
 fn parse_nested_parens() {
   let tree = parse_expr("(1 + 2) * 3");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (ParenExpr
       " "
@@ -287,7 +287,7 @@ fn parse_nested_parens() {
 #[test]
 fn parse_empty_list_literal() {
   let tree = parse_expr("[]");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ListLit
     " "
     "["
@@ -298,7 +298,7 @@ fn parse_empty_list_literal() {
 #[test]
 fn parse_nested_list_literal() {
   let tree = parse_expr("[[1], [2]]");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ListLit
     " "
     "["
@@ -321,7 +321,7 @@ fn parse_nested_list_literal() {
 #[test]
 fn parse_dictionary_literal() {
   let tree = parse_expr("{a: 1}");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (DictLit
     " "
     "{"
@@ -340,7 +340,7 @@ fn parse_dictionary_literal() {
 #[test]
 fn parse_call_expression() {
   let tree = parse_expr("f(1, 2)");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (CallExpr
     (IdentLit
       " "
@@ -359,7 +359,7 @@ fn parse_call_expression() {
 #[test]
 fn parse_complex_expression() {
   let tree = parse_expr("f(1 + 2, [3])");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (CallExpr
     (IdentLit
       " "
@@ -387,7 +387,7 @@ fn parse_complex_expression() {
 #[test]
 fn parse_left_associative_addition() {
   let tree = parse_expr("1 + 2 + 3");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (BinaryExpr
       (NumberLit
@@ -409,7 +409,7 @@ fn parse_left_associative_addition() {
 #[test]
 fn parse_left_associative_subtraction() {
   let tree = parse_expr("5 - 3 - 1");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (BinaryExpr
       (NumberLit
@@ -431,7 +431,7 @@ fn parse_left_associative_subtraction() {
 #[test]
 fn parse_multiply_before_subtract() {
   let tree = parse_expr("5 - 2 * 3");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -453,7 +453,7 @@ fn parse_multiply_before_subtract() {
 #[test]
 fn parse_divide_before_add() {
   let tree = parse_expr("1 + 6 / 2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -475,7 +475,7 @@ fn parse_divide_before_add() {
 #[test]
 fn parse_unary_minus_in_binary() {
   let tree = parse_expr("-1 + 2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (UnaryExpr
       " "
@@ -493,7 +493,7 @@ fn parse_unary_minus_in_binary() {
 #[test]
 fn parse_unary_minus_right_side() {
   let tree = parse_expr("1 + -2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -511,7 +511,7 @@ fn parse_unary_minus_right_side() {
 #[test]
 fn parse_comparison() {
   let tree = parse_expr("1 == 2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -527,7 +527,7 @@ fn parse_comparison() {
 #[test]
 fn parse_logical_and() {
   let tree = parse_expr("true && false");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (IdentLit
       " "
@@ -543,7 +543,7 @@ fn parse_logical_and() {
 #[test]
 fn parse_precedence() {
   let tree = parse_expr("1 + 2 == 3");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (BinaryExpr
       (NumberLit
@@ -565,7 +565,7 @@ fn parse_precedence() {
 #[test]
 fn error_missing_operand() {
   let (tree, diags) = parse_expr_with_diagnostics("1 +");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (BinaryExpr
     (NumberLit
       " "
@@ -586,7 +586,7 @@ fn error_missing_operand() {
 #[test]
 fn error_unclosed_paren() {
   let (tree, diags) = parse_expr_with_diagnostics("(1");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ParenExpr
     " "
     "("
@@ -609,7 +609,7 @@ fn error_unclosed_paren() {
 #[test]
 fn error_unclosed_list() {
   let (tree, _diags) = parse_expr_with_diagnostics("[1, 2");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ListLit
     " "
     "["
@@ -625,7 +625,7 @@ fn error_unclosed_list() {
 #[test]
 fn error_unclosed_dict() {
   let (tree, _diags) = parse_expr_with_diagnostics("{a: 1");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (DictLit
     " "
     "{"
@@ -643,7 +643,7 @@ fn error_unclosed_dict() {
 #[test]
 fn error_unclosed_string() {
   let (tree, diags) = parse_expr_with_diagnostics(r#""hello"#);
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (StrLit
     " "
     "\""
@@ -659,7 +659,7 @@ fn error_unclosed_string() {
 #[test]
 fn error_missing_value_in_mapping() {
   let (tree, diags) = parse_expr_with_diagnostics("{a:}");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (DictLit
     " "
     "{"
@@ -682,7 +682,7 @@ fn error_missing_value_in_mapping() {
 #[test]
 fn error_extra_comma_in_list() {
   let (tree, diags) = parse_expr_with_diagnostics("[1,,2]");
-  let expected = r#"(MappingEntryValue
+  let expected = r#"(YamlMappingEntryValue
   (ListLit
     " "
     "["
@@ -707,7 +707,7 @@ fn error_extra_comma_in_list() {
 #[test]
 fn error_empty_expression() {
   let (tree, diags) = parse_expr_with_diagnostics("");
-  let expected = r#"(MappingEntryValue)"#;
+  let expected = r#"(YamlMappingEntryValue)"#;
   assert_eq!(tree, expected);
   assert!(diags.iter().any(|d| matches!(
     d,
