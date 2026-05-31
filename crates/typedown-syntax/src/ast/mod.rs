@@ -3,6 +3,7 @@
 //! over the generic tree structure.
 
 use typedown_macros::AstNode;
+use typedown_types::either::Either;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::red::RedNode;
@@ -290,6 +291,29 @@ pub struct DictEntry(RedNode);
 
 #[derive(AstNode)]
 pub struct StrLit(RedNode);
+
+impl StrLit {
+  pub fn is_interpolated(&self) -> bool {
+    self
+      .0
+      .children()
+      .any(|c| c.kind() == SyntaxKind::InterpFragment)
+  }
+
+  pub fn fragments(&self) -> impl Iterator<Item = Either<String, InterpFragment>> {
+    self.0.children().filter_map(|child| match child.kind() {
+      SyntaxKind::DqStrContent | SyntaxKind::SqStrContent => {
+        Some(Either::Left(child.as_token()?.text()?.to_string()))
+      }
+      // Interp is currently not supported inside string literals
+      SyntaxKind::LiteralBlockStrLit | SyntaxKind::FoldedBlockStrLit => {
+        Some(Either::Left(child.text()))
+      }
+      SyntaxKind::InterpFragment => Some(Either::Right(InterpFragment(child))),
+      _ => None,
+    })
+  }
+}
 
 #[derive(AstNode)]
 pub struct InterpFragment(RedNode);

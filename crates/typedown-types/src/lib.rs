@@ -1,6 +1,7 @@
 //! Shared utilities for the typedown ecosystem
 
 pub mod diagnostic;
+pub mod unescape;
 pub mod either;
 pub mod file_stream;
 pub mod stream;
