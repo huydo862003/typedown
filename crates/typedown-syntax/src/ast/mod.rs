@@ -158,6 +158,27 @@ pub struct MdInlineElement(RedNode);
 #[derive(AstNode)]
 pub struct MdHeading(RedNode);
 
+impl MdHeading {
+  /// Returns the heading level (1 for `#`, 2 for `##`, etc.).
+  pub fn level(&self) -> usize {
+    self
+      .0
+      .children()
+      .next()
+      .and_then(|child| {
+        child.as_token().map(|token| {
+          token
+            .text()
+            .unwrap_or("")
+            .chars()
+            .filter(|ch| *ch == '#')
+            .count()
+        })
+      })
+      .unwrap_or(0)
+  }
+}
+
 /// The Markdown paragraph
 /// Represented by: Paragraph ...
 #[derive(AstNode)]
