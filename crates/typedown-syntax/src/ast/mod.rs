@@ -271,10 +271,62 @@ impl MdHtmlEntity {
     Some(unescape_html_entity(&raw))
   }
 }
-
+//
 // Expression nodes
 #[derive(AstNode)]
 pub struct Expr(RedNode);
+
+#[derive(AstNode)]
+pub struct YamlOp(RedNode);
+
+pub enum YamlOpKind {
+  Plus,
+  Minus,
+  Tilde,
+  Not,
+  And,
+  Or,
+  Eq,
+  NotEq,
+  Lt,
+  Gt,
+  LtEq,
+  GtEq,
+  Mul,
+  Div,
+  Mod,
+  Pow,
+  Dot,
+  Tag(String),
+}
+
+impl YamlOp {
+  pub fn kind(&self) -> Option<YamlOpKind> {
+    let text = self.0.as_token()?.text()?.to_string();
+    let kind = match text.as_str() {
+      "+" => YamlOpKind::Plus,
+      "-" => YamlOpKind::Minus,
+      "~" => YamlOpKind::Tilde,
+      "!" => YamlOpKind::Not,
+      "&&" => YamlOpKind::And,
+      "||" => YamlOpKind::Or,
+      "==" => YamlOpKind::Eq,
+      "!=" => YamlOpKind::NotEq,
+      "<" => YamlOpKind::Lt,
+      ">" => YamlOpKind::Gt,
+      "<=" => YamlOpKind::LtEq,
+      ">=" => YamlOpKind::GtEq,
+      "*" => YamlOpKind::Mul,
+      "/" => YamlOpKind::Div,
+      "%" => YamlOpKind::Mod,
+      "**" => YamlOpKind::Pow,
+      "." => YamlOpKind::Dot,
+      op if op.starts_with('!') => YamlOpKind::Tag(op[1..].to_string()),
+      _ => None?,
+    };
+    Some(kind)
+  }
+}
 
 #[derive(AstNode)]
 pub struct CallExpr(RedNode);
@@ -299,13 +351,39 @@ impl CallExpr {
 #[derive(AstNode)]
 pub struct UnaryExpr(RedNode);
 
+impl UnaryExpr {
+  /// Return the operand expression
+  pub fn expr(&self) -> Option<Expr> {
+    child::<Expr>(&self.0)
+  }
+
+  /// Return the operator
+  pub fn op(&self) -> Option<YamlOp> {
+    self.0.children().find_map(|c| YamlOp::cast(c))
+  }
+}
+
 #[derive(AstNode)]
 pub struct BinaryExpr(RedNode);
 
-// Literals
-#[derive(AstNode)]
-pub struct TaggedLit(RedNode);
+impl BinaryExpr {
+  /// Return the left operand expression
+  pub fn left(&self) -> Option<Expr> {
+    children::<Expr>(&self.0).next()
+  }
 
+  /// Return the operator
+  pub fn op(&self) -> Option<YamlOp> {
+    self.0.children().find_map(|c| YamlOp::cast(c))
+  }
+
+  /// Return the right operand expression
+  pub fn right(&self) -> Option<Expr> {
+    children::<Expr>(&self.0).nth(1)
+  }
+}
+
+// Literals
 #[derive(AstNode)]
 pub struct ListLit(RedNode);
 
@@ -406,9 +484,6 @@ impl IdentLit {
       .map(str::to_string)
   }
 }
-
-#[derive(AstNode)]
-pub struct Tag(RedNode);
 
 #[derive(AstNode)]
 pub struct InlineMath(RedNode);

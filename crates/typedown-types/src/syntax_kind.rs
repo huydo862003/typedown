@@ -52,7 +52,6 @@ pub enum SyntaxKind {
 
   // Literals
   // All literals must be wrapped in a primary expr to be treated as an expression
-  TaggedLit,              // !tag value
   ListLit,                // Flow sequence in yaml frontmatter & formula mode
   DictLit,                // Flow mapping `{key: value, ...}` in yaml frontmatter & formula mode
   DictEntry,              // one key: value pair in a dict
@@ -67,7 +66,6 @@ pub enum SyntaxKind {
   NumberLit,
   IdentLit,
 
-  Tag, // !string, !number, ...
   // Shared tokens
   Ident = 400,
   Number,
