@@ -1085,7 +1085,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
       self.expr_ctx_stack.exit(ExprCtx::BlockMap);
       return (
-        self.emit(SyntaxKind::BlockMappingLit, &children),
+        self.emit(SyntaxKind::YamlMapping, &children),
         early_exit,
       );
     }
@@ -1114,7 +1114,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
               self.expr_ctx_stack.exit(ExprCtx::BlockMap);
               return (
-                self.emit(SyntaxKind::BlockMappingLit, &children),
+                self.emit(SyntaxKind::YamlMapping, &children),
                 early_exit,
               );
             }
@@ -1123,11 +1123,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
             let handler = self.expr_ctx_stack.find_handler(&peek.token);
             if handler.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
               self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-              return (self.emit(SyntaxKind::BlockMappingLit, &children), handler);
+              return (self.emit(SyntaxKind::YamlMapping, &children), handler);
             }
             if let Some(ctx) = self.synchronize_block_mapping(&mut children) {
               self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-              return (self.emit(SyntaxKind::BlockMappingLit, &children), Some(ctx));
+              return (self.emit(SyntaxKind::YamlMapping, &children), Some(ctx));
             }
           }
         }
@@ -1135,7 +1135,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-    (self.emit(SyntaxKind::BlockMappingLit, &children), None)
+    (self.emit(SyntaxKind::YamlMapping, &children), None)
   }
 
   /// Parse a block mapping literal (indentation-based `key: value` pairs).
@@ -1164,7 +1164,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
             self.expr_ctx_stack.exit(ExprCtx::BlockMap);
             return (
-              self.emit(SyntaxKind::BlockMappingLit, &children),
+              self.emit(SyntaxKind::YamlMapping, &children),
               early_exit,
             );
           }
@@ -1173,18 +1173,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
           let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::BlockMap) {
             self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-            return (self.emit(SyntaxKind::BlockMappingLit, &children), handler);
+            return (self.emit(SyntaxKind::YamlMapping, &children), handler);
           }
           if let Some(ctx) = self.synchronize_block_mapping(&mut children) {
             self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-            return (self.emit(SyntaxKind::BlockMappingLit, &children), Some(ctx));
+            return (self.emit(SyntaxKind::YamlMapping, &children), Some(ctx));
           }
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::BlockMap);
-    (self.emit(SyntaxKind::BlockMappingLit, &children), None)
+    (self.emit(SyntaxKind::YamlMapping, &children), None)
   }
 
   /// Parse a single block mapping entry: `key: value`.

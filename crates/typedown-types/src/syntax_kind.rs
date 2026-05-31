@@ -61,7 +61,6 @@ pub enum SyntaxKind {
   DictEntryValue,     // value in a dict entry
   LiteralBlockStrLit, // | block scalar (preserves newlines)
   FoldedBlockStrLit,  // > block scalar (folds newlines to spaces)
-  BlockMappingLit,    // Block mapping in yaml frontmatter (indentation-based)
   StrLit,             // String literal + interpolation + math
   InterpFragment,     // Interpolation fragment: ${...}
   MathLit,            // Inline + block math expression

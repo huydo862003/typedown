@@ -17,7 +17,7 @@ fn parse_expr(input: &str) -> String {
     .iter()
     .find(|c| {
       c.is_node()
-        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::BlockMappingLit
+        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::YamlMapping
     })
     .expect("Expected BlockMapping in frontmatter");
 
@@ -55,7 +55,7 @@ fn parse_expr_with_diagnostics(
     .iter()
     .find(|c| {
       c.is_node()
-        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::BlockMappingLit
+        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::YamlMapping
     })
     .expect("Expected BlockMapping in frontmatter");
   let entry = mapping
