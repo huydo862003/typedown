@@ -104,10 +104,24 @@ impl YamlMappingEntry {
 /// The YAML sequence
 #[derive(AstNode)]
 pub struct YamlSequence(RedNode);
+impl YamlSequence {
+  /// Return the items of this sequence
+  pub fn values(&self) -> impl Iterator<Item = Expr> {
+    children::<YamlSequenceItem>(&self.0).filter_map(|e| e.value())
+  }
+}
 
 /// The YAML sequence item
 #[derive(AstNode)]
 pub struct YamlSequenceItem(RedNode);
+
+impl YamlSequenceItem {
+  /// Return the value of this sequence item
+  pub fn value(&self) -> Option<Expr> {
+    let red_node = self.0.children().find(|c| c.kind() == SyntaxKind::Expr)?;
+    Expr::cast(red_node)
+  }
+}
 
 /// The Markdown body
 #[derive(AstNode)]
