@@ -138,12 +138,14 @@ fn parse_list_literal() {
   (ListLit
     " "
     "["
-    (NumberLit
-      "1")
+    (ListItem
+      (NumberLit
+        "1"))
     ","
-    (NumberLit
-      " "
-      "2")
+    (ListItem
+      (NumberLit
+        " "
+        "2"))
     "]"))"#;
   assert_eq!(tree, expected);
 }
@@ -302,18 +304,22 @@ fn parse_nested_list_literal() {
   (ListLit
     " "
     "["
-    (ListLit
-      "["
-      (NumberLit
-        "1")
-      "]")
+    (ListItem
+      (ListLit
+        "["
+        (ListItem
+          (NumberLit
+            "1"))
+        "]"))
     ","
-    (ListLit
-      " "
-      "["
-      (NumberLit
-        "2")
-      "]")
+    (ListItem
+      (ListLit
+        " "
+        "["
+        (ListItem
+          (NumberLit
+            "2"))
+        "]"))
     "]"))"#;
   assert_eq!(tree, expected);
 }
@@ -377,8 +383,9 @@ fn parse_complex_expression() {
     (ListLit
       " "
       "["
-      (NumberLit
-        "3")
+      (ListItem
+        (NumberLit
+          "3"))
       "]")
     ")"))"#;
   assert_eq!(tree, expected);
@@ -613,12 +620,14 @@ fn error_unclosed_list() {
   (ListLit
     " "
     "["
-    (NumberLit
-      "1")
+    (ListItem
+      (NumberLit
+        "1"))
     ","
-    (NumberLit
-      " "
-      "2")))"#;
+    (ListItem
+      (NumberLit
+        " "
+        "2"))))"#;
   assert_eq!(tree, expected);
 }
 
@@ -686,13 +695,16 @@ fn error_extra_comma_in_list() {
   (ListLit
     " "
     "["
-    (NumberLit
-      "1")
+    (ListItem
+      (NumberLit
+        "1"))
     ","
-    (PrimaryExpr)
+    (ListItem
+      (PrimaryExpr))
     ","
-    (NumberLit
-      "2")
+    (ListItem
+      (NumberLit
+        "2"))
     "]"))"#;
   assert_eq!(tree, expected);
   assert!(diags.iter().any(|d| matches!(

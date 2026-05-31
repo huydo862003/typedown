@@ -387,6 +387,21 @@ impl BinaryExpr {
 #[derive(AstNode)]
 pub struct ListLit(RedNode);
 
+impl ListLit {
+  pub fn items(&self) -> impl Iterator<Item = ListItem> {
+    children::<ListItem>(&self.0)
+  }
+}
+
+#[derive(AstNode)]
+pub struct ListItem(RedNode);
+
+impl ListItem {
+  pub fn value(&self) -> Option<Expr> {
+    child::<Expr>(&self.0)
+  }
+}
+
 #[derive(AstNode)]
 pub struct DictLit(RedNode);
 

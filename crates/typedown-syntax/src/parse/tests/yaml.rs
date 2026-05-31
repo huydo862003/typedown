@@ -175,12 +175,14 @@ fn flow_list_value() {
         (ListLit
           " "
           "["
-          (NumberLit
-            "1")
+          (ListItem
+            (NumberLit
+              "1"))
           ","
-          (NumberLit
-            " "
-            "2")
+          (ListItem
+            (NumberLit
+              " "
+              "2"))
           "]")))
     "\n"
     "")

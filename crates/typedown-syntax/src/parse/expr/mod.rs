@@ -455,7 +455,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     // Parse first item (no leading comma)
-    let (item, early_exit) = self.parse_expr(block_indent);
+    let (item, early_exit) = self.parse_list_item(block_indent);
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::List) {
       self.expr_ctx_stack.exit(ExprCtx::List);
@@ -482,7 +482,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             break;
           }
 
-          let (item, early_exit) = self.parse_expr(block_indent);
+          let (item, early_exit) = self.parse_list_item(block_indent);
           children.push(item);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::List) {
             self.expr_ctx_stack.exit(ExprCtx::List);
@@ -517,6 +517,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     self.expr_ctx_stack.exit(ExprCtx::List);
     (self.emit(SyntaxKind::ListLit, &children), None)
+  }
+
+  fn parse_list_item(&mut self, block_indent: usize) -> (GreenNode, Option<ExprCtx>) {
+    let (expr, early_exit) = self.parse_expr(block_indent);
+    (self.emit(SyntaxKind::ListItem, &[expr]), early_exit)
   }
 
   // Stop on Comma and RBracket
