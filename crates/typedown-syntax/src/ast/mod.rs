@@ -197,13 +197,35 @@ pub struct MdBlockquote(RedNode);
 #[derive(AstNode)]
 pub struct MdTable(RedNode);
 
+impl MdTable {
+  pub fn header(&self) -> Option<MdTableHeaderRow> {
+    self.0.children().find_map(MdTableHeaderRow::cast)
+  }
+
+  pub fn rows(&self) -> impl Iterator<Item = MdTableDataRow> {
+    children::<MdTableDataRow>(&self.0)
+  }
+}
+
 /// The Markdown data row in a table
 #[derive(AstNode)]
 pub struct MdTableDataRow(RedNode);
 
+impl MdTableDataRow {
+  pub fn cells(&self) -> impl Iterator<Item = MdTableCell> {
+    children::<MdTableCell>(&self.0)
+  }
+}
+
 /// The Markdown header row in a table
 #[derive(AstNode)]
 pub struct MdTableHeaderRow(RedNode);
+
+impl MdTableHeaderRow {
+  pub fn cells(&self) -> impl Iterator<Item = MdTableCell> {
+    children::<MdTableCell>(&self.0)
+  }
+}
 
 /// The Markdown cell in a table
 #[derive(AstNode)]
@@ -216,6 +238,12 @@ pub struct MdTableCell(RedNode);
 #[derive(AstNode)]
 pub struct MdBulletList(RedNode);
 
+impl MdBulletList {
+  pub fn items(&self) -> impl Iterator<Item = MdBulletListItem> {
+    children::<MdBulletListItem>(&self.0)
+  }
+}
+
 /// The Markdown bullet list item
 #[derive(AstNode)]
 pub struct MdBulletListItem(RedNode);
@@ -227,9 +255,26 @@ pub struct MdBulletListItem(RedNode);
 #[derive(AstNode)]
 pub struct MdOrderedList(RedNode);
 
+impl MdOrderedList {
+  pub fn items(&self) -> impl Iterator<Item = MdOrderedListItem> {
+    children::<MdOrderedListItem>(&self.0)
+  }
+}
+
 /// The Markdown ordered list item
 #[derive(AstNode)]
 pub struct MdOrderedListItem(RedNode);
+
+impl MdOrderedListItem {
+  /// Returns the numeric index of this list item (e.g. 1, 2, 3).
+  pub fn index(&self) -> Option<usize> {
+    self
+      .0
+      .children()
+      .next()
+      .and_then(|child| child.as_token().and_then(|token| token.text().and_then(|text| text.parse().ok())))
+  }
+}
 
 /// The Markdown toggle list
 /// >- summary 1
@@ -237,6 +282,12 @@ pub struct MdOrderedListItem(RedNode);
 ///    details 1
 #[derive(AstNode)]
 pub struct MdToggleList(RedNode);
+
+impl MdToggleList {
+  pub fn items(&self) -> impl Iterator<Item = MdToggleListItem> {
+    children::<MdToggleListItem>(&self.0)
+  }
+}
 
 /// The Markdown toggle list item
 /// >- summary
@@ -292,20 +343,62 @@ impl MdCalloutBlock {
 #[derive(AstNode)]
 pub struct MdLink(RedNode);
 
+impl MdLink {
+  pub fn alt(&self) -> Option<MdText> {
+    self.0.children().find_map(MdText::cast)
+  }
+
+  pub fn url(&self) -> Option<MdText> {
+    self.0.children().filter_map(MdText::cast).nth(1)
+  }
+}
+
 /// The Markdown media
 /// Represented by: ![alt](link)
 #[derive(AstNode)]
 pub struct MdMedia(RedNode);
+
+impl MdMedia {
+  pub fn alt(&self) -> Option<MdText> {
+    self.0.children().find_map(MdText::cast)
+  }
+
+  pub fn url(&self) -> Option<MdText> {
+    self.0.children().filter_map(MdText::cast).nth(1)
+  }
+}
 
 /// The Markdown footnote ref
 /// Represented by: [^key]
 #[derive(AstNode)]
 pub struct MdFootnoteRef(RedNode);
 
+impl MdFootnoteRef {
+  pub fn value(&self) -> Option<String> {
+    self
+      .0
+      .children()
+      .find(|child| child.kind() == SyntaxKind::Ident)
+      .and_then(|child| child.as_token())
+      .and_then(|token| token.text().map(str::to_string))
+  }
+}
+
 /// The Markdown citation
 /// Represented by: [@citation]
 #[derive(AstNode)]
 pub struct MdCitation(RedNode);
+
+impl MdCitation {
+  pub fn value(&self) -> Option<String> {
+    self
+      .0
+      .children()
+      .find(|child| child.kind() == SyntaxKind::Ident)
+      .and_then(|child| child.as_token())
+      .and_then(|token| token.text().map(str::to_string))
+  }
+}
 
 /// The Markdown bold text
 /// Represented by: **bold**
