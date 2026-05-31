@@ -293,9 +293,6 @@ pub struct TaggedLit(RedNode);
 pub struct ListLit(RedNode);
 
 #[derive(AstNode)]
-pub struct BlockSeqLit(RedNode);
-
-#[derive(AstNode)]
 pub struct DictLit(RedNode);
 
 #[derive(AstNode)]
@@ -319,7 +316,7 @@ impl StrLit {
         Some(Either::Left(unescape(&raw).unwrap_or(raw)))
       }
       // Interp is currently not supported inside string literals
-      SyntaxKind::LiteralBlockStrLit | SyntaxKind::FoldedBlockStrLit => {
+      SyntaxKind::YamlLiteralBlockStrLit | SyntaxKind::YamlFoldedBlockStrLit => {
         Some(Either::Left(child.text()))
       }
       SyntaxKind::InterpFragment => Some(Either::Right(InterpFragment(child))),
@@ -330,6 +327,12 @@ impl StrLit {
 
 #[derive(AstNode)]
 pub struct InterpFragment(RedNode);
+
+impl InterpFragment {
+  pub fn expr(&self) -> Option<Expr> {
+    child::<Expr>(&self.0)
+  }
+}
 
 #[derive(AstNode)]
 pub struct MathLit(RedNode);
@@ -360,8 +363,20 @@ impl CodeLit {
 #[derive(AstNode)]
 pub struct NumberLit(RedNode);
 
+impl NumberLit {
+  pub fn value(&self) -> Option<String> {
+    self.0.children().find(|c| c.kind() == SyntaxKind::Number)?.as_token()?.text().map(str::to_string)
+  }
+}
+
 #[derive(AstNode)]
 pub struct IdentLit(RedNode);
+
+impl IdentLit {
+  pub fn value(&self) -> Option<String> {
+    self.0.children().find(|c| c.kind() == SyntaxKind::Ident)?.as_token()?.text().map(str::to_string)
+  }
+}
 
 #[derive(AstNode)]
 pub struct Tag(RedNode);

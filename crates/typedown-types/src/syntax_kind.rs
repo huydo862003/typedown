@@ -52,19 +52,18 @@ pub enum SyntaxKind {
 
   // Literals
   // All literals must be wrapped in a primary expr to be treated as an expression
-  TaggedLit,          // !tag value
-  ListLit,            // Flow sequence in yaml frontmatter & formula mode
-  BlockSeqLit,        // Block sequence in yaml frontmatter
-  DictLit,            // Flow mapping `{key: value, ...}` in yaml frontmatter & formula mode
-  DictEntry,          // one key: value pair in a dict
-  DictEntryKey,       // key in a dict entry
-  DictEntryValue,     // value in a dict entry
-  LiteralBlockStrLit, // | block scalar (preserves newlines)
-  FoldedBlockStrLit,  // > block scalar (folds newlines to spaces)
-  StrLit,             // String literal + interpolation + math
-  InterpFragment,     // Interpolation fragment: ${...}
-  MathLit,            // Inline + block math expression
-  CodeLit,            // Inline + block code expression
+  TaggedLit,              // !tag value
+  ListLit,                // Flow sequence in yaml frontmatter & formula mode
+  DictLit,                // Flow mapping `{key: value, ...}` in yaml frontmatter & formula mode
+  DictEntry,              // one key: value pair in a dict
+  DictEntryKey,           // key in a dict entry
+  DictEntryValue,         // value in a dict entry
+  YamlLiteralBlockStrLit, // | block scalar (preserves newlines)
+  YamlFoldedBlockStrLit,  // > block scalar (folds newlines to spaces)
+  StrLit,                 // String literal + interpolation + math
+  InterpFragment,         // Interpolation fragment: ${...}
+  MathLit,                // Inline + block math expression
+  CodeLit,                // Inline + block code expression
   NumberLit,
   IdentLit,
 
@@ -100,8 +99,8 @@ pub enum SyntaxKind {
   YamlIndent,
 
   // Markdown mode tokens
-  MdSymbol,   // a single special char (#, *, ~, -, :, ., etc.)
-  MdNumber,   // integer only (for ordered list markers like `1.`, `23.`)
+  MdSymbol,     // a single special char (#, *, ~, -, :, ., etc.)
+  MdNumber,     // integer only (for ordered list markers like `1.`, `23.`)
   MdHtmlEntity, // &name; or &#digits; or &#xhex; (e.g. &amp;, &#42;, &#x2A;)
 
   // Trivia

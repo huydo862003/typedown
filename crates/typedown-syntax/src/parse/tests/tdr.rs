@@ -46,7 +46,7 @@ A paragraph with **bold** and *italic*.
           "tags")
         ":"
         (YamlMappingEntryValue
-          (BlockSeqLit
+          (YamlSequence
             "\n"
             "  "
             (YamlSequenceItem
@@ -186,7 +186,7 @@ world
         ":"
         (YamlMappingEntryValue
           (StrLit
-            (FoldedBlockStrLit
+            (YamlFoldedBlockStrLit
               " "
               ">"
               "\n"
@@ -313,7 +313,7 @@ tags:
           "tags")
         ":"
         (YamlMappingEntryValue
-          (BlockSeqLit
+          (YamlSequence
             "\n"
             "  "
             (YamlSequenceItem

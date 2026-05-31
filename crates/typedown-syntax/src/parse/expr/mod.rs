@@ -588,7 +588,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
       self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-      return (self.emit(SyntaxKind::BlockSeqLit, &children), early_exit);
+      return (self.emit(SyntaxKind::YamlSequence, &children), early_exit);
     }
 
     // Check for continuation items on indented lines
@@ -615,18 +615,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
             children.push(item);
             if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
               self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-              return (self.emit(SyntaxKind::BlockSeqLit, &children), early_exit);
+              return (self.emit(SyntaxKind::YamlSequence, &children), early_exit);
             }
           }
           _ => {
             let handler = self.expr_ctx_stack.find_handler(&peek.token);
             if handler.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
               self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-              return (self.emit(SyntaxKind::BlockSeqLit, &children), handler);
+              return (self.emit(SyntaxKind::YamlSequence, &children), handler);
             }
             if let Some(ctx) = self.synchronize_block_seq(&mut children) {
               self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-              return (self.emit(SyntaxKind::BlockSeqLit, &children), Some(ctx));
+              return (self.emit(SyntaxKind::YamlSequence, &children), Some(ctx));
             }
           }
         }
@@ -634,7 +634,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-    (self.emit(SyntaxKind::BlockSeqLit, &children), None)
+    (self.emit(SyntaxKind::YamlSequence, &children), None)
   }
 
   pub(in crate::parse) fn parse_block_seq_lit(
@@ -664,25 +664,25 @@ impl<S: Utf8Stream> ParseCtx<S> {
           children.push(item);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
             self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-            return (self.emit(SyntaxKind::BlockSeqLit, &children), early_exit);
+            return (self.emit(SyntaxKind::YamlSequence, &children), early_exit);
           }
         }
         _ => {
           let handler = self.expr_ctx_stack.find_handler(&peek.token);
           if handler.is_some_and(|ctx| ctx != ExprCtx::BlockSeq) {
             self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-            return (self.emit(SyntaxKind::BlockSeqLit, &children), handler);
+            return (self.emit(SyntaxKind::YamlSequence, &children), handler);
           }
           if let Some(ctx) = self.synchronize_block_seq(&mut children) {
             self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-            return (self.emit(SyntaxKind::BlockSeqLit, &children), Some(ctx));
+            return (self.emit(SyntaxKind::YamlSequence, &children), Some(ctx));
           }
         }
       }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::BlockSeq);
-    (self.emit(SyntaxKind::BlockSeqLit, &children), None)
+    (self.emit(SyntaxKind::YamlSequence, &children), None)
   }
 
   /// Parse a single block sequence item: `- expr`.
@@ -1014,7 +1014,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance(&mut children, SKIP_NONE, mode);
     }
 
-    let literal_block_str_lit = self.emit(SyntaxKind::LiteralBlockStrLit, &children);
+    let literal_block_str_lit = self.emit(SyntaxKind::YamlLiteralBlockStrLit, &children);
     (
       self.emit(SyntaxKind::StrLit, &[literal_block_str_lit]),
       None,
@@ -1088,7 +1088,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance(&mut children, SKIP_NONE, mode);
     }
 
-    let folded_block_str_lit = self.emit(SyntaxKind::FoldedBlockStrLit, &children);
+    let folded_block_str_lit = self.emit(SyntaxKind::YamlFoldedBlockStrLit, &children);
     (self.emit(SyntaxKind::StrLit, &[folded_block_str_lit]), None)
   }
 

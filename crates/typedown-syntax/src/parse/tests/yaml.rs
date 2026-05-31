@@ -208,7 +208,7 @@ fn block_sequence() {
         "items")
       ":"
       (YamlMappingEntryValue
-        (BlockSeqLit
+        (YamlSequence
           "\n"
           "  "
           (YamlSequenceItem
@@ -285,7 +285,7 @@ fn sequence_in_mapping() {
         "key")
       ":"
       (YamlMappingEntryValue
-        (BlockSeqLit
+        (YamlSequence
           "\n"
           "  "
           (YamlSequenceItem
@@ -326,7 +326,7 @@ fn mapping_in_sequence() {
         "items")
       ":"
       (YamlMappingEntryValue
-        (BlockSeqLit
+        (YamlSequence
           "\n"
           "  "
           (YamlSequenceItem
@@ -384,12 +384,12 @@ fn nested_sequence() {
         "matrix")
       ":"
       (YamlMappingEntryValue
-        (BlockSeqLit
+        (YamlSequence
           "\n"
           "  "
           (YamlSequenceItem
             "-"
-            (BlockSeqLit
+            (YamlSequence
               "\n"
               "    "
               (YamlSequenceItem
@@ -408,7 +408,7 @@ fn nested_sequence() {
           "  "
           (YamlSequenceItem
             "-"
-            (BlockSeqLit
+            (YamlSequence
               "\n"
               "    "
               (YamlSequenceItem
@@ -437,7 +437,7 @@ fn inline_nested_sequence() {
   - - 1
   - - 2"#,
   );
-  assert!(tree.contains("BlockSeqLit"));
+  assert!(tree.contains("YamlSequence"));
 }
 
 #[test]
@@ -450,7 +450,7 @@ fn block_string_in_sequence() {
   - >
     foo"#,
   );
-  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(tree.contains("YamlFoldedBlockStrLit"));
 }
 
 #[test]
@@ -473,7 +473,7 @@ fn multi_entry_inline_mapping() {
         "items")
       ":"
       (YamlMappingEntryValue
-        (BlockSeqLit
+        (YamlSequence
           "\n"
           "  "
           (YamlSequenceItem
@@ -603,12 +603,12 @@ fn seq_alternating_list_and_map() {
           "data")
         ":"
         (YamlMappingEntryValue
-          (BlockSeqLit
+          (YamlSequence
             "\n"
             "  "
             (YamlSequenceItem
               "-"
-              (BlockSeqLit
+              (YamlSequence
                 " "
                 (YamlSequenceItem
                   "-"
@@ -657,7 +657,7 @@ fn seq_alternating_list_and_map() {
             "  "
             (YamlSequenceItem
               "-"
-              (BlockSeqLit
+              (YamlSequence
                 " "
                 (YamlSequenceItem
                   "-"
@@ -730,7 +730,7 @@ settings:
           "teams")
         ":"
         (YamlMappingEntryValue
-          (BlockSeqLit
+          (YamlSequence
             "\n"
             "  "
             (YamlSequenceItem
@@ -742,7 +742,7 @@ settings:
                     "members")
                   ":"
                   (YamlMappingEntryValue
-                    (BlockSeqLit
+                    (YamlSequence
                       "\n"
                       "      "
                       (YamlSequenceItem
@@ -764,7 +764,7 @@ settings:
                     "projects")
                   ":"
                   (YamlMappingEntryValue
-                    (BlockSeqLit
+                    (YamlSequence
                       "\n"
                       "      "
                       (YamlSequenceItem
@@ -790,7 +790,7 @@ settings:
                     "members")
                   ":"
                   (YamlMappingEntryValue
-                    (BlockSeqLit
+                    (YamlSequence
                       "\n"
                       "      "
                       (YamlSequenceItem
@@ -805,7 +805,7 @@ settings:
                     "projects")
                   ":"
                   (YamlMappingEntryValue
-                    (BlockSeqLit
+                    (YamlSequence
                       "\n"
                       "      "
                       (YamlSequenceItem
@@ -866,7 +866,7 @@ fn inline_seq_first_map_then_list() {
           "mixed")
         ":"
         (YamlMappingEntryValue
-          (BlockSeqLit
+          (YamlSequence
             "\n"
             "  "
             (YamlSequenceItem
@@ -895,7 +895,7 @@ fn inline_seq_first_map_then_list() {
             "  "
             (YamlSequenceItem
               "-"
-              (BlockSeqLit
+              (YamlSequence
                 " "
                 (YamlSequenceItem
                   "-"
@@ -959,7 +959,7 @@ fn seq_with_folded_block_string() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(tree.contains("YamlFoldedBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
 
@@ -976,7 +976,7 @@ fn seq_with_literal_block_string() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  assert!(tree.contains("LiteralBlockStrLit"));
+  assert!(tree.contains("YamlLiteralBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
 
@@ -992,7 +992,7 @@ title: hello"#
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(tree.contains("YamlFoldedBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
 
@@ -1008,7 +1008,7 @@ title: hello"#
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  assert!(tree.contains("LiteralBlockStrLit"));
+  assert!(tree.contains("YamlLiteralBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
 
@@ -1031,8 +1031,8 @@ settings:
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  assert!(tree.contains("FoldedBlockStrLit"));
-  assert!(tree.contains("LiteralBlockStrLit"));
+  assert!(tree.contains("YamlFoldedBlockStrLit"));
+  assert!(tree.contains("YamlLiteralBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
 
@@ -1049,7 +1049,7 @@ fn deep_nested_with_block_string() {
   );
   let (ast, _) = parse(&full);
   let tree = render_tree(&ast);
-  assert!(tree.contains("FoldedBlockStrLit"));
+  assert!(tree.contains("YamlFoldedBlockStrLit"));
   assert!(!tree.contains("Error"));
 }
 
