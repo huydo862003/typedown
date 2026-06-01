@@ -5,15 +5,14 @@ use typedown_types::diagnostic::Diagnostic;
 use typedown_types::string_stream::StringStream;
 
 use crate::green::{GreenNode, cache::Cache};
-use crate::parse::ctx::ParseCtx;
+use crate::parse::ctx::{ParseCtx, ParseResult};
 
 pub(crate) fn parse(input: &str) -> (GreenNode, Vec<Diagnostic>) {
   let stream = StringStream::new(input);
   let cache = Rc::new(RefCell::new(Cache::new()));
   let mut ctx = ParseCtx::new(stream, cache);
-  let result = ctx.parse();
-  let diagnostics = result.diagnostics().to_vec();
-  (result.ast().clone(), diagnostics)
+  let ParseResult { diagnostics, ast } = ctx.parse();
+  (ast, diagnostics.to_vec())
 }
 
 /// Render a green tree in multiline lisp format
