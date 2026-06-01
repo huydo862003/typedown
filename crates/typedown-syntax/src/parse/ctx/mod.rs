@@ -24,18 +24,8 @@ pub struct ParseCtx<S: Utf8Stream> {
 }
 
 pub struct ParseResult<'a> {
-  ast: GreenNode,
-  diagnostics: &'a [Diagnostic],
-}
-
-impl<'a> ParseResult<'a> {
-  pub fn ast(&self) -> &GreenNode {
-    &self.ast
-  }
-
-  pub fn diagnostics(&self) -> &[Diagnostic] {
-    self.diagnostics
-  }
+  pub ast: GreenNode,
+  pub diagnostics: &'a [Diagnostic],
 }
 
 impl<S: Utf8Stream> ParseCtx<S> {

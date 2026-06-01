@@ -11,3 +11,6 @@ pub struct TypedownDatabase {
 
 #[salsa::db]
 impl salsa::Database for TypedownDatabase {}
+
+#[salsa::accumulator]
+pub struct Diagnostic(pub typedown_types::diagnostic::Diagnostic);

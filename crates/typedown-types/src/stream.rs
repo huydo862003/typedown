@@ -25,3 +25,22 @@ pub trait Utf8Stream {
   /// Whether the stream is exhausted.
   fn exhausted(&self) -> bool;
 }
+
+impl Utf8Stream for Box<dyn Utf8Stream> {
+  fn peek(&mut self) -> Utf8Result {
+    (**self).peek()
+  }
+
+  fn advance(&mut self) -> Utf8Result {
+    (**self).advance()
+  }
+
+  fn offset(&self) -> usize {
+    (**self).offset()
+  }
+
+  fn exhausted(&self) -> bool {
+    (**self).exhausted()
+  }
+}
+

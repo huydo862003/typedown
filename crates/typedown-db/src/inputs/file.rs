@@ -29,5 +29,5 @@ impl FileHandle {
 /// A file input struct
 #[salsa::input]
 pub struct File {
-  handle: FileHandle,
+  pub handle: FileHandle,
 }
