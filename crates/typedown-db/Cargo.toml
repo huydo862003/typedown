@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 salsa = "0.26.2"
+typedown-types = { version = "0.1.0", path = "../typedown-types" }
