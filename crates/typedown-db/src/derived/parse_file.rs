@@ -7,9 +7,9 @@ use typedown_syntax::{
   parse::ctx::{ParseCtx, ParseResult},
 };
 
-use crate::{Database, inputs::File};
+use crate::{TypedownDatabase, inputs::File};
 
-pub fn parse_file(db: Database, file: File) -> GreenNode {
+pub fn parse_file(db: TypedownDatabase, file: File) -> GreenNode {
   let handle = file.handle(db);
   let stream = handle.open().expect("failed to open file");
 

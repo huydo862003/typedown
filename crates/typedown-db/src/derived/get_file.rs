@@ -3,11 +3,11 @@
 use std::path::PathBuf;
 
 use crate::{
-  Database,
+  TypedownDatabase,
   inputs::{File, Project},
 };
 
-pub fn get_file(db: &Database, project: Project, path: PathBuf) -> Option<File> {
+pub fn get_file(db: &TypedownDatabase, project: Project, path: PathBuf) -> Option<File> {
   let handles = project.handles(db);
   let handle = handles.get(&path)?.clone();
   Some(File::new(db, handle))
