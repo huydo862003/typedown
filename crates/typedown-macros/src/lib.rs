@@ -6,6 +6,8 @@ use syn::{
   punctuated::Punctuated,
 };
 
+// Ast node macros, used for AST layer definition in typedown-syntax
+
 #[proc_macro_derive(AstNode)]
 pub fn ast_node_derive(item: TokenStream) -> TokenStream {
   let item_ast: syn::DeriveInput = syn::parse(item).unwrap();
