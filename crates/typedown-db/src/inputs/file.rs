@@ -1,4 +1,4 @@
-//! An input salsa struct representing a file in a project
+//! An input struct representing a file in a project
 
 use std::{fs, io, path::PathBuf};
 
@@ -27,7 +27,6 @@ impl FileHandle {
 }
 
 /// A file input struct
-#[salsa::input]
 pub struct File {
   pub handle: FileHandle,
 }

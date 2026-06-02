@@ -2,10 +2,12 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::inputs::{File, Project};
+use crate::{
+  Database,
+  inputs::{File, Project},
+};
 
-#[salsa::tracked]
-pub fn get_files(db: &dyn salsa::Database, project: Project) -> HashMap<PathBuf, File> {
+pub fn get_files(db: Database, project: Project) -> HashMap<PathBuf, File> {
   project
     .handles(db)
     .into_iter()

@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-salsa = { version = "0.26.2", features = ["accumulator", "inventory"] }
 typedown-types = { version = "0.1.0", path = "../typedown-types" }
 typedown-syntax = { version = "0.1.0", path = "../typedown-syntax" }

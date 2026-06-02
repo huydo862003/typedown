@@ -1,16 +1,6 @@
-//! A salsa database for incremental Typedown compilation
-//! Salsa seems to remove the ParallelDatabase trait: https://github.com/salsa-rs/salsa/pull/1013
-//! I've scoured the salsa repo but it seems we have to do it manually now
+//! A salsa-like database for incremental Typedown compilation
+//! Salsa is not used so I can fully control the incrementalism + task-based parallelism
+pub mod derived;
 pub mod inputs;
-pub mod tracked;
 
-#[salsa::db]
-pub struct TypedownDatabase {
-  storage: salsa::Storage<Self>,
-}
-
-#[salsa::db]
-impl salsa::Database for TypedownDatabase {}
-
-#[salsa::accumulator]
-pub struct Diagnostic(pub typedown_types::diagnostic::Diagnostic);
+pub struct Database {}
