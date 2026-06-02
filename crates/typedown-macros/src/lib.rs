@@ -18,3 +18,16 @@ pub fn ast_node_derive(item: TokenStream) -> TokenStream {
 pub fn wrapper_ast_node(attr: TokenStream, item: TokenStream) -> TokenStream {
   ast::wrapper_ast_node_impl(attr, item)
 }
+
+/// Attribute macro for annotating an incremental database.
+/// Usage:
+/// ```ignore
+/// #[query_db]
+/// pub struct Database {
+///   storage: Storage,
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn query_db(attr: TokenStream, item: TokenStream) -> TokenStream {
+  db::query_db_impl(attr, item)
+}

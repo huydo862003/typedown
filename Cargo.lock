@@ -119,6 +119,7 @@ version = "0.1.0"
 name = "typedown-db"
 version = "0.1.0"
 dependencies = [
+ "typedown-macros",
  "typedown-syntax",
  "typedown-types",
 ]

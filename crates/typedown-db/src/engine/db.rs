@@ -1,1 +1,1 @@
-pub trait Database {}
+pub trait QueryDatabase {}
