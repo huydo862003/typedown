@@ -1,31 +1,33 @@
-//! Macros for the salsa database layer in typeodown-db
+//! Macros for the salsa database layer in typedown-db
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{ItemStruct, Type};
+use syn::ItemStruct;
 
 pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   // Only a struct can be decorated
-  let struct_ast: ItemStruct = syn::parse(item).expect("query_db can only be applied to structs");
+  let struct_ast = match syn::parse::<ItemStruct>(item) {
+    Ok(ast) => ast,
+    Err(err) => return err.to_compile_error().into(),
+  };
+
   let struct_name = &struct_ast.ident;
 
   // Require the struct to have a `storage` field
-  let has_storage = struct_ast
+  let storage_field = struct_ast
     .fields
     .iter()
-    .any(|field| field.ident.as_ref().is_some_and(|name| name == "storage"));
-
-  if !has_storage {
-    panic!("Expect the database struct to define a field named `storage`")
-  }
+    .find(|field| field.ident.as_ref().is_some_and(|name| name == "storage"));
 
   // Get the type the user wrote for the `storage` field
-  let storage_ty = struct_ast
-    .fields
-    .iter()
-    .find(|field| field.ident.as_ref().is_some_and(|name| name == "storage"))
-    .map(|field| &field.ty)
-    .unwrap();
+  let storage_ty = match storage_field {
+    Some(field) => &field.ty,
+    None => {
+      return syn::Error::new_spanned(&struct_ast, "expected a `storage: QueryStorage` field")
+        .to_compile_error()
+        .into();
+    }
+  };
 
   quote! {
     #struct_ast
