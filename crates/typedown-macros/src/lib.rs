@@ -31,3 +31,27 @@ pub fn wrapper_ast_node(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn query_db(attr: TokenStream, item: TokenStream) -> TokenStream {
   db::query_db_impl(attr, item)
 }
+
+/// Attribute macro for annotating an incremental engine's input state.
+/// Usage:
+/// ```ignore
+/// #[query_input]
+/// pub struct Input {
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn query_input(attr: TokenStream, item: TokenStream) -> TokenStream {
+  db::query_input_impl(attr, item)
+}
+
+/// Attribute macro for annotating an incremental enginer's derived state.
+/// Usage:
+/// ```ignore
+/// #[query_db]
+/// pub struct Derived {
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn query_derived(attr: TokenStream, item: TokenStream) -> TokenStream {
+  db::query_derived_impl(attr, item)
+}

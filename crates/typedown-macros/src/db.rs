@@ -40,3 +40,11 @@ pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   }
   .into()
 }
+
+pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
+  todo!();
+}
+
+pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
+  todo!();
+}
