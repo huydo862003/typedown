@@ -51,13 +51,10 @@ pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   // Only a struct can be decorated
-  let mut struct_ast = match syn::parse::<ItemStruct>(item) {
+  let struct_ast = match syn::parse::<ItemStruct>(item) {
     Ok(ast) => ast,
     Err(err) => return err.to_compile_error().into(),
   };
-
-  // Auto-derive Clone on the original struct so it can be stored in the database
-  struct_ast.attrs.push(syn::parse_quote!(#[derive(Clone)]));
 
   let visibility = &struct_ast.vis;
   let struct_name = &struct_ast.ident;
@@ -71,32 +68,15 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
   };
 
-  // TIL: Fields decorated with macros will have them stored in .attrs
-  let tracked_fields: Vec<_> = fields
-    .iter()
-    .filter(|field| {
-      field
-        .attrs
-        .iter()
-        .any(|attr| attr.path().is_ident("tracked"))
-    })
-    .collect();
-
-  let untracked_fields: Vec<_> = fields
-    .iter()
-    .filter(|field| {
-      !field
-        .attrs
-        .iter()
-        .any(|attr| attr.path().is_ident("tracked"))
-    })
-    .collect();
-
   let all_fields: Vec<_> = fields.iter().collect();
 
   // Generate a tuple type from all field types, e.g. (PathBuf, String)
   let field_types: Vec<_> = all_fields.iter().map(|field| &field.ty).collect();
-  let data_tuple_ty = quote! { (#(#field_types),*) };
+  let field_names: Vec<_> = all_fields
+    .iter()
+    .map(|field| field.ident.as_ref().unwrap())
+    .collect();
+  let data_tuple_ty = quote! { (#(#field_types,)*) };
 
   // Generate new() constructor
   let new_params = all_fields.iter().map(|field| {
@@ -106,24 +86,34 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   });
 
   // Generate all getters for the struct
-  let getters = all_fields.iter().map(|field| {
+  let getters = all_fields.iter().enumerate().map(|(idx, field)| {
     let field_name = field.ident.as_ref().unwrap();
     let field_ty = &field.ty;
+    let tuple_index = syn::Index::from(idx);
     quote! {
-      pub fn #field_name<DB: typedown_db::QueryDatabase + 'db>(&self, db: &DB) -> #field_ty {
-        todo!()
+      pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
+        let storage = unsafe { db.storage() };
+        let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
+        let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let entry = ingredient.data.get(&self.0).expect("invalid input id");
+        entry.value().#tuple_index.clone()
       }
     }
   });
 
   // Generate all setters for the struct
-  let setters = all_fields.iter().map(|field| {
+  let setters = all_fields.iter().enumerate().map(|(idx, field)| {
     let field_name = field.ident.as_ref().unwrap();
     let field_ty = &field.ty;
     let setter_name = quote::format_ident!("set_{}", field_name);
+    let tuple_index = syn::Index::from(idx);
     quote! {
-      pub fn #setter_name<DB: typedown_db::QueryDatabase + 'db>(&self, db: &mut DB, value: #field_ty) {
-        todo!()
+      pub fn #setter_name<DB: typedown_db::QueryDatabase>(&self, db: &mut DB, value: #field_ty) {
+        let storage = unsafe { db.storage() };
+        let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
+        let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
+        entry.value_mut().#tuple_index = value;
       }
     }
   });
@@ -133,17 +123,15 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Validate the generated struct is Send + Sync + Clone
     const _: () = {
-      #struct_ast
-
       const fn assert_send<T: Send>() {}
       const fn assert_sync<T: Sync>() {}
       const fn assert_clone<T: Clone>() {}
-      assert_send::<#struct_name>();
-      assert_sync::<#struct_name>();
-      assert_clone::<#struct_name>();
+      assert_send::<#data_tuple_ty>();
+      assert_sync::<#data_tuple_ty>();
+      assert_clone::<#data_tuple_ty>();
 
       #[cfg(debug_assertions)]
-      const _: () = <typedown_db::InputIngredient<#struct_name>>::__TYPEDOWN_INPUT_INGREDIENT;
+      const _: () = <typedown_db::InputIngredient<#data_tuple_ty>>::__TYPEDOWN_INPUT_INGREDIENT;
     };
 
     #[cfg(debug_assertions)]
@@ -158,7 +146,11 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       }
 
       pub fn new<DB: typedown_db::QueryDatabase>(db: &'db DB, #(#new_params),*) -> Self {
-        todo!()
+        let storage = unsafe { db.storage() };
+        let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
+        let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let id = ingredient.intern((#(#field_names,)*));
+        Self(id, std::marker::PhantomData)
       }
 
       #(#getters)*
@@ -175,30 +167,40 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   // Only a struct can be decorated
-  let mut struct_ast = match syn::parse::<ItemStruct>(item) {
+  let struct_ast = match syn::parse::<ItemStruct>(item) {
     Ok(ast) => ast,
     Err(err) => return err.to_compile_error().into(),
   };
 
-  // Auto-derive Clone on the original struct so it can be stored in the database
-  struct_ast.attrs.push(syn::parse_quote!(#[derive(Clone)]));
-
   let visibility = &struct_ast.vis;
   let struct_name = &struct_ast.ident;
+
+  let fields = match &struct_ast.fields {
+    syn::Fields::Named(fields) => &fields.named,
+    _ => {
+      return syn::Error::new_spanned(&struct_ast, "expected a struct with named fields")
+        .to_compile_error()
+        .into();
+    }
+  };
+
+  let all_fields: Vec<_> = fields.iter().collect();
+
+  // Generate a tuple type from all field types, e.g. (PathBuf, String)
+  let field_types: Vec<_> = all_fields.iter().map(|field| &field.ty).collect();
+  let data_tuple_ty = quote! { (#(#field_types,)*) };
 
   quote! {
     #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
 
     // Validate the generated struct is Send + Sync + Clone
     const _: () = {
-      #struct_ast
-
       const fn assert_send<T: Send>() {}
       const fn assert_sync<T: Sync>() {}
       const fn assert_clone<T: Clone>() {}
-      assert_send::<#struct_name>();
-      assert_sync::<#struct_name>();
-      assert_clone::<#struct_name>();
+      assert_send::<#data_tuple_ty>();
+      assert_sync::<#data_tuple_ty>();
+      assert_clone::<#data_tuple_ty>();
     };
 
     #[cfg(debug_assertions)]

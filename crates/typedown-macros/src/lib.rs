@@ -47,7 +47,7 @@ pub fn query_input(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Attribute macro for annotating an incremental enginer's derived state.
 /// Usage:
 /// ```ignore
-/// #[query_db]
+/// #[query_derived]
 /// pub struct Derived {
 /// }
 /// ```
