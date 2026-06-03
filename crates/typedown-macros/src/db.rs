@@ -94,6 +94,10 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
   let all_fields: Vec<_> = fields.iter().collect();
 
+  // Generate a tuple type from all field types, e.g. (PathBuf, String)
+  let field_types: Vec<_> = all_fields.iter().map(|field| &field.ty).collect();
+  let data_tuple_ty = quote! { (#(#field_types),*) };
+
   // Generate new() constructor
   let new_params = all_fields.iter().map(|field| {
     let field_name = field.ident.as_ref().unwrap();
@@ -137,13 +141,23 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       assert_send::<#struct_name>();
       assert_sync::<#struct_name>();
       assert_clone::<#struct_name>();
+
+      #[cfg(debug_assertions)]
+      const _: () = <typedown_db::InputIngredient<#struct_name>>::__TYPEDOWN_INPUT_INGREDIENT;
     };
 
     #[cfg(debug_assertions)]
-    const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID; // validate that we actually refer to the correct struct
+    const _: () = typedown_db::QueryStorage::__TYPEDOWN_QUERY_STORAGE;
 
     impl<'db> #struct_name<'db> {
-      pub fn new<DB: typedown_db::QueryDatabase + 'db>(db: &'db DB, #(#new_params),*) -> Self {
+      fn get_db_index () -> usize {
+        static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+        *INDEX.get_or_init(|| {
+          typedown_db::QueryStorage::INPUT_INDEX.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        })
+      }
+
+      pub fn new<DB: typedown_db::QueryDatabase>(db: &'db DB, #(#new_params),*) -> Self {
         todo!()
       }
 
@@ -152,6 +166,9 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     impl<'db> typedown_db::InputId<'db> for #struct_name<'db> {}
+
+    #[cfg(debug_assertions)]
+    const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID; // validate that we actually refer to the correct struct
   }
   .into()
 }
