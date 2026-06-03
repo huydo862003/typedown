@@ -2,6 +2,7 @@
 
 use std::{fs, io, path::PathBuf};
 
+use typedown_macros::query_input;
 use typedown_types::{file_stream::FileStream, stream::Utf8Stream};
 
 /// Types of file-handle: Currently, we support path-based and content-based files
@@ -27,6 +28,7 @@ impl FileHandle {
 }
 
 /// A file input struct
+#[query_input]
 pub struct File {
-  pub handle: FileHandle,
+  handle: FileHandle,
 }

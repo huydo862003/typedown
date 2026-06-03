@@ -7,7 +7,11 @@ use crate::{
   inputs::{File, Project},
 };
 
-pub fn get_file(db: &TypedownDatabase, project: Project, path: PathBuf) -> Option<File> {
+pub fn get_file<'db>(
+  db: &'db TypedownDatabase,
+  project: Project,
+  path: PathBuf,
+) -> Option<File<'db>> {
   let handles = project.handles(db);
   let handle = handles.get(&path)?.clone();
   Some(File::new(db, handle))

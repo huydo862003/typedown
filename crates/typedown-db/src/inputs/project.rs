@@ -2,8 +2,11 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
+use typedown_macros::query_input;
+
 use crate::inputs::FileHandle;
 
+#[query_input]
 pub struct Project {
-  pub handles: HashMap<PathBuf, FileHandle>,
+  handles: HashMap<PathBuf, FileHandle>,
 }

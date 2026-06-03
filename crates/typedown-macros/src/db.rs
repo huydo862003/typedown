@@ -51,19 +51,90 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   let visibility = &struct_ast.vis;
   let struct_name = &struct_ast.ident;
 
+  let fields = match &struct_ast.fields {
+    syn::Fields::Named(fields) => &fields.named,
+    _ => {
+      return syn::Error::new_spanned(&struct_ast, "expected a struct with named fields")
+        .to_compile_error()
+        .into();
+    }
+  };
+
+  // TIL: Fields decorated with macros will have them stored in .attrs
+  let tracked_fields: Vec<_> = fields
+    .iter()
+    .filter(|field| {
+      field
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("tracked"))
+    })
+    .collect();
+
+  let untracked_fields: Vec<_> = fields
+    .iter()
+    .filter(|field| {
+      !field
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("tracked"))
+    })
+    .collect();
+
+  let all_fields: Vec<_> = fields.iter().collect();
+
+  // Generate new() constructor
+  let new_params = all_fields.iter().map(|field| {
+    let field_name = field.ident.as_ref().unwrap();
+    let field_ty = &field.ty;
+    quote! { #field_name: #field_ty }
+  });
+
+  // Generate all getters for the struct
+  let getters = all_fields.iter().map(|field| {
+    let field_name = field.ident.as_ref().unwrap();
+    let field_ty = &field.ty;
+    quote! {
+      pub fn #field_name<DB: typedown_db::QueryDatabase + 'db>(&self, db: &DB) -> #field_ty {
+        todo!()
+      }
+    }
+  });
+
+  // Generate all setters for the struct
+  let setters = all_fields.iter().map(|field| {
+    let field_name = field.ident.as_ref().unwrap();
+    let field_ty = &field.ty;
+    let setter_name = quote::format_ident!("set_{}", field_name);
+    quote! {
+      pub fn #setter_name<DB: typedown_db::QueryDatabase + 'db>(&self, db: &mut DB, value: #field_ty) {
+        todo!()
+      }
+    }
+  });
+
   quote! {
     // Validate the annotated struct is Send + Sync
     const _: () = {
-      fn assert_send_sync<T: Send + Sync>() {}
+      const fn assert_send_sync<T: Send + Sync>() {}
       assert_send_sync::<#struct_name>();
     };
 
     #[cfg(debug_assertions)]
     const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID; // validate that we actually refer to the correct struct
 
-    #visibility struct #struct_name(usize);
+    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
 
-    impl typedown_db::InputId for #struct_name {}
+    impl<'db> #struct_name<'db> {
+      pub fn new<DB: typedown_db::QueryDatabase + 'db>(db: &'db DB, #(#new_params),*) -> Self {
+        todo!()
+      }
+
+      #(#getters)*
+      #(#setters)*
+    }
+
+    impl<'db> typedown_db::InputId<'db> for #struct_name<'db> {}
   }
   .into()
 }
@@ -81,16 +152,16 @@ pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream 
   quote! {
     // Validate the annotated struct is Send + Sync
     const _: () = {
-      fn assert_send_sync<T: Send + Sync>() {}
+      const fn assert_send_sync<T: Send + Sync>() {}
       assert_send_sync::<#struct_name>();
     };
 
     #[cfg(debug_assertions)]
     const _: () = <#struct_name as typedown_db::DerivedId>::__TYPEDOWN_DERIVED_ID;
 
-    #visibility struct #struct_name(usize);
+    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
 
-    impl typedown_db::DerivedId for #struct_name {}
+    impl<'db> typedown_db::DerivedId<'db> for #struct_name<'db> {}
   }
   .into()
 }
