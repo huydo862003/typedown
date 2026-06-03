@@ -36,17 +36,28 @@ pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     #[cfg(debug_assertions)]
     const _: () = <#storage_ty>::__TYPEDOWN_QUERY_STORAGE;
 
-    impl typedown_db::QueryDatabase for #struct_name {}
+    impl typedown_db::QueryDatabase for #struct_name {
+      unsafe fn storage(&self) -> &typedown_db::QueryStorage {
+        &self.storage
+      }
+
+      unsafe fn storage_mut(&mut self) -> &mut typedown_db::QueryStorage {
+        &mut self.storage
+      }
+    }
   }
   .into()
 }
 
 pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   // Only a struct can be decorated
-  let struct_ast = match syn::parse::<ItemStruct>(item) {
+  let mut struct_ast = match syn::parse::<ItemStruct>(item) {
     Ok(ast) => ast,
     Err(err) => return err.to_compile_error().into(),
   };
+
+  // Auto-derive Clone on the original struct so it can be stored in the database
+  struct_ast.attrs.push(syn::parse_quote!(#[derive(Clone)]));
 
   let visibility = &struct_ast.vis;
   let struct_name = &struct_ast.ident;
@@ -114,16 +125,22 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   });
 
   quote! {
-    // Validate the annotated struct is Send + Sync
+    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
+
+    // Validate the generated struct is Send + Sync + Clone
     const _: () = {
-      const fn assert_send_sync<T: Send + Sync>() {}
-      assert_send_sync::<#struct_name>();
+      #struct_ast
+
+      const fn assert_send<T: Send>() {}
+      const fn assert_sync<T: Sync>() {}
+      const fn assert_clone<T: Clone>() {}
+      assert_send::<#struct_name>();
+      assert_sync::<#struct_name>();
+      assert_clone::<#struct_name>();
     };
 
     #[cfg(debug_assertions)]
     const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID; // validate that we actually refer to the correct struct
-
-    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
 
     impl<'db> #struct_name<'db> {
       pub fn new<DB: typedown_db::QueryDatabase + 'db>(db: &'db DB, #(#new_params),*) -> Self {
@@ -141,25 +158,34 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   // Only a struct can be decorated
-  let struct_ast = match syn::parse::<ItemStruct>(item) {
+  let mut struct_ast = match syn::parse::<ItemStruct>(item) {
     Ok(ast) => ast,
     Err(err) => return err.to_compile_error().into(),
   };
+
+  // Auto-derive Clone on the original struct so it can be stored in the database
+  struct_ast.attrs.push(syn::parse_quote!(#[derive(Clone)]));
 
   let visibility = &struct_ast.vis;
   let struct_name = &struct_ast.ident;
 
   quote! {
-    // Validate the annotated struct is Send + Sync
+    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
+
+    // Validate the generated struct is Send + Sync + Clone
     const _: () = {
-      const fn assert_send_sync<T: Send + Sync>() {}
-      assert_send_sync::<#struct_name>();
+      #struct_ast
+
+      const fn assert_send<T: Send>() {}
+      const fn assert_sync<T: Sync>() {}
+      const fn assert_clone<T: Clone>() {}
+      assert_send::<#struct_name>();
+      assert_sync::<#struct_name>();
+      assert_clone::<#struct_name>();
     };
 
     #[cfg(debug_assertions)]
     const _: () = <#struct_name as typedown_db::DerivedId>::__TYPEDOWN_DERIVED_ID;
-
-    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
 
     impl<'db> typedown_db::DerivedId<'db> for #struct_name<'db> {}
   }

@@ -7,3 +7,4 @@ edition = "2024"
 typedown-types = { version = "0.1.0", path = "../typedown-types" }
 typedown-syntax = { version = "0.1.0", path = "../typedown-syntax" }
 typedown-macros = { version = "0.1.0", path = "../typedown-macros" }
+dashmap = "6.2.1"
