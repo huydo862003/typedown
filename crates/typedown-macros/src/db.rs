@@ -42,9 +42,55 @@ pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
-  todo!();
+  // Only a struct can be decorated
+  let struct_ast = match syn::parse::<ItemStruct>(item) {
+    Ok(ast) => ast,
+    Err(err) => return err.to_compile_error().into(),
+  };
+
+  let visibility = &struct_ast.vis;
+  let struct_name = &struct_ast.ident;
+
+  quote! {
+    // Validate the annotated struct is Send + Sync
+    const _: () = {
+      fn assert_send_sync<T: Send + Sync>() {}
+      assert_send_sync::<#struct_name>();
+    };
+
+    #[cfg(debug_assertions)]
+    const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID; // validate that we actually refer to the correct struct
+
+    #visibility struct #struct_name(usize);
+
+    impl typedown_db::InputId for #struct_name {}
+  }
+  .into()
 }
 
 pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
-  todo!();
+  // Only a struct can be decorated
+  let struct_ast = match syn::parse::<ItemStruct>(item) {
+    Ok(ast) => ast,
+    Err(err) => return err.to_compile_error().into(),
+  };
+
+  let visibility = &struct_ast.vis;
+  let struct_name = &struct_ast.ident;
+
+  quote! {
+    // Validate the annotated struct is Send + Sync
+    const _: () = {
+      fn assert_send_sync<T: Send + Sync>() {}
+      assert_send_sync::<#struct_name>();
+    };
+
+    #[cfg(debug_assertions)]
+    const _: () = <#struct_name as typedown_db::DerivedId>::__TYPEDOWN_DERIVED_ID;
+
+    #visibility struct #struct_name(usize);
+
+    impl typedown_db::DerivedId for #struct_name {}
+  }
+  .into()
 }
