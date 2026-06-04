@@ -93,8 +93,8 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     quote! {
       pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
-        let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
-        let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let ingredient = storage.inputs[Self::ingredient_index()]
+          .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid input id");
         entry.value().#tuple_index.clone()
       }
@@ -110,8 +110,8 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     quote! {
       pub fn #setter_name<DB: typedown_db::QueryDatabase>(&self, db: &mut DB, value: #field_ty) {
         let storage = unsafe { db.storage() };
-        let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
-        let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let ingredient = storage.inputs[Self::ingredient_index()]
+          .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
         let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
         entry.value_mut().#tuple_index = value;
       }
@@ -139,17 +139,25 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     const _: () = typedown_db::QueryStorage::__TYPEDOWN_QUERY_STORAGE;
 
     impl #struct_name {
-      fn get_db_index() -> usize {
+      fn ingredient_index_lock() -> &'static std::sync::OnceLock<usize> {
         static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-        *INDEX.get_or_init(|| {
-          typedown_db::QueryStorage::INPUT_INDEX.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        })
+        &INDEX
+      }
+
+      fn ingredient_index() -> usize {
+        *Self::ingredient_index_lock().get()
+          .expect("ingredient not registered; was QueryStorage initialized?")
+      }
+
+      #[doc(hidden)]
+      pub fn set_ingredient_index(index: usize) {
+        let _ = Self::ingredient_index_lock().set(index);
       }
 
       pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#new_params),*) -> Self {
         let storage = unsafe { db.storage() };
-        let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
-        let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let ingredient = storage.inputs[Self::ingredient_index()]
+          .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
         let id = ingredient.intern((#(#field_names,)*));
         Self(id)
       }
@@ -162,6 +170,17 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     #[cfg(debug_assertions)]
     const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID;
+
+    typedown_db::inventory::submit! {
+      typedown_db::Inventory {
+        kind: typedown_db::IngredientKind::Input,
+        register: |factories| {
+          let index = factories.len();
+          factories.push(|| Box::new(typedown_db::InputIngredient::<#data_tuple_ty>::new()));
+          #struct_name::set_ingredient_index(index);
+        },
+      }
+    }
   }
   .into()
 }

@@ -1,63 +1,43 @@
-use std::any::Any;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::OnceLock;
+use std::{any::Any, sync::atomic::AtomicUsize};
 
-// TIL: We use DashMap to support high-performance concrruent reads, which fits the workload of IDEs
-use dashmap::DashMap;
+use super::ingredient::{IngredientFactory, Inventory};
 
-/// A type of input, containing data for that input type
-#[doc(hidden)]
-pub struct InputIngredient<T> {
-  next_id: AtomicUsize, // The next id to assign to a new input
-  // A map from id to data tuples, converted from the original struct
-  // DashMap is used to better support parallel workload
-  #[doc(hidden)]
-  pub data: DashMap<usize, T>,
-}
-
-impl<T> InputIngredient<T> {
-  /// Marker used by the `query_db` macro to verify the input ingredient at compile time.
-  #[cfg(debug_assertions)]
-  #[doc(hidden)]
-  pub const __TYPEDOWN_INPUT_INGREDIENT: () = ();
-
-  #[doc(hidden)]
-  pub fn intern(&self, value: T) -> usize {
-    let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-    self.data.insert(id, value);
-    id
-  }
-}
+/// A registry of ingredient factories
+/// This is used in QueryStorage::default() to initialize the internal ingredient vector
+/// TIL: By storing the callbacks, instead of the empty ingredients (used as templates so default can clone), this avoid requiring the  ingredient to cloneable... but Any is not clonable so cannot be used with dyn!
+static INGREDIENT_REGISTRY: OnceLock<Vec<IngredientFactory>> = OnceLock::new();
 
 pub struct QueryStorage {
-  inputs: DashMap<usize, Box<dyn Any + Send + Sync>>, // A map from ingredient index to input ingredients
+  #[doc(hidden)]
+  pub revision: AtomicUsize, // The current version of the query storage
+  #[doc(hidden)]
+  pub inputs: Vec<Box<dyn Any + Send + Sync>>, // Input ingredients
 }
 
 impl QueryStorage {
   pub fn default() -> Self {
     QueryStorage {
-      inputs: DashMap::default(),
+      revision: AtomicUsize::new(0),
+      inputs: registry().iter().map(|factory| factory()).collect(),
     }
   }
+
   /// Marker used by the `query_db` macro to verify the storage field type at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   pub const __TYPEDOWN_QUERY_STORAGE: () = ();
 
-  #[cfg(debug_assertions)]
-  #[doc(hidden)]
-  pub const INPUT_INDEX: AtomicUsize = AtomicUsize::new(0);
+}
 
-  #[doc(hidden)]
-  pub fn get_or_create_input_ingredient<T: Send + Sync + 'static>(
-    &self,
-    index: usize,
-  ) -> dashmap::mapref::one::Ref<'_, usize, Box<dyn Any + Send + Sync>> {
-    self.inputs.entry(index).or_insert_with(|| {
-      Box::new(InputIngredient::<T> {
-        next_id: AtomicUsize::new(0),
-        data: DashMap::new(),
-      })
-    });
-    self.inputs.get(&index).unwrap()
-  }
+fn registry() -> &'static Vec<IngredientFactory> {
+  INGREDIENT_REGISTRY.get_or_init(|| {
+    let mut factories = Vec::new();
+
+    for entry in crate::inventory::iter::<Inventory> {
+      (entry.register)(&mut factories);
+    }
+
+    factories
+  })
 }
