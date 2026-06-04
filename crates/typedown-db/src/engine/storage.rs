@@ -8,8 +8,10 @@ use dashmap::DashMap;
 #[doc(hidden)]
 pub struct InputIngredient<T> {
   next_id: AtomicUsize, // The next id to assign to a new input
+  // A map from id to data tuples, converted from the original struct
+  // DashMap is used to better support parallel workload
   #[doc(hidden)]
-  pub data: DashMap<usize, T>, // A map from id to data tuples, converted from the original struct
+  pub data: DashMap<usize, T>,
 }
 
 impl<T> InputIngredient<T> {
