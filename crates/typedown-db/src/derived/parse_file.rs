@@ -9,7 +9,7 @@ use typedown_syntax::{
 
 use crate::{TypedownDatabase, inputs::File};
 
-pub fn parse_file<'db>(db: &'db TypedownDatabase, file: File<'db>) -> GreenNode {
+pub fn parse_file(db: &TypedownDatabase, file: File) -> GreenNode {
   let handle = file.handle(db);
   let stream = handle.open().expect("failed to open file");
 

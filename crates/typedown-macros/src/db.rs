@@ -119,9 +119,10 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   });
 
   quote! {
-    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
+    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+    #visibility struct #struct_name(usize);
 
-    // Validate the generated struct is Send + Sync + Clone
+    // Validate the data tuple is Send + Sync + Clone
     const _: () = {
       const fn assert_send<T: Send>() {}
       const fn assert_sync<T: Sync>() {}
@@ -137,30 +138,30 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     #[cfg(debug_assertions)]
     const _: () = typedown_db::QueryStorage::__TYPEDOWN_QUERY_STORAGE;
 
-    impl<'db> #struct_name<'db> {
-      fn get_db_index () -> usize {
+    impl #struct_name {
+      fn get_db_index() -> usize {
         static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
         *INDEX.get_or_init(|| {
           typedown_db::QueryStorage::INPUT_INDEX.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         })
       }
 
-      pub fn new<DB: typedown_db::QueryDatabase>(db: &'db DB, #(#new_params),*) -> Self {
+      pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#new_params),*) -> Self {
         let storage = unsafe { db.storage() };
         let ingredient_ref = storage.get_or_create_input_ingredient::<#data_tuple_ty>(Self::get_db_index());
         let ingredient = ingredient_ref.value().downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
         let id = ingredient.intern((#(#field_names,)*));
-        Self(id, std::marker::PhantomData)
+        Self(id)
       }
 
       #(#getters)*
       #(#setters)*
     }
 
-    impl<'db> typedown_db::InputId<'db> for #struct_name<'db> {}
+    impl typedown_db::InputId for #struct_name {}
 
     #[cfg(debug_assertions)]
-    const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID; // validate that we actually refer to the correct struct
+    const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID;
   }
   .into()
 }
@@ -191,9 +192,10 @@ pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream 
   let data_tuple_ty = quote! { (#(#field_types,)*) };
 
   quote! {
-    #visibility struct #struct_name<'db>(usize, std::marker::PhantomData<&'db ()>);
+    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+    #visibility struct #struct_name(usize);
 
-    // Validate the generated struct is Send + Sync + Clone
+    // Validate the data tuple is Send + Sync + Clone
     const _: () = {
       const fn assert_send<T: Send>() {}
       const fn assert_sync<T: Sync>() {}
@@ -206,7 +208,7 @@ pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream 
     #[cfg(debug_assertions)]
     const _: () = <#struct_name as typedown_db::DerivedId>::__TYPEDOWN_DERIVED_ID;
 
-    impl<'db> typedown_db::DerivedId<'db> for #struct_name<'db> {}
+    impl typedown_db::DerivedId for #struct_name {}
   }
   .into()
 }

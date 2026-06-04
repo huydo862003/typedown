@@ -31,6 +31,11 @@ pub struct QueryStorage {
 }
 
 impl QueryStorage {
+  pub fn default() -> Self {
+    QueryStorage {
+      inputs: DashMap::default(),
+    }
+  }
   /// Marker used by the `query_db` macro to verify the storage field type at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
@@ -41,9 +46,15 @@ impl QueryStorage {
   pub const INPUT_INDEX: AtomicUsize = AtomicUsize::new(0);
 
   #[doc(hidden)]
-  pub fn get_or_create_input_ingredient<T: Send + Sync + 'static>(&self, index: usize) -> dashmap::mapref::one::Ref<'_, usize, Box<dyn Any + Send + Sync>> {
+  pub fn get_or_create_input_ingredient<T: Send + Sync + 'static>(
+    &self,
+    index: usize,
+  ) -> dashmap::mapref::one::Ref<'_, usize, Box<dyn Any + Send + Sync>> {
     self.inputs.entry(index).or_insert_with(|| {
-      Box::new(InputIngredient::<T> { next_id: AtomicUsize::new(0), data: DashMap::new() })
+      Box::new(InputIngredient::<T> {
+        next_id: AtomicUsize::new(0),
+        data: DashMap::new(),
+      })
     });
     self.inputs.get(&index).unwrap()
   }

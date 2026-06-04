@@ -7,10 +7,10 @@ use crate::{
   inputs::{File, Project},
 };
 
-pub fn get_files<'db>(
-  db: &'db TypedownDatabase,
-  project: Project<'db>,
-) -> HashMap<PathBuf, File<'db>> {
+pub fn get_files(
+  db: &TypedownDatabase,
+  project: Project,
+) -> HashMap<PathBuf, File> {
   project
     .handles(db)
     .into_iter()

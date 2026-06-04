@@ -2,9 +2,65 @@
 
 /// A fast id for an input state
 /// Input id is bound to a database's lifetime
-pub trait InputId<'db> {
+pub trait InputId {
   /// Marker used by macros to verify a type implements InputId at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   const __TYPEDOWN_INPUT_ID: () = ();
+}
+
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+
+  use typedown_macros::{query_db, query_input};
+
+  use crate::QueryStorage;
+
+  #[query_db]
+  struct Database {
+    storage: QueryStorage,
+  }
+
+  #[query_input]
+  struct ProgramFile {
+    path: PathBuf,
+    source: String,
+  }
+
+  #[test]
+  fn input_holds_correct_value_after_init() {
+    let db = Database {
+      storage: QueryStorage::default(),
+    };
+
+    let path = PathBuf::from("/home/huydna/");
+    let source = String::from("Hello, testing from input_holds_correct_value_after_init");
+
+    let program_input = ProgramFile::new(&db, path.clone(), source.clone());
+
+    assert_eq!(program_input.path(&db), path);
+    assert_eq!(program_input.source(&db), source);
+  }
+
+  #[test]
+  fn input_holds_correct_value_after_reassign() {
+    let mut db = Database {
+      storage: QueryStorage::default(),
+    };
+
+    let path = PathBuf::from("/home/huydna/");
+    let source = String::from("Hello, testing from input_holds_correct_value_after_init");
+
+    let program_input = { ProgramFile::new(&db, path.clone(), source.clone()) };
+
+    let new_path = PathBuf::from("/home/corgi/");
+    let new_source = String::from("Hello, testing from input_holds_correct_value_after_reassign");
+
+    program_input.set_path(&mut db, new_path.clone());
+    program_input.set_source(&mut db, new_source.clone());
+
+    assert_eq!(program_input.path(&db), new_path);
+    assert_eq!(program_input.source(&db), new_source);
+  }
 }
