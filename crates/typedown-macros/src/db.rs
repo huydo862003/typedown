@@ -114,6 +114,11 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
         let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
         entry.value_mut().#tuple_index = value;
+
+        // We don't need to lock here
+        // We expect that the Rust borrow checker would only allow one &mut db while no other &db is present
+        // We just want a race-free revision counter here to signal "staleness" to later reads
+        storage.revision.fetch_add(1, std::sync::atomic::Ordering::Release);
       }
     }
   });
