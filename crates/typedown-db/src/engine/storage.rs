@@ -12,14 +12,14 @@ pub struct QueryStorage {
   #[doc(hidden)]
   pub revision: AtomicUsize, // The current version of the query storage
   #[doc(hidden)]
-  pub inputs: Vec<Box<dyn Any + Send + Sync>>, // Input ingredients
+  pub ingredients: Vec<Box<dyn Any + Send + Sync>>, // All ingredients (input fields and derived)
 }
 
 impl QueryStorage {
   pub fn default() -> Self {
     QueryStorage {
       revision: AtomicUsize::new(0),
-      inputs: registry().iter().map(|factory| factory()).collect(),
+      ingredients: registry().iter().map(|factory| factory()).collect(),
     }
   }
 
@@ -27,7 +27,6 @@ impl QueryStorage {
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   pub const __TYPEDOWN_QUERY_STORAGE: () = ();
-
 }
 
 fn registry() -> &'static Vec<IngredientFactory> {

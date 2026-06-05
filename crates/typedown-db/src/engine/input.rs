@@ -2,7 +2,7 @@
 
 /// A fast id for an input state
 /// Input id is bound to a database's lifetime
-pub trait InputId {
+pub trait InputId: Clone + Copy + PartialEq + Eq + std::hash::Hash {
   /// Marker used by macros to verify a type implements InputId at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]

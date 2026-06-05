@@ -44,11 +44,12 @@ pub fn query_input(attr: TokenStream, item: TokenStream) -> TokenStream {
   db::query_input_impl(attr, item)
 }
 
-/// Attribute macro for annotating an incremental enginer's derived state.
+/// Attribute macro for annotating a derived (tracked/memoized) query function.
 /// Usage:
 /// ```ignore
 /// #[query_derived]
-/// pub struct Derived {
+/// fn parse_file(db: &TypedownDatabase, file: File) -> GreenNode {
+///   // ...
 /// }
 /// ```
 #[proc_macro_attribute]
