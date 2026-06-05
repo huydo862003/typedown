@@ -222,6 +222,7 @@ pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream 
   if let Ok(func) = syn::parse::<ItemFn>(item.clone()) {
     return query_derived_fn_impl(func);
   }
+
   if let Ok(struct_ast) = syn::parse::<ItemStruct>(item.clone()) {
     return query_derived_struct_impl(struct_ast);
   }
@@ -305,6 +306,12 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
         pub fn set_ingredient_index(index: usize) {
           let _ = Self::ingredient_index_lock().set(index);
         }
+
+        /// The bare query implementation
+        fn #fn_name(db: &dyn typedown_db::QueryDatabase, key: #key_tuple_ty) -> #return_type {
+          let (#(#key_names,)*) = key;
+          #fn_block
+        }
       }
     }
     .into(),
@@ -319,7 +326,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
           register: |factories| {
             let index = factories.len();
             factories.push(|| Box::new(
-              typedown_db::DerivedQueryIngredient::<#key_tuple_ty, #return_type>::new()
+              typedown_db::DerivedQueryIngredient::<#key_tuple_ty, #return_type>::new(#fn_name::#fn_name)
             ));
             #fn_name::set_ingredient_index(index);
           },
@@ -329,11 +336,16 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
     .into(),
   );
 
-  // Generate the function as-is (incremental computation not yet implemented)
+  // Generate the public wrapper that calls execute_query
   output.extend::<TokenStream>(
     quote! {
-      #visibility fn #fn_name(#db_arg, #(#key_names: #key_types),*) -> #return_type
-        #fn_block
+      #visibility fn #fn_name(#db_arg, #(#key_names: #key_types),*) -> #return_type {
+        let storage = unsafe { db.storage() };
+        let ingredient = storage.ingredients[#fn_name::ingredient_index()]
+          .downcast_ref::<typedown_db::DerivedQueryIngredient<#key_tuple_ty, #return_type>>()
+          .expect("derived ingredient type mismatch");
+        ingredient.execute_query(db, (#(#key_names,)*))
+      }
     }
     .into(),
   );
