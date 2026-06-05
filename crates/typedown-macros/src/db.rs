@@ -134,7 +134,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let ingredient = storage.inputs[Self::ingredient_start_index() + #idx]
           .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid input id");
-        entry.value().clone()
+        entry.value.clone()
       }
 
       pub fn #setter_name<DB: typedown_db::QueryDatabase>(&self, db: &mut DB, value: #field_ty) {
@@ -142,12 +142,17 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let ingredient = storage.inputs[Self::ingredient_start_index() + #idx]
           .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
-        *entry.value_mut() = value;
+        if entry.value.eq(&value) {
+          return; // Old value is new value, nothing to do here
+        }
 
         // We don't need to lock here
         // We expect that the Rust borrow checker would only allow one &mut db while no other &db is present
         // We just want a race-free revision counter here to signal "staleness" to later reads
-        storage.revision.fetch_add(1, std::sync::atomic::Ordering::Release);
+        let new_revision = storage.revision.fetch_add(1, std::sync::atomic::Ordering::Release) + 1;
+        let stamped = entry.value_mut();
+        stamped.value = value;
+        stamped.changed_at = new_revision;
       }
     });
   }
@@ -183,11 +188,15 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           let id = Self::next_id();
           let start_index = Self::ingredient_start_index();
 
+          let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);
           #(
             {
               let ingredient = storage.inputs[start_index + #field_indices]
                 .downcast_ref::<typedown_db::InputFieldIngredient<#field_types>>().expect("ingredient type mismatch");
-              ingredient.data.insert(id, #field_names);
+              ingredient.data.insert(id, typedown_db::StampedInputField {
+                value: #field_names,
+                changed_at: current_revision,
+              });
             }
           )*
 

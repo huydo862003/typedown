@@ -1,13 +1,18 @@
 // TIL: We use DashMap to support high-performance concrruent reads, which fits the workload of IDEs
 use dashmap::DashMap;
 
+pub struct StampedInputField<T> {
+  pub value: T,
+  pub changed_at: usize, // The last revision number this one changed
+}
+
 /// A field of an input ingredient, containing data for that input type
 #[doc(hidden)]
 pub struct InputFieldIngredient<T> {
   // A map from id to field value
   // DashMap is used to better support parallel workload
   #[doc(hidden)]
-  pub data: DashMap<usize, T>,
+  pub data: DashMap<usize, StampedInputField<T>>,
 }
 
 impl<T> InputFieldIngredient<T> {
