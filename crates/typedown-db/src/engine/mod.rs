@@ -1,6 +1,6 @@
 mod db;
 mod derived;
-pub mod ingredient;
+mod ingredient;
 mod input;
 mod storage;
 

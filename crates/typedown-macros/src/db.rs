@@ -59,135 +59,153 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
   let visibility = &struct_ast.vis;
   let struct_name = &struct_ast.ident;
 
-  let fields = match &struct_ast.fields {
+  let fields: Vec<_> = match &struct_ast.fields {
     syn::Fields::Named(fields) => &fields.named,
     _ => {
       return syn::Error::new_spanned(&struct_ast, "expected a struct with named fields")
         .to_compile_error()
         .into();
     }
-  };
+  }
+  .iter()
+  .collect();
 
-  let all_fields: Vec<_> = fields.iter().collect();
+  let mut output: TokenStream = quote! {}.into();
 
-  // Generate a tuple type from all field types, e.g. (PathBuf, String)
-  let field_types: Vec<_> = all_fields.iter().map(|field| &field.ty).collect();
-  let field_names: Vec<_> = all_fields
-    .iter()
-    .map(|field| field.ident.as_ref().unwrap())
-    .collect();
-  let data_tuple_ty = quote! { (#(#field_types,)*) };
-
-  // Generate new() constructor
-  let new_params = all_fields.iter().map(|field| {
-    let field_name = field.ident.as_ref().unwrap();
+  for field in &fields {
     let field_ty = &field.ty;
-    quote! { #field_name: #field_ty }
-  });
+    // Validate that every field is Send + Sync + Clone
+    output.extend::<TokenStream>(
+      quote! {
+        const _: () = {
+          const fn assert_send<T: Send>() {}
+          const fn assert_sync<T: Sync>() {}
+          const fn assert_clone<T: Clone>() {}
+          assert_send::<#field_ty>();
+          assert_sync::<#field_ty>();
+          assert_clone::<#field_ty>();
 
-  // Generate all getters for the struct
-  let getters = all_fields.iter().enumerate().map(|(idx, field)| {
-    let field_name = field.ident.as_ref().unwrap();
-    let field_ty = &field.ty;
-    let tuple_index = syn::Index::from(idx);
+          // Validate that InputFieldIngredient is what it is supposed to be
+          #[cfg(debug_assertions)]
+          const _: () = <typedown_db::InputFieldIngredient<#field_ty>>::__TYPEDOWN_INPUT_FIELD_INGREDIENT;
+
+          // Validate that QueryStorage is what it is supposed to be
+          #[cfg(debug_assertions)]
+          const _: () = typedown_db::QueryStorage::__TYPEDOWN_QUERY_STORAGE;
+        };
+      }
+      .into(),
+    );
+  }
+
+  let field_types: Vec<_> = fields.iter().map(|f| &f.ty).collect();
+  let field_names: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+  let field_indices: Vec<_> = (0..fields.len()).collect();
+
+  // Generate ingredients for all fields
+  output.extend::<TokenStream>(
     quote! {
-      pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
-        let storage = unsafe { db.storage() };
-        let ingredient = storage.inputs[Self::ingredient_index()]
-          .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
-        let entry = ingredient.data.get(&self.0).expect("invalid input id");
-        entry.value().#tuple_index.clone()
+      typedown_db::inventory::submit! {
+        typedown_db::Inventory {
+          kind: typedown_db::IngredientKind::Input,
+          register: |factories| {
+            let start_index = factories.len();
+            #(
+              factories.push(|| Box::new(typedown_db::InputFieldIngredient::<#field_types>::new()));
+            )*
+            #struct_name::set_ingredient_start_index(start_index);
+          },
+        }
       }
     }
-  });
+    .into(),
+  );
 
-  // Generate all setters for the struct
-  let setters = all_fields.iter().enumerate().map(|(idx, field)| {
+  // Generate getters and setters
+  let mut getter_setter_tokens = quote! {};
+  for (idx, field) in fields.iter().enumerate() {
     let field_name = field.ident.as_ref().unwrap();
     let field_ty = &field.ty;
     let setter_name = quote::format_ident!("set_{}", field_name);
-    let tuple_index = syn::Index::from(idx);
-    quote! {
+
+    getter_setter_tokens.extend(quote! {
+      pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
+        let storage = unsafe { db.storage() };
+        let ingredient = storage.inputs[Self::ingredient_start_index() + #idx]
+          .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
+        let entry = ingredient.data.get(&self.0).expect("invalid input id");
+        entry.value().clone()
+      }
+
       pub fn #setter_name<DB: typedown_db::QueryDatabase>(&self, db: &mut DB, value: #field_ty) {
         let storage = unsafe { db.storage() };
-        let ingredient = storage.inputs[Self::ingredient_index()]
-          .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
+        let ingredient = storage.inputs[Self::ingredient_start_index() + #idx]
+          .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
-        entry.value_mut().#tuple_index = value;
+        *entry.value_mut() = value;
 
         // We don't need to lock here
         // We expect that the Rust borrow checker would only allow one &mut db while no other &db is present
         // We just want a race-free revision counter here to signal "staleness" to later reads
         storage.revision.fetch_add(1, std::sync::atomic::Ordering::Release);
       }
-    }
-  });
+    });
+  }
 
-  quote! {
-    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-    #visibility struct #struct_name(usize);
+  output.extend::<TokenStream>(
+    quote! {
+      #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+      #visibility struct #struct_name(usize);
 
-    // Validate the data tuple is Send + Sync + Clone
-    const _: () = {
-      const fn assert_send<T: Send>() {}
-      const fn assert_sync<T: Sync>() {}
-      const fn assert_clone<T: Clone>() {}
-      assert_send::<#data_tuple_ty>();
-      assert_sync::<#data_tuple_ty>();
-      assert_clone::<#data_tuple_ty>();
+      impl #struct_name {
+        fn ingredient_start_index_lock() -> &'static std::sync::OnceLock<usize> {
+          static START_INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+          &START_INDEX
+        }
+
+        fn ingredient_start_index() -> usize {
+          *Self::ingredient_start_index_lock().get()
+            .expect("ingredient not registered; was QueryStorage initialized?")
+        }
+
+        #[doc(hidden)]
+        pub fn set_ingredient_start_index(index: usize) {
+          let _ = Self::ingredient_start_index_lock().set(index);
+        }
+
+        fn next_id() -> usize {
+          static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+          COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        }
+
+        pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#field_names: #field_types),*) -> Self {
+          let storage = unsafe { db.storage() };
+          let id = Self::next_id();
+          let start_index = Self::ingredient_start_index();
+
+          #(
+            {
+              let ingredient = storage.inputs[start_index + #field_indices]
+                .downcast_ref::<typedown_db::InputFieldIngredient<#field_types>>().expect("ingredient type mismatch");
+              ingredient.data.insert(id, #field_names);
+            }
+          )*
+
+          Self(id)
+        }
+
+        #getter_setter_tokens
+      }
+
+      impl typedown_db::InputId for #struct_name {}
 
       #[cfg(debug_assertions)]
-      const _: () = <typedown_db::InputIngredient<#data_tuple_ty>>::__TYPEDOWN_INPUT_INGREDIENT;
-    };
-
-    #[cfg(debug_assertions)]
-    const _: () = typedown_db::QueryStorage::__TYPEDOWN_QUERY_STORAGE;
-
-    impl #struct_name {
-      fn ingredient_index_lock() -> &'static std::sync::OnceLock<usize> {
-        static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-        &INDEX
-      }
-
-      fn ingredient_index() -> usize {
-        *Self::ingredient_index_lock().get()
-          .expect("ingredient not registered; was QueryStorage initialized?")
-      }
-
-      #[doc(hidden)]
-      pub fn set_ingredient_index(index: usize) {
-        let _ = Self::ingredient_index_lock().set(index);
-      }
-
-      pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#new_params),*) -> Self {
-        let storage = unsafe { db.storage() };
-        let ingredient = storage.inputs[Self::ingredient_index()]
-          .downcast_ref::<typedown_db::InputIngredient<#data_tuple_ty>>().expect("ingredient type mismatch");
-        let id = ingredient.intern((#(#field_names,)*));
-        Self(id)
-      }
-
-      #(#getters)*
-      #(#setters)*
+      const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID;
     }
+    .into(),
+  );
 
-    impl typedown_db::InputId for #struct_name {}
-
-    #[cfg(debug_assertions)]
-    const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID;
-
-    typedown_db::inventory::submit! {
-      typedown_db::Inventory {
-        kind: typedown_db::IngredientKind::Input,
-        register: |factories| {
-          let index = factories.len();
-          factories.push(|| Box::new(typedown_db::InputIngredient::<#data_tuple_ty>::new()));
-          #struct_name::set_ingredient_index(index);
-        },
-      }
-    }
-  }
-  .into()
+  output
 }
 
 pub fn query_derived_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
