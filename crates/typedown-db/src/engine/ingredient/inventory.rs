@@ -1,7 +1,7 @@
-use std::any::Any;
+use super::Ingredient;
 
 /// A callback that creates an Ingredient
-pub type IngredientFactory = fn() -> Box<dyn Any + Send + Sync>;
+pub type IngredientFactory = fn() -> Box<dyn Ingredient>;
 
 pub enum IngredientKind {
   Input,

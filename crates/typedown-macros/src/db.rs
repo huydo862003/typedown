@@ -131,15 +131,28 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     getter_setter_tokens.extend(quote! {
       pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
-        let ingredient = storage.ingredients[Self::ingredient_start_index() + #idx]
+        let ingredient_index = Self::ingredient_start_index() + #idx;
+        let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
           .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid input id");
+
+        // Record dependency if inside a derived query
+        storage.with_context(|ctx| {
+          if let Some(ctx) = ctx {
+            ctx.dependencies.push(typedown_db::Dependency {
+              ingredient_index,
+              arg_id: self.0,
+              changed_at: entry.changed_at,
+            });
+          }
+        });
+
         entry.value.clone()
       }
 
       pub fn #setter_name<DB: typedown_db::QueryDatabase>(&self, db: &mut DB, value: #field_ty) {
         let storage = unsafe { db.storage() };
-        let ingredient = storage.ingredients[Self::ingredient_start_index() + #idx]
+        let ingredient = (&*storage.ingredients[Self::ingredient_start_index() + #idx] as &dyn std::any::Any)
           .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
         if entry.value.eq(&value) {
@@ -191,7 +204,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);
           #(
             {
-              let ingredient = storage.ingredients[start_index + #field_indices]
+              let ingredient = (&*storage.ingredients[start_index + #field_indices] as &dyn std::any::Any)
                 .downcast_ref::<typedown_db::InputFieldIngredient<#field_types>>().expect("ingredient type mismatch");
               ingredient.data.insert(id, typedown_db::StampedInputField {
                 value: #field_names,
@@ -326,7 +339,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
           register: |factories| {
             let index = factories.len();
             factories.push(|| Box::new(
-              typedown_db::DerivedQueryIngredient::<#key_tuple_ty, #return_type>::new(#fn_name::#fn_name)
+              typedown_db::DerivedQueryIngredient::<#key_tuple_ty, #return_type>::new(index, #fn_name::#fn_name)
             ));
             #fn_name::set_ingredient_index(index);
           },
@@ -341,7 +354,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
     quote! {
       #visibility fn #fn_name(#db_arg, #(#key_names: #key_types),*) -> #return_type {
         let storage = unsafe { db.storage() };
-        let ingredient = storage.ingredients[#fn_name::ingredient_index()]
+        let ingredient = (&*storage.ingredients[#fn_name::ingredient_index()] as &dyn std::any::Any)
           .downcast_ref::<typedown_db::DerivedQueryIngredient<#key_tuple_ty, #return_type>>()
           .expect("derived ingredient type mismatch");
         ingredient.execute_query(db, (#(#key_names,)*))
@@ -423,9 +436,22 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     getter_tokens.extend(quote! {
       pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
-        let ingredient = storage.ingredients[Self::ingredient_start_index() + #idx]
+        let ingredient_index = Self::ingredient_start_index() + #idx;
+        let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
           .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid derived id");
+
+        // Record dependency if inside a derived query
+        storage.with_context(|ctx| {
+          if let Some(ctx) = ctx {
+            ctx.dependencies.push(typedown_db::Dependency {
+              ingredient_index,
+              arg_id: self.0,
+              changed_at: entry.changed_at,
+            });
+          }
+        });
+
         entry.value.clone()
       }
     });
@@ -466,7 +492,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
           #(
             {
-              let ingredient = storage.ingredients[start_index + #field_indices]
+              let ingredient = (&*storage.ingredients[start_index + #field_indices] as &dyn std::any::Any)
                 .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_types>>().expect("ingredient type mismatch");
               ingredient.data.insert(id, typedown_db::StampedDerivedField {
                 value: #field_names,

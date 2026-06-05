@@ -1,18 +1,31 @@
+use std::cell::RefCell;
 use std::sync::OnceLock;
-use std::{any::Any, sync::atomic::AtomicUsize};
+use std::sync::atomic::AtomicUsize;
 
-use super::ingredient::{IngredientFactory, Inventory};
+use super::ingredient::{Dependency, Ingredient, IngredientFactory, Inventory};
 
 /// A registry of ingredient factories
 /// This is used in QueryStorage::default() to initialize the internal ingredient vector
 /// TIL: By storing the callbacks, instead of the empty ingredients (used as templates so default can clone), this avoid requiring the  ingredient to cloneable... but Any is not clonable so cannot be used with dyn!
 static INGREDIENT_REGISTRY: OnceLock<Vec<IngredientFactory>> = OnceLock::new();
 
+/// An entry in the query stack, used for cycle detection
+pub struct QueryStackEntry {
+  pub ingredient_index: usize,
+  pub arg_id: usize,
+}
+
+/// Context passed through derived query execution
+pub struct ExecuteContext {
+  pub query_stack: Vec<QueryStackEntry>,
+  pub dependencies: Vec<Dependency>,
+}
+
 pub struct QueryStorage {
   #[doc(hidden)]
   pub revision: AtomicUsize, // The current version of the query storage
   #[doc(hidden)]
-  pub ingredients: Vec<Box<dyn Any + Send + Sync>>, // All ingredients (input fields and derived)
+  pub ingredients: Vec<Box<dyn Ingredient>>, // All ingredients (input fields and derived)
 }
 
 impl QueryStorage {
@@ -27,6 +40,15 @@ impl QueryStorage {
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   pub const __TYPEDOWN_QUERY_STORAGE: () = ();
+
+  /// Access the current thread's ExecuteContext
+  #[doc(hidden)]
+  pub fn with_context<R>(&self, f: impl FnOnce(&mut Option<ExecuteContext>) -> R) -> R {
+    thread_local! {
+      static CTX: RefCell<Option<ExecuteContext>> = RefCell::new(None);
+    }
+    CTX.with(|c| f(&mut c.borrow_mut()))
+  }
 }
 
 fn registry() -> &'static Vec<IngredientFactory> {
