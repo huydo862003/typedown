@@ -1,6 +1,10 @@
 // TIL: We use DashMap to support high-performance concrruent reads, which fits the workload of IDEs
 use dashmap::DashMap;
 
+use crate::QueryDatabase;
+
+use super::Ingredient;
+
 pub struct StampedInputField<T> {
   pub value: T,
   pub changed_at: usize, // The last revision number this one changed
@@ -25,5 +29,19 @@ impl<T> InputFieldIngredient<T> {
     Self {
       data: DashMap::new(),
     }
+  }
+}
+
+impl<T: Send + Sync + 'static> Ingredient for InputFieldIngredient<T> {
+  fn green_check(&self, _db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
+    self
+      .data
+      .get(&arg_id)
+      .map(|entry| entry.changed_at <= last_changed_at)
+      .unwrap_or(false)
+  }
+
+  fn re_execute(&self, _db: &dyn QueryDatabase, _arg_id: usize) {
+    // Inputs are ground truth, nothing to recompute
   }
 }
