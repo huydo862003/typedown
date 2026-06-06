@@ -56,3 +56,16 @@ pub fn query_input(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn query_derived(attr: TokenStream, item: TokenStream) -> TokenStream {
   db::query_derived_impl(attr, item)
 }
+
+/// Attribute macro for annotating an interned struct.
+/// Usage:
+/// ```ignore
+/// #[query_interned]
+/// pub struct Symbol {
+///   name: String,
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn query_interned(attr: TokenStream, item: TokenStream) -> TokenStream {
+  db::query_interned_impl(attr, item)
+}

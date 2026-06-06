@@ -595,3 +595,156 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
   output
 }
+
+pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
+  let struct_ast = match syn::parse::<ItemStruct>(item) {
+    Ok(ast) => ast,
+    Err(err) => return err.to_compile_error().into(),
+  };
+
+  let visibility = &struct_ast.vis;
+  let struct_name = &struct_ast.ident;
+
+  let fields: Vec<_> = match &struct_ast.fields {
+    syn::Fields::Named(fields) => &fields.named,
+    _ => {
+      return syn::Error::new_spanned(&struct_ast, "expected a struct with named fields")
+        .to_compile_error()
+        .into();
+    }
+  }
+  .iter()
+  .collect();
+
+  let mut output: TokenStream = quote! {}.into();
+
+  for field in &fields {
+    let field_ty = &field.ty;
+    output.extend::<TokenStream>(
+      quote! {
+        const _: () = {
+          const fn assert_send<T: Send>() {}
+          const fn assert_sync<T: Sync>() {}
+          const fn assert_clone<T: Clone>() {}
+          const fn assert_hash<T: std::hash::Hash>() {}
+          const fn assert_eq<T: Eq>() {}
+          assert_send::<#field_ty>();
+          assert_sync::<#field_ty>();
+          assert_clone::<#field_ty>();
+          assert_hash::<#field_ty>();
+          assert_eq::<#field_ty>();
+
+          #[cfg(debug_assertions)]
+          const _: () = typedown_db::QueryStorage::__TYPEDOWN_QUERY_STORAGE;
+        };
+      }
+      .into(),
+    );
+  }
+
+  let field_types: Vec<_> = fields.iter().map(|f| &f.ty).collect();
+  let field_names: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+  let field_indices: Vec<_> = (0..fields.len()).collect();
+  let intern_key_ty = quote! { (#(#field_types,)*) };
+
+  // Register a single InternedIngredient for the whole struct
+  output.extend::<TokenStream>(
+    quote! {
+      typedown_db::inventory::submit! {
+        typedown_db::Inventory {
+          kind: typedown_db::IngredientKind::Input,
+          register: |factories| {
+            let index = factories.len();
+            factories.push(|_| Box::new(typedown_db::InternedIngredient::<#intern_key_ty>::new()));
+            #struct_name::set_ingredient_index(index);
+          },
+        }
+      }
+    }
+    .into(),
+  );
+
+  // Generate getters that access fields from the interned tuple
+  let mut getter_tokens = quote! {};
+  for (idx, field) in fields.iter().enumerate() {
+    let field_name = field.ident.as_ref().unwrap();
+    let field_ty = &field.ty;
+    let tuple_index = syn::Index::from(idx);
+
+    getter_tokens.extend(quote! {
+      pub fn #field_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
+        let storage = unsafe { db.storage() };
+        let ingredient_index = Self::ingredient_index();
+        let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
+          .downcast_ref::<typedown_db::InternedIngredient<#intern_key_ty>>().expect("ingredient type mismatch");
+        let entry = ingredient.data.get(&self.0).expect("invalid interned id");
+
+        entry.#tuple_index.clone()
+      }
+    });
+  }
+
+  output.extend::<TokenStream>(
+    quote! {
+      #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+      #visibility struct #struct_name(usize);
+
+      impl #struct_name {
+        fn ingredient_index_lock() -> &'static std::sync::OnceLock<usize> {
+          static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+          &INDEX
+        }
+
+        fn ingredient_index() -> usize {
+          *Self::ingredient_index_lock().get()
+            .expect("ingredient not registered; was QueryStorage initialized?")
+        }
+
+        #[doc(hidden)]
+        pub fn set_ingredient_index(index: usize) {
+          let _ = Self::ingredient_index_lock().set(index);
+        }
+
+        fn next_id() -> usize {
+          static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+          COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        }
+
+        fn intern_map() -> &'static dashmap::DashMap<#intern_key_ty, usize> {
+          static MAP: std::sync::OnceLock<dashmap::DashMap<#intern_key_ty, usize>> = std::sync::OnceLock::new();
+          MAP.get_or_init(|| dashmap::DashMap::new())
+        }
+
+        pub fn new<DB: typedown_db::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
+          let intern_key = (#(#field_names.clone(),)*);
+          let map = Self::intern_map();
+
+          let id = if let Some(existing) = map.get(&intern_key) {
+            *existing
+          } else {
+            let id = Self::next_id();
+            *map.entry(intern_key.clone()).or_insert(id)
+          };
+
+          // Always ensure data exists in the current storage
+          let storage = unsafe { db.storage() };
+          let ingredient = (&*storage.ingredients[Self::ingredient_index()] as &dyn std::any::Any)
+            .downcast_ref::<typedown_db::InternedIngredient<#intern_key_ty>>().expect("ingredient type mismatch");
+          ingredient.data.entry(id).or_insert(intern_key);
+
+          Self(id)
+        }
+
+        #getter_tokens
+      }
+
+      impl typedown_db::InputId for #struct_name {}
+
+      #[cfg(debug_assertions)]
+      const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID;
+    }
+    .into(),
+  );
+
+  output
+}

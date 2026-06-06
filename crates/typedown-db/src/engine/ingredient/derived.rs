@@ -43,10 +43,10 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 }
 
 impl<
-    DB: QueryDatabase + Send + Sync + 'static,
-    K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
-    V: DerivedId + Send + Sync + 'static,
-  > DerivedQueryIngredient<DB, K, V>
+  DB: QueryDatabase + Send + Sync + 'static,
+  K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
+  V: DerivedId + Send + Sync + 'static,
+> DerivedQueryIngredient<DB, K, V>
 {
   pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
     Self {
@@ -77,7 +77,7 @@ impl<
     let (value, changed_at) =
       self.execute_query_inner(db, storage, current_revision, ingredient_index, arg_id, arg);
 
-    // Record dependency for the caller (single place)
+    // Record dependency for the caller
     storage.with_context(|ctx| {
       if let Some(ctx) = ctx {
         ctx.dependencies.push(Dependency {
@@ -108,7 +108,7 @@ impl<
           return (memo.value, memo.changed_at);
         }
         QueryState::Computing => {
-          // Check if this entry is in our call stack (cycle detection)
+          // Cycle detection: Check if this entry is in our call stack
           let is_cycle = storage.with_context(|ctx| {
             ctx.as_ref().is_some_and(|ctx| {
               ctx
@@ -237,10 +237,10 @@ impl<
 }
 
 impl<
-    DB: QueryDatabase + Send + Sync + 'static,
-    K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
-    V: DerivedId + Send + Sync + 'static,
-  > Ingredient for DerivedQueryIngredient<DB, K, V>
+  DB: QueryDatabase + Send + Sync + 'static,
+  K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
+  V: DerivedId + Send + Sync + 'static,
+> Ingredient for DerivedQueryIngredient<DB, K, V>
 {
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
     let storage = unsafe { db.storage() };

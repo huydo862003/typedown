@@ -11,7 +11,7 @@ pub trait DerivedId: Clone + Copy + PartialEq + Eq + std::hash::Hash {
 
 #[cfg(test)]
 mod tests {
-  use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::OnceLock};
+  use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
   use typedown_macros::{query_db, query_derived, query_input};
   use typedown_syntax::{
@@ -21,7 +21,7 @@ mod tests {
     red::RedNode,
   };
   use typedown_types::{
-    diagnostic::{self, Diagnostic},
+    diagnostic::Diagnostic,
     string_stream::StringStream,
   };
 

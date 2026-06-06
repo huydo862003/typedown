@@ -27,7 +27,7 @@ pub struct QueryStorage {
   #[doc(hidden)]
   pub revision: AtomicUsize, // The current version of the query storage
   #[doc(hidden)]
-  pub ingredients: Vec<Box<dyn Ingredient>>, // All ingredients (input fields and derived)
+  pub ingredients: Vec<Box<dyn Ingredient>>, // All ingredients
 }
 
 impl QueryStorage {
