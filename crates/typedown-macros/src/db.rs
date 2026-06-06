@@ -457,12 +457,36 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     });
   }
 
+  let id_fields: Vec<_> = fields
+    .iter()
+    .enumerate()
+    .filter(|(_, field)| field.attrs.iter().any(|attr| attr.path().is_ident("id")))
+    .collect();
+
+  let id_field_tys: Vec<_> = id_fields
+    .iter()
+    .map(|(_, field)| field.ty.clone())
+    .collect();
+  let id_field_names: Vec<_> = id_fields
+    .iter()
+    .map(|(_, field)| field.ident.as_ref().unwrap())
+    .collect();
+
+  // Identity type = disambiguator + ids
+  let identity_ty = quote! {(usize, (#(#id_field_tys,)*) )};
+
   output.extend::<TokenStream>(
     quote! {
       #[derive(Clone, Copy, PartialEq, Eq, Hash)]
       #visibility struct #struct_name(usize);
 
       impl #struct_name {
+        // Map from the identity to the ingredient's id
+        fn identity_map() -> &'static dashmap::DashMap<#identity_ty, usize> {
+          static MAP: std::sync::OnceLock<dashmap::DashMap<#identity_ty, usize>> = std::sync::OnceLock::new();
+          MAP.get_or_init(|| dashmap::DashMap::new())
+        }
+
         fn ingredient_start_index_lock() -> &'static std::sync::OnceLock<usize> {
           static START_INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
           &START_INDEX
@@ -483,21 +507,55 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         }
 
-        /// Create a new derived ID and store its field values
+        /// Create or update a derived struct by identity
+        /// If a struct with the same identity already exists, reuses its ID and updates fields in place
         pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let storage = unsafe { db.storage() };
-          let id = Self::next_id();
           let start_index = Self::ingredient_start_index();
           let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);
+
+          // Compute disambiguator: hash(ingredient_start_index, id_field_values) to disambiguator
+          let identity_hash = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            start_index.hash(&mut hasher);
+            #(#id_field_names.hash(&mut hasher);)*
+            hasher.finish()
+          };
+          let disambiguator = storage.next_disambiguator(identity_hash);
+
+          let identity = (disambiguator, (#(#id_field_names.clone(),)*));
+          let map = Self::identity_map();
+
+          let id = if let Some(existing) = map.get(&identity) {
+            *existing
+          } else {
+            let new_id = Self::next_id();
+            *map.entry(identity).or_insert(new_id)
+          };
 
           #(
             {
               let ingredient = (&*storage.ingredients[start_index + #field_indices] as &dyn std::any::Any)
                 .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_types>>().expect("ingredient type mismatch");
-              ingredient.data.insert(id, typedown_db::StampedDerivedField {
-                value: #field_names,
-                changed_at: current_revision,
-              });
+
+              // Backdate: only update changed_at if the value actually changed
+              if let Some(existing) = ingredient.data.get(&id) {
+                if existing.value == #field_names {
+                  // Value unchanged, keep old changed_at (backdating)
+                } else {
+                  drop(existing);
+                  ingredient.data.insert(id, typedown_db::StampedDerivedField {
+                    value: #field_names,
+                    changed_at: current_revision,
+                  });
+                }
+              } else {
+                ingredient.data.insert(id, typedown_db::StampedDerivedField {
+                  value: #field_names,
+                  changed_at: current_revision,
+                });
+              }
             }
           )*
 

@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicUsize;
 
@@ -19,6 +20,7 @@ pub struct QueryStackEntry {
 pub struct ExecuteContext {
   pub query_stack: Vec<QueryStackEntry>,
   pub dependencies: Vec<Dependency>,
+  pub disambiguator_map: HashMap<u64, usize>, // map hash(ingredient_index, id_field_values) to counter
 }
 
 pub struct QueryStorage {
@@ -48,6 +50,22 @@ impl QueryStorage {
       static CTX: RefCell<Option<ExecuteContext>> = RefCell::new(None);
     }
     CTX.with(|c| f(&mut c.borrow_mut()))
+  }
+
+  /// Get the next disambiguator for a given identity hash within the current query execution
+  /// Returns 0 if not inside a query execution
+  #[doc(hidden)]
+  pub fn next_disambiguator(&self, identity_hash: u64) -> usize {
+    self.with_context(|ctx| {
+      if let Some(ctx) = ctx {
+        let counter = ctx.disambiguator_map.entry(identity_hash).or_insert(0);
+        let value = *counter;
+        *counter += 1;
+        value
+      } else {
+        0
+      }
+    })
   }
 }
 

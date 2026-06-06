@@ -180,12 +180,20 @@ impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Sen
       let ctx = ctx.get_or_insert_with(|| ExecuteContext {
         query_stack: Vec::new(),
         dependencies: Vec::new(),
+        disambiguator_map: std::collections::HashMap::new(),
       });
       ctx.query_stack.push(QueryStackEntry {
         ingredient_index,
         arg_id,
       });
       std::mem::take(&mut ctx.dependencies)
+    });
+
+    // Reset disambiguator map before re-execution
+    storage.with_context(|ctx| {
+      if let Some(ctx) = ctx {
+        ctx.disambiguator_map.clear();
+      }
     });
 
     // Recompute
