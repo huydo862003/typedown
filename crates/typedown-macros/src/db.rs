@@ -111,7 +111,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           register: |factories| {
             let start_index = factories.len();
             #(
-              factories.push(|| Box::new(typedown_db::InputFieldIngredient::<#field_types>::new()));
+              factories.push(|_| Box::new(typedown_db::InputFieldIngredient::<#field_types>::new()));
             )*
             #struct_name::set_ingredient_start_index(start_index);
           },
@@ -129,7 +129,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let setter_name = quote::format_ident!("set_{}", field_name);
 
     getter_setter_tokens.extend(quote! {
-      pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
+      pub fn #field_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
         let ingredient_index = Self::ingredient_start_index() + #idx;
         let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
@@ -150,7 +150,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         entry.value.clone()
       }
 
-      pub fn #setter_name<DB: typedown_db::QueryDatabase>(&self, db: &mut DB, value: #field_ty) {
+      pub fn #setter_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &mut DB, value: #field_ty) {
         let storage = unsafe { db.storage() };
         let ingredient = (&*storage.ingredients[Self::ingredient_start_index() + #idx] as &dyn std::any::Any)
           .downcast_ref::<typedown_db::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
@@ -196,7 +196,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         }
 
-        pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#field_names: #field_types),*) -> Self {
+        pub fn new<DB: typedown_db::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let storage = unsafe { db.storage() };
           let id = Self::next_id();
           let start_index = Self::ingredient_start_index();
@@ -301,8 +301,13 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
   // Generate marker struct with ingredient index management
   output.extend::<TokenStream>(
     quote! {
+      // TIL: Originally, i used a unit struct instead of record-like struct
+      // Thinking that a struct would not collide with a function with the same name, as they are
+      // in different namespaces
+      // However, unit structs create both a value and a type (cause you can use a unit struct name
+      // to represent the singleton value)
       #[allow(non_camel_case_types)]
-      #visibility struct #fn_name;
+      #visibility struct #fn_name { private: () }
 
       impl #fn_name {
         fn ingredient_index_lock() -> &'static std::sync::OnceLock<usize> {
@@ -338,7 +343,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
           kind: typedown_db::IngredientKind::Derived,
           register: |factories| {
             let index = factories.len();
-            factories.push(|| Box::new(
+            factories.push(|index| Box::new(
               typedown_db::DerivedQueryIngredient::<#key_tuple_ty, #return_type>::new(index, #fn_name::#fn_name)
             ));
             #fn_name::set_ingredient_index(index);
@@ -417,7 +422,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           register: |factories| {
             let start_index = factories.len();
             #(
-              factories.push(|| Box::new(typedown_db::DerivedFieldIngredient::<#field_types>::new()));
+              factories.push(|_| Box::new(typedown_db::DerivedFieldIngredient::<#field_types>::new()));
             )*
             #struct_name::set_ingredient_start_index(start_index);
           },
@@ -434,7 +439,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     let field_ty = &field.ty;
 
     getter_tokens.extend(quote! {
-      pub fn #field_name<DB: typedown_db::QueryDatabase>(&self, db: &DB) -> #field_ty {
+      pub fn #field_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
         let ingredient_index = Self::ingredient_start_index() + #idx;
         let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
@@ -509,7 +514,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
         /// Create or update a derived struct by identity
         /// If a struct with the same identity already exists, reuses its ID and updates fields in place
-        pub fn new<DB: typedown_db::QueryDatabase>(db: &DB, #(#field_names: #field_types),*) -> Self {
+        pub fn new<DB: typedown_db::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let storage = unsafe { db.storage() };
           let start_index = Self::ingredient_start_index();
           let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);

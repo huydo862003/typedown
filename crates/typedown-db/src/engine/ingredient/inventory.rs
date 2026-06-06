@@ -1,7 +1,7 @@
 use super::Ingredient;
 
-/// A callback that creates an Ingredient
-pub type IngredientFactory = fn() -> Box<dyn Ingredient>;
+/// A callback that creates an Ingredient, receiving its index in the ingredients vec
+pub type IngredientFactory = fn(usize) -> Box<dyn Ingredient>;
 
 pub enum IngredientKind {
   Input,
