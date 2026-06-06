@@ -9,3 +9,4 @@ typedown-syntax = { version = "0.1.0", path = "../typedown-syntax" }
 typedown-macros = { version = "0.1.0", path = "../typedown-macros" }
 dashmap = "6.2.1"
 inventory = "0.3.24"
+rayon = "1.12.0"
