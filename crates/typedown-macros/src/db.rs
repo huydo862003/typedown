@@ -172,7 +172,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
   output.extend::<TokenStream>(
     quote! {
-      #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+      #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
       #visibility struct #struct_name(usize);
 
       impl #struct_name {
@@ -296,6 +296,21 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
   // The db argument (first arg)
   let db_arg = &all_args[0];
 
+  // Extract the db type (e.g. `Database` from `db: &Database`)
+  let db_type = if let syn::FnArg::Typed(pat_type) = db_arg {
+    if let syn::Type::Reference(type_ref) = pat_type.ty.as_ref() {
+      type_ref.elem.as_ref().clone()
+    } else {
+      return syn::Error::new_spanned(db_arg, "first argument must be a reference to a database")
+        .to_compile_error()
+        .into();
+    }
+  } else {
+    return syn::Error::new_spanned(db_arg, "first argument must be a typed parameter")
+      .to_compile_error()
+      .into();
+  };
+
   let mut output: TokenStream = quote! {}.into();
 
   // Generate marker struct with ingredient index management
@@ -326,7 +341,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
         }
 
         /// The bare query implementation
-        fn #fn_name(db: &dyn typedown_db::QueryDatabase, key: #key_tuple_ty) -> #return_type {
+        fn #fn_name(db: &#db_type, key: #key_tuple_ty) -> #return_type {
           let (#(#key_names,)*) = key;
           #fn_block
         }
@@ -344,7 +359,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
           register: |factories| {
             let index = factories.len();
             factories.push(|index| Box::new(
-              typedown_db::DerivedQueryIngredient::<#key_tuple_ty, #return_type>::new(index, #fn_name::#fn_name)
+              typedown_db::DerivedQueryIngredient::<#db_type, #key_tuple_ty, #return_type>::new(index, #fn_name::#fn_name)
             ));
             #fn_name::set_ingredient_index(index);
           },
@@ -360,7 +375,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
       #visibility fn #fn_name(#db_arg, #(#key_names: #key_types),*) -> #return_type {
         let storage = unsafe { db.storage() };
         let ingredient = (&*storage.ingredients[#fn_name::ingredient_index()] as &dyn std::any::Any)
-          .downcast_ref::<typedown_db::DerivedQueryIngredient<#key_tuple_ty, #return_type>>()
+          .downcast_ref::<typedown_db::DerivedQueryIngredient<#db_type, #key_tuple_ty, #return_type>>()
           .expect("derived ingredient type mismatch");
         ingredient.execute_query(db, (#(#key_names,)*))
       }
@@ -482,7 +497,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
   output.extend::<TokenStream>(
     quote! {
-      #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+      #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
       #visibility struct #struct_name(usize);
 
       impl #struct_name {

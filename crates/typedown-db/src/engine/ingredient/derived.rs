@@ -33,19 +33,22 @@ pub enum QueryState<K, V: DerivedId> {
 
 /// Ingredient for a derived query function: maps key tuple to memoized result
 #[doc(hidden)]
-pub struct DerivedQueryIngredient<K, V: DerivedId> {
+pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
   ingredient_index: usize,
   next_arg_id: AtomicUsize,
-  query_fn: fn(&dyn QueryDatabase, K) -> V,
+  query_fn: fn(&DB, K) -> V,
   intern_map: DashMap<K, usize>, // key -> stable arg_id
   #[doc(hidden)]
   pub data: DashMap<usize, QueryState<K, V>>, // arg_id -> state
 }
 
-impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Send + Sync + 'static>
-  DerivedQueryIngredient<K, V>
+impl<
+    DB: QueryDatabase + Send + Sync + 'static,
+    K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
+    V: DerivedId + Send + Sync + 'static,
+  > DerivedQueryIngredient<DB, K, V>
 {
-  pub fn new(ingredient_index: usize, query_fn: fn(&dyn QueryDatabase, K) -> V) -> Self {
+  pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
     Self {
       ingredient_index,
       next_arg_id: AtomicUsize::new(0),
@@ -65,7 +68,7 @@ impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Sen
   }
 
   /// Execute a derived query: returns cached result if valid, otherwise runs the query function
-  pub fn execute_query(&self, db: &dyn QueryDatabase, arg: K) -> V {
+  pub fn execute_query(&self, db: &DB, arg: K) -> V {
     let storage = unsafe { db.storage() };
     let current_revision = storage.revision.load(Ordering::Acquire);
     let ingredient_index = self.ingredient_index;
@@ -91,7 +94,7 @@ impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Sen
   /// Inner implementation that returns (value, changed_at)
   fn execute_query_inner(
     &self,
-    db: &dyn QueryDatabase,
+    db: &DB,
     storage: &crate::QueryStorage,
     current_revision: usize,
     ingredient_index: usize,
@@ -235,8 +238,11 @@ impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Sen
   }
 }
 
-impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Send + Sync + 'static>
-  Ingredient for DerivedQueryIngredient<K, V>
+impl<
+    DB: QueryDatabase + Send + Sync + 'static,
+    K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
+    V: DerivedId + Send + Sync + 'static,
+  > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
     let storage = unsafe { db.storage() };
@@ -283,6 +289,9 @@ impl<K: Eq + std::hash::Hash + Clone + Send + Sync + 'static, V: DerivedId + Sen
   }
 
   fn re_execute(&self, db: &dyn QueryDatabase, arg_id: usize) {
+    let db: &DB = (db as &dyn std::any::Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in re_execute");
     // Look up the key from the memo and re-execute
     if let Some(entry) = self.data.get(&arg_id) {
       if let QueryState::Computed(memo) = &*entry {

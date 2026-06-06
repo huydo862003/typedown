@@ -94,4 +94,89 @@ mod tests {
       diagnostics
     );
   }
+
+  #[test]
+  fn derived_query_rerun_without_change_does_not_crash() {
+    let db = Database {
+      storage: QueryStorage::default(),
+    };
+
+    let file = ProgramFile::new(
+      &db,
+      PathBuf::from("/test.td"),
+      String::from("---\n---\n# Hello World\n"),
+    );
+
+    let rev_before = db
+      .storage
+      .revision
+      .load(std::sync::atomic::Ordering::Acquire);
+
+    let result1 = parse_file(&db, file);
+    let result2 = parse_file(&db, file);
+
+    assert_eq!(result1, result2);
+
+    // Derived query execution should not bump the revision
+    let rev_after = db
+      .storage
+      .revision
+      .load(std::sync::atomic::Ordering::Acquire);
+    assert_eq!(
+      rev_before, rev_after,
+      "revision should not bump from derived query execution"
+    );
+  }
+
+  #[test]
+  fn derived_query_on_two_inputs() {
+    let db = Database {
+      storage: QueryStorage::default(),
+    };
+
+    let file1 = ProgramFile::new(
+      &db,
+      PathBuf::from("/a.td"),
+      String::from("---\n---\n# First\n"),
+    );
+    let file2 = ProgramFile::new(
+      &db,
+      PathBuf::from("/b.td"),
+      String::from("---\n---\n# Second\n"),
+    );
+
+    let rev_before = db
+      .storage
+      .revision
+      .load(std::sync::atomic::Ordering::Acquire);
+
+    let result1 = parse_file(&db, file1);
+    let result2 = parse_file(&db, file2);
+
+    let rev_after = db
+      .storage
+      .revision
+      .load(std::sync::atomic::Ordering::Acquire);
+    assert_eq!(
+      rev_before, rev_after,
+      "revision should not bump from derived query execution"
+    );
+
+    // Different inputs should produce different results
+    assert_ne!(result1, result2);
+
+    // Each result should have the correct path
+    assert_eq!(result1.path(&db), PathBuf::from("/a.td"));
+    assert_eq!(result2.path(&db), PathBuf::from("/b.td"));
+
+    // Both should parse without diagnostics
+    assert!(result1.diagnostics(&db).is_empty());
+    assert!(result2.diagnostics(&db).is_empty());
+
+    // Rerunning should return the same cached results
+    let result1_again = parse_file(&db, file1);
+    let result2_again = parse_file(&db, file2);
+    assert_eq!(result1, result1_again);
+    assert_eq!(result2, result2_again);
+  }
 }
