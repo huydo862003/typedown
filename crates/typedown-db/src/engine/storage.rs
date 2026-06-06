@@ -34,7 +34,11 @@ impl QueryStorage {
   pub fn default() -> Self {
     QueryStorage {
       revision: AtomicUsize::new(0),
-      ingredients: registry().iter().map(|factory| factory()).collect(),
+      ingredients: registry()
+        .iter()
+        .enumerate()
+        .map(|(idx, factory)| factory(idx))
+        .collect(),
     }
   }
 
