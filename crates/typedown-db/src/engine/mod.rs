@@ -3,6 +3,8 @@ mod derived;
 mod ingredient;
 mod input;
 mod storage;
+#[cfg(test)]
+mod tests;
 
 pub use db::*;
 pub use derived::*;

@@ -1,6 +1,6 @@
 use super::storage::QueryStorage;
 
-pub trait QueryDatabase {
+pub trait QueryDatabase: std::any::Any {
   #[doc(hidden)]
   unsafe fn storage(&self) -> &QueryStorage;
 
