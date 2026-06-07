@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use typedown_macros::query_derived;
+
 use crate::{
   TypedownDatabase,
   inputs::{File, Project},
