@@ -1,5 +1,9 @@
 //! Derived types for the incremental database
 
+pub mod object_system;
+
+pub use object_system::*;
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 

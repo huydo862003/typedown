@@ -729,3 +729,108 @@ fn error_empty_expression() {
     }
   )));
 }
+
+#[test]
+fn parse_index_single() {
+  let tree = parse_expr("x[0]");
+  assert_eq!(
+    tree,
+    r#"(YamlMappingEntryValue
+  (IndexExpr
+    (IdentLit
+      " "
+      "x")
+    "["
+    (NumberLit
+      "0")
+    "]"))"#
+  );
+}
+
+#[test]
+fn parse_index_multiple() {
+  let tree = parse_expr("x[0, 1]");
+  assert_eq!(
+    tree,
+    r#"(YamlMappingEntryValue
+  (IndexExpr
+    (IdentLit
+      " "
+      "x")
+    "["
+    (NumberLit
+      "0")
+    ","
+    (NumberLit
+      " "
+      "1")
+    "]"))"#
+  );
+}
+
+#[test]
+fn parse_index_with_expression() {
+  let tree = parse_expr("x[a + 1]");
+  assert_eq!(
+    tree,
+    r#"(YamlMappingEntryValue
+  (IndexExpr
+    (IdentLit
+      " "
+      "x")
+    "["
+    (BinaryExpr
+      (IdentLit
+        "a")
+      " "
+      "+"
+      (NumberLit
+        " "
+        "1"))
+    "]"))"#
+  );
+}
+
+#[test]
+fn parse_index_chained() {
+  let tree = parse_expr("x[0][1]");
+  assert_eq!(
+    tree,
+    r#"(YamlMappingEntryValue
+  (IndexExpr
+    (IndexExpr
+      (IdentLit
+        " "
+        "x")
+      "["
+      (NumberLit
+        "0")
+      "]")
+    "["
+    (NumberLit
+      "1")
+    "]"))"#
+  );
+}
+
+#[test]
+fn parse_index_on_call() {
+  let tree = parse_expr("f(x)[0]");
+  assert_eq!(
+    tree,
+    r#"(YamlMappingEntryValue
+  (IndexExpr
+    (CallExpr
+      (IdentLit
+        " "
+        "f")
+      "("
+      (IdentLit
+        "x")
+      ")")
+    "["
+    (NumberLit
+      "0")
+    "]"))"#
+  );
+}

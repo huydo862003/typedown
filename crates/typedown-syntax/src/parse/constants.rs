@@ -8,4 +8,5 @@ pub(in crate::parse) const SKIP_INDENT: u16 = 1 << 3;
 
 pub(in crate::parse) const SKIP_WC: u16 = SKIP_WS | SKIP_COMMENT;
 pub(in crate::parse) const SKIP_WCN: u16 = SKIP_WS | SKIP_COMMENT | SKIP_NEWLINE;
-pub(in crate::parse) const SKIP_ALL_TRIVIA: u16 = SKIP_WS | SKIP_COMMENT | SKIP_NEWLINE | SKIP_INDENT;
+pub(in crate::parse) const SKIP_ALL_TRIVIA: u16 =
+  SKIP_WS | SKIP_COMMENT | SKIP_NEWLINE | SKIP_INDENT;

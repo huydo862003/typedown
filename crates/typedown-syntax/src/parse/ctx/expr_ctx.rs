@@ -25,6 +25,8 @@ pub(in crate::parse) enum ExprCtx {
   Paren,
   /// Inside `func(...)` call expression, closed by `)`
   Call,
+  /// Inside `expr[...]` index expression, closed by `]`
+  Index,
   /// Inside a block sequence
   BlockSeq,
   /// Inside a block mapping
@@ -147,21 +149,33 @@ impl ExprCtxStack {
     let mut cache = self.cache.borrow_mut();
     match ctx {
       ExprCtx::MdBlockQuote => {
-        self.md_prefix_tokens.push(cache.token(SyntaxKind::MdSymbol, b">"));
-        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::MdSymbol, b">"));
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
       ExprCtx::MdUnorderedListItem => {
-        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
       ExprCtx::MdOrderedListItem => {
-        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
       ExprCtx::MdToggleListItem => {
-        self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
       ExprCtx::MdCalloutBlock(parent_prefix_count) => {
         if parent_prefix_count > 0 {
-          self.md_prefix_tokens.push(cache.token(SyntaxKind::Whitespace, b" "));
+          self
+            .md_prefix_tokens
+            .push(cache.token(SyntaxKind::Whitespace, b" "));
         }
       }
       _ => {}
@@ -190,7 +204,7 @@ impl ExprCtx {
   pub(in crate::parse) fn should_expr_skip_indent(self) -> bool {
     matches!(
       self,
-      ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call
+      ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call | ExprCtx::Index
     )
   }
 
@@ -198,7 +212,7 @@ impl ExprCtx {
   pub(in crate::parse) fn should_expr_span_newline(self) -> bool {
     matches!(
       self,
-      ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call
+      ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call | ExprCtx::Index
     )
   }
 
@@ -234,6 +248,8 @@ impl ExprCtx {
       | (ExprCtx::Paren, SyntaxKind::RParen)
       | (ExprCtx::Call, SyntaxKind::RParen)
       | (ExprCtx::Call, SyntaxKind::Comma)
+      | (ExprCtx::Index, SyntaxKind::RBracket)
+      | (ExprCtx::Index, SyntaxKind::Comma)
       | (ExprCtx::BlockSeq, SyntaxKind::Newline)
       | (ExprCtx::BlockMap, SyntaxKind::Newline)
       | (ExprCtx::MdBlockQuote, SyntaxKind::Newline)

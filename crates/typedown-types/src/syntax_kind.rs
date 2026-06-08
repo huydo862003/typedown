@@ -44,8 +44,9 @@ pub enum SyntaxKind {
 
   // Expression nodes
   PrimaryExpr = 300, // An operand in an expression
-  ParenExpr,   // (expr)
-  CallExpr,    // func(args)
+  ParenExpr,         // (expr)
+  CallExpr,          // func(args)
+  IndexExpr,         // expr[expr, ...]
   UnaryExpr,
   BinaryExpr,
 

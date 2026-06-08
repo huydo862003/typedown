@@ -136,9 +136,19 @@ impl<S: Utf8Stream> ParseCtx<S> {
     loop {
       let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
 
-      // Check for call expression: ident followed by `(`
+      // Check for call expression: expr followed by `(`
       if peek.token.kind() == SyntaxKind::LParen {
         let (node, exit) = self.parse_call_expr(lhs, block_indent);
+        lhs = node;
+        if exit.is_some() {
+          return (lhs, exit);
+        }
+        continue;
+      }
+
+      // Check for index expression: expr followed by `[`
+      if peek.token.kind() == SyntaxKind::LBracket {
+        let (node, exit) = self.parse_index_expr(lhs, block_indent);
         lhs = node;
         if exit.is_some() {
           return (lhs, exit);
@@ -289,6 +299,117 @@ impl<S: Utf8Stream> ParseCtx<S> {
         SyntaxKind::Comma | SyntaxKind::RParen | SyntaxKind::Eof => break None,
         _ => {
           if let Some(ctx) = self.consume_or_delegate(ExprCtx::Call, &mut error_children) {
+            break Some(ctx);
+          }
+        }
+      }
+    };
+    if !error_children.is_empty() {
+      children.push(self.emit(SyntaxKind::Error, &error_children));
+    }
+    result
+  }
+
+  /// Parse an index expression: `expr[expr, ...]`
+  /// `target` has already been parsed and is passed in.
+  fn parse_index_expr(
+    &mut self,
+    target: GreenNode,
+    block_indent: usize,
+  ) -> (GreenNode, Option<ExprCtx>) {
+    let mode = self.lex_ctx.mode();
+    debug_assert!(
+      self
+        .lex_ctx
+        .peek(self.formula_expr_skip_flags(), mode)
+        .token
+        .kind()
+        == SyntaxKind::LBracket,
+      "[ParseCtx::parse_index_expr] Expected next token to be LBracket"
+    );
+
+    let mut children = vec![target];
+    self.expr_ctx_stack.enter(ExprCtx::Index);
+
+    // Consume `[`
+    self.advance(&mut children, self.formula_expr_skip_flags(), mode);
+
+    // Check for empty index `[]`
+    let peek = self.lex_ctx.peek(SKIP_WCN, mode);
+    if peek.token.kind() == SyntaxKind::RBracket {
+      self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+      self.expr_ctx_stack.exit(ExprCtx::Index);
+      return (self.emit(SyntaxKind::IndexExpr, &children), None);
+    }
+
+    // Parse first index
+    let (idx, early_exit) = self.parse_expr(block_indent);
+    children.push(idx);
+    if early_exit.is_some_and(|ctx| ctx != ExprCtx::Index) {
+      self.expr_ctx_stack.exit(ExprCtx::Index);
+      return (self.emit(SyntaxKind::IndexExpr, &children), early_exit);
+    }
+
+    // Parse remaining indices
+    loop {
+      let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+      match peek.token.kind() {
+        SyntaxKind::RBracket => {
+          self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+          break;
+        }
+        SyntaxKind::Comma => {
+          self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+
+          // Trailing comma before `]` is allowed
+          let peek = self.lex_ctx.peek(SKIP_ALL_TRIVIA, mode);
+          if peek.token.kind() == SyntaxKind::RBracket {
+            self.advance(&mut children, SKIP_ALL_TRIVIA, mode);
+            break;
+          }
+
+          let (idx, early_exit) = self.parse_expr(block_indent);
+          children.push(idx);
+          if early_exit.is_some_and(|ctx| ctx != ExprCtx::Index) {
+            self.expr_ctx_stack.exit(ExprCtx::Index);
+            return (self.emit(SyntaxKind::IndexExpr, &children), early_exit);
+          }
+        }
+        SyntaxKind::Eof => {
+          self.diagnostics.push(Diagnostic::MissingSyntaxNode {
+            expected: SyntaxKind::RBracket,
+            start_offset: self.offset(),
+            end_offset: self.offset(),
+          });
+          break;
+        }
+        _ => {
+          let handler = self.expr_ctx_stack.find_handler(&peek.token);
+          if handler.is_some_and(|ctx| ctx != ExprCtx::Index) {
+            self.expr_ctx_stack.exit(ExprCtx::Index);
+            return (self.emit(SyntaxKind::IndexExpr, &children), handler);
+          }
+          if let Some(ctx) = self.synchronize_index_expr(&mut children) {
+            self.expr_ctx_stack.exit(ExprCtx::Index);
+            return (self.emit(SyntaxKind::IndexExpr, &children), Some(ctx));
+          }
+        }
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::Index);
+    (self.emit(SyntaxKind::IndexExpr, &children), None)
+  }
+
+  // Stop on Comma and RBracket
+  fn synchronize_index_expr(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+    let mut error_children = vec![];
+    let result = loop {
+      let peek = self.lex_ctx.peek(SKIP_NONE, self.lex_ctx.mode());
+      match peek.token.kind() {
+        SyntaxKind::Comma | SyntaxKind::RBracket | SyntaxKind::Eof => break None,
+        _ => {
+          if let Some(ctx) = self.consume_or_delegate(ExprCtx::Index, &mut error_children) {
             break Some(ctx);
           }
         }

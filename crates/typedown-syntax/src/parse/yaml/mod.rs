@@ -146,7 +146,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     match peek.token.kind() {
       SyntaxKind::Eof => true,
-      SyntaxKind::YamlOp if peek.token.chars().collect::<String>() == "---" => peek.block_indent == 0,
+      SyntaxKind::YamlOp if peek.token.chars().collect::<String>() == "---" => {
+        peek.block_indent == 0
+      }
       _ => false,
     }
   }

@@ -27,7 +27,13 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
     diagnostics.push(Diagnostic::MissingVaultConfig {
       root_dir: root.display().to_string(),
     });
-    return VaultConfigResult::new(db, String::new(), PathBuf::new(), PathBuf::new(), diagnostics);
+    return VaultConfigResult::new(
+      db,
+      String::new(),
+      PathBuf::new(),
+      PathBuf::new(),
+      diagnostics,
+    );
   };
 
   let contents = match std::fs::read_to_string(&config_path) {
@@ -37,7 +43,13 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
         path: config_path.display().to_string(),
         message: err.to_string(),
       });
-      return VaultConfigResult::new(db, String::new(), PathBuf::new(), PathBuf::new(), diagnostics);
+      return VaultConfigResult::new(
+        db,
+        String::new(),
+        PathBuf::new(),
+        PathBuf::new(),
+        diagnostics,
+      );
     }
   };
 
@@ -48,7 +60,13 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
         path: config_path.display().to_string(),
         message: err.to_string(),
       });
-      return VaultConfigResult::new(db, String::new(), PathBuf::new(), PathBuf::new(), diagnostics);
+      return VaultConfigResult::new(
+        db,
+        String::new(),
+        PathBuf::new(),
+        PathBuf::new(),
+        diagnostics,
+      );
     }
   };
 
@@ -56,7 +74,13 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
     diagnostics.push(Diagnostic::VaultConfigEmpty {
       path: config_path.display().to_string(),
     });
-    return VaultConfigResult::new(db, String::new(), PathBuf::new(), PathBuf::new(), diagnostics);
+    return VaultConfigResult::new(
+      db,
+      String::new(),
+      PathBuf::new(),
+      PathBuf::new(),
+      diagnostics,
+    );
   }
 
   let doc = docs.swap_remove(0);

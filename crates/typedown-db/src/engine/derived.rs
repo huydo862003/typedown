@@ -20,10 +20,7 @@ mod tests {
     parse::ctx::ParseCtx,
     red::RedNode,
   };
-  use typedown_types::{
-    diagnostic::Diagnostic,
-    string_stream::StringStream,
-  };
+  use typedown_types::{diagnostic::Diagnostic, string_stream::StringStream};
 
   use crate::{QueryDatabase, QueryStorage};
 
