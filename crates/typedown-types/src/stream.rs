@@ -14,7 +14,7 @@ pub enum Utf8Result {
 /// Abstracts over files, strings, stdin, etc.
 pub trait Utf8Stream {
   /// Look at the next result without consuming it.
-  fn peek(&mut self) -> Utf8Result;
+  fn peek(&self) -> Utf8Result;
 
   /// Consume and return the next result.
   fn advance(&mut self) -> Utf8Result;
@@ -27,7 +27,7 @@ pub trait Utf8Stream {
 }
 
 impl Utf8Stream for Box<dyn Utf8Stream> {
-  fn peek(&mut self) -> Utf8Result {
+  fn peek(&self) -> Utf8Result {
     (**self).peek()
   }
 
@@ -43,4 +43,3 @@ impl Utf8Stream for Box<dyn Utf8Stream> {
     (**self).exhausted()
   }
 }
-

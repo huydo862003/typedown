@@ -1,32 +1,35 @@
-use std::io::{BufReader, Read};
+use std::{
+  cell::{Cell, RefCell},
+  io::{BufReader, Read},
+};
 
 use crate::stream::{Utf8Result, Utf8Stream};
 
 /// A Utf8Stream over any `Read` source (file, stdin, etc.) via BufReader.
 pub struct FileStream<T: Read> {
-  reader: BufReader<T>,
+  reader: RefCell<BufReader<T>>,
   /// Buffered result for fast repeated peek access
-  buffer: Option<Utf8Result>,
+  buffer: Cell<Option<Utf8Result>>,
   /// Current byte offset in the source
-  offset: usize,
+  offset: Cell<usize>,
   /// Number of bytes to skip (from invalid UTF-8 recovery)
-  skip: usize,
+  skip: Cell<usize>,
 }
 
 impl<T: Read> FileStream<T> {
   pub fn new(source: T) -> Self {
     Self {
-      reader: BufReader::new(source),
-      buffer: None,
-      offset: 0,
-      skip: 0,
+      reader: RefCell::new(BufReader::new(source)),
+      buffer: Cell::new(None),
+      offset: Cell::new(0),
+      skip: Cell::new(0),
     }
   }
 }
 
 impl<T: Read> Utf8Stream for FileStream<T> {
-  fn peek(&mut self) -> Utf8Result {
-    if let Some(result) = self.buffer {
+  fn peek(&self) -> Utf8Result {
+    if let Some(result) = self.buffer.get() {
       return result;
     }
 
@@ -34,7 +37,11 @@ impl<T: Read> Utf8Stream for FileStream<T> {
     let mut filled = 0;
 
     let result = loop {
-      match self.reader.read(&mut bytes[filled..filled + 1]) {
+      match self
+        .reader
+        .borrow_mut()
+        .read(&mut bytes[filled..filled + 1])
+      {
         Ok(0) => break Utf8Result::Eof,
         Ok(_) => {
           filled += 1;
@@ -44,7 +51,7 @@ impl<T: Read> Utf8Stream for FileStream<T> {
           }
           if filled >= 4 {
             // 4 bytes read but still invalid UTF-8
-            self.skip = filled;
+            self.skip.set(filled);
             break Utf8Result::Invalid { len: filled, bytes };
           }
         }
@@ -55,7 +62,7 @@ impl<T: Read> Utf8Stream for FileStream<T> {
       }
     };
 
-    self.buffer = Some(result);
+    self.buffer.set(Some(result));
     result
   }
 
@@ -71,11 +78,11 @@ impl<T: Read> Utf8Stream for FileStream<T> {
 
     match &result {
       Utf8Result::Char(char) => {
-        self.offset += char.len_utf8();
+        self.offset.update(|v| v + char.len_utf8());
       }
       Utf8Result::Invalid { .. } => {
-        self.offset += self.skip;
-        self.skip = 0;
+        self.offset.update(|v| v + self.skip.get());
+        self.skip.set(0);
       }
       Utf8Result::Eof => {}
     }
@@ -84,10 +91,11 @@ impl<T: Read> Utf8Stream for FileStream<T> {
   }
 
   fn offset(&self) -> usize {
-    self.offset
+    self.offset.get()
   }
 
   fn exhausted(&self) -> bool {
-    matches!(self.buffer, Some(Utf8Result::Eof))
+    self.peek();
+    matches!(self.buffer.get(), Some(Utf8Result::Eof))
   }
 }
