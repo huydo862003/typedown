@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[query_derived]
-struct FileAst {
+pub struct FileAst {
   #[id]
   handle: FileHandle,
   ast: GreenNode,
