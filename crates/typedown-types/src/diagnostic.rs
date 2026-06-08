@@ -199,4 +199,20 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /* Vault config diagnostics */
+  /// No typedown.yaml or typedown.yml found in the project root.
+  MissingVaultConfig { root_dir: String },
+
+  /// Failed to read the vault config file.
+  VaultConfigReadError { path: String, message: String },
+
+  /// Failed to parse the vault config file as YAML.
+  VaultConfigParseError { path: String, message: String },
+
+  /// The vault config file is empty.
+  VaultConfigEmpty { path: String },
+
+  /// A required field is missing from the vault config.
+  VaultConfigMissingField { path: String, field: String },
 }
