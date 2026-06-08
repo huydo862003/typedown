@@ -9,6 +9,7 @@ pub mod engine;
 #[cfg(test)]
 pub(crate) mod fixtures;
 pub mod inputs;
+pub mod types;
 
 pub use engine::*;
 /// TIL: Macros that use 3rd-party crates would require that crate to be installed in the consumer crate

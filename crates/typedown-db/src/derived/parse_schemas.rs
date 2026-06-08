@@ -7,19 +7,14 @@ use typedown_macros::query_derived;
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  inputs::{File, Project},
+  types::{File, FileHandle, Project, SchemaAsts},
 };
 
 use super::get_vault_config::get_vault_config;
-use super::parse_file::{FileAst, parse_file};
+use super::parse_file::parse_file;
 
 #[query_derived]
-pub struct SchemaFiles {
-  files: HashMap<PathBuf, FileAst>,
-}
-
-#[query_derived]
-pub fn parse_schemas(db: &TypedownDatabase, project: Project) -> SchemaFiles {
+pub fn parse_schemas(db: &TypedownDatabase, project: Project) -> SchemaAsts {
   let config = get_vault_config(db, project);
   let schema_dir = config.schema_dir(db);
   let handles = project.handles(db);
@@ -34,5 +29,5 @@ pub fn parse_schemas(db: &TypedownDatabase, project: Project) -> SchemaFiles {
     }
   }
 
-  SchemaFiles::new(db, files)
+  SchemaAsts::new(db, files)
 }

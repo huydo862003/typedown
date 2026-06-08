@@ -1,17 +1,11 @@
 //! Tracked query to get the vault configuration from typedown.yaml
 
-use std::path::PathBuf;
-
 use typedown_macros::query_derived;
 
-use crate::{QueryDatabase, TypedownDatabase, inputs::Project};
-
-#[query_derived]
-pub struct VaultConfig {
-  version: String,
-  content_dir: PathBuf,
-  schema_dir: PathBuf,
-}
+use crate::{
+  QueryDatabase, TypedownDatabase,
+  types::{Project, VaultConfig},
+};
 
 #[query_derived]
 pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfig {
