@@ -9,7 +9,8 @@ use crate::{QueryDatabase, TypedownDatabase, inputs::Project};
 #[query_derived]
 pub struct VaultConfig {
   version: String,
-  vault_root_dir: PathBuf,
+  content_dir: PathBuf,
+  schema_dir: PathBuf,
 }
 
 #[query_derived]
@@ -47,11 +48,16 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfig 
     .unwrap_or_else(|| panic!("missing 'version' in {}", config_path.display()))
     .to_string();
 
-  let vault_root_dir_str = doc["vault"]["root_dir"]
+  let content_dir_str = doc["vault"]["content_dir"]
     .as_str()
-    .unwrap_or_else(|| panic!("missing 'vault.root_dir' in {}", config_path.display()));
+    .unwrap_or_else(|| panic!("missing 'vault.content_dir' in {}", config_path.display()));
 
-  let vault_root_dir = root.join(vault_root_dir_str);
+  let schema_dir_str = doc["vault"]["schema_dir"]
+    .as_str()
+    .unwrap_or_else(|| panic!("missing 'vault.schema_dir' in {}", config_path.display()));
 
-  VaultConfig::new(db, version, vault_root_dir)
+  let content_dir = root.join(content_dir_str);
+  let schema_dir = root.join(schema_dir_str);
+
+  VaultConfig::new(db, version, content_dir, schema_dir)
 }
