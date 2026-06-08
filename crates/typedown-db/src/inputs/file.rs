@@ -6,7 +6,7 @@ use typedown_macros::query_input;
 use typedown_types::{file_stream::FileStream, stream::Utf8Stream};
 
 /// Types of file-handle: Currently, we support path-based and content-based files
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum FileHandle {
   Path(PathBuf),
   Content(String),
