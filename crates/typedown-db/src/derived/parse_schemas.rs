@@ -1,0 +1,38 @@
+//! Tracked query to parse all schema files in the vault's schema directory
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use typedown_macros::query_derived;
+
+use crate::{
+  QueryDatabase, TypedownDatabase,
+  inputs::{File, Project},
+};
+
+use super::get_vault_config::get_vault_config;
+use super::parse_file::{FileAst, parse_file};
+
+#[query_derived]
+pub struct SchemaFiles {
+  files: HashMap<PathBuf, FileAst>,
+}
+
+#[query_derived]
+pub fn parse_schemas(db: &TypedownDatabase, project: Project) -> SchemaFiles {
+  let config = get_vault_config(db, project);
+  let schema_dir = config.schema_dir(db);
+  let handles = project.handles(db);
+
+  let mut files = HashMap::new();
+
+  for (path, handle) in &handles {
+    if path.starts_with(&schema_dir) && path.extension().is_some_and(|ext| ext == "tdr") {
+      let file = File::new(db, handle.clone());
+      let ast = parse_file(db, file);
+      files.insert(path.clone(), ast);
+    }
+  }
+
+  SchemaFiles::new(db, files)
+}
