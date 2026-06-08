@@ -18,7 +18,7 @@ pub struct VaultConfig {
 }
 
 #[query_derived]
-pub struct FileAst {
+pub struct FileAstResult {
   #[id]
   handle: FileHandle,
   ast: GreenNode,
@@ -26,6 +26,16 @@ pub struct FileAst {
 }
 
 #[query_derived]
-pub struct SchemaAsts {
-  files: HashMap<PathBuf, FileAst>,
+pub struct SchemaAstResults {
+  files: HashMap<PathBuf, FileAstResult>,
+}
+
+#[query_derived]
+pub struct TypecheckResult {
+  diagnostics: Vec<Diagnostic>,
+}
+
+#[query_derived]
+pub struct TypeResult {
+  diagnostics: Vec<Diagnostic>,
 }
