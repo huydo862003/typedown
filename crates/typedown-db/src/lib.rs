@@ -6,6 +6,8 @@ extern crate self as typedown_db;
 
 pub mod derived;
 pub mod engine;
+#[cfg(test)]
+pub(crate) mod fixtures;
 pub mod inputs;
 
 pub use engine::*;
