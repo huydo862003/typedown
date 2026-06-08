@@ -8,5 +8,6 @@ use crate::inputs::FileHandle;
 
 #[query_input]
 pub struct Project {
+  root_dir: PathBuf,
   handles: HashMap<PathBuf, FileHandle>,
 }
