@@ -4,23 +4,14 @@ use std::{cell::RefCell, rc::Rc};
 
 use typedown_macros::query_derived;
 use typedown_syntax::{
-  green::{GreenNode, cache::Cache},
+  green::cache::Cache,
   parse::ctx::{ParseCtx, ParseResult},
 };
-use typedown_types::diagnostic::Diagnostic;
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  inputs::{File, FileHandle},
+  types::{File, FileAst, GreenNode},
 };
-
-#[query_derived]
-pub struct FileAst {
-  #[id]
-  handle: FileHandle,
-  ast: GreenNode,
-  diagnostics: Vec<Diagnostic>,
-}
 
 #[query_derived]
 pub fn parse_file(db: &TypedownDatabase, file: File) -> FileAst {
@@ -31,15 +22,13 @@ pub fn parse_file(db: &TypedownDatabase, file: File) -> FileAst {
   let mut ctx = ParseCtx::new(stream, cache);
   let ParseResult { diagnostics, ast } = ctx.parse();
 
+  let ast = GreenNode::new(db, ast);
   FileAst::new(db, file.handle(db), ast, diagnostics.to_vec())
 }
 
 #[cfg(test)]
 mod tests {
-  use typedown_syntax::{
-    ast::{AstNode, SourceFile},
-    red::RedNode,
-  };
+  use typedown_syntax::ast::SourceFile;
 
   use crate::{
     QueryStorage, TypedownDatabase,
@@ -62,11 +51,8 @@ mod tests {
     let file = File::new(&db, FileHandle::Content(fixture.contents.clone()));
     let result = parse_file(&db, file);
 
-    let ast = result.ast(&db);
-    let node = ast.as_node().expect("AST should be a node");
-    let red = RedNode::new_root(node.clone());
     assert!(
-      SourceFile::cast(red).is_some(),
+      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
       "AST root should be a SourceFile"
     );
 
@@ -92,11 +78,8 @@ mod tests {
     let file = File::new(&db, FileHandle::Path(fixture.path.clone()));
     let result = parse_file(&db, file);
 
-    let ast = result.ast(&db);
-    let node = ast.as_node().expect("AST should be a node");
-    let red = RedNode::new_root(node.clone());
     assert!(
-      SourceFile::cast(red).is_some(),
+      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
       "AST root should be a SourceFile"
     );
 
@@ -122,10 +105,9 @@ mod tests {
     let file = File::new(&db, FileHandle::Content(fixture.contents.clone()));
     let result = parse_file(&db, file);
 
-    let ast = result.ast(&db);
     assert!(
-      ast.as_node().is_some(),
-      "AST should still be a node even for invalid input"
+      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
+      "AST should still be a SourceFile even for invalid input"
     );
 
     let diagnostics = result.diagnostics(&db);
@@ -149,10 +131,9 @@ mod tests {
     let file = File::new(&db, FileHandle::Path(fixture.path.clone()));
     let result = parse_file(&db, file);
 
-    let ast = result.ast(&db);
     assert!(
-      ast.as_node().is_some(),
-      "AST should still be a node even for invalid input"
+      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
+      "AST should still be a SourceFile even for invalid input"
     );
 
     let diagnostics = result.diagnostics(&db);

@@ -1,7 +1,4 @@
 //! Input queries for salsa
+//! Types are defined in types::inputs, re-exported here for backwards compatibility
 
-mod file;
-mod project;
-
-pub use file::*;
-pub use project::*;
+pub use crate::types::inputs::*;

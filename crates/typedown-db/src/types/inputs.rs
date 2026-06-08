@@ -1,6 +1,6 @@
-//! An input struct representing a file in a project
+//! Input types for the incremental database
 
-use std::{fs, io, path::PathBuf};
+use std::{collections::HashMap, fs, io, path::PathBuf};
 
 use typedown_macros::query_input;
 use typedown_types::{file_stream::FileStream, stream::Utf8Stream};
@@ -31,4 +31,11 @@ impl FileHandle {
 #[query_input]
 pub struct File {
   handle: FileHandle,
+}
+
+/// A project input struct representing files in a project
+#[query_input]
+pub struct Project {
+  root_dir: PathBuf,
+  handles: HashMap<PathBuf, FileHandle>,
 }
