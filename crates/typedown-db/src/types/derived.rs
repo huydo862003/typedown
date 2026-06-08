@@ -11,10 +11,11 @@ use crate::types::GreenNode;
 use super::inputs::FileHandle;
 
 #[query_derived]
-pub struct VaultConfig {
+pub struct VaultConfigResult {
   version: String,
   content_dir: PathBuf,
   schema_dir: PathBuf,
+  diagnostics: Vec<Diagnostic>,
 }
 
 #[query_derived]
