@@ -11,14 +11,15 @@ A typical vault looks like:
 ```
 my-vault/
 ├── typedown.yaml
-└── vault/
-    ├── bob.tdr
-    ├── mona-lisa.tdr
+├── content/
+│   ├── bob.tdr
+│   └── mona-lisa.tdr
+└── schema/
     ├── person.tdr
     └── artwork.tdr
 ```
 
-All `.tdr` files live in the same directory. See [TDR](./tdr.md) for how individual files are structured.
+See [TDR](./tdr.md) for how individual files are structured.
 
 ### Naming Conventions
 
@@ -29,16 +30,18 @@ Typedown uses **snake_case** throughout:
 
 ### typedown.yaml
 
-`typedown.yaml` holds global vault configuration. It has the following fields:
+`typedown.yaml` (or `typedown.yml`) holds global vault configuration. It has the following fields:
 
 - `version`: the TDR format version.
 - `vault`: configuration for the vault.
-  - `root_dir`: the directory where all `.tdr` files (both resources and schemas) are located.
+  - `content_dir`: the directory where content `.tdr` files (resources) are located.
+  - `schema_dir`: the directory where schema `.tdr` files (type definitions) are located.
 
 ```yaml
 version: 1.0.0
 vault:
-  root_dir: ./vault/
+  content_dir: ./content/
+  schema_dir: ./schema/
 ```
 
-The path is relative to the vault root. Whether a `.tdr` file is a schema or a resource is determined by its contents, not its location.
+Paths are relative to the vault root.
