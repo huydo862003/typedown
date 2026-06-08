@@ -20,7 +20,11 @@ pub struct YamlLexResult {
 
 impl YamlLexResult {
   pub(in crate::parse) fn new(result: LexResult, token_indent: usize, block_indent: usize) -> Self {
-    Self { result, token_indent, block_indent }
+    Self {
+      result,
+      token_indent,
+      block_indent,
+    }
   }
 }
 

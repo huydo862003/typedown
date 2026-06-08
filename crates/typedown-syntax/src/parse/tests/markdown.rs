@@ -17,8 +17,10 @@ fn parse_body_with_diags(input: &str) -> (String, Vec<typedown_types::diagnostic
 // Parses a single-line paragraph
 #[test]
 fn parse_paragraph_simple() {
-  let tree = parse_body(r#"hello world
-"#);
+  let tree = parse_body(
+    r#"hello world
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -42,8 +44,10 @@ fn parse_paragraph_simple() {
 // Parses a level-1 heading
 #[test]
 fn parse_heading_simple() {
-  let tree = parse_body(r#"# Hello
-"#);
+  let tree = parse_body(
+    r#"# Hello
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -67,10 +71,12 @@ fn parse_heading_simple() {
 // Parses headings of levels 1, 2, and 3
 #[test]
 fn parse_heading_levels() {
-  let tree = parse_body(r#"# H1
+  let tree = parse_body(
+    r#"# H1
 ## H2
 ### H3
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -109,9 +115,11 @@ fn parse_heading_levels() {
 // Parses a bullet list with dash markers
 #[test]
 fn parse_bullet_list_dash() {
-  let tree = parse_body(r#"- item 1
+  let tree = parse_body(
+    r#"- item 1
 - item 2
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -148,9 +156,11 @@ fn parse_bullet_list_dash() {
 // Parses a bullet list with star markers
 #[test]
 fn parse_bullet_list_star() {
-  let tree = parse_body(r#"* item 1
+  let tree = parse_body(
+    r#"* item 1
 * item 2
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -187,9 +197,11 @@ fn parse_bullet_list_star() {
 // Parses a bullet list with plus markers
 #[test]
 fn parse_bullet_list_plus() {
-  let tree = parse_body(r#"+ item 1
+  let tree = parse_body(
+    r#"+ item 1
 + item 2
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -226,9 +238,11 @@ fn parse_bullet_list_plus() {
 // Parses an ordered list
 #[test]
 fn parse_ordered_list_simple() {
-  let tree = parse_body(r#"1. first
+  let tree = parse_body(
+    r#"1. first
 2. second
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -263,8 +277,10 @@ fn parse_ordered_list_simple() {
 // Parses a blockquote
 #[test]
 fn parse_blockquote_simple() {
-  let tree = parse_body(r#"> quoted text
-"#);
+  let tree = parse_body(
+    r#"> quoted text
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -291,10 +307,12 @@ fn parse_blockquote_simple() {
 // Parses a table
 #[test]
 fn parse_table_simple() {
-  let tree = parse_body(r#"| a | b |
+  let tree = parse_body(
+    r#"| a | b |
 | --- | --- |
 | 1 | 2 |
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -350,10 +368,12 @@ fn parse_table_simple() {
 // Parses a toggle list
 #[test]
 fn parse_toggle_list_simple() {
-  let tree = parse_body(r#">- summary
+  let tree = parse_body(
+    r#">- summary
 
    details here
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -392,10 +412,12 @@ fn parse_toggle_list_simple() {
 // Parses a callout block
 #[test]
 fn parse_callout_block_simple() {
-  let tree = parse_body(r#"::: note
+  let tree = parse_body(
+    r#"::: note
 content
 :::
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -425,10 +447,12 @@ content
 // Parses a fenced code block
 #[test]
 fn parse_code_block_simple() {
-  let tree = parse_body(r#"```
+  let tree = parse_body(
+    r#"```
 code
 ```
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -490,8 +514,10 @@ fn parse_body_only_blank_lines() {
 // Parses a link
 #[test]
 fn parse_link_simple() {
-  let tree = parse_body(r#"[text](url)
-"#);
+  let tree = parse_body(
+    r#"[text](url)
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -520,8 +546,10 @@ fn parse_link_simple() {
 // Parses a media embed
 #[test]
 fn parse_media_simple() {
-  let tree = parse_body(r#"![alt](image.png)
-"#);
+  let tree = parse_body(
+    r#"![alt](image.png)
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -552,8 +580,10 @@ fn parse_media_simple() {
 // Parses bold text
 #[test]
 fn parse_bold_simple() {
-  let tree = parse_body(r#"**bold**
-"#);
+  let tree = parse_body(
+    r#"**bold**
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -578,8 +608,10 @@ fn parse_bold_simple() {
 // Parses italic text
 #[test]
 fn parse_italic_simple() {
-  let tree = parse_body(r#"*italic*
-"#);
+  let tree = parse_body(
+    r#"*italic*
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -604,8 +636,10 @@ fn parse_italic_simple() {
 // Parses bold italic text
 #[test]
 fn parse_bold_italic_simple() {
-  let tree = parse_body(r#"***bold italic***
-"#);
+  let tree = parse_body(
+    r#"***bold italic***
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -632,8 +666,10 @@ fn parse_bold_italic_simple() {
 // Parses strikethrough text
 #[test]
 fn parse_strikethrough_simple() {
-  let tree = parse_body(r#"~~struck~~
-"#);
+  let tree = parse_body(
+    r#"~~struck~~
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -658,8 +694,10 @@ fn parse_strikethrough_simple() {
 // Parses inline code
 #[test]
 fn parse_inline_code_simple() {
-  let tree = parse_body(r#"`code`
-"#);
+  let tree = parse_body(
+    r#"`code`
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -681,8 +719,10 @@ fn parse_inline_code_simple() {
 // Parses a citation
 #[test]
 fn parse_citation_simple() {
-  let tree = parse_body(r#"[@key]
-"#);
+  let tree = parse_body(
+    r#"[@key]
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -709,8 +749,10 @@ fn parse_citation_simple() {
 // Parses a paragraph with italic and link
 #[test]
 fn parse_paragraph_with_inline() {
-  let tree = parse_body(r#"Hello *world* and [link](url)
-"#);
+  let tree = parse_body(
+    r#"Hello *world* and [link](url)
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -751,8 +793,10 @@ fn parse_paragraph_with_inline() {
 // Parses bold in paragraph
 #[test]
 fn parse_bold_in_paragraph() {
-  let tree = parse_body(r#"Hello **world**!
-"#);
+  let tree = parse_body(
+    r#"Hello **world**!
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -782,8 +826,10 @@ fn parse_bold_in_paragraph() {
 // Parses italic in heading
 #[test]
 fn parse_italic_in_heading() {
-  let tree = parse_body(r#"# *emphasis* title
-"#);
+  let tree = parse_body(
+    r#"# *emphasis* title
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -813,8 +859,10 @@ fn parse_italic_in_heading() {
 // Parses strikethrough in heading
 #[test]
 fn parse_heading_with_strikethrough() {
-  let tree = parse_body(r#"# ~~old~~ new
-"#);
+  let tree = parse_body(
+    r#"# ~~old~~ new
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -844,8 +892,10 @@ fn parse_heading_with_strikethrough() {
 // Parses link in blockquote
 #[test]
 fn parse_blockquote_with_link() {
-  let tree = parse_body(r#"> see [here](url)
-"#);
+  let tree = parse_body(
+    r#"> see [here](url)
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -880,8 +930,10 @@ fn parse_blockquote_with_link() {
 // Parses strikethrough in blockquote
 #[test]
 fn parse_strikethrough_in_blockquote() {
-  let tree = parse_body(r#"> ~~removed~~ text
-"#);
+  let tree = parse_body(
+    r#"> ~~removed~~ text
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -912,9 +964,11 @@ fn parse_strikethrough_in_blockquote() {
 // Parses bold in list item
 #[test]
 fn parse_list_with_bold() {
-  let tree = parse_body(r#"- **bold item**
+  let tree = parse_body(
+    r#"- **bold item**
 - normal
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -952,8 +1006,10 @@ fn parse_list_with_bold() {
 // Parses link in list item
 #[test]
 fn parse_link_in_list_item() {
-  let tree = parse_body(r#"- see [here](url) for info
-"#);
+  let tree = parse_body(
+    r#"- see [here](url) for info
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -994,8 +1050,10 @@ fn parse_link_in_list_item() {
 // Parses media in paragraph
 #[test]
 fn parse_media_in_paragraph() {
-  let tree = parse_body(r#"See ![photo](img.png) here
-"#);
+  let tree = parse_body(
+    r#"See ![photo](img.png) here
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1033,8 +1091,10 @@ fn parse_media_in_paragraph() {
 // Parses nested bold inside italic
 #[test]
 fn parse_nested_bold_in_italic() {
-  let tree = parse_body(r#"*hello **world***
-"#);
+  let tree = parse_body(
+    r#"*hello **world***
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1065,10 +1125,12 @@ fn parse_nested_bold_in_italic() {
 // Parses bold in table cells
 #[test]
 fn parse_table_with_bold_cells() {
-  let tree = parse_body(r#"| **h** |
+  let tree = parse_body(
+    r#"| **h** |
 | --- |
 | cell |
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1118,10 +1180,12 @@ fn parse_table_with_bold_cells() {
 // Parses multiple paragraphs
 #[test]
 fn parse_paragraph_multiple() {
-  let tree = parse_body(r#"First paragraph.
+  let tree = parse_body(
+    r#"First paragraph.
 
 Second paragraph.
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1153,12 +1217,14 @@ Second paragraph.
 // Parses heading, paragraph, heading sequence
 #[test]
 fn parse_heading_paragraph_heading() {
-  let tree = parse_body(r#"# One
+  let tree = parse_body(
+    r#"# One
 
 text
 
 # Two
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1194,13 +1260,15 @@ text
 // Parses heading, paragraph, list sequence
 #[test]
 fn parse_heading_then_paragraph_then_list() {
-  let tree = parse_body(r#"# Title
+  let tree = parse_body(
+    r#"# Title
 
 Some text.
 
 - a
 - b
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1248,12 +1316,14 @@ Some text.
 // Parses table followed by paragraph
 #[test]
 fn parse_table_then_paragraph() {
-  let tree = parse_body(r#"| h |
+  let tree = parse_body(
+    r#"| h |
 | - |
 | c |
 
 text
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1302,10 +1372,12 @@ text
 // Parses blockquote followed by bullet list
 #[test]
 fn parse_blockquote_then_list() {
-  let tree = parse_body(r#"> quoted
+  let tree = parse_body(
+    r#"> quoted
 
 - listed
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1339,11 +1411,13 @@ fn parse_blockquote_then_list() {
 // Parses bullet list followed by heading
 #[test]
 fn parse_list_then_heading() {
-  let tree = parse_body(r#"- a
+  let tree = parse_body(
+    r#"- a
 - b
 
 # After
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1383,11 +1457,13 @@ fn parse_list_then_heading() {
 // Parses ordered list followed by unordered list
 #[test]
 fn parse_ordered_then_unordered() {
-  let tree = parse_body(r#"1. first
+  let tree = parse_body(
+    r#"1. first
 2. second
 
 - bullet
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1433,8 +1509,10 @@ fn parse_ordered_then_unordered() {
 // Parses interpolation in paragraph
 #[test]
 fn parse_interpolation_in_paragraph() {
-  let tree = parse_body(r#"hello ${name} world
-"#);
+  let tree = parse_body(
+    r#"hello ${name} world
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1465,8 +1543,10 @@ fn parse_interpolation_in_paragraph() {
 // Parses inline math
 #[test]
 fn parse_inline_math_simple() {
-  let tree = parse_body(r#"the formula $E=mc^2$ is
-"#);
+  let tree = parse_body(
+    r#"the formula $E=mc^2$ is
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1496,8 +1576,10 @@ fn parse_inline_math_simple() {
 // Parses bold and italic in one paragraph
 #[test]
 fn parse_bold_and_italic_mixed() {
-  let tree = parse_body(r#"**bold** and *italic* text
-"#);
+  let tree = parse_body(
+    r#"**bold** and *italic* text
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1534,8 +1616,10 @@ fn parse_bold_and_italic_mixed() {
 // Parses bold and strikethrough in one paragraph
 #[test]
 fn parse_bold_then_strikethrough() {
-  let tree = parse_body(r#"**bold** ~~struck~~ end
-"#);
+  let tree = parse_body(
+    r#"**bold** ~~struck~~ end
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1570,9 +1654,11 @@ fn parse_bold_then_strikethrough() {
 // Parses ordered list with links
 #[test]
 fn parse_ordered_list_with_links() {
-  let tree = parse_body(r#"1. [first](a)
+  let tree = parse_body(
+    r#"1. [first](a)
 2. [second](b)
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1621,8 +1707,10 @@ fn parse_ordered_list_with_links() {
 // Parses multiple links in paragraph
 #[test]
 fn parse_multiple_links_in_paragraph() {
-  let tree = parse_body(r#"[a](x) and [b](y) and [c](z)
-"#);
+  let tree = parse_body(
+    r#"[a](x) and [b](y) and [c](z)
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1677,10 +1765,12 @@ fn parse_multiple_links_in_paragraph() {
 // Parses links in table cells
 #[test]
 fn parse_table_with_links() {
-  let tree = parse_body(r#"| [a](x) | [b](y) |
+  let tree = parse_body(
+    r#"| [a](x) | [b](y) |
 | --- | --- |
 | 1 | 2 |
-"#);
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1755,8 +1845,10 @@ fn parse_table_with_links() {
 // Recovers from unclosed link, emits UnclosedLink diagnostic
 #[test]
 fn recover_unclosed_link() {
-  let (tree, diags) = parse_body_with_diags(r#"[text without closing
-"#);
+  let (tree, diags) = parse_body_with_diags(
+    r#"[text without closing
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1791,8 +1883,10 @@ fn recover_unclosed_link() {
 // Recovers from unclosed bold, emits UnclosedBold diagnostic
 #[test]
 fn recover_unclosed_bold() {
-  let (tree, diags) = parse_body_with_diags(r#"**unclosed bold
-"#);
+  let (tree, diags) = parse_body_with_diags(
+    r#"**unclosed bold
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
@@ -1825,8 +1919,10 @@ fn recover_unclosed_bold() {
 // Recovers from mismatched italic and bold markers
 #[test]
 fn recover_mismatched_inline_formatting() {
-  let (tree, diags) = parse_body_with_diags(r#"*italic **and bold*
-"#);
+  let (tree, diags) = parse_body_with_diags(
+    r#"*italic **and bold*
+"#,
+  );
   assert_eq!(
     tree,
     r####"(SourceFile
