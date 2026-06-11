@@ -4,6 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncLike;
 use crate::TypedownDatabase;
+use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
 
 pub trait TdrDateTimeLike: TdrObjectLike {}
 
@@ -36,7 +37,7 @@ impl TdrTypeLike for TdrDateTimeType {
 
 impl TdrDateTimeType {
   pub fn get(db: &TypedownDatabase) -> TdrDateTimeType {
-    todo!()
+    get_datetime_type(db)
   }
 }
 
@@ -87,7 +88,7 @@ impl TdrTypeLike for TdrDateType {
 
 impl TdrDateType {
   pub fn get(db: &TypedownDatabase) -> TdrDateType {
-    todo!()
+    get_date_type(db)
   }
 }
 
@@ -138,7 +139,7 @@ impl TdrTypeLike for TdrTimeType {
 
 impl TdrTimeType {
   pub fn get(db: &TypedownDatabase) -> TdrTimeType {
-    todo!()
+    get_time_type(db)
   }
 }
 

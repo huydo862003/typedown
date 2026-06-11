@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::func::TdrFuncLike;
 use crate::TypedownDatabase;
+use crate::derived::get_builtin_types::get_object_type;
 use typedown_macros::query_derived;
 
 // Everything is an object
@@ -66,6 +67,6 @@ impl TdrTypeLike for TdrObjectType {
 
 impl TdrObjectType {
   pub fn get(db: &TypedownDatabase) -> TdrObjectType {
-    todo!()
+    get_object_type(db)
   }
 }

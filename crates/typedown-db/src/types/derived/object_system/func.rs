@@ -3,6 +3,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use crate::TypedownDatabase;
+use crate::derived::get_builtin_types::get_func_type;
 
 pub trait TdrFuncLike: TdrObjectLike {}
 
@@ -35,7 +36,7 @@ impl TdrTypeLike for TdrFuncType {
 
 impl TdrFuncType {
   pub fn get(db: &TypedownDatabase) -> TdrFuncType {
-    todo!()
+    get_func_type(db)
   }
 }
 
