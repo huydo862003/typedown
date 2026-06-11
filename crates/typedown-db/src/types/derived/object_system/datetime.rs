@@ -15,10 +15,7 @@ impl TdrObjectLike for TdrDateTimeType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -27,10 +24,7 @@ impl TdrTypeLike for TdrDateTimeType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
     HashMap::new()
   }
 }
@@ -41,16 +35,16 @@ impl TdrDateTimeType {
   }
 }
 
-pub struct TdrDateTimeObj(pub String);
+#[query_derived]
+pub struct TdrDateTimeObj {
+  pub value: String,
+}
 
 impl TdrObjectLike for TdrDateTimeObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    todo!()
+    Box::new(TdrDateTimeType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -66,10 +60,7 @@ impl TdrObjectLike for TdrDateType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -78,10 +69,7 @@ impl TdrTypeLike for TdrDateType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
     HashMap::new()
   }
 }
@@ -92,16 +80,16 @@ impl TdrDateType {
   }
 }
 
-pub struct TdrDateObj(pub String);
+#[query_derived]
+pub struct TdrDateObj {
+  pub value: String,
+}
 
 impl TdrObjectLike for TdrDateObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    todo!()
+    Box::new(TdrDateType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -117,10 +105,7 @@ impl TdrObjectLike for TdrTimeType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -129,10 +114,7 @@ impl TdrTypeLike for TdrTimeType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
     HashMap::new()
   }
 }
@@ -143,16 +125,16 @@ impl TdrTimeType {
   }
 }
 
-pub struct TdrTimeObj(pub String);
+#[query_derived]
+pub struct TdrTimeObj {
+  pub value: String,
+}
 
 impl TdrObjectLike for TdrTimeObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    todo!()
+    Box::new(TdrTimeType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }

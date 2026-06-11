@@ -15,10 +15,7 @@ impl TdrObjectLike for TdrEnumType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -27,10 +24,7 @@ impl TdrTypeLike for TdrEnumType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
     HashMap::new()
   }
 }
@@ -41,6 +35,7 @@ impl TdrEnumType {
   }
 }
 
+#[query_derived]
 pub struct TdrEnumObj {
   pub variants: Vec<String>,
   pub value: String,
@@ -48,12 +43,9 @@ pub struct TdrEnumObj {
 
 impl TdrObjectLike for TdrEnumObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    todo!()
+    Box::new(TdrEnumType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }

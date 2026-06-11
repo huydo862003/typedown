@@ -15,10 +15,7 @@ impl TdrObjectLike for TdrListType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
@@ -27,10 +24,7 @@ impl TdrTypeLike for TdrListType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
     HashMap::new()
   }
 }
@@ -45,12 +39,9 @@ pub struct TdrListObj<T>(pub Vec<T>);
 
 impl<T: TdrObjectLike> TdrObjectLike for TdrListObj<T> {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    todo!()
+    Box::new(TdrListType::get(db))
   }
-  fn get_owned_fields(
-    &self,
-    db: &TypedownDatabase,
-  ) -> HashMap<String, Box<dyn TdrObjectLike>> {
+  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
