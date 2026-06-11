@@ -35,12 +35,12 @@ pub struct SourceFile(RedNode);
 
 impl SourceFile {
   /// Return the frontmatter of the source file
-  fn frontmatter(&self) -> Option<YamlFrontmatter> {
+  pub fn frontmatter(&self) -> Option<YamlFrontmatter> {
     child::<YamlFrontmatter>(&self.0)
   }
 
   /// Return the body of the source file
-  fn body(&self) -> Option<MdBody> {
+  pub fn body(&self) -> Option<MdBody> {
     child::<MdBody>(&self.0)
   }
 }
@@ -51,7 +51,7 @@ pub struct YamlFrontmatter(RedNode);
 
 impl YamlFrontmatter {
   /// Return the top-level mapping in the frontmatter
-  fn mapping(&self) -> Option<YamlMapping> {
+  pub fn mapping(&self) -> Option<YamlMapping> {
     child::<YamlMapping>(&self.0)
   }
 }
