@@ -4,6 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncLike;
 use crate::TypedownDatabase;
+use crate::derived::get_builtin_types::get_enum_type;
 
 pub trait TdrEnumLike: TdrObjectLike {}
 
@@ -36,7 +37,7 @@ impl TdrTypeLike for TdrEnumType {
 
 impl TdrEnumType {
   pub fn get(db: &TypedownDatabase) -> TdrEnumType {
-    todo!()
+    get_enum_type(db)
   }
 }
 

@@ -4,6 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncLike;
 use crate::TypedownDatabase;
+use crate::derived::get_builtin_types::get_bool_type;
 
 pub trait TdrBoolLike: TdrObjectLike {}
 
@@ -36,7 +37,7 @@ impl TdrTypeLike for TdrBoolType {
 
 impl TdrBoolType {
   pub fn get(db: &TypedownDatabase) -> TdrBoolType {
-    todo!()
+    get_bool_type(db)
   }
 }
 
