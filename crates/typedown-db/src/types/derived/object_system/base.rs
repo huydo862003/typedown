@@ -10,11 +10,12 @@ pub trait TdrObjectLike: Send + Sync {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
 
   fn lookup_method(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrFuncLike>> {
-    todo!()
+    let typ = self.get_type(db);
+    typ.get_vtable(db).remove(key)
   }
 
   fn lookup_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    todo!()
+    self.get_owned_fields(db).remove(key)
   }
 
   fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>>;
