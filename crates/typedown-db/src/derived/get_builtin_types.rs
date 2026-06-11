@@ -4,8 +4,8 @@ use typedown_macros::query_derived;
 
 use crate::{QueryDatabase, TypedownDatabase};
 use crate::types::{
-  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrEnumType, TdrFuncType, TdrListType,
-  TdrNumType, TdrObjectType, TdrRecordType, TdrStrType, TdrTimeType,
+  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType, TdrListType, TdrNumType,
+  TdrObjectType, TdrRecordType, TdrStrType, TdrTimeType,
 };
 
 #[query_derived]
@@ -56,11 +56,6 @@ pub fn get_date_type(db: &TypedownDatabase) -> TdrDateType {
 #[query_derived]
 pub fn get_time_type(db: &TypedownDatabase) -> TdrTimeType {
   TdrTimeType::new(db)
-}
-
-#[query_derived]
-pub fn get_enum_type(db: &TypedownDatabase) -> TdrEnumType {
-  TdrEnumType::new(db)
 }
 
 #[query_derived]
