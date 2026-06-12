@@ -1,5 +1,5 @@
 pub mod members;
-pub mod project_members;
+pub mod get_project_schemas;
 pub mod referee;
 pub mod references;
 pub mod resolve;
