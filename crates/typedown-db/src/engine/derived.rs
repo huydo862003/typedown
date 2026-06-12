@@ -9,6 +9,8 @@ pub trait DerivedId: Clone + Copy + PartialEq + Eq + std::hash::Hash {
   const __TYPEDOWN_DERIVED_ID: () = ();
 }
 
+impl<T: DerivedId> DerivedId for Option<T> {}
+
 #[cfg(test)]
 mod tests {
   use std::{cell::RefCell, path::PathBuf, rc::Rc};
