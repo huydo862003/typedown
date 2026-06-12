@@ -6,6 +6,7 @@ mod func;
 mod list;
 mod num;
 mod record;
+mod schema;
 mod str;
 
 pub use base::*;
@@ -16,4 +17,5 @@ pub use func::*;
 pub use list::*;
 pub use num::*;
 pub use record::*;
+pub use schema::*;
 pub use str::*;
