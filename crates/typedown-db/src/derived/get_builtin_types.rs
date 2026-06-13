@@ -3,7 +3,7 @@
 use typedown_macros::query_derived;
 
 use crate::types::{
-  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType, TdrListType, TdrNumType,
+  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrListType, TdrNumType,
   TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType, TdrTimeType,
 };
 use crate::{QueryDatabase, TypedownDatabase};
@@ -36,11 +36,6 @@ pub fn get_list_type(db: &TypedownDatabase) -> TdrListType {
 #[query_derived]
 pub fn get_record_type(db: &TypedownDatabase) -> TdrRecordType {
   TdrRecordType::new(db)
-}
-
-#[query_derived]
-pub fn get_func_type(db: &TypedownDatabase) -> TdrFuncType {
-  TdrFuncType::new(db)
 }
 
 #[query_derived]

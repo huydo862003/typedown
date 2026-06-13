@@ -5,7 +5,7 @@ use typedown_macros::query_derived;
 use crate::{
   TypedownDatabase,
   derived::get_builtin_types::{get_record_type, get_schema_type},
-  types::{TdrFuncLike, TdrObjectLike, TdrTypeLike},
+  types::{TdrFuncType, TdrObjectLike, TdrTypeLike, TypeMember},
 };
 
 #[query_derived]
@@ -25,8 +25,11 @@ impl TdrTypeLike for TdrSchemaType {
     Some(Box::new(get_record_type(db)))
   }
 
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
+  }
+  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+    todo!()
   }
 }
 
