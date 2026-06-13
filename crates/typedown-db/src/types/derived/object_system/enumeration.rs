@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
-use super::func::TdrFuncLike;
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TypeMember};
+use super::func::TdrFuncType;
 use crate::TypedownDatabase;
 pub trait TdrEnumLike: TdrObjectLike {}
 
@@ -22,8 +22,10 @@ impl TdrTypeLike for TdrEnumType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
+  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+    todo!()
+  }
 }
-

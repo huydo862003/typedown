@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TypeMember};
 use crate::TypedownDatabase;
-use crate::derived::get_builtin_types::get_func_type;
-
-pub trait TdrFuncLike: TdrObjectLike {}
 
 #[query_derived]
 pub struct TdrFuncType {}
@@ -23,14 +20,11 @@ impl TdrTypeLike for TdrFuncType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrFuncLike>> {
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
-}
-
-impl TdrFuncType {
-  pub fn get(db: &TypedownDatabase) -> TdrFuncType {
-    get_func_type(db)
+  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+    todo!()
   }
 }
 
@@ -41,11 +35,9 @@ pub struct TdrFuncObj {
 
 impl TdrObjectLike for TdrFuncObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrFuncType::get(db))
+    todo!()
   }
   fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
     HashMap::new()
   }
 }
-
-impl TdrFuncLike for TdrFuncObj {}
