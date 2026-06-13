@@ -2,11 +2,33 @@ use std::collections::HashMap;
 
 use typedown_macros::query_derived;
 
-use crate::types::TdrNode;
+use crate::types::{File, Project, TdrNode};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
   Schema,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ScopeKind {
+  Project(Project),
+  File(Project, File),
+}
+
+#[query_derived]
+pub struct Scope {
+  #[id]
+  kind: ScopeKind,
+}
+
+impl Scope {
+  pub fn project_scope(db: &(impl crate::QueryDatabase + ?Sized), project: Project) -> Self {
+    Self::new(db, ScopeKind::Project(project))
+  }
+
+  pub fn file_scope(db: &(impl crate::QueryDatabase + ?Sized), project: Project, file: File) -> Self {
+    Self::new(db, ScopeKind::File(project, file))
+  }
 }
 
 #[query_derived]
