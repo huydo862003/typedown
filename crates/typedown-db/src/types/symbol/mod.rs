@@ -6,7 +6,7 @@ use crate::types::{File, Project, TdrNode};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
-  Schema,
+  Schema(File),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -34,7 +34,6 @@ impl Scope {
 #[query_derived]
 pub struct Symbol {
   #[id]
-  node: TdrNode,
   kind: SymbolKind,
 }
 
