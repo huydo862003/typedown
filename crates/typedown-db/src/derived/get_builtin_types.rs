@@ -2,8 +2,9 @@
 
 use typedown_macros::query_derived;
 
+use crate::types::FuncSignature;
 use crate::types::{
-  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrListType, TdrNumType,
+  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType, TdrListType, TdrNumType,
   TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType, TdrTimeType,
 };
 use crate::{QueryDatabase, TypedownDatabase};
@@ -66,4 +67,9 @@ pub fn get_false(db: &TypedownDatabase) -> TdrBoolObj {
 #[query_derived]
 pub fn get_schema_type(db: &TypedownDatabase) -> TdrSchemaType {
   TdrSchemaType::new(db)
+}
+
+#[query_derived]
+pub fn get_func_type(db: &TypedownDatabase, signature: FuncSignature) -> TdrFuncType {
+  TdrFuncType::new(db, signature)
 }
