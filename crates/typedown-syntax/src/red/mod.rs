@@ -2,30 +2,48 @@
 //! Which gives green node identity and the child nodes now contain a back pointers to their
 //! parents
 
-use std::{ops::Deref, rc::Rc};
+use std::{
+  hash::{Hash, Hasher},
+  ops::Deref,
+};
 
 use crate::green::{GreenNode, node::SyntaxNode};
 use typedown_types::syntax_kind::SyntaxKind;
 
+#[derive(Clone, Eq, PartialEq)]
 pub struct RedNodeData {
   /// The start offset of this red node in the source code
   offset: usize,
   /// The parent pointer
-  parent: Option<RedNode>,
+  parent: Option<Box<RedNode>>,
   /// The underlying green child
   green: GreenNode,
 }
 
-#[derive(Clone)]
-pub struct RedNode(Rc<RedNodeData>);
+impl Hash for RedNodeData {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.offset.hash(state);
+    self.parent.hash(state);
+    self.green.hash(state);
+  }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct RedNode(RedNodeData);
+
+impl Hash for RedNode {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.0.hash(state);
+  }
+}
 
 impl RedNode {
   pub fn new_root(root: SyntaxNode) -> RedNode {
-    RedNode(Rc::new(RedNodeData {
+    RedNode(RedNodeData {
       offset: 0,
       parent: None,
       green: GreenNode::from_node(root),
-    }))
+    })
   }
 
   pub fn kind(&self) -> SyntaxKind {
@@ -33,7 +51,7 @@ impl RedNode {
   }
 
   pub fn parent(&self) -> Option<RedNode> {
-    self.0.parent.clone()
+    self.0.parent.as_deref().cloned()
   }
 
   /// Collect all token text under this node into a String.
@@ -80,10 +98,10 @@ impl Iterator for RedNodeChildren {
     let child_offset = self.offset;
     self.offset += child.text_len();
     self.index += 1;
-    Some(RedNode(Rc::new(RedNodeData {
+    Some(RedNode(RedNodeData {
       offset: child_offset,
-      parent: Some(self.parent.clone()),
+      parent: Some(Box::new(self.parent.clone())),
       green: child.clone(),
-    })))
+    }))
   }
 }

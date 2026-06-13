@@ -78,6 +78,7 @@ pub fn wrapper_ast_node_impl(attr: TokenStream, item: TokenStream) -> TokenStrea
   });
 
   let generated = quote! {
+    #[derive(Clone, PartialEq, Eq, Hash)]
     #item_ast
 
     impl AstNode for #name {

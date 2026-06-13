@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{hash::Hash, sync::atomic::{AtomicUsize, Ordering}};
 
 use dashmap::DashMap;
 
@@ -44,7 +44,7 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
+  K: Eq + Hash + Clone + Send + Sync + 'static,
   V: DerivedId + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
