@@ -2,6 +2,8 @@
 //! Each AST type checks the SyntaxKind on cast, providing a type-safe API
 //! over the generic tree structure.
 
+use std::hash::Hash;
+
 use typedown_macros::{AstNode, wrapper_ast_node};
 use typedown_types::either::Either;
 use typedown_types::syntax_kind::SyntaxKind;
@@ -10,7 +12,7 @@ use typedown_types::unescape::{unescape, unescape_html_entity};
 use crate::red::RedNode;
 
 /// All AST nodes implement this trait.
-pub trait AstNode: Sized {
+pub trait AstNode: Sized + Clone + Eq + Hash + Send + Sync {
   /// Try to cast a RedNode into this AST type.
   /// Returns None if the SyntaxKind doesn't match.
   fn cast(syntax: RedNode) -> Option<Self>;
@@ -30,7 +32,7 @@ fn children<T: AstNode>(parent: &RedNode) -> impl Iterator<Item = T> {
 /* Top-level nodes */
 
 /// The root of a TDR file: frontmatter + body.
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct SourceFile(RedNode);
 
 impl SourceFile {
@@ -46,7 +48,7 @@ impl SourceFile {
 }
 
 /// The YAML frontmatter
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct YamlFrontmatter(RedNode);
 
 impl YamlFrontmatter {
@@ -57,7 +59,7 @@ impl YamlFrontmatter {
 }
 
 /// The YAML mapping
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct YamlMapping(RedNode);
 
 impl YamlMapping {
@@ -78,7 +80,7 @@ impl YamlMapping {
 }
 
 /// The YAML mapping's key-value pair
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct YamlMappingEntry(RedNode);
 
 impl YamlMappingEntry {
@@ -107,7 +109,7 @@ impl YamlMappingEntry {
 }
 
 /// The YAML sequence
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct YamlSequence(RedNode);
 impl YamlSequence {
   /// Return the items of this sequence
@@ -117,7 +119,7 @@ impl YamlSequence {
 }
 
 /// The YAML sequence item
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct YamlSequenceItem(RedNode);
 
 impl YamlSequenceItem {
@@ -128,7 +130,7 @@ impl YamlSequenceItem {
 }
 
 /// The Markdown body
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdBody(RedNode);
 
 impl MdBody {
@@ -161,7 +163,7 @@ pub struct MdInlineElement(RedNode);
 
 /// The Markdown heading
 /// Represented by: ## Heading
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdHeading(RedNode);
 
 impl MdHeading {
@@ -187,7 +189,7 @@ impl MdHeading {
 
 /// The Markdown paragraph
 /// Represented by: Paragraph ...
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdParagraph(RedNode);
 
 impl MdParagraph {
@@ -198,7 +200,7 @@ impl MdParagraph {
 
 /// The Markdown blockquote
 /// Represented by: > Blockquote
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdBlockquote(RedNode);
 
 impl MdBlockquote {
@@ -212,7 +214,7 @@ impl MdBlockquote {
 /// | header 1 | header 2 |
 /// | -------- | -------- |
 /// | data 1   | data 2   |
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdTable(RedNode);
 
 impl MdTable {
@@ -226,7 +228,7 @@ impl MdTable {
 }
 
 /// The Markdown data row in a table
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdTableDataRow(RedNode);
 
 impl MdTableDataRow {
@@ -236,7 +238,7 @@ impl MdTableDataRow {
 }
 
 /// The Markdown header row in a table
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdTableHeaderRow(RedNode);
 
 impl MdTableHeaderRow {
@@ -246,7 +248,7 @@ impl MdTableHeaderRow {
 }
 
 /// The Markdown cell in a table
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdTableCell(RedNode);
 
 impl MdTableCell {
@@ -259,7 +261,7 @@ impl MdTableCell {
 /// Represented by:
 /// - item 1
 /// - item 2
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdBulletList(RedNode);
 
 impl MdBulletList {
@@ -269,7 +271,7 @@ impl MdBulletList {
 }
 
 /// The Markdown bullet list item
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdBulletListItem(RedNode);
 
 impl MdBulletListItem {
@@ -282,7 +284,7 @@ impl MdBulletListItem {
 /// Represented by:
 /// 1. item 1
 /// 2. item 2
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdOrderedList(RedNode);
 
 impl MdOrderedList {
@@ -292,7 +294,7 @@ impl MdOrderedList {
 }
 
 /// The Markdown ordered list item
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdOrderedListItem(RedNode);
 
 impl MdOrderedListItem {
@@ -314,7 +316,7 @@ impl MdOrderedListItem {
 /// >- summary 1
 ///
 ///    details 1
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdToggleList(RedNode);
 
 impl MdToggleList {
@@ -327,7 +329,7 @@ impl MdToggleList {
 /// >- summary
 ///
 ///    details
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdToggleListItem(RedNode);
 
 impl MdToggleListItem {
@@ -341,7 +343,7 @@ impl MdToggleListItem {
 }
 
 /// The Markdown toggle list item summary
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdToggleListSummary(RedNode);
 
 impl MdToggleListSummary {
@@ -351,7 +353,7 @@ impl MdToggleListSummary {
 }
 
 /// The Markdown toggle list item details
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdToggleListDetails(RedNode);
 
 impl MdToggleListDetails {
@@ -365,7 +367,7 @@ impl MdToggleListDetails {
 /// ::: label
 ///  content
 /// :::
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdCalloutBlock(RedNode);
 
 impl MdCalloutBlock {
@@ -386,7 +388,7 @@ impl MdCalloutBlock {
 
 /// The Markdown link
 /// Represented by: [alt](link)
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdLink(RedNode);
 
 impl MdLink {
@@ -401,7 +403,7 @@ impl MdLink {
 
 /// The Markdown media
 /// Represented by: ![alt](link)
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdMedia(RedNode);
 
 impl MdMedia {
@@ -416,7 +418,7 @@ impl MdMedia {
 
 /// The Markdown footnote ref
 /// Represented by: [^key]
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdFootnoteRef(RedNode);
 
 impl MdFootnoteRef {
@@ -432,7 +434,7 @@ impl MdFootnoteRef {
 
 /// The Markdown citation
 /// Represented by: [@citation]
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdCitation(RedNode);
 
 impl MdCitation {
@@ -448,7 +450,7 @@ impl MdCitation {
 
 /// The Markdown bold text
 /// Represented by: **bold**
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdBold(RedNode);
 
 impl MdBold {
@@ -459,7 +461,7 @@ impl MdBold {
 
 /// The Markdown italic text
 /// Represented by: _italic_ or *italic*
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdItalic(RedNode);
 
 impl MdItalic {
@@ -470,7 +472,7 @@ impl MdItalic {
 
 /// The Markdown bolditalic text
 /// Represented by: ***italic***
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdBoldItalic(RedNode);
 
 impl MdBoldItalic {
@@ -481,7 +483,7 @@ impl MdBoldItalic {
 
 /// The Markdown strikethrough text
 /// Represented by: ~strikethrough~
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdStrikethrough(RedNode);
 
 impl MdStrikethrough {
@@ -492,7 +494,7 @@ impl MdStrikethrough {
 
 /// The Markdown plaintext
 /// Represented by: text
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdText(RedNode);
 
 impl MdText {
@@ -502,7 +504,7 @@ impl MdText {
 }
 
 /// An HTML entity in markdown text, e.g. &amp; &#42; &#x2A;
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MdHtmlEntity(RedNode);
 
 impl MdHtmlEntity {
@@ -581,7 +583,7 @@ impl Lit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct ParenExpr(RedNode);
 
 impl ParenExpr {
@@ -590,7 +592,7 @@ impl ParenExpr {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct YamlOp(RedNode);
 
 pub enum YamlOpKind {
@@ -642,7 +644,7 @@ impl YamlOp {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct CallExpr(RedNode);
 
 impl CallExpr {
@@ -662,7 +664,7 @@ impl CallExpr {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct UnaryExpr(RedNode);
 
 impl UnaryExpr {
@@ -677,7 +679,7 @@ impl UnaryExpr {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct BinaryExpr(RedNode);
 
 impl BinaryExpr {
@@ -698,7 +700,7 @@ impl BinaryExpr {
 }
 
 // Literals
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct ListLit(RedNode);
 
 impl ListLit {
@@ -707,7 +709,7 @@ impl ListLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct ListItem(RedNode);
 
 impl ListItem {
@@ -716,7 +718,7 @@ impl ListItem {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct DictLit(RedNode);
 
 impl DictLit {
@@ -733,7 +735,7 @@ impl DictLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct DictEntry(RedNode);
 
 impl DictEntry {
@@ -758,7 +760,7 @@ impl DictEntry {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct StrLit(RedNode);
 
 impl StrLit {
@@ -785,7 +787,7 @@ impl StrLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct InterpFragment(RedNode);
 
 impl InterpFragment {
@@ -794,7 +796,7 @@ impl InterpFragment {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MathLit(RedNode);
 
 impl MathLit {
@@ -805,7 +807,7 @@ impl MathLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct CodeLit(RedNode);
 
 impl CodeLit {
@@ -820,7 +822,7 @@ impl CodeLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct NumberLit(RedNode);
 
 impl NumberLit {
@@ -836,7 +838,7 @@ impl NumberLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct IdentLit(RedNode);
 
 impl IdentLit {
@@ -851,7 +853,7 @@ impl IdentLit {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct InlineMath(RedNode);
 
 impl InlineMath {
@@ -864,7 +866,7 @@ impl InlineMath {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct MathBlock(RedNode);
 
 impl MathBlock {
@@ -881,7 +883,7 @@ impl MathBlock {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct InlineCode(RedNode);
 
 impl InlineCode {
@@ -894,7 +896,7 @@ impl InlineCode {
   }
 }
 
-#[derive(AstNode)]
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct CodeBlock(RedNode);
 
 impl CodeBlock {
