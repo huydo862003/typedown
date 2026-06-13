@@ -6,11 +6,12 @@ use typedown_macros::query_derived;
 use typedown_syntax::{
   green::cache::Cache,
   parse::ctx::{ParseCtx, ParseResult},
+  red::RedNode,
 };
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  types::{File, FileAstResult, GreenNode},
+  types::{File, FileAstResult, TdrNode},
 };
 
 #[query_derived]
@@ -22,7 +23,8 @@ pub fn parse_file(db: &TypedownDatabase, file: File) -> FileAstResult {
   let mut ctx = ParseCtx::new(stream, cache);
   let ParseResult { diagnostics, ast } = ctx.parse();
 
-  let ast = GreenNode::new(db, ast);
+  let root = RedNode::new_root(ast.as_node().expect("AST root must be a node").clone());
+  let ast = TdrNode::new(db, root);
   FileAstResult::new(db, file.handle(db), ast, diagnostics.to_vec())
 }
 
