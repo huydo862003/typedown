@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
-use crate::derived::get_builtin_types::get_object_type;
-use typedown_macros::query_derived;
+use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type};
+use typedown_macros::{query_derived, query_interned};
 
 // Everything is an object
 pub trait TdrObjectLike: Send + Sync {
@@ -21,34 +21,31 @@ pub trait TdrObjectLike: Send + Sync {
   fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>>;
 }
 
-impl<T: TdrObjectLike + ?Sized> TdrObjectLike for &T {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    (**self).get_type(db)
-  }
-  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
-    (**self).get_owned_fields(db)
-  }
-}
-
-impl<T: TdrObjectLike + ?Sized> TdrObjectLike for Box<T> {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    (**self).get_type(db)
-  }
-  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
-    (**self).get_owned_fields(db)
-  }
-}
-
 bitflags::bitflags! {
-  #[derive(Clone, Copy, PartialEq, Eq)]
+  #[derive(Clone, Copy, PartialEq, Eq, Hash)]
   pub struct TypeMemberDescriptors: u8 {
     const OPTIONAL = 0b0000_0001;
   }
 }
 
+#[query_interned]
 pub struct TypeMember {
   pub typ: Box<dyn TdrTypeLike>,
   pub descriptors: TypeMemberDescriptors,
+}
+
+fn get_builtin_type_members(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  match name {
+    "_type" => Some(TypeMember {
+      typ: Box::new(get_schema_type(db)),
+      descriptors: TypeMemberDescriptors::empty(),
+    }),
+    "_label" => Some(TypeMember {
+      typ: Box::new(get_str_type(db)),
+      descriptors: TypeMemberDescriptors::empty(),
+    }),
+    _ => None,
+  }
 }
 
 pub trait TdrTypeLike: TdrObjectLike {
@@ -57,7 +54,8 @@ pub trait TdrTypeLike: TdrObjectLike {
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember>;
 
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    self.get_owned_field_type(db, name)
+    get_builtin_type_members(db, name)
+      .or_else(|| self.get_owned_field_type(db, name))
       .or_else(|| self.get_supertype(db)?.get_field_type(db, name))
   }
 }
@@ -83,7 +81,7 @@ impl TdrTypeLike for TdrObjectType {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
 }
 
