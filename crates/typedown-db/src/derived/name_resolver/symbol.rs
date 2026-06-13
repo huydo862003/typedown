@@ -2,7 +2,7 @@ use typedown_macros::query_derived;
 use typedown_syntax::ast::YamlMapping;
 
 use crate::derived::get_vault_config::get_vault_config;
-use crate::types::{File, GreenNode, Project, Symbol, SymbolKind};
+use crate::types::{File, TdrNode, Project, Symbol, SymbolKind};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -10,7 +10,7 @@ pub fn symbol(
   db: &TypedownDatabase,
   project: Project,
   file: File,
-  node: GreenNode,
+  node: TdrNode,
 ) -> Option<Symbol> {
   if node.try_cast::<YamlMapping>(db).is_some() {
     let config = get_vault_config(db, project);

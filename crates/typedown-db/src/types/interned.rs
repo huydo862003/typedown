@@ -4,17 +4,12 @@ use typedown_syntax::{ast::AstNode, red::RedNode};
 use crate::QueryDatabase;
 
 #[query_interned]
-pub struct GreenNode {
-  node: typedown_syntax::green::GreenNode,
+pub struct TdrNode {
+  node: RedNode,
 }
 
-impl GreenNode {
-  // TIL: Before this, I thought try_cast<T: AstNode, DB: QueryDatabase + ?Sized> would always be
-  // the same, except for this case
+impl TdrNode {
   pub fn try_cast<T: AstNode>(&self, db: &(impl QueryDatabase + ?Sized)) -> Option<T> {
-    let node = self.node(db);
-    let syntax = node.as_node()?;
-    let red = RedNode::new_root(syntax.clone());
-    T::cast(red)
+    T::cast(self.node(db))
   }
 }

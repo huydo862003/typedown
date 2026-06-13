@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
-use crate::types::GreenNode;
+use crate::types::TdrNode;
 
 use super::inputs::FileHandle;
 
@@ -26,7 +26,7 @@ pub struct VaultConfigResult {
 pub struct FileAstResult {
   #[id]
   handle: FileHandle,
-  ast: GreenNode,
+  ast: TdrNode,
   diagnostics: Vec<Diagnostic>,
 }
 
