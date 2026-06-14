@@ -1,3 +1,4 @@
+pub mod builtin_scope;
 pub mod file_symbol;
 pub mod members;
 pub mod referee;

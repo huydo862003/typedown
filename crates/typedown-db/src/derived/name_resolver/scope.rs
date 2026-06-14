@@ -18,7 +18,8 @@ pub fn scope(db: &TypedownDatabase, node: TdrNode) -> Scope {
 #[query_derived]
 pub fn parent_scope(db: &TypedownDatabase, scope: Scope) -> MaybeScope {
   match scope.kind(db) {
-    ScopeKind::Project(_) => MaybeScope::new(db, None),
+    ScopeKind::Builtin => MaybeScope::new(db, None),
+    ScopeKind::Project(_) => MaybeScope::new(db, Some(Scope::builtin_scope(db))),
     ScopeKind::File(project, _) => MaybeScope::new(db, Some(Scope::project_scope(db, project))),
   }
 }

@@ -17,3 +17,37 @@ pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::{
+    QueryStorage, TypedownDatabase,
+    derived::evaluate::evaluate_schema::evaluate_schema,
+    derived::get_builtin_types::get_schema_type,
+    types::{BuiltinSchemaKind, Symbol, SymbolKind, TdrTypeLike},
+  };
+
+  fn make_db() -> TypedownDatabase {
+    TypedownDatabase {
+      storage: QueryStorage::default(),
+    }
+  }
+
+  #[test]
+  fn evaluate_schema_builtin_schema_returns_schema_type() {
+    let db = make_db();
+    let symbol = Symbol::new(&db, SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema));
+
+    let result = evaluate_schema(&db, symbol);
+
+    let expected = Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>;
+    assert!(
+      result.typ(&db) == expected,
+      "builtin Schema symbol should evaluate to TdrSchemaType"
+    );
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "expected no diagnostics"
+    );
+  }
+}

@@ -1,4 +1,5 @@
 use typedown_macros::query_derived;
+use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::derived::name_resolver::file_symbol::MaybeSymbol;
 use crate::derived::name_resolver::members::members;
@@ -16,13 +17,26 @@ pub fn referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
 }
 
 /// FIXME: Support tag expressions
+/// Returns true if this node is the value expression of a `_schema:` mapping entry.
 fn should_lookup_schema(db: &TypedownDatabase, node: TdrNode) -> bool {
-  let name = node.node(db).text();
-  name == "_schema"
+  let red = node.node(db);
+  // Parent must be YamlMappingEntryValue
+  let entry_value = match red.parent() {
+    Some(parent) if parent.kind() == SyntaxKind::YamlMappingEntryValue => parent,
+    _ => return false,
+  };
+  // Grandparent must be YamlMappingEntry with key "_schema"
+  let entry = match entry_value.parent() {
+    Some(grandparent) if grandparent.kind() == SyntaxKind::YamlMappingEntry => grandparent,
+    _ => return false,
+  };
+  entry
+    .children()
+    .any(|child| child.kind() == SyntaxKind::YamlMappingEntryKey && child.text() == "_schema")
 }
 
 fn schema_referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
-  let name = node.node(db).text();
+  let name = node.node(db).text().trim().to_string();
   let mut current_scope = scope(db, node);
   loop {
     let result = members(db, current_scope);
@@ -37,7 +51,7 @@ fn schema_referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
 }
 
 fn resource_referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
-  let name = node.node(db).text();
+  let name = node.node(db).text().trim().to_string();
   let mut current_scope = scope(db, node);
   loop {
     let result = members(db, current_scope);
