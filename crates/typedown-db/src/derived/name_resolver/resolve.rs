@@ -1,9 +1,9 @@
 use typedown_macros::query_derived;
 
-use crate::types::{File, Project, Symbol, TdrNode};
+use crate::types::{Symbol, TdrNode};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn resolve(db: &TypedownDatabase, project: Project, file: File, node: TdrNode) -> Symbol {
+pub fn resolve(db: &TypedownDatabase, node: TdrNode) -> Symbol {
   todo!()
 }
