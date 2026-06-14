@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TypeMember};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
+use crate::types::TypeMember;
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
 use crate::derived::get_builtin_types::{get_bool_type, get_false, get_true};
