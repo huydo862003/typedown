@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use typedown_macros::query_derived;
 
-use crate::types::{File, Project, TdrNode};
+use crate::types::{File, Project};
+use typedown_syntax::red::RedNode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
@@ -26,7 +27,10 @@ pub enum BuiltinSchemaKind {
 
 impl SymbolKind {
   pub fn is_schema(&self) -> bool {
-    matches!(self, SymbolKind::UserDefinedSchema(_) | SymbolKind::BuiltinSchema(_))
+    matches!(
+      self,
+      SymbolKind::UserDefinedSchema(_) | SymbolKind::BuiltinSchema(_)
+    )
   }
 
   pub fn is_resource(&self) -> bool {
@@ -77,11 +81,6 @@ impl Scope {
 pub struct Symbol {
   #[id]
   kind: SymbolKind,
-}
-
-#[query_derived]
-pub struct References {
-  nodes: Vec<TdrNode>,
 }
 
 #[query_derived]

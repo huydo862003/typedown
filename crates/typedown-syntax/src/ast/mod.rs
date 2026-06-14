@@ -519,6 +519,7 @@ impl MdHtmlEntity {
   NumberLit, StrLit, CodeLit, MathLit, IdentLit,
   ListLit, DictLit,
   ParenExpr, CallExpr, UnaryExpr, BinaryExpr,
+  YamlMapping, YamlSequence,
 ])]
 pub struct Expr(RedNode);
 
