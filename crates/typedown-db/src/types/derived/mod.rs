@@ -1,7 +1,9 @@
 //! Derived types for the incremental database
 
+pub mod hir;
 pub mod object_system;
 
+pub use hir::*;
 pub use object_system::*;
 
 use std::collections::HashMap;
