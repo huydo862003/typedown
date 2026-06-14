@@ -20,20 +20,20 @@ pub fn referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
 fn should_lookup_schema(db: &TypedownDatabase, node: TdrNode) -> bool {
   let red = node.node(db);
 
-  /* Returns true if this node is the value expression of a `_schema:` mapping entry. */
+  /* Returns true if this node is the value expression of a `_type:` mapping entry. */
   // Parent must be YamlMappingEntryValue
   let entry_value = match red.parent() {
     Some(parent) if parent.kind() == SyntaxKind::YamlMappingEntryValue => parent,
     _ => return false,
   };
-  // Grandparent must be YamlMappingEntry with key "_schema"
+  // Grandparent must be YamlMappingEntry with key "_type"
   let entry = match entry_value.parent() {
     Some(grandparent) if grandparent.kind() == SyntaxKind::YamlMappingEntry => grandparent,
     _ => return false,
   };
   entry
     .children()
-    .any(|child| child.kind() == SyntaxKind::YamlMappingEntryKey && child.text() == "_schema")
+    .any(|child| child.kind() == SyntaxKind::YamlMappingEntryKey && child.text() == "_type")
 }
 
 fn schema_referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
