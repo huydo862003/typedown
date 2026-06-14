@@ -12,7 +12,7 @@ use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
 pub fn get_type(db: &TypedownDatabase, node: TdrNode) -> TypeResult {
-  // If this is a top-level mapping, look up _schema to determine its type
+  // If this is a top-level mapping, look up _type to determine its type
   if let Some(mapping) = node.try_cast::<YamlMapping>(db) {
     let is_top_level = mapping
       .syntax()
@@ -27,9 +27,9 @@ pub fn get_type(db: &TypedownDatabase, node: TdrNode) -> TypeResult {
 }
 
 fn get_mapping_type(db: &TypedownDatabase, node: TdrNode, mapping: &YamlMapping) -> TypeResult {
-  // Look for _schema field in the mapping
+  // Look for _type field in the mapping
   for (key, value_expr) in mapping.entries() {
-    if key == "_schema" {
+    if key == "_type" {
       let schema_node = TdrNode::new(
         db,
         node.project(db),
@@ -41,7 +41,7 @@ fn get_mapping_type(db: &TypedownDatabase, node: TdrNode, mapping: &YamlMapping)
         return evaluate_schema(db, symbol);
       }
 
-      // _schema field found but could not resolve
+      // _type field found but could not resolve
       return TypeResult::new(
         db,
         Box::new(TdrObjectType::get(db)),
@@ -54,7 +54,7 @@ fn get_mapping_type(db: &TypedownDatabase, node: TdrNode, mapping: &YamlMapping)
     }
   }
 
-  // No _schema field found
+  // No _type field found
   TypeResult::new(
     db,
     Box::new(TdrObjectType::get(db)),

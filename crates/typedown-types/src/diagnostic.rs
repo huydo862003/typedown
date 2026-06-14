@@ -217,13 +217,13 @@ pub enum Diagnostic {
   VaultConfigMissingField { path: String, field: String },
 
   /* Typechecker diagnostics */
-  /// Missing _schema field in top-level mapping.
+  /// Missing _type field in top-level mapping.
   MissingSchemaField {
     start_offset: usize,
     end_offset: usize,
   },
 
-  /// Could not resolve _schema reference.
+  /// Could not resolve _type reference.
   UnresolvedSchema {
     name: String,
     start_offset: usize,
