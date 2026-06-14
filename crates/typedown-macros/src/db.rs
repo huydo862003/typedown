@@ -219,6 +219,16 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #getter_setter_tokens
       }
 
+      impl typedown_db::Id for #struct_name {
+        fn as_id(&self) -> usize { self.0 }
+      }
+      impl From<usize> for #struct_name {
+        fn from(id: usize) -> Self { Self(id) }
+      }
+      impl From<#struct_name> for usize {
+        fn from(val: #struct_name) -> usize { val.0 }
+      }
+
       impl typedown_db::InputId for #struct_name {}
 
       #[cfg(debug_assertions)]
@@ -585,6 +595,16 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
         #getter_tokens
       }
 
+      impl typedown_db::Id for #struct_name {
+        fn as_id(&self) -> usize { self.0 }
+      }
+      impl From<usize> for #struct_name {
+        fn from(id: usize) -> Self { Self(id) }
+      }
+      impl From<#struct_name> for usize {
+        fn from(val: #struct_name) -> usize { val.0 }
+      }
+
       impl typedown_db::DerivedId for #struct_name {}
 
       #[cfg(debug_assertions)]
@@ -736,6 +756,16 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
         }
 
         #getter_tokens
+      }
+
+      impl typedown_db::Id for #struct_name {
+        fn as_id(&self) -> usize { self.0 }
+      }
+      impl From<usize> for #struct_name {
+        fn from(id: usize) -> Self { Self(id) }
+      }
+      impl From<#struct_name> for usize {
+        fn from(val: #struct_name) -> usize { val.0 }
       }
 
       impl typedown_db::InternedId for #struct_name {}

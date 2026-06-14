@@ -5,7 +5,12 @@ use crate::types::{File, Project, Symbol, SymbolKind};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Option<Symbol> {
+pub struct MaybeSymbol {
+  pub value: Option<Symbol>,
+}
+
+#[query_derived]
+pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> MaybeSymbol {
   let config = get_vault_config(db, project);
   let schema_dir = config.schema_dir(db);
   let handles = project.handles(db);
@@ -16,8 +21,8 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Optio
     .any(|(path, handle)| *handle == file_handle && path.starts_with(&schema_dir));
 
   if is_schema_file {
-    return Some(Symbol::new(db, SymbolKind::Schema(file)));
+    return MaybeSymbol::new(db, Some(Symbol::new(db, SymbolKind::Schema(file))));
   }
 
-  None
+  MaybeSymbol::new(db, None)
 }

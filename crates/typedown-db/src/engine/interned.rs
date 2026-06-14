@@ -1,7 +1,7 @@
 //! Interned id for the incremental database
 
 /// A fast id for an interned state
-pub trait InternedId {
+pub trait InternedId: super::id::Id + From<usize> + Into<usize> {
   /// Marker used by macros to verify a type implements InternedId at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
