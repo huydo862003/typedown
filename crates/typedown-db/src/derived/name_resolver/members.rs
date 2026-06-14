@@ -14,7 +14,7 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
       let mut schema_members = HashMap::new();
       let mut resource_members = HashMap::new();
 
-      if let Some(sym) = file_symbol(db, project, file) {
+      if let Some(sym) = file_symbol(db, project, file).value(db) {
         let config = get_vault_config(db, project);
         let schema_dir = config.schema_dir(db);
 
@@ -53,7 +53,7 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
           continue;
         }
         let file = File::new(db, handle.clone());
-        if let Some(sym) = file_symbol(db, project, file) {
+        if let Some(sym) = file_symbol(db, project, file).value(db) {
           let name = path
             .file_stem()
             .and_then(|s| s.to_str())

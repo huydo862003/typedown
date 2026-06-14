@@ -45,7 +45,7 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
   K: Eq + Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Send + Sync + 'static,
+  V: DerivedId + Copy + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
   pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
@@ -241,7 +241,7 @@ impl<
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
   K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Send + Sync + 'static,
+  V: DerivedId + Copy + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
