@@ -13,6 +13,14 @@ pub enum SymbolKind {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BuiltinSchemaKind {
   Schema,
+  Str,
+  Num,
+  Bool,
+  Date,
+  DateTime,
+  Time,
+  List,
+  Record,
 }
 
 impl SymbolKind {

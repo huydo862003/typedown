@@ -4,9 +4,8 @@ use typedown_macros::query_derived;
 
 use crate::types::FuncSignature;
 use crate::types::{
-  Symbol, SymbolKind,
-  TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType, TdrListType, TdrNumType,
-  TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType, TdrTimeType,
+  Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType,
+  TdrListType, TdrNumType, TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType, TdrTimeType,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -72,7 +71,74 @@ pub fn get_schema_type(db: &TypedownDatabase) -> TdrSchemaType {
 
 #[query_derived]
 pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
-  Symbol::new(db, SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Schema))
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Schema),
+  )
+}
+
+#[query_derived]
+pub fn get_str_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Str),
+  )
+}
+
+#[query_derived]
+pub fn get_num_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Num),
+  )
+}
+
+#[query_derived]
+pub fn get_bool_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Bool),
+  )
+}
+
+#[query_derived]
+pub fn get_date_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Date),
+  )
+}
+
+#[query_derived]
+pub fn get_datetime_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::DateTime),
+  )
+}
+
+#[query_derived]
+pub fn get_time_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Time),
+  )
+}
+
+#[query_derived]
+pub fn get_list_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::List),
+  )
+}
+
+#[query_derived]
+pub fn get_record_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Record),
+  )
 }
 
 #[query_derived]
