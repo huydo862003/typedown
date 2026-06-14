@@ -21,6 +21,7 @@ pub enum BuiltinSchemaKind {
   Time,
   List,
   Dict,
+  Link,
 }
 
 impl SymbolKind {

@@ -7,8 +7,8 @@ use typedown_types::diagnostic::Diagnostic;
 use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
-  TdrFuncType, TdrListType, TdrNumType, TdrObjectType, TdrDictType, TdrSchemaType, TdrStrType,
-  TdrTimeType, TdrTypeLike,
+  TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrSchemaType,
+  TdrStrType, TdrTimeType, TdrTypeLike,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -40,6 +40,11 @@ pub fn get_list_type(db: &TypedownDatabase) -> TdrListType {
 #[query_derived]
 pub fn get_dict_type(db: &TypedownDatabase) -> TdrDictType {
   TdrDictType::new(db, None, None)
+}
+
+#[query_derived]
+pub fn get_link_type(db: &TypedownDatabase) -> TdrLinkType {
+  TdrLinkType::new(db, None)
 }
 
 #[query_derived]
@@ -141,6 +146,14 @@ pub fn get_dict_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Dict),
+  )
+}
+
+#[query_derived]
+pub fn get_link_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Link),
   )
 }
 
