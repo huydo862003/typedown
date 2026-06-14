@@ -50,8 +50,8 @@ Supported value types are:
 - `enum`: a value from a fixed set of options.
 - `link`: a reference to another resource, forming an edge in the graph (see [Links](#links)).
 - `list[T]`: a list of values of type `T`.
-- `record[K, V]`: a homogeneous mapping from keys of type `K` to values of type `V`.
-- A fixed-key record: a mapping where each named key has its own independently typed value.
+- `dict[K, V]`: a homogeneous mapping from keys of type `K` to values of type `V`.
+- A fixed-key dict: a mapping where each named key has its own independently typed value.
 
 Whether a property is required or optional, and any constraints on its values, are enforced by the resource's [Schema](#meta-resources).
 

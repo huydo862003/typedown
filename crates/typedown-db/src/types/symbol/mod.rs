@@ -20,7 +20,7 @@ pub enum BuiltinSchemaKind {
   DateTime,
   Time,
   List,
-  Record,
+  Dict,
 }
 
 impl SymbolKind {

@@ -7,7 +7,7 @@ use typedown_types::diagnostic::Diagnostic;
 use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
-  TdrFuncType, TdrListType, TdrNumType, TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType,
+  TdrFuncType, TdrListType, TdrNumType, TdrObjectType, TdrDictType, TdrSchemaType, TdrStrType,
   TdrTimeType, TdrTypeLike,
 };
 use crate::{QueryDatabase, TypedownDatabase};
@@ -38,8 +38,8 @@ pub fn get_list_type(db: &TypedownDatabase) -> TdrListType {
 }
 
 #[query_derived]
-pub fn get_record_type(db: &TypedownDatabase) -> TdrRecordType {
-  TdrRecordType::new(db, None, None)
+pub fn get_dict_type(db: &TypedownDatabase) -> TdrDictType {
+  TdrDictType::new(db, None, None)
 }
 
 #[query_derived]
@@ -137,10 +137,10 @@ pub fn get_list_symbol(db: &TypedownDatabase) -> Symbol {
 }
 
 #[query_derived]
-pub fn get_record_symbol(db: &TypedownDatabase) -> Symbol {
+pub fn get_dict_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Record),
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Dict),
   )
 }
 
@@ -178,9 +178,9 @@ mod tests {
   use crate::{
     QueryStorage, TypedownDatabase,
     derived::get_builtin_types::{
-      get_list_type, get_num_type, get_record_type, get_str_type, instantiate_type,
+      get_list_type, get_num_type, get_dict_type, get_str_type, instantiate_type,
     },
-    types::{TdrListType, TdrRecordType, TdrStrType, TdrTypeLike},
+    types::{TdrListType, TdrDictType, TdrStrType, TdrTypeLike},
   };
 
   fn make_db() -> TypedownDatabase {
@@ -213,7 +213,7 @@ mod tests {
   #[test]
   fn instantiate_record_with_correct_arity() {
     let db = make_db();
-    let record = Box::new(get_record_type(&db)) as Box<dyn TdrTypeLike>;
+    let record = Box::new(get_dict_type(&db)) as Box<dyn TdrTypeLike>;
     let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
     let num_type = Box::new(get_num_type(&db)) as Box<dyn TdrTypeLike>;
 
@@ -253,7 +253,7 @@ mod tests {
   #[test]
   fn instantiate_record_wrong_arity_produces_diagnostic() {
     let db = make_db();
-    let record = Box::new(get_record_type(&db)) as Box<dyn TdrTypeLike>;
+    let record = Box::new(get_dict_type(&db)) as Box<dyn TdrTypeLike>;
     let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
 
     // Only 1 arg, record needs 2
