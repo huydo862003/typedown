@@ -3,7 +3,7 @@
 use typedown_macros::query_derived;
 
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_date_type, get_datetime_type, get_list_type, get_num_type, get_record_type,
+  get_bool_type, get_date_type, get_datetime_type, get_list_type, get_num_type, get_dict_type,
   get_schema_type, get_str_type, get_time_type,
 };
 use crate::types::{BuiltinSchemaKind, Symbol, SymbolKind, TdrTypeLike, TypeResult};
@@ -22,7 +22,7 @@ pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
         BuiltinSchemaKind::DateTime => Box::new(get_datetime_type(db)),
         BuiltinSchemaKind::Time => Box::new(get_time_type(db)),
         BuiltinSchemaKind::List => Box::new(get_list_type(db)),
-        BuiltinSchemaKind::Record => Box::new(get_record_type(db)),
+        BuiltinSchemaKind::Dict => Box::new(get_dict_type(db)),
       };
       TypeResult::new(db, typ, vec![])
     }

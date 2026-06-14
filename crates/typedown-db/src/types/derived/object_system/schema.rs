@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 
 use crate::{
   TypedownDatabase,
-  derived::get_builtin_types::{get_record_type, get_schema_type},
+  derived::get_builtin_types::{get_dict_type, get_schema_type},
   types::{TdrFuncType, TdrObjectLike, TdrTypeLike, TypeMember},
 };
 
@@ -26,7 +26,7 @@ impl TdrTypeLike for TdrSchemaType {
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
-    Some(Box::new(get_record_type(db)))
+    Some(Box::new(get_dict_type(db)))
   }
 
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {

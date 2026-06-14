@@ -16,7 +16,7 @@ TDR (Typedown Resource) is the serialization format for Typedown resources.
 - [TDR Expression](#tdr-expression)
   - [Scalars](#scalars)
   - [Lists](#lists)
-  - [Records](#records)
+  - [Dicts](#dicts)
   - [Type Expressions](#type-expressions)
 - [TDR Explicit Type Tags](#tdr-explicit-type-tags)
 - [TDR Schema](#tdr-schema)
@@ -341,14 +341,14 @@ authors: # list[link]
   - !link alice.tdr
 ```
 
-### Records
+### Dicts
 
-A record is a YAML mapping nested under a property key. Each value is itself an expression. Records come in two forms:
+A dict is a YAML mapping nested under a property key. Each value is itself an expression. Records come in two forms:
 
-`record[K, V]` is a homogeneous mapping where all keys share the same key type `K` and all values share the same value type `V`:
+`dict[K, V]` is a homogeneous mapping where all keys share the same key type `K` and all values share the same value type `V`:
 
 ```yaml
-scores: # record[string, number]
+scores: # dict[string, number]
   alice: 95
   bob: 87
 ```
@@ -364,16 +364,16 @@ address: # { street: string, city: string, zip: number }
 
 ### Type Expressions
 
-A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `list[T]`, `record[K, V]`, `link[schema]`, and literal types:
+A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `list[T]`, `dict[K, V]`, `link[schema]`, and literal types:
 
 ```yaml
 type: !type string
 type: !type list[string]
-type: !type record[string, number]
+type: !type dict[string, number]
 type: !type link[person]
 ```
 
-A fixed-key record type is expressed as a YAML mapping under the `!type` tag, either flow or block:
+A fixed-key dict type is expressed as a YAML mapping under the `!type` tag, either flow or block:
 
 ```yaml
 type: !type { street: string, city: string, zip: number }  # flow

@@ -4,16 +4,16 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
-use crate::derived::get_builtin_types::get_record_type;
+use crate::derived::get_builtin_types::get_dict_type;
 use crate::types::TypeMember;
 
 #[query_derived]
-pub struct TdrRecordType {
+pub struct TdrDictType {
   pub key: Option<Box<dyn TdrTypeLike>>,
   pub value: Option<Box<dyn TdrTypeLike>>,
 }
 
-impl TdrObjectLike for TdrRecordType {
+impl TdrObjectLike for TdrDictType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
@@ -22,7 +22,7 @@ impl TdrObjectLike for TdrRecordType {
   }
 }
 
-impl TdrTypeLike for TdrRecordType {
+impl TdrTypeLike for TdrDictType {
   fn arity(&self, db: &TypedownDatabase) -> usize {
     [self.key(db).is_none(), self.value(db).is_none()]
       .iter()
@@ -49,24 +49,24 @@ impl TdrTypeLike for TdrRecordType {
     let mut iter = args.into_iter();
     let key = iter.next().unwrap();
     let value = iter.next().unwrap();
-    Box::new(TdrRecordType::new(db, Some(key), Some(value)))
+    Box::new(TdrDictType::new(db, Some(key), Some(value)))
   }
 }
 
-impl TdrRecordType {
-  pub fn get(db: &TypedownDatabase) -> TdrRecordType {
-    get_record_type(db)
+impl TdrDictType {
+  pub fn get(db: &TypedownDatabase) -> TdrDictType {
+    get_dict_type(db)
   }
 }
 
 #[query_derived]
-pub struct TdrRecordObj {
+pub struct TdrDictObj {
   pub entries: HashMap<String, Box<dyn TdrObjectLike>>,
 }
 
-impl TdrObjectLike for TdrRecordObj {
+impl TdrObjectLike for TdrDictObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrRecordType::get(db))
+    Box::new(TdrDictType::get(db))
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
