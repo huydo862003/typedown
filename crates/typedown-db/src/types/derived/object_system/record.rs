@@ -14,8 +14,8 @@ impl TdrObjectLike for TdrRecordType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
-    HashMap::new()
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+    None
   }
 }
 
@@ -46,7 +46,7 @@ impl TdrObjectLike for TdrRecordObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrRecordType::get(db))
   }
-  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
-    HashMap::new()
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+    None
   }
 }
