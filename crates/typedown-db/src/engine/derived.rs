@@ -2,7 +2,7 @@
 
 /// A fast id for a derived state
 /// Derived id is bound to a database's lifetime
-pub trait DerivedId: Clone + Copy + PartialEq + Eq + std::hash::Hash {
+pub trait DerivedId {
   /// Marker used by macros to verify a type implements DerivedId at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
@@ -18,7 +18,7 @@ mod tests {
   use typedown_macros::{query_db, query_derived, query_input};
   use typedown_syntax::{
     ast::{AstNode, SourceFile},
-    green::{GreenNode, cache::Cache},
+    green::{cache::Cache, GreenNode},
     parse::ctx::ParseCtx,
     red::RedNode,
   };
