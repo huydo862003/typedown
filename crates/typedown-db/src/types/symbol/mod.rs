@@ -35,6 +35,7 @@ impl SymbolKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ScopeKind {
+  Builtin,
   Project(Project),
   File(Project, File),
 }
@@ -46,6 +47,10 @@ pub struct Scope {
 }
 
 impl Scope {
+  pub fn builtin_scope(db: &(impl crate::QueryDatabase + ?Sized)) -> Self {
+    Self::new(db, ScopeKind::Builtin)
+  }
+
   pub fn project_scope(db: &(impl crate::QueryDatabase + ?Sized), project: Project) -> Self {
     Self::new(db, ScopeKind::Project(project))
   }
