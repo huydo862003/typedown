@@ -4,6 +4,7 @@ use typedown_macros::query_derived;
 
 use crate::types::FuncSignature;
 use crate::types::{
+  Symbol, SymbolKind,
   TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType, TdrListType, TdrNumType,
   TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType, TdrTimeType,
 };
@@ -67,6 +68,11 @@ pub fn get_false(db: &TypedownDatabase) -> TdrBoolObj {
 #[query_derived]
 pub fn get_schema_type(db: &TypedownDatabase) -> TdrSchemaType {
   TdrSchemaType::new(db)
+}
+
+#[query_derived]
+pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(db, SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Schema))
 }
 
 #[query_derived]

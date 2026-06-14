@@ -21,7 +21,7 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
     .any(|(path, handle)| *handle == file_handle && path.starts_with(&schema_dir));
 
   if is_schema_file {
-    return MaybeSymbol::new(db, Some(Symbol::new(db, SymbolKind::Schema(file))));
+    return MaybeSymbol::new(db, Some(Symbol::new(db, SymbolKind::UserDefinedSchema(file))));
   }
 
   MaybeSymbol::new(db, None)
