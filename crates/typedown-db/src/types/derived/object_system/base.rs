@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type};
+use crate::types::{TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
 use typedown_macros::query_derived;
@@ -39,8 +40,6 @@ impl Hash for Box<dyn TdrObjectLike> {
     (**self).as_id().hash(state);
   }
 }
-
-use crate::types::{TypeMember, TypeMemberDescriptors};
 
 fn get_builtin_type_members(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
   match name {

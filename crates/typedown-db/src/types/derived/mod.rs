@@ -12,8 +12,8 @@ use typedown_types::diagnostic::Diagnostic;
 
 use typedown_syntax::{ast::AstNode, red::RedNode};
 
-use crate::QueryDatabase;
 use super::inputs::{File, FileHandle, Project};
+use crate::QueryDatabase;
 
 #[query_derived]
 pub struct TdrNode {
@@ -58,5 +58,6 @@ pub struct TypecheckResult {
 
 #[query_derived]
 pub struct TypeResult {
+  typ: Box<dyn TdrTypeLike>,
   diagnostics: Vec<Diagnostic>,
 }
