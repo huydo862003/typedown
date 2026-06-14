@@ -1102,3 +1102,4 @@ fn folded_block_str_insufficient_indent() {
       .any(|d| matches!(d, Diagnostic::InsufficientBlockIndent { .. }))
   );
 }
+

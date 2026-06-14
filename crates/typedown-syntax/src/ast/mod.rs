@@ -518,7 +518,7 @@ impl MdHtmlEntity {
 #[wrapper_ast_node(SyntaxKind = [
   NumberLit, StrLit, CodeLit, MathLit, IdentLit,
   ListLit, DictLit,
-  ParenExpr, CallExpr, UnaryExpr, BinaryExpr,
+  ParenExpr, CallExpr, UnaryExpr, BinaryExpr, IndexExpr,
   YamlMapping, YamlSequence,
 ])]
 pub struct Expr(RedNode);
@@ -700,6 +700,21 @@ impl BinaryExpr {
   }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
+pub struct IndexExpr(RedNode);
+
+impl IndexExpr {
+  /// Return the indexed expression
+  pub fn expr(&self) -> Option<Expr> {
+    children::<Expr>(&self.0).next()
+  }
+
+  /// Return all index argument expressions
+  pub fn indices(&self) -> Vec<Expr> {
+    children::<Expr>(&self.0).skip(1).collect()
+  }
+}
+
 // Literals
 #[derive(Clone, PartialEq, Eq, Hash, AstNode)]
 pub struct ListLit(RedNode);
@@ -778,10 +793,8 @@ impl StrLit {
         let raw = child.as_token()?.text()?.to_string();
         Some(Either::Left(unescape(&raw).unwrap_or(raw)))
       }
-      // Interp is currently not supported inside string literals
-      SyntaxKind::YamlLiteralBlockStrLit | SyntaxKind::YamlFoldedBlockStrLit => {
-        Some(Either::Left(child.text()))
-      }
+      SyntaxKind::YamlLiteralBlockStrLit => Some(Either::Left(extract_literal_block(&child))),
+      SyntaxKind::YamlFoldedBlockStrLit => Some(Either::Left(extract_folded_block(&child))),
       SyntaxKind::InterpFragment => Some(Either::Right(InterpFragment(child))),
       _ => None,
     })
@@ -925,4 +938,89 @@ impl CodeBlock {
     let content = content.get(..content.len().checked_sub(fence_count)?)?;
     Some(content.to_string())
   }
+}
+
+// Extract the content from a block scalar node by processing its raw text.
+// The raw text is the full node text, e.g. ` |\n  line one\n  line two\n`.
+// Content starts after the first newline. Indent size is the number of leading
+// spaces on the first content line.
+fn block_scalar_content(node: &RedNode) -> (Vec<String>, usize) {
+  let raw = node.text();
+
+  // Skip past the `|`/`>` marker and the newline that follows it.
+  let content_start = match raw.find('\n') {
+    Some(pos) => pos + 1,
+    None => return (vec![], 0),
+  };
+  let content = &raw[content_start..];
+
+  // Determine indent from the leading spaces of the first non-empty line.
+  let indent_size = content
+    .lines()
+    .find(|l| !l.trim().is_empty())
+    .map_or(0, |l| l.len() - l.trim_start_matches(' ').len());
+
+  let lines = content.lines().map(|l| l.to_string()).collect();
+  (lines, indent_size)
+}
+
+fn strip_indent(line: &str, indent_size: usize) -> &str {
+  if line.len() >= indent_size && line.starts_with(' ') {
+    &line[indent_size..]
+  } else {
+    line.trim_start_matches(' ')
+  }
+}
+
+// Reconstruct a literal block string (`|`): preserve newlines, strip indentation.
+fn extract_literal_block(node: &RedNode) -> String {
+  let (lines, indent_size) = block_scalar_content(node);
+  let mut result = String::new();
+
+  for line in &lines {
+    result.push_str(strip_indent(line, indent_size));
+    result.push('\n');
+  }
+
+  // Clip chomping: keep exactly one trailing newline.
+  while result.ends_with("\n\n") {
+    result.pop();
+  }
+
+  result
+}
+
+// Reconstruct a folded block string (`>`): fold newlines into spaces,
+// blank lines become paragraph breaks.
+fn extract_folded_block(node: &RedNode) -> String {
+  let (lines, indent_size) = block_scalar_content(node);
+
+  // Drop trailing blank lines.
+  let last_non_blank = lines
+    .iter()
+    .rposition(|l| !strip_indent(l, indent_size).is_empty());
+  let lines = match last_non_blank {
+    Some(pos) => &lines[..=pos],
+    None => return "\n".to_string(),
+  };
+
+  let mut result = String::new();
+  let mut pending_space = false;
+
+  for line in lines {
+    let stripped = strip_indent(line, indent_size);
+    if stripped.is_empty() {
+      result.push('\n');
+      pending_space = false;
+    } else {
+      if pending_space {
+        result.push(' ');
+      }
+      result.push_str(stripped);
+      pending_space = true;
+    }
+  }
+
+  result.push('\n');
+  result
 }
