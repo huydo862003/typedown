@@ -18,10 +18,10 @@ pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
   }
 
   fn lookup_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    self.get_owned_fields(db).remove(key)
+    self.get_owned_field(db, key)
   }
 
-  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>>;
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>>;
 }
 
 clone_trait_object!(TdrObjectLike);
@@ -105,8 +105,8 @@ impl TdrObjectLike for TdrObjectType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_owned_fields(&self, db: &TypedownDatabase) -> HashMap<String, Box<dyn TdrObjectLike>> {
-    HashMap::new()
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+    None
   }
 }
 
