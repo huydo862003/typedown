@@ -1,4 +1,7 @@
-use std::{hash::Hash, sync::atomic::{AtomicUsize, Ordering}};
+use std::{
+  hash::Hash,
+  sync::atomic::{AtomicUsize, Ordering},
+};
 
 use dashmap::DashMap;
 
@@ -45,7 +48,7 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
   K: Eq + Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Copy + PartialEq + Send + Sync + 'static,
+  V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
   pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
@@ -105,7 +108,7 @@ impl<
     if let Some(entry) = self.data.get(&arg_id) {
       match &*entry {
         QueryState::Computed(memo) if memo.verified_at >= current_revision => {
-          return (memo.value, memo.changed_at);
+          return (memo.value.clone(), memo.changed_at);
         }
         QueryState::Computing => {
           // Cycle detection: Check if this entry is in our call stack
@@ -133,7 +136,7 @@ impl<
             if let Some(entry) = self.data.get(&arg_id)
               && let QueryState::Computed(memo) = &*entry
             {
-              return (memo.value, memo.changed_at);
+              return (memo.value.clone(), memo.changed_at);
             }
           }
           // green_check returned false, fall through to recompute
@@ -164,11 +167,11 @@ impl<
       .and_modify(|state| {
         if let QueryState::Computed(memo) = state {
           if memo.verified_at >= current_revision {
-            cached = Some((memo.value, memo.changed_at));
+            cached = Some((memo.value.clone(), memo.changed_at));
             return;
           }
           // Save old value and changed_at for backdating after recompute
-          old_memo = Some((memo.value, memo.changed_at));
+          old_memo = Some((memo.value.clone(), memo.changed_at));
         }
         *state = QueryState::Computing;
       })
@@ -225,7 +228,7 @@ impl<
       arg_id,
       QueryState::Computed(StampedDerivedQuery {
         key,
-        value,
+        value: value.clone(),
         changed_at,
         verified_at: current_revision,
         dependencies,
@@ -238,8 +241,8 @@ impl<
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: Eq + std::hash::Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Copy + PartialEq + Send + Sync + 'static,
+  K: Eq + Hash + Clone + Send + Sync + 'static,
+  V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {

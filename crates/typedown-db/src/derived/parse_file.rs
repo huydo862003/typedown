@@ -30,11 +30,14 @@ pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAs
 
 #[cfg(test)]
 mod tests {
+  use std::{collections::HashMap, path::PathBuf};
+
   use typedown_syntax::ast::SourceFile;
 
   use crate::{
     QueryStorage, TypedownDatabase,
     inputs::{File, FileHandle},
+    types::Project,
   };
 
   use super::parse_file;
@@ -50,8 +53,10 @@ mod tests {
       storage: QueryStorage::default(),
     };
 
+    let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
+
     let file = File::new(&db, FileHandle::Content(fixture.contents.clone()));
-    let result = parse_file(&db, file);
+    let result = parse_file(&db, project, file);
 
     assert!(
       result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
@@ -77,8 +82,9 @@ mod tests {
       storage: QueryStorage::default(),
     };
 
+    let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
     let file = File::new(&db, FileHandle::Path(fixture.path.clone()));
-    let result = parse_file(&db, file);
+    let result = parse_file(&db, project, file);
 
     assert!(
       result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
@@ -104,8 +110,9 @@ mod tests {
       storage: QueryStorage::default(),
     };
 
+    let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
     let file = File::new(&db, FileHandle::Content(fixture.contents.clone()));
-    let result = parse_file(&db, file);
+    let result = parse_file(&db, project, file);
 
     assert!(
       result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
@@ -130,8 +137,9 @@ mod tests {
       storage: QueryStorage::default(),
     };
 
+    let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
     let file = File::new(&db, FileHandle::Path(fixture.path.clone()));
-    let result = parse_file(&db, file);
+    let result = parse_file(&db, project, file);
 
     assert!(
       result.ast(&db).try_cast::<SourceFile>(&db).is_some(),

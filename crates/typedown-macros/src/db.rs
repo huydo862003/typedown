@@ -571,18 +571,18 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
               // Backdate: only update changed_at if the value actually changed
               if let Some(existing) = ingredient.data.get(&id) {
-                if existing.value == #field_names {
+                if existing.value == #field_names.clone() {
                   // Value unchanged, keep old changed_at (backdating)
                 } else {
                   drop(existing);
                   ingredient.data.insert(id, typedown_db::StampedDerivedField {
-                    value: #field_names,
+                    value: #field_names.clone(),
                     changed_at: current_revision,
                   });
                 }
               } else {
                 ingredient.data.insert(id, typedown_db::StampedDerivedField {
-                  value: #field_names,
+                  value: #field_names.clone(),
                   changed_at: current_revision,
                 });
               }
