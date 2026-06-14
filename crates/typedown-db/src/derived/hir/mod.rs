@@ -1,0 +1,202 @@
+//! Tracked query to lower an expression node into a HIR value.
+
+use typedown_macros::query_derived;
+use typedown_syntax::ast::{
+  AstNode, BinaryExpr, CallExpr, DictEntry, DictLit, Expr, IdentLit, IndexExpr, ListItem, ListLit,
+  NumberLit, ParenExpr, StrLit, UnaryExpr, YamlMapping, YamlSequence,
+};
+use typedown_syntax::red::RedNode;
+use typedown_types::either::Either;
+
+use crate::{
+  QueryDatabase, TypedownDatabase,
+  types::{File, HirValue, HirValueKind, InterpolatedPart, Project},
+};
+
+// Normalize expressions to a hir form
+#[query_derived]
+pub fn lower_expr(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
+  let expr = Expr::cast(node.clone()).expect("node must be an Expr");
+  let kind = _lower_expr(db, project, file, &expr);
+  HirValue::new(db, project, file, node, kind)
+}
+
+fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr) -> HirValueKind {
+  let inner = unwrap_parens(unwrap_tag(expr.clone()));
+
+  if let Some(mapping) = YamlMapping::cast(inner.syntax().clone()) {
+    let entries = mapping.entries().collect::<Vec<_>>();
+    let hir_entries = entries
+      .into_iter()
+      .map(|(key, val_expr)| {
+        let child = lower_expr(db, project, file, val_expr.syntax().clone());
+        (key, child)
+      })
+      .collect();
+    return HirValueKind::Mapping(hir_entries);
+  }
+
+  if let Some(dict) = DictLit::cast(inner.syntax().clone()) {
+    let entries = dict
+      .entries()
+      .filter_map(|entry: DictEntry| entry.entry())
+      .collect::<Vec<_>>();
+    let hir_entries = entries
+      .into_iter()
+      .map(|(key, val_expr)| {
+        let child = lower_expr(db, project, file, val_expr.syntax().clone());
+        (key, child)
+      })
+      .collect();
+    return HirValueKind::Mapping(hir_entries);
+  }
+
+  if let Some(seq) = YamlSequence::cast(inner.syntax().clone()) {
+    let items = seq.values().collect::<Vec<_>>();
+    let hir_items = items
+      .into_iter()
+      .map(|item_expr| lower_expr(db, project, file, item_expr.syntax().clone()))
+      .collect();
+    return HirValueKind::Sequence(hir_items);
+  }
+
+  if let Some(list) = ListLit::cast(inner.syntax().clone()) {
+    let items = list
+      .items()
+      .filter_map(|item: ListItem| item.value())
+      .collect::<Vec<_>>();
+    let hir_items = items
+      .into_iter()
+      .map(|item_expr| lower_expr(db, project, file, item_expr.syntax().clone()))
+      .collect();
+    return HirValueKind::Sequence(hir_items);
+  }
+
+  if let Some(lit) = StrLit::cast(inner.syntax().clone()) {
+    return if lit.is_interpolated() {
+      let hir_parts = lit
+        .fragments()
+        .map(|part| match part {
+          Either::Left(s) => InterpolatedPart::Literal(s),
+          Either::Right(frag) => {
+            let child_expr = frag
+              .expr()
+              .expect("interpolated fragment must have an expr");
+            let child = lower_expr(db, project, file, child_expr.syntax().clone());
+            InterpolatedPart::Expr(child)
+          }
+        })
+        .collect();
+      HirValueKind::Interpolated(hir_parts)
+    } else {
+      let text = lit
+        .fragments()
+        .filter_map(|frag| match frag {
+          Either::Left(s) => Some(s),
+          Either::Right(_) => None,
+        })
+        .collect::<Vec<_>>()
+        .join("");
+      HirValueKind::Str(text)
+    };
+  }
+
+  if let Some(lit) = NumberLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return HirValueKind::Num(val.to_string());
+    }
+  }
+
+  if let Some(lit) = IdentLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return match val.as_str() {
+        "null" => HirValueKind::Null,
+        "true" => HirValueKind::Bool(true),
+        "false" => HirValueKind::Bool(false),
+        _ => HirValueKind::Ident(val),
+      };
+    }
+  }
+
+  if let Some(unary) = UnaryExpr::cast(inner.syntax().clone()) {
+    if let Some(operand) = unary.expr() {
+      let op = unary
+        .op()
+        .and_then(|o| o.syntax().as_token())
+        .and_then(|t| t.text().map(|s| s.to_string()))
+        .unwrap_or_default();
+      let operand = lower_expr(db, project, file, operand.syntax().clone());
+      return HirValueKind::Unary {
+        op,
+        operand: Box::new(operand),
+      };
+    }
+  }
+
+  if let Some(binary) = BinaryExpr::cast(inner.syntax().clone()) {
+    if let (Some(lhs), Some(rhs)) = (binary.left(), binary.right()) {
+      let op = binary
+        .op()
+        .and_then(|o| o.syntax().as_token())
+        .and_then(|t| t.text().map(|s| s.to_string()))
+        .unwrap_or_default();
+      let left = lower_expr(db, project, file, lhs.syntax().clone());
+      let right = lower_expr(db, project, file, rhs.syntax().clone());
+      return HirValueKind::Binary {
+        op,
+        left: Box::new(left),
+        right: Box::new(right),
+      };
+    }
+  }
+
+  if let Some(call) = CallExpr::cast(inner.syntax().clone()) {
+    if let Some(callee) = call.callee() {
+      let callee = lower_expr(db, project, file, callee.syntax().clone());
+      let args = call
+        .args()
+        .into_iter()
+        .map(|arg| lower_expr(db, project, file, arg.syntax().clone()))
+        .collect();
+      return HirValueKind::Call {
+        callee: Box::new(callee),
+        args,
+      };
+    }
+  }
+
+  if let Some(index) = IndexExpr::cast(inner.syntax().clone()) {
+    if let Some(expr) = index.expr() {
+      let expr = lower_expr(db, project, file, expr.syntax().clone());
+      let indices = index
+        .indices()
+        .into_iter()
+        .map(|idx| lower_expr(db, project, file, idx.syntax().clone()))
+        .collect();
+      return HirValueKind::Index {
+        expr: Box::new(expr),
+        indices,
+      };
+    }
+  }
+
+  HirValueKind::Str(inner.syntax().text().trim().to_string())
+}
+
+fn unwrap_tag(expr: Expr) -> Expr {
+  if let Some(unary) = UnaryExpr::cast(expr.syntax().clone()) {
+    if let Some(inner) = unary.expr() {
+      return inner;
+    }
+  }
+  expr
+}
+
+fn unwrap_parens(expr: Expr) -> Expr {
+  if let Some(paren) = ParenExpr::cast(expr.syntax().clone()) {
+    if let Some(inner) = paren.expr() {
+      return unwrap_parens(inner);
+    }
+  }
+  expr
+}
