@@ -14,7 +14,6 @@ pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
   match symbol.kind(db) {
     SymbolKind::BuiltinSchema(kind) => {
       let typ: Box<dyn TdrTypeLike> = match kind {
-        BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
         BuiltinSchemaKind::Str => Box::new(get_str_type(db)),
         BuiltinSchemaKind::Num => Box::new(get_num_type(db)),
         BuiltinSchemaKind::Bool => Box::new(get_bool_type(db)),
@@ -24,6 +23,7 @@ pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
         BuiltinSchemaKind::List => Box::new(get_list_type(db)),
         BuiltinSchemaKind::Dict => Box::new(get_dict_type(db)),
         BuiltinSchemaKind::Link => Box::new(get_link_type(db)),
+        BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
       };
       TypeResult::new(db, typ, vec![])
     }

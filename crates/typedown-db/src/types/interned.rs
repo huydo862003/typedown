@@ -15,8 +15,28 @@ bitflags::bitflags! {
   }
 }
 
+/// The type of a type member field
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum MemberType {
+  /// A reference to a named type (e.g. `string`, `list[number]`)
+  Simple(Box<dyn TdrTypeLike>),
+  /// A union or enum type (e.g. `string | number`, `"a" | "b"`)
+  Sum(Vec<Box<dyn TdrTypeLike>>),
+  /// A literal type whose only value is the given literal
+  Literal(LiteralValue),
+}
+
+/// A concrete literal value used in literal types
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LiteralValue {
+  Str(String),
+  Bool(bool),
+  // f64 cannot be hashed so we store in string
+  Num(String),
+}
+
 #[query_interned]
 pub struct TypeMember {
-  pub typ: Box<dyn TdrTypeLike>,
+  pub typ: MemberType,
   pub descriptors: TypeMemberDescriptors,
 }
