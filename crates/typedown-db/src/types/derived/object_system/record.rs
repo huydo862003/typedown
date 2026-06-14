@@ -1,3 +1,4 @@
+use crate::Id;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
@@ -36,9 +37,12 @@ impl TdrRecordType {
   }
 }
 
-pub struct TdrRecordObj<K, V>(pub HashMap<K, V>);
+#[query_derived]
+pub struct TdrRecordObj {
+  pub entries: HashMap<String, Box<dyn TdrObjectLike>>,
+}
 
-impl<K: TdrObjectLike, V: TdrObjectLike> TdrObjectLike for TdrRecordObj<K, V> {
+impl TdrObjectLike for TdrRecordObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrRecordType::get(db))
   }
