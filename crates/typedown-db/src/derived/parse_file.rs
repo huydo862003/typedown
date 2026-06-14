@@ -11,7 +11,7 @@ use typedown_syntax::{
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  types::{File, FileAstResult, Project, TdrNode},
+  types::{File, FileAstResult, Project},
 };
 
 #[query_derived]
@@ -24,15 +24,21 @@ pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAs
   let ParseResult { diagnostics, ast } = ctx.parse();
 
   let root = RedNode::new_root(ast.as_node().expect("AST root must be a node").clone());
-  let ast = TdrNode::new(db, project, file, root);
-  FileAstResult::new(db, file.handle(db), ast, diagnostics.to_vec())
+  FileAstResult::new(
+    db,
+    file.handle(db),
+    project,
+    file,
+    root,
+    diagnostics.to_vec(),
+  )
 }
 
 #[cfg(test)]
 mod tests {
   use std::{collections::HashMap, path::PathBuf};
 
-  use typedown_syntax::ast::SourceFile;
+  use typedown_syntax::ast::{AstNode, SourceFile};
 
   use crate::{
     QueryStorage, TypedownDatabase,
@@ -59,7 +65,7 @@ mod tests {
     let result = parse_file(&db, project, file);
 
     assert!(
-      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
+      SourceFile::cast(result.ast(&db)).is_some(),
       "AST root should be a SourceFile"
     );
 
@@ -87,7 +93,7 @@ mod tests {
     let result = parse_file(&db, project, file);
 
     assert!(
-      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
+      SourceFile::cast(result.ast(&db)).is_some(),
       "AST root should be a SourceFile"
     );
 
@@ -115,7 +121,7 @@ mod tests {
     let result = parse_file(&db, project, file);
 
     assert!(
-      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
+      SourceFile::cast(result.ast(&db)).is_some(),
       "AST should still be a SourceFile even for invalid input"
     );
 
@@ -142,7 +148,7 @@ mod tests {
     let result = parse_file(&db, project, file);
 
     assert!(
-      result.ast(&db).try_cast::<SourceFile>(&db).is_some(),
+      SourceFile::cast(result.ast(&db)).is_some(),
       "AST should still be a SourceFile even for invalid input"
     );
 

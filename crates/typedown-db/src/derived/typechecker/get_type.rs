@@ -2,46 +2,43 @@
 
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{AstNode, YamlMapping};
+use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::derived::evaluate::evaluate_schema::evaluate_schema;
 use crate::derived::name_resolver::referee::referee;
-use crate::types::{TdrNode, TdrObjectType, TypeResult};
+use crate::types::{File, Project, TdrObjectType, TypeResult};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn get_type(db: &TypedownDatabase, node: TdrNode) -> TypeResult {
-  // If this is a top-level mapping, look up _type to determine its type
-  if let Some(mapping) = node.try_cast::<YamlMapping>(db) {
+pub fn get_type(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> TypeResult {
+  if let Some(mapping) = YamlMapping::cast(node.clone()) {
     let is_top_level = mapping
       .syntax()
       .parent()
       .is_some_and(|parent| parent.kind() == SyntaxKind::YamlFrontmatter);
     if is_top_level {
-      return get_mapping_type(db, node, &mapping);
+      return get_mapping_type(db, project, file, &mapping);
     }
   }
 
   todo!();
 }
 
-fn get_mapping_type(db: &TypedownDatabase, node: TdrNode, mapping: &YamlMapping) -> TypeResult {
-  // Look for _type field in the mapping
+fn get_mapping_type(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  mapping: &YamlMapping,
+) -> TypeResult {
   for (key, value_expr) in mapping.entries() {
     if key == "_type" {
-      let schema_node = TdrNode::new(
-        db,
-        node.project(db),
-        node.file(db),
-        value_expr.syntax().clone(),
-      );
-      let resolved = referee(db, schema_node);
+      let resolved = referee(db, project, file, value_expr.syntax().clone());
       if let Some(symbol) = resolved.value(db) {
         return evaluate_schema(db, symbol);
       }
 
-      // _type field found but could not resolve
       return TypeResult::new(
         db,
         Box::new(TdrObjectType::get(db)),
@@ -54,7 +51,6 @@ fn get_mapping_type(db: &TypedownDatabase, node: TdrNode, mapping: &YamlMapping)
     }
   }
 
-  // No _type field found
   TypeResult::new(
     db,
     Box::new(TdrObjectType::get(db)),
@@ -73,10 +69,11 @@ mod tests {
 
   use crate::{
     QueryStorage, TypedownDatabase,
-    derived::{parse_file::parse_file, typechecker::get_type::get_type},
+    derived::{
+      get_builtin_types::get_schema_type, parse_file::parse_file, typechecker::get_type::get_type,
+    },
     inputs::{File, FileHandle},
-    types::{Project, TdrNode, TdrProductType, TdrTypeLike},
-    derived::get_builtin_types::get_schema_type,
+    types::{Project, TdrProductType, TdrTypeLike},
   };
 
   fn vault_root() -> PathBuf {
@@ -99,17 +96,14 @@ mod tests {
     let parse_result = parse_file(&db, project, file);
     let root = parse_result.ast(&db);
 
-    let source_file = root
-      .try_cast::<SourceFile>(&db)
-      .expect("root should be SourceFile");
+    let source_file = SourceFile::cast(root).expect("root should be SourceFile");
     let mapping = source_file
       .frontmatter()
       .expect("schema file should have frontmatter")
       .mapping()
       .expect("frontmatter should have a mapping");
 
-    let mapping_node = TdrNode::new(&db, project, file, mapping.syntax().clone());
-    let type_result = get_type(&db, mapping_node);
+    let type_result = get_type(&db, project, file, mapping.syntax().clone());
 
     let expected = Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>;
     assert!(
