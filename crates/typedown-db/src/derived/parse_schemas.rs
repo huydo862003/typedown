@@ -23,7 +23,7 @@ pub fn parse_schemas(db: &TypedownDatabase, project: Project) -> SchemaAstResult
   for (path, handle) in &handles {
     if path.starts_with(&schema_dir) && path.extension().is_some_and(|ext| ext == "tdr") {
       let file = File::new(db, handle.clone());
-      let ast = parse_file(db, file);
+      let ast = parse_file(db, project, file);
       files.insert(path.clone(), ast);
     }
   }

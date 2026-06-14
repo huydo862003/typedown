@@ -11,11 +11,11 @@ use typedown_syntax::{
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  types::{File, FileAstResult, TdrNode},
+  types::{File, FileAstResult, Project, TdrNode},
 };
 
 #[query_derived]
-pub fn parse_file(db: &TypedownDatabase, file: File) -> FileAstResult {
+pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAstResult {
   let handle = file.handle(db);
   let stream = handle.open().expect("failed to open file");
 
@@ -24,7 +24,7 @@ pub fn parse_file(db: &TypedownDatabase, file: File) -> FileAstResult {
   let ParseResult { diagnostics, ast } = ctx.parse();
 
   let root = RedNode::new_root(ast.as_node().expect("AST root must be a node").clone());
-  let ast = TdrNode::new(db, root);
+  let ast = TdrNode::new(db, project, file, root);
   FileAstResult::new(db, file.handle(db), ast, diagnostics.to_vec())
 }
 

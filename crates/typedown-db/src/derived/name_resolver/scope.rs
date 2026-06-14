@@ -1,6 +1,6 @@
 use typedown_macros::query_derived;
 
-use crate::types::{File, Project, Scope, ScopeKind, TdrNode};
+use crate::types::{Scope, ScopeKind, TdrNode};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -9,7 +9,9 @@ pub struct MaybeScope {
 }
 
 #[query_derived]
-pub fn scope(db: &TypedownDatabase, project: Project, file: File, node: TdrNode) -> Scope {
+pub fn scope(db: &TypedownDatabase, node: TdrNode) -> Scope {
+  let project = node.project(db);
+  let file = node.file(db);
   Scope::file_scope(db, project, file)
 }
 

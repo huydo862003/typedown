@@ -4,10 +4,10 @@ use typedown_macros::query_derived;
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  types::{File, TdrNode, Project, TypecheckResult},
+  types::{TdrNode, TypecheckResult},
 };
 
 #[query_derived]
-pub fn typecheck(db: &TypedownDatabase, project: Project, file: File, node: TdrNode) -> TypecheckResult {
+pub fn typecheck(db: &TypedownDatabase, node: TdrNode) -> TypecheckResult {
   todo!()
 }

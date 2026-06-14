@@ -10,9 +10,25 @@ use std::path::PathBuf;
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
-use crate::types::TdrNode;
+use typedown_syntax::{ast::AstNode, red::RedNode};
 
-use super::inputs::FileHandle;
+use crate::QueryDatabase;
+use super::inputs::{File, FileHandle, Project};
+
+#[query_derived]
+pub struct TdrNode {
+  #[id]
+  project: Project,
+  #[id]
+  file: File,
+  node: RedNode,
+}
+
+impl TdrNode {
+  pub fn try_cast<T: AstNode>(&self, db: &(impl QueryDatabase + ?Sized)) -> Option<T> {
+    T::cast(self.node(db))
+  }
+}
 
 #[query_derived]
 pub struct VaultConfigResult {
