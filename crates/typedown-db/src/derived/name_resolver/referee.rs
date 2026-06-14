@@ -17,9 +17,10 @@ pub fn referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
 }
 
 /// FIXME: Support tag expressions
-/// Returns true if this node is the value expression of a `_schema:` mapping entry.
 fn should_lookup_schema(db: &TypedownDatabase, node: TdrNode) -> bool {
   let red = node.node(db);
+
+  /* Returns true if this node is the value expression of a `_schema:` mapping entry. */
   // Parent must be YamlMappingEntryValue
   let entry_value = match red.parent() {
     Some(parent) if parent.kind() == SyntaxKind::YamlMappingEntryValue => parent,
