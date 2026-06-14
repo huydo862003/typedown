@@ -229,4 +229,10 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// Wrong number of type arguments passed to a type constructor.
+  WrongTypeArgCount {
+    expected: usize,
+    got: usize,
+  },
 }

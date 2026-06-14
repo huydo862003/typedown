@@ -58,9 +58,17 @@ fn get_builtin_type_members(db: &TypedownDatabase, name: &str) -> Option<TypeMem
 }
 
 pub trait TdrTypeLike: TdrObjectLike + DynClone {
+  fn arity(&self, db: &TypedownDatabase) -> usize;
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>>;
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType>;
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember>;
+
+  // Callers should use `instantiate_type` query, which handles arity checking.
+  fn instantiate(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrTypeLike>>,
+  ) -> Box<dyn TdrTypeLike>;
 
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     get_builtin_type_members(db, name)
@@ -99,6 +107,10 @@ impl TdrObjectLike for TdrObjectType {
 }
 
 impl TdrTypeLike for TdrObjectType {
+  fn arity(&self, db: &TypedownDatabase) -> usize {
+    0
+  }
+
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     None
   }
@@ -107,6 +119,13 @@ impl TdrTypeLike for TdrObjectType {
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     None
+  }
+  fn instantiate(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrTypeLike>>,
+  ) -> Box<dyn TdrTypeLike> {
+    Box::new(self.clone())
   }
 }
 

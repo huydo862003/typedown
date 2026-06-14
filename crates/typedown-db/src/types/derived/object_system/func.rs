@@ -3,8 +3,8 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use crate::TypedownDatabase;
-use crate::types::{FuncSignature, TypeMember};
 use crate::derived::get_builtin_types::get_func_type;
+use crate::types::{FuncSignature, TypeMember};
 
 #[query_derived]
 pub struct TdrFuncType {
@@ -22,6 +22,10 @@ impl TdrObjectLike for TdrFuncType {
 }
 
 impl TdrTypeLike for TdrFuncType {
+  fn arity(&self, db: &TypedownDatabase) -> usize {
+    0
+  }
+
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(TdrObjectType::get(db)))
   }
@@ -30,6 +34,13 @@ impl TdrTypeLike for TdrFuncType {
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     todo!()
+  }
+  fn instantiate(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrTypeLike>>,
+  ) -> Box<dyn TdrTypeLike> {
+    Box::new(self.clone())
   }
 }
 
