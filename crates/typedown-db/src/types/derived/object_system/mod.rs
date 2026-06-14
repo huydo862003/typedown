@@ -7,7 +7,7 @@ mod link;
 mod list;
 mod num;
 mod dict;
-mod schema;
+mod product;
 mod str;
 
 pub use base::*;
@@ -19,5 +19,5 @@ pub use link::*;
 pub use list::*;
 pub use num::*;
 pub use dict::*;
-pub use schema::*;
+pub use product::*;
 pub use str::*;

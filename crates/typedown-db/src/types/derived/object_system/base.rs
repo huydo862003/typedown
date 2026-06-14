@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type};
-use crate::types::{TypeMember, TypeMemberDescriptors};
+use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
 use typedown_macros::query_derived;
@@ -41,17 +41,17 @@ impl Hash for Box<dyn TdrObjectLike> {
   }
 }
 
-fn get_builtin_type_members(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
   match name {
     "_type" => Some(TypeMember::new(
       db,
-      Box::new(get_schema_type(db)),
+      MemberType::Simple(Box::new(get_schema_type(db))),
       TypeMemberDescriptors::empty(),
     )),
     "_label" => Some(TypeMember::new(
       db,
-      Box::new(get_str_type(db)),
-      TypeMemberDescriptors::empty(),
+      MemberType::Simple(Box::new(get_str_type(db))),
+      TypeMemberDescriptors::OPTIONAL,
     )),
     _ => None,
   }
@@ -71,7 +71,7 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
   ) -> Box<dyn TdrTypeLike>;
 
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    get_builtin_type_members(db, name)
+    get_builtin_field(db, name)
       .or_else(|| self.get_owned_field_type(db, name))
       .or_else(|| self.get_supertype(db)?.get_field_type(db, name))
   }

@@ -7,7 +7,7 @@ use typedown_types::diagnostic::Diagnostic;
 use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
-  TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrSchemaType,
+  TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrProductType,
   TdrStrType, TdrTimeType, TdrTypeLike,
 };
 use crate::{QueryDatabase, TypedownDatabase};
@@ -47,6 +47,7 @@ pub fn get_link_type(db: &TypedownDatabase) -> TdrLinkType {
   TdrLinkType::new(db, None)
 }
 
+
 #[query_derived]
 pub fn get_datetime_type(db: &TypedownDatabase) -> TdrDateTimeType {
   TdrDateTimeType::new(db)
@@ -73,8 +74,8 @@ pub fn get_false(db: &TypedownDatabase) -> TdrBoolObj {
 }
 
 #[query_derived]
-pub fn get_schema_type(db: &TypedownDatabase) -> TdrSchemaType {
-  TdrSchemaType::new(db)
+pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
+  TdrProductType::new(db, std::collections::HashMap::new())
 }
 
 #[query_derived]

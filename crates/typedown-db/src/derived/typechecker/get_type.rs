@@ -75,7 +75,8 @@ mod tests {
     QueryStorage, TypedownDatabase,
     derived::{parse_file::parse_file, typechecker::get_type::get_type},
     inputs::{File, FileHandle},
-    types::{Project, TdrNode, TdrSchemaType, TdrTypeLike},
+    types::{Project, TdrNode, TdrProductType, TdrTypeLike},
+    derived::get_builtin_types::get_schema_type,
   };
 
   fn vault_root() -> PathBuf {
@@ -110,7 +111,7 @@ mod tests {
     let mapping_node = TdrNode::new(&db, project, file, mapping.syntax().clone());
     let type_result = get_type(&db, mapping_node);
 
-    let expected = Box::new(TdrSchemaType::get(&db)) as Box<dyn TdrTypeLike>;
+    let expected = Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>;
     assert!(
       type_result.typ(&db) == expected,
       "top-level mapping of a schema file should have type TdrSchemaType"
