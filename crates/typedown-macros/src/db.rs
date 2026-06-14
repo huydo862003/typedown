@@ -738,10 +738,10 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
         #getter_tokens
       }
 
-      impl typedown_db::InputId for #struct_name {}
+      impl typedown_db::InternedId for #struct_name {}
 
       #[cfg(debug_assertions)]
-      const _: () = <#struct_name as typedown_db::InputId>::__TYPEDOWN_INPUT_ID;
+      const _: () = <#struct_name as typedown_db::InternedId>::__TYPEDOWN_INTERNED_ID;
     }
     .into(),
   );
