@@ -6,7 +6,7 @@ use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type};
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
-use typedown_macros::{query_derived, query_interned};
+use typedown_macros::query_derived;
 
 // Everything is an object
 pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
@@ -40,18 +40,7 @@ impl Hash for Box<dyn TdrObjectLike> {
   }
 }
 
-bitflags::bitflags! {
-  #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-  pub struct TypeMemberDescriptors: u8 {
-    const OPTIONAL = 0b0000_0001;
-  }
-}
-
-#[query_interned]
-pub struct TypeMember {
-  pub typ: Box<dyn TdrTypeLike>,
-  pub descriptors: TypeMemberDescriptors,
-}
+use crate::types::{TypeMember, TypeMemberDescriptors};
 
 fn get_builtin_type_members(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
   match name {

@@ -1,15 +1,10 @@
 use std::collections::HashMap;
-use typedown_macros::{query_derived, query_interned};
+use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TypeMember};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use crate::TypedownDatabase;
+use crate::types::{FuncSignature, TypeMember};
 use crate::derived::get_builtin_types::get_func_type;
-
-#[query_interned]
-pub struct FuncSignature {
-  pub params: Vec<Box<dyn TdrTypeLike>>,
-  pub ret: Box<dyn TdrTypeLike>,
-}
 
 #[query_derived]
 pub struct TdrFuncType {
