@@ -2,10 +2,13 @@
 
 use typedown_macros::query_derived;
 
+use typedown_types::diagnostic::Diagnostic;
+
 use crate::types::FuncSignature;
 use crate::types::{
-  Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType, TdrFuncType,
-  TdrListType, TdrNumType, TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType, TdrTimeType,
+  InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
+  TdrFuncType, TdrListType, TdrNumType, TdrObjectType, TdrRecordType, TdrSchemaType, TdrStrType,
+  TdrTimeType, TdrTypeLike,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -31,12 +34,12 @@ pub fn get_num_type(db: &TypedownDatabase) -> TdrNumType {
 
 #[query_derived]
 pub fn get_list_type(db: &TypedownDatabase) -> TdrListType {
-  TdrListType::new(db)
+  TdrListType::new(db, None)
 }
 
 #[query_derived]
 pub fn get_record_type(db: &TypedownDatabase) -> TdrRecordType {
-  TdrRecordType::new(db)
+  TdrRecordType::new(db, None, None)
 }
 
 #[query_derived]
@@ -144,4 +147,169 @@ pub fn get_record_symbol(db: &TypedownDatabase) -> Symbol {
 #[query_derived]
 pub fn get_func_type(db: &TypedownDatabase, signature: FuncSignature) -> TdrFuncType {
   TdrFuncType::new(db, signature)
+}
+
+
+#[query_derived]
+pub fn instantiate_type(
+  db: &TypedownDatabase,
+  constructor: Box<dyn TdrTypeLike>,
+  args: Vec<Box<dyn TdrTypeLike>>,
+) -> InstResult {
+  let arity = constructor.arity(db);
+  if arity != args.len() {
+    return InstResult::new(
+      db,
+      dyn_clone::clone_box(&*constructor),
+      vec![Diagnostic::WrongTypeArgCount {
+        expected: arity,
+        got: args.len(),
+      }],
+    );
+  }
+  let typ = constructor.instantiate(db, args);
+  InstResult::new(db, typ, vec![])
+}
+
+#[cfg(test)]
+mod tests {
+  use typedown_types::diagnostic::Diagnostic;
+
+  use crate::{
+    QueryStorage, TypedownDatabase,
+    derived::get_builtin_types::{
+      get_list_type, get_num_type, get_record_type, get_str_type, instantiate_type,
+    },
+    types::{TdrListType, TdrRecordType, TdrStrType, TdrTypeLike},
+  };
+
+  fn make_db() -> TypedownDatabase {
+    TypedownDatabase {
+      storage: QueryStorage::default(),
+    }
+  }
+
+  #[test]
+  fn instantiate_list_with_correct_arity() {
+    let db = make_db();
+    let list = Box::new(get_list_type(&db)) as Box<dyn TdrTypeLike>;
+    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+
+    let result = instantiate_type(&db, list, vec![str_type.clone()]);
+
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "expected no diagnostics"
+    );
+    let expected = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let instantiated = result.typ(&db);
+    // The result should be a TdrListType with elem = str
+    assert!(
+      instantiated.arity(&db) == 0,
+      "instantiated list should have arity 0"
+    );
+  }
+
+  #[test]
+  fn instantiate_record_with_correct_arity() {
+    let db = make_db();
+    let record = Box::new(get_record_type(&db)) as Box<dyn TdrTypeLike>;
+    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let num_type = Box::new(get_num_type(&db)) as Box<dyn TdrTypeLike>;
+
+    let result = instantiate_type(&db, record, vec![str_type, num_type]);
+
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "expected no diagnostics"
+    );
+    assert!(
+      result.typ(&db).arity(&db) == 0,
+      "instantiated record should have arity 0"
+    );
+  }
+
+  #[test]
+  fn instantiate_list_wrong_arity_produces_diagnostic() {
+    let db = make_db();
+    let list = Box::new(get_list_type(&db)) as Box<dyn TdrTypeLike>;
+
+    let result = instantiate_type(&db, list, vec![]);
+
+    let diagnostics = result.diagnostics(&db);
+    assert_eq!(diagnostics.len(), 1);
+    assert!(
+      matches!(
+        diagnostics[0],
+        Diagnostic::WrongTypeArgCount {
+          expected: 1,
+          got: 0
+        }
+      ),
+      "expected WrongTypeArgCount diagnostic"
+    );
+  }
+
+  #[test]
+  fn instantiate_record_wrong_arity_produces_diagnostic() {
+    let db = make_db();
+    let record = Box::new(get_record_type(&db)) as Box<dyn TdrTypeLike>;
+    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+
+    // Only 1 arg, record needs 2
+    let result = instantiate_type(&db, record, vec![str_type]);
+
+    let diagnostics = result.diagnostics(&db);
+    assert_eq!(diagnostics.len(), 1);
+    assert!(
+      matches!(
+        diagnostics[0],
+        Diagnostic::WrongTypeArgCount {
+          expected: 2,
+          got: 1
+        }
+      ),
+      "expected WrongTypeArgCount diagnostic"
+    );
+  }
+
+  #[test]
+  fn instantiate_arity0_type_with_no_args() {
+    let db = make_db();
+    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let expected = str_type.clone();
+
+    let result = instantiate_type(&db, str_type, vec![]);
+
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "expected no diagnostics"
+    );
+    assert!(
+      result.typ(&db) == expected,
+      "arity-0 type instantiated with no args should return itself"
+    );
+  }
+
+  #[test]
+  fn instantiate_arity0_type_with_extra_args_produces_diagnostic() {
+    let db = make_db();
+    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let num_type = Box::new(get_num_type(&db)) as Box<dyn TdrTypeLike>;
+
+    let result = instantiate_type(&db, str_type, vec![num_type]);
+
+    let diagnostics = result.diagnostics(&db);
+    assert_eq!(diagnostics.len(), 1);
+    assert!(
+      matches!(
+        diagnostics[0],
+        Diagnostic::WrongTypeArgCount {
+          expected: 0,
+          got: 1
+        }
+      ),
+      "expected WrongTypeArgCount diagnostic"
+    );
+  }
 }

@@ -61,3 +61,9 @@ pub struct TypeResult {
   typ: Box<dyn TdrTypeLike>,
   diagnostics: Vec<Diagnostic>,
 }
+
+#[query_derived]
+pub struct InstResult {
+  pub typ: Box<dyn TdrTypeLike>,
+  pub diagnostics: Vec<Diagnostic>,
+}

@@ -21,6 +21,10 @@ impl TdrObjectLike for TdrSchemaType {
 }
 
 impl TdrTypeLike for TdrSchemaType {
+  fn arity(&self, db: &TypedownDatabase) -> usize {
+    0
+  }
+
   fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(get_record_type(db)))
   }
@@ -30,6 +34,13 @@ impl TdrTypeLike for TdrSchemaType {
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     todo!()
+  }
+  fn instantiate(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrTypeLike>>,
+  ) -> Box<dyn TdrTypeLike> {
+    Box::new(self.clone())
   }
 }
 
