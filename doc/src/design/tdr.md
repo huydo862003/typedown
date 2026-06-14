@@ -364,7 +364,7 @@ address: # { street: string, city: string, zip: number }
 
 ### Type Expressions
 
-A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `enum`, `list[T]`, `record[K, V]`, `link[schema]`, and literal types:
+A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `list[T]`, `record[K, V]`, `link[schema]`, and literal types:
 
 ```yaml
 type: !type string
