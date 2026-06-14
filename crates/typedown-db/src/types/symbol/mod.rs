@@ -6,7 +6,31 @@ use crate::types::{File, Project, TdrNode};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
-  Schema(File),
+  UserDefinedSchema(File),
+  BuiltinSchema(BuiltinSchemaKind),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BuiltinSchemaKind {
+  Schema,
+}
+
+impl SymbolKind {
+  pub fn is_schema(&self) -> bool {
+    matches!(self, SymbolKind::UserDefinedSchema(_) | SymbolKind::BuiltinSchema(_))
+  }
+
+  pub fn is_resource(&self) -> bool {
+    !self.is_schema()
+  }
+
+  pub fn is_user_defined(&self) -> bool {
+    matches!(self, SymbolKind::UserDefinedSchema(_))
+  }
+
+  pub fn is_builtin(&self) -> bool {
+    matches!(self, SymbolKind::BuiltinSchema(_))
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -26,7 +50,11 @@ impl Scope {
     Self::new(db, ScopeKind::Project(project))
   }
 
-  pub fn file_scope(db: &(impl crate::QueryDatabase + ?Sized), project: Project, file: File) -> Self {
+  pub fn file_scope(
+    db: &(impl crate::QueryDatabase + ?Sized),
+    project: Project,
+    file: File,
+  ) -> Self {
     Self::new(db, ScopeKind::File(project, file))
   }
 }
