@@ -15,8 +15,10 @@ pub fn referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {
   }
 }
 
+/// FIXME: Support tag expressions
 fn should_lookup_schema(db: &TypedownDatabase, node: TdrNode) -> bool {
-  todo!()
+  let name = node.node(db).text();
+  name == "_schema"
 }
 
 fn schema_referee(db: &TypedownDatabase, node: TdrNode) -> MaybeSymbol {

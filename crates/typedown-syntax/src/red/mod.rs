@@ -62,6 +62,14 @@ impl RedNode {
     }
   }
 
+  pub fn offset(&self) -> usize {
+    self.0.offset
+  }
+
+  pub fn text_len(&self) -> usize {
+    self.0.green.text_len()
+  }
+
   pub fn children(&self) -> RedNodeChildren {
     let green_node = self.0.green.as_node();
     RedNodeChildren {
