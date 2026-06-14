@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use typedown_macros::query_derived;
 
-use crate::derived::get_builtin_types::get_schema_symbol;
+use crate::derived::get_builtin_types::{
+  get_bool_symbol, get_date_symbol, get_datetime_symbol, get_list_symbol, get_num_symbol,
+  get_record_symbol, get_schema_symbol, get_str_symbol, get_time_symbol,
+};
 use crate::types::Symbol;
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -13,8 +16,17 @@ pub struct BuiltinScopeMembers {
 
 #[query_derived]
 pub fn builtin_schema_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
-  let mut members = HashMap::new();
-  members.insert("Schema".to_string(), get_schema_symbol(db));
+  let members = HashMap::from([
+    ("Schema".to_string(), get_schema_symbol(db)),
+    ("string".to_string(), get_str_symbol(db)),
+    ("number".to_string(), get_num_symbol(db)),
+    ("boolean".to_string(), get_bool_symbol(db)),
+    ("date".to_string(), get_date_symbol(db)),
+    ("datetime".to_string(), get_datetime_symbol(db)),
+    ("time".to_string(), get_time_symbol(db)),
+    ("list".to_string(), get_list_symbol(db)),
+    ("record".to_string(), get_record_symbol(db)),
+  ]);
   BuiltinScopeMembers::new(db, members)
 }
 

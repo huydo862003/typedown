@@ -2,15 +2,29 @@
 
 use typedown_macros::query_derived;
 
-use crate::derived::get_builtin_types::get_schema_type;
-use crate::types::{BuiltinSchemaKind, Symbol, SymbolKind, TypeResult};
+use crate::derived::get_builtin_types::{
+  get_bool_type, get_date_type, get_datetime_type, get_list_type, get_num_type, get_record_type,
+  get_schema_type, get_str_type, get_time_type,
+};
+use crate::types::{BuiltinSchemaKind, Symbol, SymbolKind, TdrTypeLike, TypeResult};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
 pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
   match symbol.kind(db) {
-    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema) => {
-      TypeResult::new(db, Box::new(get_schema_type(db)), vec![])
+    SymbolKind::BuiltinSchema(kind) => {
+      let typ: Box<dyn TdrTypeLike> = match kind {
+        BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
+        BuiltinSchemaKind::Str => Box::new(get_str_type(db)),
+        BuiltinSchemaKind::Num => Box::new(get_num_type(db)),
+        BuiltinSchemaKind::Bool => Box::new(get_bool_type(db)),
+        BuiltinSchemaKind::Date => Box::new(get_date_type(db)),
+        BuiltinSchemaKind::DateTime => Box::new(get_datetime_type(db)),
+        BuiltinSchemaKind::Time => Box::new(get_time_type(db)),
+        BuiltinSchemaKind::List => Box::new(get_list_type(db)),
+        BuiltinSchemaKind::Record => Box::new(get_record_type(db)),
+      };
+      TypeResult::new(db, typ, vec![])
     }
     SymbolKind::UserDefinedSchema(_file) => {
       todo!()
