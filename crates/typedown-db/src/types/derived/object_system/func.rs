@@ -1,10 +1,11 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeType, TdrTypeLike};
-use crate::TypedownDatabase;
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use crate::derived::get_builtin_types::get_func_type;
 use crate::types::{FuncSignature, TypeMember};
+use crate::{Id, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrFuncType {
@@ -42,6 +43,14 @@ impl TdrTypeLike for TdrFuncType {
   ) -> Box<dyn TdrTypeLike> {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     Box::new(self.clone())
+  }
+
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    vec![]
+  }
+
+  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
   }
 }
 

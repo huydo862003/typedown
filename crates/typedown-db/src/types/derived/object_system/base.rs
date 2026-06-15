@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncType;
-use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type, get_type_type};
+use crate::derived::get_builtin_types::{
+  get_object_type, get_schema_type, get_str_type, get_type_type,
+};
 use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
@@ -70,6 +72,10 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
     args: Vec<Box<dyn TdrTypeLike>>,
   ) -> Box<dyn TdrTypeLike>;
 
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool;
+
+  fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>>;
+
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     if let Some(field) = get_builtin_field(db, name) {
       return Some(field);
@@ -135,6 +141,14 @@ impl TdrTypeLike for TdrTypeType {
   ) -> Box<dyn TdrTypeLike> {
     Box::new(self.clone())
   }
+
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    vec![]
+  }
+
+  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
+  }
 }
 
 impl TdrTypeType {
@@ -176,6 +190,14 @@ impl TdrTypeLike for TdrObjectType {
     _args: Vec<Box<dyn TdrTypeLike>>,
   ) -> Box<dyn TdrTypeLike> {
     Box::new(self.clone())
+  }
+
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    vec![]
+  }
+
+  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
   }
 }
 

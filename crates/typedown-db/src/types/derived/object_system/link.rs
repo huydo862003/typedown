@@ -1,11 +1,12 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeType, TdrTypeLike};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::TypedownDatabase;
 use crate::derived::get_builtin_types::get_link_type;
 use crate::types::TypeMember;
+use crate::{Id, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrLinkType {
@@ -46,6 +47,29 @@ impl TdrTypeLike for TdrLinkType {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
     Box::new(TdrLinkType::new(db, Some(iter.next().unwrap())))
+  }
+
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    if self.type_id() != actual.type_id() {
+      return false;
+    }
+    let self_args = self.get_type_args(db);
+    if self_args.is_empty() {
+      // Uninstantiated link: accept any link.
+      return true;
+    }
+    let actual_args = actual.get_type_args(db);
+    if actual_args.is_empty() {
+      return false;
+    }
+    self_args
+      .iter()
+      .zip(actual_args.iter())
+      .all(|(s, a)| s.is_compatible_with(db, a.as_ref()))
+  }
+
+  fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    self.schema(db).into_iter().collect()
   }
 }
 

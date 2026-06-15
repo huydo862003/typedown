@@ -1,11 +1,12 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::TypedownDatabase;
 use crate::derived::get_builtin_types::{get_bool_type, get_schema_property_type, get_type_type};
 use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
+use crate::{Id, TypedownDatabase};
 
 /// The type of a single property descriptor inside a schema's `properties` field.
 /// Each property descriptor has:
@@ -55,6 +56,14 @@ impl TdrTypeLike for TdrSchemaPropertyType {
   ) -> Box<dyn TdrTypeLike> {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     Box::new(self.clone())
+  }
+
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    vec![]
+  }
+
+  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
   }
 }
 

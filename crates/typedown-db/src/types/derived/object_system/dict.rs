@@ -1,7 +1,8 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeType, TdrTypeLike};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
 use crate::derived::get_builtin_types::get_dict_type;
@@ -51,6 +52,32 @@ impl TdrTypeLike for TdrDictType {
     let key = iter.next().unwrap();
     let value = iter.next().unwrap();
     Box::new(TdrDictType::new(db, Some(key), Some(value)))
+  }
+
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    if self.type_id() != actual.type_id() {
+      return false;
+    }
+    let self_args = self.get_type_args(db);
+    if self_args.is_empty() {
+      // Uninstantiated dict: accept any dict.
+      return true;
+    }
+    let actual_args = actual.get_type_args(db);
+    if actual_args.is_empty() {
+      return false;
+    }
+    self_args
+      .iter()
+      .zip(actual_args.iter())
+      .all(|(s, a)| s.is_compatible_with(db, a.as_ref()))
+  }
+
+  fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    match (self.key(db), self.value(db)) {
+      (Some(key), Some(value)) => vec![key, value],
+      _ => vec![],
+    }
   }
 }
 

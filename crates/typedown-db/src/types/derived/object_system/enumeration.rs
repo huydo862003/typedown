@@ -1,10 +1,11 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeType, TdrTypeLike};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::TypedownDatabase;
 use crate::types::TypeMember;
+use crate::{Id, TypedownDatabase};
 pub trait TdrEnumLike: TdrObjectLike {}
 
 #[query_derived]
@@ -40,5 +41,13 @@ impl TdrTypeLike for TdrEnumType {
   ) -> Box<dyn TdrTypeLike> {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     Box::new(self.clone())
+  }
+
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    vec![]
+  }
+
+  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
   }
 }

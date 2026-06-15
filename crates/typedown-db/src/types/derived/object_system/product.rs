@@ -1,11 +1,36 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeType, TdrTypeLike};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
 
-use crate::types::TypeMember;
+use crate::types::{MemberType, TypeMember};
+
+fn member_type_compatible(
+  db: &TypedownDatabase,
+  expected: &MemberType,
+  actual: &MemberType,
+) -> bool {
+  match (expected, actual) {
+    (MemberType::Simple(exp_type), MemberType::Simple(act_type)) => {
+      exp_type.is_compatible_with(db, act_type.as_ref())
+    }
+    (MemberType::Sum(exp_arms), MemberType::Sum(act_arms)) => {
+      // Two union types must have the same number of arms
+      // each must be pairwise compatible
+      if exp_arms.len() != act_arms.len() {
+        return false;
+      }
+      exp_arms
+        .iter()
+        .zip(act_arms.iter())
+        .all(|(exp_arm, act_arm)| member_type_compatible(db, &exp_arm.typ(db), &act_arm.typ(db)))
+    }
+    _ => false,
+  }
+}
 
 #[query_derived]
 pub struct TdrProductType {
@@ -45,5 +70,32 @@ impl TdrTypeLike for TdrProductType {
   ) -> Box<dyn TdrTypeLike> {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     Box::new(self.clone())
+  }
+
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+    vec![]
+  }
+
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    if self.type_id() != actual.type_id() {
+      return false;
+    }
+    let self_fields = self.fields(db);
+    for (field_name, expected_member) in &self_fields {
+      let is_required = !expected_member
+        .descriptors(db)
+        .contains(crate::types::TypeMemberDescriptors::OPTIONAL);
+      if !is_required {
+        continue;
+      }
+      let actual_member = match actual.get_owned_field_type(db, field_name) {
+        Some(member) => member,
+        None => return false,
+      };
+      if !member_type_compatible(db, &expected_member.typ(db), &actual_member.typ(db)) {
+        return false;
+      }
+    }
+    true
   }
 }
