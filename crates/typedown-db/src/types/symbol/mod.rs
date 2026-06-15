@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use crate::types::{File, Project};
-use typedown_syntax::red::RedNode;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {

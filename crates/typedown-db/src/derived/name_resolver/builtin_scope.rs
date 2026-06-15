@@ -5,6 +5,7 @@ use typedown_macros::query_derived;
 use crate::derived::get_builtin_types::{
   get_bool_symbol, get_date_symbol, get_datetime_symbol, get_dict_symbol, get_link_symbol,
   get_list_symbol, get_num_symbol, get_schema_symbol, get_str_symbol, get_time_symbol,
+  get_type_type_symbol,
 };
 use crate::types::Symbol;
 use crate::{QueryDatabase, TypedownDatabase};
@@ -27,6 +28,7 @@ pub fn builtin_schema_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
     ("list".to_string(), get_list_symbol(db)),
     ("dict".to_string(), get_dict_symbol(db)),
     ("link".to_string(), get_link_symbol(db)),
+    ("type".to_string(), get_type_type_symbol(db)),
   ]);
   BuiltinScopeMembers::new(db, members)
 }

@@ -59,8 +59,6 @@ fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
 
 pub trait TdrTypeLike: TdrObjectLike + DynClone {
   fn arity(&self, db: &TypedownDatabase) -> usize;
-  // Returns the supertype. Implementations must ensure the chain terminates:
-  // TdrObjectType returns itself, so callers stop when supertype == self.
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType>;
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember>;
