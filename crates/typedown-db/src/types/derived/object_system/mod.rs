@@ -8,6 +8,7 @@ mod link;
 mod list;
 mod num;
 mod product;
+mod schema_property;
 mod str;
 
 pub use base::*;
@@ -20,4 +21,5 @@ pub use link::*;
 pub use list::*;
 pub use num::*;
 pub use product::*;
+pub use schema_property::*;
 pub use str::*;

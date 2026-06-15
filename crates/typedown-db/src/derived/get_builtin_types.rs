@@ -8,7 +8,7 @@ use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
   TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrProductType,
-  TdrStrType, TdrTimeType, TdrTypeType, TdrTypeLike,
+  TdrSchemaPropertyType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -16,7 +16,6 @@ use crate::{QueryDatabase, TypedownDatabase};
 pub fn get_type_type(db: &TypedownDatabase) -> TdrTypeType {
   TdrTypeType::new(db)
 }
-
 
 #[query_derived]
 pub fn get_object_type(db: &TypedownDatabase) -> TdrObjectType {
@@ -79,8 +78,28 @@ pub fn get_false(db: &TypedownDatabase) -> TdrBoolObj {
 }
 
 #[query_derived]
+pub fn get_schema_property_type(db: &TypedownDatabase) -> TdrSchemaPropertyType {
+  TdrSchemaPropertyType::new(db)
+}
+
+#[query_derived]
 pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
-  TdrProductType::new(db, std::collections::HashMap::new())
+  use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
+  let properties_value_type = get_schema_property_type(db);
+  let properties_type = TdrDictType::new(
+    db,
+    Some(Box::new(get_str_type(db))),
+    Some(Box::new(properties_value_type)),
+  );
+  let properties_member = TypeMember::new(
+    db,
+    MemberType::Simple(Box::new(properties_type)),
+    TypeMemberDescriptors::empty(),
+  );
+  TdrProductType::new(
+    db,
+    std::collections::HashMap::from([("properties".to_string(), properties_member)]),
+  )
 }
 
 #[query_derived]
@@ -202,11 +221,11 @@ mod tests {
   use typedown_types::diagnostic::Diagnostic;
 
   use crate::{
-    QueryStorage, TypedownDatabase,
     derived::get_builtin_types::{
       get_dict_type, get_list_type, get_num_type, get_str_type, instantiate_type,
     },
     types::TdrTypeLike,
+    QueryStorage, TypedownDatabase,
   };
 
   fn make_db() -> TypedownDatabase {

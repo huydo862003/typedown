@@ -43,6 +43,7 @@ impl TdrTypeLike for TdrListType {
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
   ) -> Box<dyn TdrTypeLike> {
+    assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
     Box::new(TdrListType::new(db, Some(iter.next().unwrap())))
   }

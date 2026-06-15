@@ -46,6 +46,7 @@ impl TdrTypeLike for TdrDictType {
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
   ) -> Box<dyn TdrTypeLike> {
+    assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
     let key = iter.next().unwrap();
     let value = iter.next().unwrap();
