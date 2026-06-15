@@ -20,13 +20,13 @@ bitflags::bitflags! {
 pub enum MemberType {
   /// A reference to a named type (e.g. `string`, `list[number]`)
   Simple(Box<dyn TdrTypeLike>),
-  /// A union or enum type (e.g. `string | number`, `"a" | "b"`)
-  Sum(Vec<Box<dyn TdrTypeLike>>),
-  /// A literal type whose only value is the given literal
+  /// A union or enum type: each arm is itself a `TypeMember` (a type ref)
+  Sum(Vec<TypeMember>),
+  /// A literal value constraint (e.g. `"foo"`, `42`, `true`)
   Literal(LiteralValue),
 }
 
-/// A concrete literal value used in literal types
+/// A concrete literal value used in literal constraints
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LiteralValue {
   Str(String),
