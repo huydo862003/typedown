@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncType;
-use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type};
+use crate::derived::get_builtin_types::{get_object_type, get_schema_type, get_str_type, get_type_type};
 use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
@@ -59,7 +59,9 @@ fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
 
 pub trait TdrTypeLike: TdrObjectLike + DynClone {
   fn arity(&self, db: &TypedownDatabase) -> usize;
-  fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>>;
+  // Returns the supertype. Implementations must ensure the chain terminates:
+  // TdrObjectType returns itself, so callers stop when supertype == self.
+  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType>;
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember>;
 
@@ -71,9 +73,18 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
   ) -> Box<dyn TdrTypeLike>;
 
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    get_builtin_field(db, name)
-      .or_else(|| self.get_owned_field_type(db, name))
-      .or_else(|| self.get_supertype(db)?.get_field_type(db, name))
+    if let Some(field) = get_builtin_field(db, name) {
+      return Some(field);
+    }
+    if let Some(field) = self.get_owned_field_type(db, name) {
+      return Some(field);
+    }
+    let supertype = self.get_supertype(db);
+    // Stop when supertype is identical to self (e.g. TdrObjectType, which is its own supertype).
+    if supertype.type_id() == self.type_id() && supertype.as_id() == self.as_id() {
+      return None;
+    }
+    supertype.get_field_type(db, name)
   }
 }
 
@@ -93,37 +104,78 @@ impl Hash for Box<dyn TdrTypeLike> {
   }
 }
 
+/// The top type: an instance of itself, supertype of everything.
+#[query_derived]
+pub struct TdrTypeType {}
+
+impl TdrObjectLike for TdrTypeType {
+  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+    Box::new(TdrTypeType::get(db))
+  }
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
+    None
+  }
+}
+
+impl TdrTypeLike for TdrTypeType {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
+    0
+  }
+  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+    Box::new(TdrObjectType::get(db))
+  }
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+    HashMap::new()
+  }
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+    None
+  }
+  fn instantiate(
+    &self,
+    _db: &TypedownDatabase,
+    _args: Vec<Box<dyn TdrTypeLike>>,
+  ) -> Box<dyn TdrTypeLike> {
+    Box::new(self.clone())
+  }
+}
+
+impl TdrTypeType {
+  pub fn get(db: &TypedownDatabase) -> TdrTypeType {
+    get_type_type(db)
+  }
+}
+
 /// The base type for all objects in TDR
 #[query_derived]
 pub struct TdrObjectType {}
 
 impl TdrObjectLike for TdrObjectType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+    Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
 
 impl TdrTypeLike for TdrObjectType {
-  fn arity(&self, db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
-
-  fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
-    None
+  // Supertype of ObjectType is itself: this is the termination point.
+  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+    Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(
     &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
+    _db: &TypedownDatabase,
+    _args: Vec<Box<dyn TdrTypeLike>>,
   ) -> Box<dyn TdrTypeLike> {
     Box::new(self.clone())
   }

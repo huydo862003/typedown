@@ -8,9 +8,15 @@ use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
   TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrProductType,
-  TdrStrType, TdrTimeType, TdrTypeLike,
+  TdrStrType, TdrTimeType, TdrTypeType, TdrTypeLike,
 };
 use crate::{QueryDatabase, TypedownDatabase};
+
+#[query_derived]
+pub fn get_type_type(db: &TypedownDatabase) -> TdrTypeType {
+  TdrTypeType::new(db)
+}
+
 
 #[query_derived]
 pub fn get_object_type(db: &TypedownDatabase) -> TdrObjectType {

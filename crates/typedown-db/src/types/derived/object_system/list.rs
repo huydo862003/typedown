@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeType, TdrTypeLike};
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
 use crate::derived::get_builtin_types::get_list_type;
@@ -14,7 +14,7 @@ pub struct TdrListType {
 
 impl TdrObjectLike for TdrListType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+    Box::new(TdrTypeType::get(db))
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
@@ -26,8 +26,8 @@ impl TdrTypeLike for TdrListType {
     if self.elem(db).is_none() { 1 } else { 0 }
   }
 
-  fn get_supertype(&self, db: &TypedownDatabase) -> Option<Box<dyn TdrTypeLike>> {
-    Some(Box::new(TdrObjectType::get(db)))
+  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+    Box::new(TdrObjectType::get(db))
   }
 
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
