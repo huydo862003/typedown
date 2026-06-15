@@ -16,7 +16,7 @@ mod tests {
   use typedown_macros::{query_db, query_derived, query_input};
   use typedown_syntax::{
     ast::{AstNode, SourceFile},
-    green::{cache::Cache, GreenNode},
+    green::{GreenNode, cache::Cache},
     parse::ctx::ParseCtx,
     red::RedNode,
   };

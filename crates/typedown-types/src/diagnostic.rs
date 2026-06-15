@@ -231,8 +231,5 @@ pub enum Diagnostic {
   },
 
   /// Wrong number of type arguments passed to a type constructor.
-  WrongTypeArgCount {
-    expected: usize,
-    got: usize,
-  },
+  WrongTypeArgCount { expected: usize, got: usize },
 }

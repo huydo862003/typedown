@@ -46,4 +46,3 @@ impl TdrTypeLike for TdrProductType {
     Box::new(self.clone())
   }
 }
-

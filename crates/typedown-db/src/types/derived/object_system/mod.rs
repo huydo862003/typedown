@@ -1,23 +1,23 @@
 mod base;
 mod bool;
 mod datetime;
+mod dict;
 mod enumeration;
 mod func;
 mod link;
 mod list;
 mod num;
-mod dict;
 mod product;
 mod str;
 
 pub use base::*;
 pub use bool::*;
 pub use datetime::*;
+pub use dict::*;
 pub use enumeration::*;
 pub use func::*;
 pub use link::*;
 pub use list::*;
 pub use num::*;
-pub use dict::*;
 pub use product::*;
 pub use str::*;

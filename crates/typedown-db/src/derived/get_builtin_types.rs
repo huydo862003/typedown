@@ -47,7 +47,6 @@ pub fn get_link_type(db: &TypedownDatabase) -> TdrLinkType {
   TdrLinkType::new(db, None)
 }
 
-
 #[query_derived]
 pub fn get_datetime_type(db: &TypedownDatabase) -> TdrDateTimeType {
   TdrDateTimeType::new(db)
@@ -163,7 +162,6 @@ pub fn get_func_type(db: &TypedownDatabase, signature: FuncSignature) -> TdrFunc
   TdrFuncType::new(db, signature)
 }
 
-
 #[query_derived]
 pub fn instantiate_type(
   db: &TypedownDatabase,
@@ -192,9 +190,9 @@ mod tests {
   use crate::{
     QueryStorage, TypedownDatabase,
     derived::get_builtin_types::{
-      get_list_type, get_num_type, get_dict_type, get_str_type, instantiate_type,
+      get_dict_type, get_list_type, get_num_type, get_str_type, instantiate_type,
     },
-    types::{TdrListType, TdrDictType, TdrStrType, TdrTypeLike},
+    types::TdrTypeLike,
   };
 
   fn make_db() -> TypedownDatabase {

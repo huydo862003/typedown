@@ -1,25 +1,24 @@
-//! Tracked query to get the type of a green node
+//! Tracked query to get the type of a HIR value
 
 use typedown_macros::query_derived;
-use typedown_syntax::ast::{AstNode, YamlMapping};
-use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::derived::evaluate::evaluate_schema::evaluate_schema;
 use crate::derived::name_resolver::referee::referee;
-use crate::types::{File, Project, TdrObjectType, TypeResult};
+use crate::types::{HirValue, HirValueKind, TdrObjectType, TypeResult};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn get_type(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> TypeResult {
-  if let Some(mapping) = YamlMapping::cast(node.clone()) {
-    let is_top_level = mapping
-      .syntax()
-      .parent()
-      .is_some_and(|parent| parent.kind() == SyntaxKind::YamlFrontmatter);
+pub fn get_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
+  let node = hir.node(db);
+  let is_top_level = node
+    .parent()
+    .is_some_and(|parent| parent.kind() == SyntaxKind::YamlFrontmatter);
+
+  if let HirValueKind::Mapping(entries) = hir.kind(db) {
     if is_top_level {
-      return get_mapping_type(db, project, file, &mapping);
+      return get_mapping_type(db, hir, entries);
     }
   }
 
@@ -28,35 +27,36 @@ pub fn get_type(db: &TypedownDatabase, project: Project, file: File, node: RedNo
 
 fn get_mapping_type(
   db: &TypedownDatabase,
-  project: Project,
-  file: File,
-  mapping: &YamlMapping,
+  hir: HirValue,
+  entries: Vec<(String, HirValue)>,
 ) -> TypeResult {
-  for (key, value_expr) in mapping.entries() {
+  for (key, value_hir) in entries {
     if key == "_type" {
-      let resolved = referee(db, project, file, value_expr.syntax().clone());
+      let resolved = referee(db, value_hir);
       if let Some(symbol) = resolved.value(db) {
         return evaluate_schema(db, symbol);
       }
 
+      let node = value_hir.node(db);
       return TypeResult::new(
         db,
         Box::new(TdrObjectType::get(db)),
         vec![Diagnostic::UnresolvedSchema {
-          name: value_expr.syntax().text(),
-          start_offset: value_expr.syntax().offset(),
-          end_offset: value_expr.syntax().offset() + value_expr.syntax().text_len(),
+          name: node.text(),
+          start_offset: node.offset(),
+          end_offset: node.offset() + node.text_len(),
         }],
       );
     }
   }
 
+  let node = hir.node(db);
   TypeResult::new(
     db,
     Box::new(TdrObjectType::get(db)),
     vec![Diagnostic::MissingSchemaField {
-      start_offset: mapping.syntax().offset(),
-      end_offset: mapping.syntax().offset() + mapping.syntax().text_len(),
+      start_offset: node.offset(),
+      end_offset: node.offset() + node.text_len(),
     }],
   )
 }
@@ -70,10 +70,11 @@ mod tests {
   use crate::{
     QueryStorage, TypedownDatabase,
     derived::{
-      get_builtin_types::get_schema_type, parse_file::parse_file, typechecker::get_type::get_type,
+      get_builtin_types::get_schema_type, hir::lower_expr, parse_file::parse_file,
+      typechecker::get_type::get_type,
     },
     inputs::{File, FileHandle},
-    types::{Project, TdrProductType, TdrTypeLike},
+    types::{Project, TdrTypeLike},
   };
 
   fn vault_root() -> PathBuf {
@@ -103,7 +104,8 @@ mod tests {
       .mapping()
       .expect("frontmatter should have a mapping");
 
-    let type_result = get_type(&db, project, file, mapping.syntax().clone());
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let type_result = get_type(&db, hir);
 
     let expected = Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>;
     assert!(
