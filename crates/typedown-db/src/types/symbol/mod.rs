@@ -13,6 +13,7 @@ pub enum SymbolKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BuiltinSchemaKind {
+  TypeType,
   Schema,
   Str,
   Num,

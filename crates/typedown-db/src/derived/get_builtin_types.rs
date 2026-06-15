@@ -84,6 +84,14 @@ pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
 }
 
 #[query_derived]
+pub fn get_type_type_symbol(db: &TypedownDatabase) -> Symbol {
+  Symbol::new(
+    db,
+    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::TypeType),
+  )
+}
+
+#[query_derived]
 pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,

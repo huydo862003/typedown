@@ -31,7 +31,7 @@ impl TdrTypeLike for TdrBoolType {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
   fn instantiate(
     &self,

@@ -31,7 +31,7 @@ impl TdrTypeLike for TdrDateTimeType {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
   fn instantiate(
     &self,
@@ -88,7 +88,7 @@ impl TdrTypeLike for TdrDateType {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
   fn instantiate(
     &self,
@@ -147,7 +147,7 @@ impl TdrTypeLike for TdrTimeType {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
   fn instantiate(
     &self,

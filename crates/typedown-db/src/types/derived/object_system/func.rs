@@ -33,7 +33,7 @@ impl TdrTypeLike for TdrFuncType {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
   fn instantiate(
     &self,
@@ -57,13 +57,15 @@ impl TdrFuncType {
 #[query_derived]
 pub struct TdrFuncObj {
   pub name: String,
+  #[id]
+  pub signature: FuncSignature,
 }
 
 impl TdrObjectLike for TdrFuncObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    todo!()
+    Box::new(get_func_type(db, self.signature(db)))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }

@@ -39,7 +39,7 @@ impl TdrTypeLike for TdrDictType {
   }
 
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
-    todo!()
+    None
   }
   fn instantiate(
     &self,
