@@ -232,4 +232,60 @@ pub enum Diagnostic {
 
   /// Wrong number of type arguments passed to a type constructor.
   WrongTypeArgCount { expected: usize, got: usize },
+
+  /// Callee expression is not callable.
+  NotCallable {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Wrong number of arguments in a function call.
+  WrongArgCount {
+    expected: usize,
+    got: usize,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Argument type does not match the expected parameter type.
+  ArgTypeMismatch {
+    expected: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A field value does not match the expected type declared by the schema.
+  FieldTypeMismatch {
+    field: String,
+    expected: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Expression is not indexable.
+  NotIndexable {
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Index type does not match the container's key type.
+  IndexTypeMismatch {
+    expected: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// Tag inner expression does not match the schema.
+  TagTypeMismatch {
+    expected: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// A required field declared by the schema is absent in the mapping.
+  MissingRequiredField {
+    field: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }
