@@ -26,7 +26,7 @@ pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
         BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
         BuiltinSchemaKind::TypeType => Box::new(get_type_type(db)),
       };
-      TypeResult::new(db, typ, vec![])
+      TypeResult::new(db, Some(typ), vec![])
     }
     SymbolKind::UserDefinedSchema(_file) => {
       todo!()
@@ -56,7 +56,7 @@ mod tests {
 
     let result = evaluate_schema(&db, symbol);
 
-    let expected = Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>;
+    let expected = Some(Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>);
     assert!(
       result.typ(&db) == expected,
       "builtin Schema symbol should evaluate to TdrSchemaType"
