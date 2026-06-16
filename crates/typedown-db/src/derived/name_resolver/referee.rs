@@ -4,7 +4,7 @@ use typedown_types::syntax_kind::SyntaxKind;
 use crate::derived::name_resolver::file_symbol::MaybeSymbol;
 use crate::derived::name_resolver::members::members;
 use crate::derived::name_resolver::scope::{parent_scope, scope};
-use crate::types::HirValue;
+use crate::types::{HirValue, HirValueKind};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -16,16 +16,19 @@ pub fn referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
   }
 }
 
-/// FIXME: Support tag expressions
+// Whether we should lookup the hir referee as schema
 fn should_lookup_schema(db: &TypedownDatabase, hir: HirValue) -> bool {
-  /* Returns true if this node is the value expression of a `_type:` mapping entry. */
+  // Tag expressions always resolve against the schema scope.
+  if matches!(hir.kind(db), HirValueKind::Tag { .. }) {
+    return true;
+  }
+
+  // Value expression of a `_type:` mapping entry.
   let node = hir.node(db);
-  // Parent must be YamlMappingEntryValue
   let entry_value = match node.parent() {
     Some(parent) if parent.kind() == SyntaxKind::YamlMappingEntryValue => parent,
     _ => return false,
   };
-  // Grandparent must be YamlMappingEntry with key "_type"
   let entry = match entry_value.parent() {
     Some(grandparent) if grandparent.kind() == SyntaxKind::YamlMappingEntry => grandparent,
     _ => return false,
@@ -35,8 +38,13 @@ fn should_lookup_schema(db: &TypedownDatabase, hir: HirValue) -> bool {
     .any(|child| child.kind() == SyntaxKind::YamlMappingEntryKey && child.text() == "_type")
 }
 
+/// Lookup in schema namespace
 fn schema_referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
-  let name = hir.node(db).text().trim().to_string();
+  let name = match hir.kind(db) {
+    HirValueKind::Tag { tag, .. } => tag.node(db).text().trim().to_string(),
+    _ => hir.node(db).text().trim().to_string(),
+  };
+
   let mut current_scope = scope(db, hir);
   loop {
     let result = members(db, current_scope);
@@ -50,6 +58,7 @@ fn schema_referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
   }
 }
 
+/// Lookup in resource namespace
 fn resource_referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
   let name = hir.node(db).text().trim().to_string();
   let mut current_scope = scope(db, hir);
