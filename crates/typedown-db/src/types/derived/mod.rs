@@ -46,7 +46,7 @@ pub struct TypecheckResult {
 
 #[query_derived]
 pub struct TypeResult {
-  typ: Box<dyn TdrTypeLike>,
+  typ: Option<Box<dyn TdrTypeLike>>,
   diagnostics: Vec<Diagnostic>,
 }
 

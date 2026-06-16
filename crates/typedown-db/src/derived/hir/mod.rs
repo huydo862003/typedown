@@ -126,6 +126,21 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
         .and_then(|t| t.text().map(|s| s.to_string()))
         .unwrap_or_default();
       let operand = lower_expr(db, project, file, operand.syntax().clone());
+      if op.starts_with('!') && op.len() > 1 {
+        let tag_name = op[1..].to_string();
+        let op_node = unary.op().unwrap().syntax().clone();
+        let tag_hir = HirValue::new(
+          db,
+          project,
+          file,
+          op_node,
+          HirValueKind::Ident(tag_name),
+        );
+        return HirValueKind::Tag {
+          tag: Box::new(tag_hir),
+          inner: Box::new(operand),
+        };
+      }
       return HirValueKind::Unary {
         op,
         operand: Box::new(operand),
