@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::inputs::{File, FileHandle};
+use crate::types::Project;
+use crate::{QueryStorage, TypedownDatabase};
+
 pub struct Fixture {
   pub path: PathBuf,
   pub contents: String,
@@ -32,4 +36,50 @@ pub fn load_fixtures(subdir: &str) -> HashMap<String, Fixture> {
   }
 
   result
+}
+
+/// Create a database with a vault project loaded from a fixture directory.
+pub fn load_vault_fixture(
+  vault_subdir: &str,
+  file_path: &str,
+) -> (TypedownDatabase, Project, File) {
+  let vault = Path::new(env!("CARGO_MANIFEST_DIR"))
+    .join("fixtures")
+    .join(vault_subdir);
+  let db = TypedownDatabase {
+    storage: QueryStorage::default(),
+  };
+
+  let target_path = vault.join(file_path);
+  let target_file = File::new(&db, FileHandle::Path(target_path.clone()));
+
+  // Collect all .tdr files in the vault
+  let mut handles = collect_tdr_files(&vault, &db);
+  // Ensure the target file is registered
+  handles.insert(target_path, target_file.handle(&db));
+
+  let project = Project::new(&db, vault, handles);
+  (db, project, target_file)
+}
+
+// Collect all tdr files recursively in a directory
+fn collect_tdr_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, FileHandle> {
+  // Walk the AST and return the folder files
+  fn walk(dir: &Path, db: &TypedownDatabase, handles: &mut HashMap<PathBuf, FileHandle>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+      for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+          walk(&path, db, handles);
+        } else if path.extension().is_some_and(|ext| ext == "tdr") {
+          let file = File::new(db, FileHandle::Path(path.clone()));
+          handles.insert(path, file.handle(db));
+        }
+      }
+    }
+  }
+
+  let mut handles = HashMap::new();
+  walk(dir, db, &mut handles);
+  handles
 }

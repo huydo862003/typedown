@@ -31,14 +31,15 @@ clone_trait_object!(TdrObjectLike);
 
 impl PartialEq for Box<dyn TdrObjectLike> {
   fn eq(&self, other: &Self) -> bool {
-    (**self).type_id() == (**other).type_id() && (**self).as_id() == (**other).as_id()
+    Any::type_id(self.as_ref()) == Any::type_id(other.as_ref())
+      && (**self).as_id() == (**other).as_id()
   }
 }
 impl Eq for Box<dyn TdrObjectLike> {}
 
 impl Hash for Box<dyn TdrObjectLike> {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    (**self).type_id().hash(state);
+    Any::type_id(self.as_ref()).hash(state);
     (**self).as_id().hash(state);
   }
 }
@@ -85,7 +86,10 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
     }
     let supertype = self.get_supertype(db);
     // Stop when supertype is identical to self (e.g. TdrObjectType, which is its own supertype).
-    if supertype.type_id() == self.type_id() && supertype.as_id() == self.as_id() {
+    // TIL: Use Any::type_id(), not self.type_id(), to get the concrete type behind a trait object.
+    if Any::type_id(supertype.as_ref()) == Any::type_id(self)
+      && supertype.as_id() == self.as_id()
+    {
       return None;
     }
     supertype.get_field_type(db, name)
@@ -96,14 +100,15 @@ clone_trait_object!(TdrTypeLike);
 
 impl PartialEq for Box<dyn TdrTypeLike> {
   fn eq(&self, other: &Self) -> bool {
-    (**self).type_id() == (**other).type_id() && (**self).as_id() == (**other).as_id()
+    Any::type_id(self.as_ref()) == Any::type_id(other.as_ref())
+      && (**self).as_id() == (**other).as_id()
   }
 }
 impl Eq for Box<dyn TdrTypeLike> {}
 
 impl Hash for Box<dyn TdrTypeLike> {
   fn hash<H: Hasher>(&self, state: &mut H) {
-    (**self).type_id().hash(state);
+    Any::type_id(self.as_ref()).hash(state);
     (**self).as_id().hash(state);
   }
 }
