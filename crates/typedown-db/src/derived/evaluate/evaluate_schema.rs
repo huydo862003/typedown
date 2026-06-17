@@ -363,4 +363,82 @@ mod tests {
       result.diagnostics(&db)
     );
   }
+
+  #[test]
+  fn display_name_builtin_types() {
+    use crate::derived::get_builtin_types::*;
+    let db = make_db();
+
+    assert_eq!(get_str_type(&db).display_name(&db), "string");
+    assert_eq!(get_num_type(&db).display_name(&db), "number");
+    assert_eq!(get_bool_type(&db).display_name(&db), "boolean");
+    assert_eq!(get_date_type(&db).display_name(&db), "date");
+    assert_eq!(get_datetime_type(&db).display_name(&db), "datetime");
+    assert_eq!(get_time_type(&db).display_name(&db), "time");
+    assert_eq!(get_list_type(&db).display_name(&db), "list");
+    assert_eq!(get_dict_type(&db).display_name(&db), "dict");
+    assert_eq!(get_link_type(&db).display_name(&db), "link");
+    assert_eq!(get_type_type(&db).display_name(&db), "type");
+    assert_eq!(get_object_type(&db).display_name(&db), "object");
+    assert_eq!(get_schema_type(&db).display_name(&db), "Schema");
+  }
+
+  #[test]
+  fn display_name_instantiated_list() {
+    use crate::derived::get_builtin_types::*;
+    let db = make_db();
+
+    let list_str = instantiate_type(
+      &db,
+      Box::new(get_list_type(&db)),
+      vec![Box::new(get_str_type(&db))],
+    );
+    assert_eq!(list_str.typ(&db).display_name(&db), "list[string]");
+  }
+
+  #[test]
+  fn display_name_instantiated_dict() {
+    use crate::derived::get_builtin_types::*;
+    let db = make_db();
+
+    let dict_str_num = instantiate_type(
+      &db,
+      Box::new(get_dict_type(&db)),
+      vec![Box::new(get_str_type(&db)), Box::new(get_num_type(&db))],
+    );
+    assert_eq!(
+      dict_str_num.typ(&db).display_name(&db),
+      "dict[string, number]"
+    );
+  }
+
+  #[test]
+  fn display_name_user_defined_schema() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+
+    let result = evaluate_schema(&db, symbol);
+    let typ = result.typ(&db).unwrap();
+    assert_eq!(typ.display_name(&db), "Person");
+  }
+
+  #[test]
+  fn display_name_anonymous_product() {
+    use crate::derived::get_builtin_types::*;
+    let db = make_db();
+
+    let product = TdrProductType::new(
+      &db,
+      None,
+      std::collections::HashMap::from([(
+        "name".to_string(),
+        crate::types::TypeMember::new(
+          &db,
+          crate::types::MemberType::Simple(Box::new(get_str_type(&db))),
+          crate::types::TypeMemberDescriptors::empty(),
+        ),
+      )]),
+    );
+    assert_eq!(product.display_name(&db), "{ name: string }");
+  }
 }
