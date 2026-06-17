@@ -48,6 +48,15 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
     HirValueKind::Sequence(items) => {
       diagnostics.extend(check_sequence(db, declared_type.as_ref(), items));
     }
+    // Typecheck each embedded expression in an interpolated string
+    HirValueKind::Interpolated(parts) => {
+      for part in parts {
+        if let crate::types::InterpolatedPart::Expr(expr) = part {
+          let tc_result = typecheck(db, expr);
+          diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
+        }
+      }
+    }
     // Check index types against container key types
     HirValueKind::Index { expr, indices } => {
       diagnostics.extend(check_index(db, *expr, indices));
