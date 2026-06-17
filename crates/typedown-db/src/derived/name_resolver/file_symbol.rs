@@ -23,7 +23,7 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
   if is_schema_file {
     return MaybeSymbol::new(
       db,
-      Some(Symbol::new(db, SymbolKind::UserDefinedSchema(file))),
+      Some(Symbol::new(db, SymbolKind::UserDefinedSchema(project, file))),
     );
   }
 

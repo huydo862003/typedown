@@ -6,7 +6,7 @@ use crate::types::{File, Project};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
-  UserDefinedSchema(File),
+  UserDefinedSchema(Project, File),
   BuiltinSchema(BuiltinSchemaKind),
 }
 
@@ -29,7 +29,7 @@ impl SymbolKind {
   pub fn is_schema(&self) -> bool {
     matches!(
       self,
-      SymbolKind::UserDefinedSchema(_) | SymbolKind::BuiltinSchema(_)
+      SymbolKind::UserDefinedSchema(_, _) | SymbolKind::BuiltinSchema(_)
     )
   }
 
@@ -38,7 +38,7 @@ impl SymbolKind {
   }
 
   pub fn is_user_defined(&self) -> bool {
-    matches!(self, SymbolKind::UserDefinedSchema(_))
+    matches!(self, SymbolKind::UserDefinedSchema(_, _))
   }
 
   pub fn is_builtin(&self) -> bool {
@@ -90,6 +90,5 @@ pub struct ProjectSchemaResult {
 
 #[query_derived]
 pub struct MembersResult {
-  schema_members: HashMap<String, Symbol>,
-  resource_members: HashMap<String, Symbol>,
+  members: HashMap<String, Symbol>,
 }

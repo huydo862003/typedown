@@ -16,7 +16,7 @@ pub struct BuiltinScopeMembers {
 }
 
 #[query_derived]
-pub fn builtin_schema_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
+pub fn builtin_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
   let members = HashMap::from([
     ("Schema".to_string(), get_schema_symbol(db)),
     ("string".to_string(), get_str_symbol(db)),
@@ -31,9 +31,4 @@ pub fn builtin_schema_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
     ("type".to_string(), get_type_type_symbol(db)),
   ]);
   BuiltinScopeMembers::new(db, members)
-}
-
-#[query_derived]
-pub fn builtin_resource_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
-  BuiltinScopeMembers::new(db, HashMap::new())
 }
