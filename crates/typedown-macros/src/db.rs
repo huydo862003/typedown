@@ -220,7 +220,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       }
 
       impl typedown_db::Id for #struct_name {
-        fn as_id(&self) -> usize { self.0 }
+        fn as_id(&self) -> (usize, usize) { (Self::ingredient_start_index(), self.0) }
       }
       impl From<usize> for #struct_name {
         fn from(id: usize) -> Self { Self(id) }
@@ -502,8 +502,8 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     .map(|(_, field)| field.ident.as_ref().unwrap())
     .collect();
 
-  // Identity type = disambiguator + ids
-  let identity_ty = quote! {(usize, (#(#id_field_tys,)*) )};
+  // Identity type = (creating_query, disambiguator, ids)
+  let identity_ty = quote! {((usize, usize), usize, (#(#id_field_tys,)*) )};
 
   output.extend::<TokenStream>(
     quote! {
@@ -544,17 +544,19 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           let start_index = Self::ingredient_start_index();
           let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);
 
-          // Compute disambiguator: hash(ingredient_start_index, id_field_values) to disambiguator
+          // Compute disambiguator scoped to the creating query
           let identity_hash = {
             use std::hash::{Hash, Hasher};
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             start_index.hash(&mut hasher);
+            storage.current_query_identity().hash(&mut hasher);
             #(#id_field_names.hash(&mut hasher);)*
             hasher.finish()
           };
           let disambiguator = storage.next_disambiguator(identity_hash);
+          let creating_query = storage.current_query_identity();
 
-          let identity = (disambiguator, (#(#id_field_names.clone(),)*));
+          let identity = (creating_query, disambiguator, (#(#id_field_names.clone(),)*));
           let map = Self::identity_map();
 
           let id = if let Some(existing) = map.get(&identity) {
@@ -596,7 +598,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
       }
 
       impl typedown_db::Id for #struct_name {
-        fn as_id(&self) -> usize { self.0 }
+        fn as_id(&self) -> (usize, usize) { (Self::ingredient_start_index(), self.0) }
       }
       impl From<usize> for #struct_name {
         fn from(id: usize) -> Self { Self(id) }
@@ -759,7 +761,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
       }
 
       impl typedown_db::Id for #struct_name {
-        fn as_id(&self) -> usize { self.0 }
+        fn as_id(&self) -> (usize, usize) { (Self::ingredient_index(), self.0) }
       }
       impl From<usize> for #struct_name {
         fn from(id: usize) -> Self { Self(id) }

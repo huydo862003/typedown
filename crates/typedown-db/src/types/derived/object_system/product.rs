@@ -77,7 +77,7 @@ impl TdrTypeLike for TdrProductType {
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    if self.type_id() != actual.type_id() {
+    if self.as_id().0 != actual.as_id().0 {
       return false;
     }
     let self_fields = self.fields(db);

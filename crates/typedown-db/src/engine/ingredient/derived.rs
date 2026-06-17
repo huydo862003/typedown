@@ -183,8 +183,8 @@ impl<
       return (value, changed_at);
     }
 
-    // Push to query stack and save parent dependencies
-    let parent_dependencies = storage.with_context(|ctx| {
+    // Push to query stack, save parent dependencies and disambiguator state
+    let (parent_dependencies, parent_disambiguator_map) = storage.with_context(|ctx| {
       let ctx = ctx.get_or_insert_with(|| ExecuteContext {
         query_stack: Vec::new(),
         dependencies: Vec::new(),
@@ -194,26 +194,23 @@ impl<
         ingredient_index,
         arg_id,
       });
-      std::mem::take(&mut ctx.dependencies)
-    });
-
-    // Reset disambiguator map before re-execution
-    storage.with_context(|ctx| {
-      if let Some(ctx) = ctx {
-        ctx.disambiguator_map.clear();
-      }
+      (
+        std::mem::take(&mut ctx.dependencies),
+        std::mem::take(&mut ctx.disambiguator_map),
+      )
     });
 
     // Recompute
     let key = arg.clone();
     let value = (self.query_fn)(db, arg);
 
-    // Collect recorded dependencies, restore parent's, and pop stack
+    // Collect recorded dependencies, restore parent state, and pop stack
     let dependencies = storage.with_context(|ctx| {
       let ctx = ctx
         .as_mut()
         .expect("context disappeared during query execution");
       let dependencies = std::mem::replace(&mut ctx.dependencies, parent_dependencies);
+      ctx.disambiguator_map = parent_disambiguator_map;
       ctx.query_stack.pop();
       dependencies
     });

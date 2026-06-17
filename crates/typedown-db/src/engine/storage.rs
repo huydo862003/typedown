@@ -71,6 +71,23 @@ impl QueryStorage {
       }
     })
   }
+
+  /// Get the current query's identity (ingredient_index, arg_id) from the top of the query stack.
+  /// Returns (0, 0) if not inside a query execution.
+  #[doc(hidden)]
+  pub fn current_query_identity(&self) -> (usize, usize) {
+    self.with_context(|ctx| {
+      if let Some(ctx) = ctx {
+        ctx
+          .query_stack
+          .last()
+          .map(|entry| (entry.ingredient_index, entry.arg_id))
+          .unwrap_or((0, 0))
+      } else {
+        (0, 0)
+      }
+    })
+  }
 }
 
 fn registry() -> &'static Vec<IngredientFactory> {

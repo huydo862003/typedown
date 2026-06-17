@@ -48,7 +48,7 @@ impl TdrTypeLike for TdrDateTimeType {
   }
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
+    self.as_id() == actual.as_id()
   }
 }
 
@@ -114,7 +114,7 @@ impl TdrTypeLike for TdrDateType {
   }
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
+    self.as_id() == actual.as_id()
   }
 }
 
@@ -182,7 +182,7 @@ impl TdrTypeLike for TdrTimeType {
   }
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    self.type_id() == actual.type_id() && self.as_id() == actual.as_id()
+    self.as_id() == actual.as_id()
   }
 }
 

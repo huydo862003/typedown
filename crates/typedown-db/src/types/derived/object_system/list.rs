@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::TypedownDatabase;
+use crate::{Id, TypedownDatabase};
 use crate::derived::get_builtin_types::get_list_type;
 use crate::types::TypeMember;
 
@@ -50,7 +50,7 @@ impl TdrTypeLike for TdrListType {
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    if self.type_id() != actual.type_id() {
+    if self.as_id().0 != actual.as_id().0 {
       return false;
     }
     let self_args = self.get_type_args(db);
