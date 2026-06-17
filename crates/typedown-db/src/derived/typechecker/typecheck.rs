@@ -662,7 +662,6 @@ mod tests {
       .mapping()
       .unwrap();
     let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
     let result = typecheck(&db, hir);
     let diags = result.diagnostics(&db);
     assert!(

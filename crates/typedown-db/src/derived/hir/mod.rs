@@ -200,8 +200,15 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
 
 fn unwrap_tag(expr: Expr) -> Expr {
   if let Some(unary) = UnaryExpr::cast(expr.syntax().clone()) {
-    if let Some(inner) = unary.expr() {
-      return inner;
+    let is_tag = unary
+      .op()
+      .and_then(|o| o.syntax().as_token())
+      .and_then(|t| t.text().map(|s| s.starts_with('!') && s.len() > 1))
+      .unwrap_or(false);
+    if is_tag {
+      if let Some(inner) = unary.expr() {
+        return inner;
+      }
     }
   }
   expr
