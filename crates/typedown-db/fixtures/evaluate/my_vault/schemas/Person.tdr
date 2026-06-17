@@ -1,0 +1,9 @@
+---
+_type: Schema
+properties:
+  name:
+    type: string
+  age:
+    type: number
+    required: true
+---
