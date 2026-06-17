@@ -38,6 +38,8 @@ pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
     HirValueKind::Call { callee, args } => get_call_type(db, *callee, args),
     HirValueKind::Index { expr, indices } => get_index_type(db, *expr, indices),
     HirValueKind::Tag { tag, .. } => get_tag_type(db, *tag),
+    HirValueKind::Unary { op, operand } => get_unary_type(db, &op, *operand),
+    HirValueKind::Binary { op, left, right } => get_binary_type(db, &op, *left, *right),
     _ => TypeResult::new(db, None, vec![]),
   }
 }
@@ -107,6 +109,49 @@ fn get_tag_type(db: &TypedownDatabase, tag: HirValue) -> TypeResult {
         }],
       )
     }
+  }
+}
+
+/// Helper to get the return type of a unary expression
+fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeResult {
+  let operand_result = get_node_type(db, operand);
+  let diagnostics = operand_result.diagnostics(db).clone();
+
+  match op {
+    // Arithmetic negation and plus: returns number
+    "-" | "+" => TypeResult::new(db, Some(Box::new(get_num_type(db))), diagnostics),
+    // Logical not: returns boolean
+    "!" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
+    // Logical not: accepts any type, returns boolean
+    "~" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
+    _ => TypeResult::new(db, None, diagnostics),
+  }
+}
+
+/// Helper to get the return type of a binary expression
+fn get_binary_type(
+  db: &TypedownDatabase,
+  op: &str,
+  left: HirValue,
+  right: HirValue,
+) -> TypeResult {
+  let left_result = get_node_type(db, left);
+  let right_result = get_node_type(db, right);
+  let mut diagnostics = left_result.diagnostics(db).clone();
+  diagnostics.extend(right_result.diagnostics(db).iter().cloned());
+
+  match op {
+    // Arithmetic: returns number
+    "+" | "-" | "*" | "/" | "%" | "**" => {
+      TypeResult::new(db, Some(Box::new(get_num_type(db))), diagnostics)
+    }
+    // Comparison: returns boolean
+    "==" | "!=" | "<" | ">" | "<=" | ">=" => {
+      TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics)
+    }
+    // Logical: returns boolean
+    "&&" | "||" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
+    _ => TypeResult::new(db, None, diagnostics),
   }
 }
 

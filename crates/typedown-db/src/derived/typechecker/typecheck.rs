@@ -57,6 +57,14 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
         }
       }
     }
+    // Check unary operand type
+    HirValueKind::Unary { op, operand } => {
+      diagnostics.extend(check_unary(db, &op, *operand));
+    }
+    // Check binary operand types
+    HirValueKind::Binary { op, left, right } => {
+      diagnostics.extend(check_binary(db, &op, *left, *right));
+    }
     // Check index types against container key types
     HirValueKind::Index { expr, indices } => {
       diagnostics.extend(check_index(db, *expr, indices));
@@ -265,6 +273,119 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
     start_offset: node.offset(),
     end_offset: node.offset() + node.text_len(),
   });
+
+  diagnostics
+}
+
+fn check_unary(
+  db: &TypedownDatabase,
+  op: &str,
+  operand: HirValue,
+) -> Vec<Diagnostic> {
+  let mut diagnostics = vec![];
+
+  let tc_result = typecheck(db, operand);
+  diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
+
+  let operand_result = get_node_type(db, operand);
+  let operand_type = match operand_result.typ(db) {
+    Some(typ) => typ,
+    None => return diagnostics,
+  };
+
+  let expected_type: Box<dyn TdrTypeLike> = match op {
+    "-" | "+" => Box::new(get_num_type(db)),
+    // ~ is logical not: accepts any type (only null and false are falsy)
+    "~" | "!" => return diagnostics,
+    _ => return diagnostics,
+  };
+
+  if !expected_type.is_compatible_with(db, operand_type.as_ref()) {
+    let node = operand.node(db);
+    diagnostics.push(Diagnostic::OperandTypeMismatch {
+      op: op.to_string(),
+      expected: String::new(),
+      start_offset: node.offset(),
+      end_offset: node.offset() + node.text_len(),
+    });
+  }
+
+  diagnostics
+}
+
+fn check_binary(
+  db: &TypedownDatabase,
+  op: &str,
+  left: HirValue,
+  right: HirValue,
+) -> Vec<Diagnostic> {
+  let mut diagnostics = vec![];
+
+  let tc_left = typecheck(db, left);
+  diagnostics.extend(tc_left.diagnostics(db).iter().cloned());
+  let tc_right = typecheck(db, right);
+  diagnostics.extend(tc_right.diagnostics(db).iter().cloned());
+
+  let left_type = get_node_type(db, left).typ(db);
+  let right_type = get_node_type(db, right).typ(db);
+
+  match op {
+    // Arithmetic: both operands must be number
+    "+" | "-" | "*" | "/" | "%" | "**" => {
+      let num_type = Box::new(get_num_type(db));
+      if let Some(lt) = &left_type {
+        if !num_type.is_compatible_with(db, lt.as_ref()) {
+          let node = left.node(db);
+          diagnostics.push(Diagnostic::OperandTypeMismatch {
+            op: op.to_string(),
+            expected: "number".to_string(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+      }
+      if let Some(rt) = &right_type {
+        if !num_type.is_compatible_with(db, rt.as_ref()) {
+          let node = right.node(db);
+          diagnostics.push(Diagnostic::OperandTypeMismatch {
+            op: op.to_string(),
+            expected: "number".to_string(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+      }
+    }
+    // Logical: both operands must be boolean
+    "&&" | "||" => {
+      let bool_type = Box::new(crate::derived::get_builtin_types::get_bool_type(db));
+      if let Some(lt) = &left_type {
+        if !bool_type.is_compatible_with(db, lt.as_ref()) {
+          let node = left.node(db);
+          diagnostics.push(Diagnostic::OperandTypeMismatch {
+            op: op.to_string(),
+            expected: "boolean".to_string(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+      }
+      if let Some(rt) = &right_type {
+        if !bool_type.is_compatible_with(db, rt.as_ref()) {
+          let node = right.node(db);
+          diagnostics.push(Diagnostic::OperandTypeMismatch {
+            op: op.to_string(),
+            expected: "boolean".to_string(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+      }
+    }
+    // Comparison: no operand type constraint (any types can be compared)
+    "==" | "!=" | "<" | ">" | "<=" | ">=" => {}
+    _ => {}
+  }
 
   diagnostics
 }

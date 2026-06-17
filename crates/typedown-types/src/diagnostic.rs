@@ -282,6 +282,14 @@ pub enum Diagnostic {
     end_offset: usize,
   },
 
+  /// Operand type does not match the expected type for the operator.
+  OperandTypeMismatch {
+    op: String,
+    expected: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
   /// A required field declared by the schema is absent in the mapping.
   MissingRequiredField {
     field: String,
