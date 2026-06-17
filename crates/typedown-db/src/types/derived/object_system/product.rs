@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
@@ -34,6 +33,7 @@ fn member_type_compatible(
 
 #[query_derived]
 pub struct TdrProductType {
+  pub name: Option<String>,
   pub fields: HashMap<String, TypeMember>,
 }
 
@@ -97,5 +97,37 @@ impl TdrTypeLike for TdrProductType {
       }
     }
     true
+  }
+
+  fn display_name(&self, db: &TypedownDatabase) -> String {
+    if let Some(name) = self.name(db) {
+      return name;
+    }
+    // Structural fallback for anonymous product types
+    let fields = self.fields(db);
+    if fields.is_empty() {
+      return "{}".to_string();
+    }
+    let mut parts: Vec<String> = fields
+      .iter()
+      .map(|(name, member)| {
+        let type_name = member_type_display_name(db, &member.typ(db));
+        format!("{}: {}", name, type_name)
+      })
+      .collect();
+    parts.sort();
+    format!("{{ {} }}", parts.join(", "))
+  }
+}
+
+fn member_type_display_name(db: &TypedownDatabase, member: &MemberType) -> String {
+  match member {
+    MemberType::Simple(typ) => typ.display_name(db),
+    MemberType::Sum(members) => members
+      .iter()
+      .map(|m| member_type_display_name(db, &m.typ(db)))
+      .collect::<Vec<_>>()
+      .join(" | "),
+    MemberType::Literal(val) => format!("{:?}", val),
   }
 }

@@ -19,7 +19,7 @@ use crate::types::{
   BuiltinSchemaKind, HirValue, HirValueKind, MemberType, Symbol, SymbolKind, TdrProductType,
   TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
-use crate::{Id, QueryDatabase, TypedownDatabase};
+use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
 pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
@@ -40,12 +40,15 @@ pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
       };
       TypeResult::new(db, Some(typ), vec![])
     }
-    SymbolKind::UserDefinedSchema(project, file) => evaluate_user_defined_schema(db, project, file),
+    SymbolKind::UserDefinedSchema(project, file) => {
+      evaluate_user_defined_schema(db, symbol.name(db), project, file)
+    }
   }
 }
 
 fn evaluate_user_defined_schema(
   db: &TypedownDatabase,
+  schema_name: String,
   project: crate::types::Project,
   file: crate::inputs::File,
 ) -> TypeResult {
@@ -100,7 +103,11 @@ fn evaluate_user_defined_schema(
       // Schema with no properties: empty product type
       return TypeResult::new(
         db,
-        Some(Box::new(TdrProductType::new(db, HashMap::new()))),
+        Some(Box::new(TdrProductType::new(
+          db,
+          Some(schema_name.clone()),
+          HashMap::new(),
+        ))),
         diagnostics,
       );
     }
@@ -147,7 +154,7 @@ fn evaluate_user_defined_schema(
 
   TypeResult::new(
     db,
-    Some(Box::new(TdrProductType::new(db, fields))),
+    Some(Box::new(TdrProductType::new(db, Some(schema_name), fields))),
     diagnostics,
   )
 }
@@ -209,7 +216,7 @@ fn resolve_type_member(
         }
       }
       Some(MemberType::Simple(Box::new(TdrProductType::new(
-        db, fields,
+        db, None, fields,
       ))))
     }
     _ => {
@@ -246,7 +253,11 @@ mod tests {
   #[test]
   fn evaluate_schema_builtin_schema_returns_schema_type() {
     let db = make_db();
-    let symbol = Symbol::new(&db, SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema));
+    let symbol = Symbol::new(
+      &db,
+      SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema),
+      "Schema".to_string(),
+    );
 
     let result = evaluate_schema(&db, symbol);
 

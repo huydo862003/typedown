@@ -71,6 +71,13 @@ impl TdrTypeLike for TdrListType {
   fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
     self.elem(db).into_iter().collect()
   }
+
+  fn display_name(&self, db: &TypedownDatabase) -> String {
+    match self.elem(db) {
+      Some(elem) => format!("list[{}]", elem.display_name(db)),
+      None => "list".to_string(),
+    }
+  }
 }
 
 impl TdrListType {

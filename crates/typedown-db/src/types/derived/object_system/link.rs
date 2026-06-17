@@ -71,6 +71,13 @@ impl TdrTypeLike for TdrLinkType {
   fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
     self.schema(db).into_iter().collect()
   }
+
+  fn display_name(&self, db: &TypedownDatabase) -> String {
+    match self.schema(db) {
+      Some(schema) => format!("link[{}]", schema.display_name(db)),
+      None => "link".to_string(),
+    }
+  }
 }
 
 impl TdrLinkType {

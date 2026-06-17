@@ -65,6 +65,10 @@ impl TdrTypeLike for TdrSchemaPropertyType {
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
   }
+
+  fn display_name(&self, _db: &TypedownDatabase) -> String {
+    "SchemaProperty".to_string()
+  }
 }
 
 impl TdrSchemaPropertyType {

@@ -75,6 +75,8 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
 
   fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>>;
 
+  fn display_name(&self, db: &TypedownDatabase) -> String;
+
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     if let Some(field) = get_builtin_field(db, name) {
       return Some(field);
@@ -147,6 +149,10 @@ impl TdrTypeLike for TdrTypeType {
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
   }
+
+  fn display_name(&self, _db: &TypedownDatabase) -> String {
+    "type".to_string()
+  }
 }
 
 impl TdrTypeType {
@@ -196,6 +202,10 @@ impl TdrTypeLike for TdrObjectType {
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
+  }
+
+  fn display_name(&self, _db: &TypedownDatabase) -> String {
+    "object".to_string()
   }
 }
 

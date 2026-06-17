@@ -79,6 +79,15 @@ impl TdrTypeLike for TdrDictType {
       _ => vec![],
     }
   }
+
+  fn display_name(&self, db: &TypedownDatabase) -> String {
+    match (self.key(db), self.value(db)) {
+      (Some(key), Some(value)) => {
+        format!("dict[{}, {}]", key.display_name(db), value.display_name(db))
+      }
+      _ => "dict".to_string(),
+    }
+  }
 }
 
 impl TdrDictType {

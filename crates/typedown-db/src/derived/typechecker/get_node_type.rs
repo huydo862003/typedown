@@ -87,7 +87,7 @@ fn get_mapping_type(
   }
   TypeResult::new(
     db,
-    Some(Box::new(TdrProductType::new(db, fields))),
+    Some(Box::new(TdrProductType::new(db, None, fields))),
     diagnostics,
   )
 }

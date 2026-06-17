@@ -10,7 +10,7 @@ use crate::types::{
   TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrProductType,
   TdrSchemaPropertyType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
 };
-use crate::{QueryDatabase, TypedownDatabase};
+use crate::{QueryDatabase, TypedownDatabase, types::BuiltinSchemaKind};
 
 #[query_derived]
 pub fn get_type_type(db: &TypedownDatabase) -> TdrTypeType {
@@ -98,6 +98,7 @@ pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
   );
   TdrProductType::new(
     db,
+    Some("Schema".to_string()),
     std::collections::HashMap::from([("properties".to_string(), properties_member)]),
   )
 }
@@ -106,7 +107,8 @@ pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
 pub fn get_type_type_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::TypeType),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::TypeType),
+    "type".to_string(),
   )
 }
 
@@ -114,7 +116,8 @@ pub fn get_type_type_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Schema),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema),
+    "Schema".to_string(),
   )
 }
 
@@ -122,7 +125,8 @@ pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_str_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Str),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Str),
+    "string".to_string(),
   )
 }
 
@@ -130,7 +134,8 @@ pub fn get_str_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_num_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Num),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Num),
+    "number".to_string(),
   )
 }
 
@@ -138,7 +143,8 @@ pub fn get_num_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_bool_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Bool),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Bool),
+    "boolean".to_string(),
   )
 }
 
@@ -146,7 +152,8 @@ pub fn get_bool_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_date_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Date),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Date),
+    "date".to_string(),
   )
 }
 
@@ -154,7 +161,8 @@ pub fn get_date_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_datetime_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::DateTime),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::DateTime),
+    "datetime".to_string(),
   )
 }
 
@@ -162,7 +170,8 @@ pub fn get_datetime_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_time_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Time),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Time),
+    "time".to_string(),
   )
 }
 
@@ -170,7 +179,8 @@ pub fn get_time_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_list_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::List),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::List),
+    "list".to_string(),
   )
 }
 
@@ -178,7 +188,8 @@ pub fn get_list_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_dict_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Dict),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Dict),
+    "dict".to_string(),
   )
 }
 
@@ -186,7 +197,8 @@ pub fn get_dict_symbol(db: &TypedownDatabase) -> Symbol {
 pub fn get_link_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
-    SymbolKind::BuiltinSchema(crate::types::BuiltinSchemaKind::Link),
+    SymbolKind::BuiltinSchema(BuiltinSchemaKind::Link),
+    "link".to_string(),
   )
 }
 
@@ -221,11 +233,11 @@ mod tests {
   use typedown_types::diagnostic::Diagnostic;
 
   use crate::{
+    QueryStorage, TypedownDatabase,
     derived::get_builtin_types::{
       get_dict_type, get_list_type, get_num_type, get_str_type, instantiate_type,
     },
     types::TdrTypeLike,
-    QueryStorage, TypedownDatabase,
   };
 
   fn make_db() -> TypedownDatabase {

@@ -50,6 +50,10 @@ impl TdrTypeLike for TdrBoolType {
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
   }
+
+  fn display_name(&self, _db: &TypedownDatabase) -> String {
+    "boolean".to_string()
+  }
 }
 
 impl TdrBoolType {

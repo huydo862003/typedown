@@ -81,6 +81,7 @@ impl Scope {
 pub struct Symbol {
   #[id]
   kind: SymbolKind,
+  name: String,
 }
 
 #[query_derived]

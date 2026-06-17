@@ -52,6 +52,10 @@ impl TdrTypeLike for TdrFuncType {
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
   }
+
+  fn display_name(&self, _db: &TypedownDatabase) -> String {
+    "function".to_string()
+  }
 }
 
 impl TdrFuncType {

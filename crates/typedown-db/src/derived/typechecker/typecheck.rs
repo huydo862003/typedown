@@ -8,8 +8,8 @@ use typedown_types::diagnostic::Diagnostic;
 use crate::derived::get_builtin_types::get_num_type;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrTypeLike,
-  TypecheckResult,
+  HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrProductType,
+  TdrTypeLike, TypecheckResult,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -277,11 +277,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   diagnostics
 }
 
-fn check_unary(
-  db: &TypedownDatabase,
-  op: &str,
-  operand: HirValue,
-) -> Vec<Diagnostic> {
+fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
   let tc_result = typecheck(db, operand);
