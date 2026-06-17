@@ -13,7 +13,6 @@ use crate::derived::get_builtin_types::{
 use crate::derived::hir::lower_expr;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::parse_file::parse_file;
-use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::derived::typechecker::typecheck::typecheck;
 use crate::types::{
   BuiltinSchemaKind, HirValue, HirValueKind, MemberType, Symbol, SymbolKind, TdrProductType,
@@ -67,26 +66,10 @@ fn evaluate_user_defined_schema(
   };
   let hir = lower_expr(db, project, file, mapping.syntax().clone());
 
-  // Typecheck the schema file
-  let typecheck_result = typecheck(db, hir);
-  diagnostics.extend(typecheck_result.diagnostics(db).iter().cloned());
+  // Typecheck the schema file (diagnostics not propagated to callers)
+  let _ = typecheck(db, hir);
 
-  // Verify the declared type is the schema metatype
-  let type_result = get_node_type(db, hir);
-  diagnostics.extend(type_result.diagnostics(db).iter().cloned());
-  let schema_type = Box::new(get_schema_type(db)) as Box<dyn TdrTypeLike>;
-  let is_schema = type_result.typ(db).is_some_and(|typ| typ == schema_type);
-  if !is_schema {
-    let node = hir.node(db);
-    diagnostics.push(Diagnostic::UnresolvedSchema {
-      name: "expected _type: Schema".to_string(),
-      start_offset: node.offset(),
-      end_offset: node.offset() + node.text_len(),
-    });
-    return TypeResult::new(db, None, diagnostics);
-  }
-
-  // Extract properties from the frontmatter mapping
+  // Extract entries from the frontmatter mapping
   let entries = match hir.kind(db) {
     HirValueKind::Mapping(entries) => entries,
     _ => return TypeResult::new(db, None, diagnostics),
@@ -97,7 +80,16 @@ fn evaluate_user_defined_schema(
   let properties_entries = match properties_hir {
     Some((_, props_hir)) => match props_hir.kind(db) {
       HirValueKind::Mapping(entries) => entries,
-      _ => return TypeResult::new(db, None, diagnostics),
+      _ => {
+        let node = props_hir.node(db);
+        diagnostics.push(Diagnostic::FieldTypeMismatch {
+          field: "properties".to_string(),
+          expected: "mapping".to_string(),
+          start_offset: node.offset(),
+          end_offset: node.offset() + node.text_len(),
+        });
+        return TypeResult::new(db, None, diagnostics);
+      }
     },
     None => {
       // Schema with no properties: empty product type
@@ -118,33 +110,9 @@ fn evaluate_user_defined_schema(
 
   // Loop through the declared props
   for (prop_name, prop_hir) in properties_entries {
-    // The descriptor of the prop
-    let prop_entries = match prop_hir.kind(db) {
-      HirValueKind::Mapping(entries) => entries,
-      _ => continue,
-    };
-
-    let mut field_type: Option<MemberType> = None;
-    let mut descriptors = TypeMemberDescriptors::empty();
-
-    for (desc_key, desc_value) in &prop_entries {
-      match desc_key.as_str() {
-        // Process the declared "type"
-        "type" => {
-          field_type = resolve_type_member(db, *desc_value, &mut diagnostics);
-        }
-        // Process the descriptor "required"
-        "required" => {
-          if let HirValueKind::Bool(false) = desc_value.kind(db) {
-            descriptors |= TypeMemberDescriptors::OPTIONAL;
-          }
-        }
-        _ => {}
-      }
-    }
-
-    // Create the field from field type and descriptor
-    if let Some(member_type) = field_type {
+    if let Some((member_type, descriptors)) =
+      resolve_property_descriptor(db, prop_hir, &mut diagnostics)
+    {
       fields.insert(
         prop_name.clone(),
         TypeMember::new(db, member_type, descriptors),
@@ -159,7 +127,37 @@ fn evaluate_user_defined_schema(
   )
 }
 
-// Resolve a type expression in a property descriptor to a MemberType
+// Process a property descriptor like `{ type: string, required: true }`
+fn resolve_property_descriptor(
+  db: &TypedownDatabase,
+  hir: HirValue,
+  diagnostics: &mut Vec<Diagnostic>,
+) -> Option<(MemberType, TypeMemberDescriptors)> {
+  let entries = match hir.kind(db) {
+    HirValueKind::Mapping(entries) => entries,
+    _ => return None,
+  };
+
+  let mut field_type: Option<MemberType> = None;
+  let mut descriptors = TypeMemberDescriptors::empty();
+
+  for (key, value) in &entries {
+    match key.as_str() {
+      "type" => {
+        field_type = resolve_type_member(db, *value, diagnostics);
+      }
+      "required" => {
+        if let HirValueKind::Bool(false) = value.kind(db) {
+          descriptors |= TypeMemberDescriptors::OPTIONAL;
+        }
+      }
+      _ => {}
+    }
+  }
+
+  field_type.map(|typ| (typ, descriptors))
+}
+
 fn resolve_type_member(
   db: &TypedownDatabase,
   hir: HirValue,
@@ -204,15 +202,15 @@ fn resolve_type_member(
         Some(MemberType::Sum(members))
       }
     }
-    // Inline object like `type: { name: { type: string } }`
+    // Inline object like `type: { name: { type: string }, age: { type: number } }`
+    // Each entry is a property descriptor with `type` and optional `required`
     HirValueKind::Mapping(entries) => {
       let mut fields = HashMap::new();
       for (key, value_hir) in entries {
-        if let Some(member_type) = resolve_type_member(db, value_hir, diagnostics) {
-          fields.insert(
-            key.clone(),
-            TypeMember::new(db, member_type, TypeMemberDescriptors::empty()),
-          );
+        if let Some((member_type, descriptors)) =
+          resolve_property_descriptor(db, value_hir, diagnostics)
+        {
+          fields.insert(key.clone(), TypeMember::new(db, member_type, descriptors));
         }
       }
       Some(MemberType::Simple(Box::new(TdrProductType::new(
@@ -304,18 +302,6 @@ mod tests {
   }
 
   #[test]
-  fn evaluate_schema_not_a_schema_has_diagnostics() {
-    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/NotASchema.tdr");
-    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
-
-    let result = evaluate_schema(&db, symbol);
-    assert!(
-      !result.diagnostics(&db).is_empty(),
-      "schema with wrong _type should have diagnostics"
-    );
-  }
-
-  #[test]
   fn evaluate_schema_no_properties_returns_empty_product() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/NoProperties.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
@@ -328,12 +314,6 @@ mod tests {
     assert!(
       product.fields(&db).is_empty(),
       "schema with no properties should have empty fields"
-    );
-    // Should still have diagnostics for missing required 'properties' field
-    assert!(
-      !result.diagnostics(&db).is_empty(),
-      "should have diagnostics for missing properties: {:?}",
-      result.diagnostics(&db)
     );
   }
 

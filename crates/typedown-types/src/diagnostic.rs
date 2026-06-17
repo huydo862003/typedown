@@ -296,4 +296,11 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// A sequence element does not match the declared element type.
+  ElementTypeMismatch {
+    expected: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

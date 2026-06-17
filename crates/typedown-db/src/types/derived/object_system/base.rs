@@ -46,7 +46,7 @@ fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
   match name {
     "_type" => Some(TypeMember::new(
       db,
-      MemberType::Simple(Box::new(get_schema_type(db))),
+      MemberType::Simple(Box::new(TdrTypeType::get(db))),
       TypeMemberDescriptors::empty(),
     )),
     "_label" => Some(TypeMember::new(

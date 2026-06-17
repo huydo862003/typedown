@@ -1,14 +1,17 @@
 //! Derived queries for constructing builtin type singletons
 
+use std::collections::HashMap;
+
 use typedown_macros::query_derived;
 
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::types::FuncSignature;
 use crate::types::{
-  InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
-  TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType, TdrProductType,
-  TdrSchemaPropertyType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
+  InstResult, MemberType, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType,
+  TdrDateType, TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType,
+  TdrProductType, TdrSchemaPropertyType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
+  TypeMember, TypeMemberDescriptors,
 };
 use crate::{QueryDatabase, TypedownDatabase, types::BuiltinSchemaKind};
 
@@ -84,7 +87,6 @@ pub fn get_schema_property_type(db: &TypedownDatabase) -> TdrSchemaPropertyType 
 
 #[query_derived]
 pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
-  use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
   let properties_value_type = get_schema_property_type(db);
   let properties_type = TdrDictType::new(
     db,
@@ -99,7 +101,7 @@ pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
   TdrProductType::new(
     db,
     Some("Schema".to_string()),
-    std::collections::HashMap::from([("properties".to_string(), properties_member)]),
+    HashMap::from([("properties".to_string(), properties_member)]),
   )
 }
 

@@ -8,8 +8,8 @@ use typedown_types::diagnostic::Diagnostic;
 use crate::derived::get_builtin_types::get_num_type;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrProductType,
-  TdrTypeLike, TypecheckResult,
+  HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrTypeLike,
+  TypecheckResult, member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -353,6 +353,7 @@ fn check_binary(
       }
     }
     // Logical: both operands must be boolean
+    // Consider allow truthy and falsy?
     "&&" | "||" => {
       let bool_type = Box::new(crate::derived::get_builtin_types::get_bool_type(db));
       if let Some(lt) = &left_type {
@@ -378,7 +379,8 @@ fn check_binary(
         }
       }
     }
-    // Comparison: no operand type constraint (any types can be compared)
+    // Comparison: any type can be compared
+    // :)) not sure
     "==" | "!=" | "<" | ">" | "<=" | ">=" => {}
     _ => {}
   }
@@ -415,8 +417,7 @@ fn check_sequence(
     if let Some(item_type) = item_result.typ(db) {
       if !elem_type.is_compatible_with(db, item_type.as_ref()) {
         let node = item.node(db);
-        diagnostics.push(Diagnostic::FieldTypeMismatch {
-          field: "[]".to_string(),
+        diagnostics.push(Diagnostic::ElementTypeMismatch {
           expected: elem_type.display_name(db),
           start_offset: node.offset(),
           end_offset: node.offset() + node.text_len(),
@@ -426,18 +427,6 @@ fn check_sequence(
   }
 
   diagnostics
-}
-
-fn member_type_display_name(db: &TypedownDatabase, member: &MemberType) -> String {
-  match member {
-    MemberType::Simple(typ) => typ.display_name(db),
-    MemberType::Sum(members) => members
-      .iter()
-      .map(|m| member_type_display_name(db, &m.typ(db)))
-      .collect::<Vec<_>>()
-      .join(" | "),
-    MemberType::Literal(val) => format!("{:?}", val),
-  }
 }
 
 fn member_type_compatible(
@@ -463,6 +452,7 @@ mod tests {
     fixtures::load_vault_fixture,
   };
 
+  // Mapping without _type: infers product type, no validation errors
   #[test]
   fn typecheck_mapping_without_type_infers_product_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
@@ -483,6 +473,7 @@ mod tests {
     );
   }
 
+  // _type references a non-existent schema
   #[test]
   fn typecheck_unresolved_type_has_diagnostics() {
     let (db, project, file) =
@@ -503,6 +494,7 @@ mod tests {
     );
   }
 
+  // Mapping with identifier value that resolves to nothing: no errors (any type)
   #[test]
   fn typecheck_mapping_with_ident_value() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/ident_value.tdr");
@@ -523,8 +515,9 @@ mod tests {
     );
   }
 
+  // Schema with _type: Schema but missing required 'properties' field
   #[test]
-  fn typecheck_schema_missing_required_field_has_diagnostics() {
+  fn typecheck_schema_missing_properties_has_diagnostics() {
     let (db, project, file) = load_vault_fixture(
       "typecheck/my_vault",
       "content/schema_missing_properties.tdr",
@@ -543,6 +536,188 @@ mod tests {
     assert!(
       diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::MissingRequiredField { field, .. } if field == "properties")),
       "expected MissingRequiredField for 'properties', got: {:?}",
+      diags
+    );
+  }
+
+  // Typecheck a valid document against a user-defined schema
+  #[test]
+  fn typecheck_valid_person_no_errors() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "valid Person should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Field type mismatch: name expects string, got number
+  #[test]
+  fn typecheck_wrong_field_type_has_diagnostics() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "content/wrong_field_type.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    let diags = result.diagnostics(&db);
+    assert!(
+      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, expected, .. } if field == "name" && expected == "string")),
+      "expected FieldTypeMismatch for 'name' with expected 'string', got: {:?}",
+      diags
+    );
+  }
+
+  // Recursive typecheck for nested inline object with valid types
+  #[test]
+  fn typecheck_nested_valid_no_errors() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/nested_valid.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "valid nested PersonWithAddress should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Recursive typecheck for nested inline object with wrong field type (street: 42 instead of string)
+  #[test]
+  fn typecheck_nested_wrong_type_has_diagnostics() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "content/nested_wrong_type.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    let diags = result.diagnostics(&db);
+    assert!(
+      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, .. } if field == "address")),
+      "expected FieldTypeMismatch for 'address', got: {:?}",
+      diags
+    );
+  }
+
+  // Unary minus on number: no errors
+  #[test]
+  fn typecheck_unary_valid() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/unary_valid.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "unary minus on number should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Unary minus on boolean: OperandTypeMismatch
+  #[test]
+  fn typecheck_unary_wrong_type() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "content/unary_wrong_type.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    let diags = result.diagnostics(&db);
+    assert!(
+      diags.iter().any(|d| matches!(
+        d,
+        typedown_types::diagnostic::Diagnostic::OperandTypeMismatch { .. }
+      )),
+      "expected OperandTypeMismatch for unary minus on boolean, got: {:?}",
+      diags
+    );
+  }
+
+  // Binary addition of numbers: no errors
+  #[test]
+  fn typecheck_binary_valid() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/binary_valid.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "binary addition of numbers should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Binary addition with boolean operand: OperandTypeMismatch
+  #[test]
+  fn typecheck_binary_wrong_type() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "content/binary_wrong_type.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+
+    let result = typecheck(&db, hir);
+    let diags = result.diagnostics(&db);
+    assert!(
+      diags.iter().any(|d| matches!(
+        d,
+        typedown_types::diagnostic::Diagnostic::OperandTypeMismatch { .. }
+      )),
+      "expected OperandTypeMismatch for binary addition with boolean, got: {:?}",
       diags
     );
   }

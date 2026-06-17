@@ -4,9 +4,9 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::{Id, TypedownDatabase};
 use crate::derived::get_builtin_types::get_dict_type;
-use crate::types::TypeMember;
+use crate::types::{TdrProductType, TypeMember};
+use crate::{Id, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrDictType {
@@ -55,12 +55,29 @@ impl TdrTypeLike for TdrDictType {
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    // Structural compatibility: accept a product type if all field values match the dict's value type
+    if let Some(product) = (actual as &dyn Any).downcast_ref::<TdrProductType>() {
+      let value_type = match self.value(db) {
+        Some(vt) => vt,
+        None => return true,
+      };
+      return product
+        .fields(db)
+        .values()
+        .all(|member| match member.typ(db) {
+          crate::types::MemberType::Simple(field_type) => {
+            value_type.is_compatible_with(db, field_type.as_ref())
+          }
+          _ => false,
+        });
+    }
+
+    // Dict-to-dict compatibility
     if self.as_id().0 != actual.as_id().0 {
       return false;
     }
     let self_args = self.get_type_args(db);
     if self_args.is_empty() {
-      // Uninstantiated dict: accept any dict.
       return true;
     }
     let actual_args = actual.get_type_args(db);
