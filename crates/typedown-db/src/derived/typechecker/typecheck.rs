@@ -6,6 +6,7 @@ use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::get_builtin_types::get_num_type;
+use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
   HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrTypeLike,
@@ -84,6 +85,22 @@ fn check_mapping_fields(
   let mut diagnostics = vec![];
 
   for (key, value_hir) in entries {
+    // _type requires the value to resolve to a schema symbol
+    if key == "_type" {
+      let resolved = referee(db, *value_hir);
+      if let Some(symbol) = resolved.value(db) {
+        if !symbol.kind(db).is_schema() {
+          let node = value_hir.node(db);
+          diagnostics.push(Diagnostic::FieldTypeMismatch {
+            field: "_type".to_string(),
+            expected: "schema".to_string(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+      }
+      continue;
+    }
     if let Some(member) = expected_type.get_field_type(db, key) {
       // Recursively typecheck the field value
       let tc_result = typecheck(db, *value_hir);
