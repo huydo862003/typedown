@@ -64,8 +64,12 @@ fn check_mapping_fields(
 
   for (key, value_hir) in entries {
     if let Some(member) = expected_type.get_field_type(db, key) {
+      // Recursively typecheck the field value
+      let tc_result = typecheck(db, *value_hir);
+      diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
+
+      // Check synthesized type against expected field type
       let value_result = get_node_type(db, *value_hir);
-      diagnostics.extend(value_result.diagnostics(db).iter().cloned());
       if let Some(actual_type) = value_result.typ(db) {
         if !member_type_compatible(db, &member.typ(db), actual_type.as_ref()) {
           let node = value_hir.node(db);

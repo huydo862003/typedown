@@ -71,10 +71,8 @@ fn evaluate_user_defined_schema(
   // Verify the declared type is the schema metatype
   let type_result = get_node_type(db, hir);
   diagnostics.extend(type_result.diagnostics(db).iter().cloned());
-  let schema_type = get_schema_type(db);
-  let is_schema = type_result
-    .typ(db)
-    .is_some_and(|typ| typ.as_id() == schema_type.as_id());
+  let schema_type = Box::new(get_schema_type(db)) as Box<dyn TdrTypeLike>;
+  let is_schema = type_result.typ(db).is_some_and(|typ| typ == schema_type);
   if !is_schema {
     let node = hir.node(db);
     diagnostics.push(Diagnostic::UnresolvedSchema {
