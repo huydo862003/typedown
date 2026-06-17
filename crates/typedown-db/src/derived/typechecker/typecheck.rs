@@ -96,7 +96,7 @@ fn check_mapping_fields(
           let node = value_hir.node(db);
           diagnostics.push(Diagnostic::FieldTypeMismatch {
             field: key.clone(),
-            expected: String::new(),
+            expected: member_type_display_name(db, &member.typ(db)),
             start_offset: node.offset(),
             end_offset: node.offset() + node.text_len(),
           });
@@ -143,7 +143,7 @@ fn check_tag(
     if !expected_type.is_compatible_with(db, actual_type.as_ref()) {
       let node = inner.node(db);
       diagnostics.push(Diagnostic::TagTypeMismatch {
-        expected: String::new(),
+        expected: expected_type.display_name(db),
         start_offset: node.offset(),
         end_offset: node.offset() + node.text_len(),
       });
@@ -196,7 +196,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
       if !param.is_compatible_with(db, arg_type.as_ref()) {
         let node = arg_hir.node(db);
         diagnostics.push(Diagnostic::ArgTypeMismatch {
-          expected: String::new(),
+          expected: param.display_name(db),
           start_offset: node.offset(),
           end_offset: node.offset() + node.text_len(),
         });
@@ -256,7 +256,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
           if !key_type.is_compatible_with(db, idx_type.as_ref()) {
             let node = idx_hir.node(db);
             diagnostics.push(Diagnostic::IndexTypeMismatch {
-              expected: String::new(),
+              expected: key_type.display_name(db),
               start_offset: node.offset(),
               end_offset: node.offset() + node.text_len(),
             });
@@ -300,7 +300,7 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
     let node = operand.node(db);
     diagnostics.push(Diagnostic::OperandTypeMismatch {
       op: op.to_string(),
-      expected: String::new(),
+      expected: expected_type.display_name(db),
       start_offset: node.offset(),
       end_offset: node.offset() + node.text_len(),
     });
@@ -416,8 +416,8 @@ fn check_sequence(
       if !elem_type.is_compatible_with(db, item_type.as_ref()) {
         let node = item.node(db);
         diagnostics.push(Diagnostic::FieldTypeMismatch {
-          field: String::new(),
-          expected: String::new(),
+          field: "[]".to_string(),
+          expected: elem_type.display_name(db),
           start_offset: node.offset(),
           end_offset: node.offset() + node.text_len(),
         });
@@ -426,6 +426,18 @@ fn check_sequence(
   }
 
   diagnostics
+}
+
+fn member_type_display_name(db: &TypedownDatabase, member: &MemberType) -> String {
+  match member {
+    MemberType::Simple(typ) => typ.display_name(db),
+    MemberType::Sum(members) => members
+      .iter()
+      .map(|m| member_type_display_name(db, &m.typ(db)))
+      .collect::<Vec<_>>()
+      .join(" | "),
+    MemberType::Literal(val) => format!("{:?}", val),
+  }
 }
 
 fn member_type_compatible(
