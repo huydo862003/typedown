@@ -44,6 +44,10 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
     HirValueKind::Call { callee, args } => {
       diagnostics.extend(check_call(db, *callee, args));
     }
+    // Check each item against the list's element type
+    HirValueKind::Sequence(items) => {
+      diagnostics.extend(check_sequence(db, declared_type.as_ref(), items));
+    }
     // Check index types against container key types
     HirValueKind::Index { expr, indices } => {
       diagnostics.extend(check_index(db, *expr, indices));
@@ -252,6 +256,48 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
     start_offset: node.offset(),
     end_offset: node.offset() + node.text_len(),
   });
+
+  diagnostics
+}
+
+fn check_sequence(
+  db: &TypedownDatabase,
+  declared_type: &dyn TdrTypeLike,
+  items: Vec<HirValue>,
+) -> Vec<Diagnostic> {
+  let mut diagnostics = vec![];
+
+  // Get the element type from the list type
+  let elem_type = match (declared_type as &dyn Any).downcast_ref::<TdrListType>() {
+    Some(list) => list.elem(db),
+    None => return diagnostics,
+  };
+
+  let elem_type = match elem_type {
+    Some(typ) => typ,
+    // Uninstantiated list: no element type constraint
+    None => return diagnostics,
+  };
+
+  for item in items {
+    // Recursively typecheck each item
+    let tc_result = typecheck(db, item);
+    diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
+
+    // Check item type against element type
+    let item_result = get_node_type(db, item);
+    if let Some(item_type) = item_result.typ(db) {
+      if !elem_type.is_compatible_with(db, item_type.as_ref()) {
+        let node = item.node(db);
+        diagnostics.push(Diagnostic::FieldTypeMismatch {
+          field: String::new(),
+          expected: String::new(),
+          start_offset: node.offset(),
+          end_offset: node.offset() + node.text_len(),
+        });
+      }
+    }
+  }
 
   diagnostics
 }
