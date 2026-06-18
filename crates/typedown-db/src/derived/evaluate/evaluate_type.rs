@@ -42,6 +42,10 @@ pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
     SymbolKind::UserDefinedSchema(project, file) => {
       evaluate_user_defined_schema(db, symbol.name(db), project, file)
     }
+    SymbolKind::UserDefinedResource(_, _) => {
+      // Resources are not types
+      TypeResult::new(db, None, vec![])
+    }
   }
 }
 

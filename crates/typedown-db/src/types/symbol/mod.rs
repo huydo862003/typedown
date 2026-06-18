@@ -7,6 +7,7 @@ use crate::types::{File, Project};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
   UserDefinedSchema(Project, File),
+  UserDefinedResource(Project, File),
   BuiltinSchema(BuiltinSchemaKind),
 }
 
@@ -34,11 +35,14 @@ impl SymbolKind {
   }
 
   pub fn is_resource(&self) -> bool {
-    !self.is_schema()
+    matches!(self, SymbolKind::UserDefinedResource(_, _))
   }
 
   pub fn is_user_defined(&self) -> bool {
-    matches!(self, SymbolKind::UserDefinedSchema(_, _))
+    matches!(
+      self,
+      SymbolKind::UserDefinedSchema(_, _) | SymbolKind::UserDefinedResource(_, _)
+    )
   }
 
   pub fn is_builtin(&self) -> bool {

@@ -124,7 +124,6 @@ fn check_mapping_fields(
   }
 
   // Check required fields are present.
-  // Downcast to TdrProductType to enumerate declared fields.
   let mapping_node = mapping_hir.node(db);
   let present_keys: std::collections::HashSet<&str> =
     entries.iter().map(|(key, _)| key.as_str()).collect();
