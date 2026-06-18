@@ -1,5 +1,6 @@
 use typedown_macros::query_derived;
 use typedown_syntax::red::RedNode;
+use typedown_types::diagnostic::Diagnostic;
 
 use crate::types::{File, Project};
 
@@ -13,6 +14,7 @@ pub struct HirValue {
   #[id]
   pub node: RedNode,
   pub kind: HirValueKind,
+  pub diagnostics: Vec<Diagnostic>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

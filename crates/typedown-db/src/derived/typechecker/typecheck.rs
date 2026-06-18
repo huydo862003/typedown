@@ -9,8 +9,8 @@ use crate::derived::get_builtin_types::get_num_type;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrTypeLike,
-  TypecheckResult, member_type_display_name,
+  HirValue, HirValueKind, InterpolatedPart, MemberType, TdrDictType, TdrFuncType, TdrListType,
+  TdrProductType, TdrTypeLike, TypeMemberDescriptors, TypecheckResult, member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -52,7 +52,7 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
     // Typecheck each embedded expression in an interpolated string
     HirValueKind::Interpolated(parts) => {
       for part in parts {
-        if let crate::types::InterpolatedPart::Expr(expr) = part {
+        if let InterpolatedPart::Expr(expr) = part {
           let tc_result = typecheck(db, expr);
           diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
         }
@@ -108,8 +108,23 @@ fn check_mapping_fields(
 
       // Check synthesized type against expected field type
       let value_result = get_node_type(db, *value_hir);
-      if let Some(actual_type) = value_result.typ(db) {
-        if !member_type_compatible(db, &member.typ(db), actual_type.as_ref()) {
+      let is_optional = member
+        .descriptors(db)
+        .contains(TypeMemberDescriptors::OPTIONAL);
+      match value_result.typ(db) {
+        Some(actual_type) => {
+          if !member_type_compatible(db, &member.typ(db), actual_type.as_ref()) {
+            let node = value_hir.node(db);
+            diagnostics.push(Diagnostic::FieldTypeMismatch {
+              field: key.clone(),
+              expected: member_type_display_name(db, &member.typ(db)),
+              start_offset: node.offset(),
+              end_offset: node.offset() + node.text_len(),
+            });
+          }
+        }
+        // Null on a non-optional field is a type error
+        None if !is_optional => {
           let node = value_hir.node(db);
           diagnostics.push(Diagnostic::FieldTypeMismatch {
             field: key.clone(),
@@ -118,8 +133,8 @@ fn check_mapping_fields(
             end_offset: node.offset() + node.text_len(),
           });
         }
+        None => {}
       }
-      // None (any) is always compatible, so no diagnostic.
     }
   }
 
@@ -128,12 +143,12 @@ fn check_mapping_fields(
   let present_keys: std::collections::HashSet<&str> =
     entries.iter().map(|(key, _)| key.as_str()).collect();
 
-  if let Some(product) = (expected_type as &dyn Any).downcast_ref::<crate::types::TdrProductType>()
+  if let Some(product) = (expected_type as &dyn Any).downcast_ref::<TdrProductType>()
   {
     for (field_name, member) in product.fields(db) {
       let is_optional = member
         .descriptors(db)
-        .contains(crate::types::TypeMemberDescriptors::OPTIONAL);
+        .contains(TypeMemberDescriptors::OPTIONAL);
       if !is_optional && !present_keys.contains(field_name.as_str()) {
         diagnostics.push(Diagnostic::MissingRequiredField {
           field: field_name.clone(),

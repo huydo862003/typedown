@@ -6,6 +6,7 @@ use typedown_syntax::ast::{
   NumberLit, ParenExpr, StrLit, UnaryExpr, YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
+use typedown_types::diagnostic::Diagnostic;
 use typedown_types::either::Either;
 
 use crate::{
@@ -17,18 +18,35 @@ use crate::{
 #[query_derived]
 pub fn lower_expr(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
   let expr = Expr::cast(node.clone()).expect("node must be an Expr");
-  let kind = _lower_expr(db, project, file, &expr);
-  HirValue::new(db, project, file, node, kind)
+  let mut diagnostics = vec![];
+  let kind = lower_expr_kind(db, project, file, &expr, &mut diagnostics);
+  HirValue::new(db, project, file, node, kind, diagnostics)
 }
 
-fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr) -> HirValueKind {
-  let inner = unwrap_parens(unwrap_tag(expr.clone()));
+fn lower_expr_kind(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  expr: &Expr,
+  diagnostics: &mut Vec<Diagnostic>,
+) -> HirValueKind {
+  let inner = unwrap_parens(expr.clone());
 
+  // Handle block mapping
   if let Some(mapping) = YamlMapping::cast(inner.syntax().clone()) {
     let entries = mapping.entries().collect::<Vec<_>>();
+    let mut seen_keys = std::collections::HashSet::new();
     let hir_entries = entries
       .into_iter()
       .map(|(key, val_expr)| {
+        if !seen_keys.insert(key.clone()) {
+          let node = val_expr.syntax();
+          diagnostics.push(Diagnostic::DuplicateKey {
+            key: key.clone(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
         let child = lower_expr(db, project, file, val_expr.syntax().clone());
         (key, child)
       })
@@ -36,14 +54,24 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     return HirValueKind::Mapping(hir_entries);
   }
 
+  // Handle flow mapping
   if let Some(dict) = DictLit::cast(inner.syntax().clone()) {
     let entries = dict
       .entries()
       .filter_map(|entry: DictEntry| entry.entry())
       .collect::<Vec<_>>();
+    let mut seen_keys = std::collections::HashSet::new();
     let hir_entries = entries
       .into_iter()
       .map(|(key, val_expr)| {
+        if !seen_keys.insert(key.clone()) {
+          let node = val_expr.syntax();
+          diagnostics.push(Diagnostic::DuplicateKey {
+            key: key.clone(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
         let child = lower_expr(db, project, file, val_expr.syntax().clone());
         (key, child)
       })
@@ -51,6 +79,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     return HirValueKind::Mapping(hir_entries);
   }
 
+  // Handle block sequence
   if let Some(seq) = YamlSequence::cast(inner.syntax().clone()) {
     let items = seq.values().collect::<Vec<_>>();
     let hir_items = items
@@ -60,6 +89,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     return HirValueKind::Sequence(hir_items);
   }
 
+  // Handle flow sequence
   if let Some(list) = ListLit::cast(inner.syntax().clone()) {
     let items = list
       .items()
@@ -72,6 +102,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     return HirValueKind::Sequence(hir_items);
   }
 
+  // Handle various kinds of string literal
   if let Some(lit) = StrLit::cast(inner.syntax().clone()) {
     return if lit.is_interpolated() {
       let hir_parts = lit
@@ -101,12 +132,14 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     };
   }
 
+  // Handle number lit
   if let Some(lit) = NumberLit::cast(inner.syntax().clone()) {
     if let Some(val) = lit.value() {
       return HirValueKind::Num(val.to_string());
     }
   }
 
+  // Handle identifier
   if let Some(lit) = IdentLit::cast(inner.syntax().clone()) {
     if let Some(val) = lit.value() {
       return match val.as_str() {
@@ -118,6 +151,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     }
   }
 
+  // Handle unary
   if let Some(unary) = UnaryExpr::cast(inner.syntax().clone()) {
     if let Some(operand) = unary.expr() {
       let op = unary
@@ -126,6 +160,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
         .and_then(|t| t.text().map(|s| s.to_string()))
         .unwrap_or_default();
       let operand = lower_expr(db, project, file, operand.syntax().clone());
+      // This is a tag expression
       if op.starts_with('!') && op.len() > 1 {
         let tag_name = op[1..].to_string();
         let op_node = unary.op().unwrap().syntax().clone();
@@ -135,6 +170,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
           file,
           op_node,
           HirValueKind::Ident(tag_name),
+          vec![],
         );
         return HirValueKind::Tag {
           tag: Box::new(tag_hir),
@@ -148,6 +184,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     }
   }
 
+  // Handle binary
   if let Some(binary) = BinaryExpr::cast(inner.syntax().clone()) {
     if let (Some(lhs), Some(rhs)) = (binary.left(), binary.right()) {
       let op = binary
@@ -165,6 +202,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     }
   }
 
+  // Handle call expression
   if let Some(call) = CallExpr::cast(inner.syntax().clone()) {
     if let Some(callee) = call.callee() {
       let callee = lower_expr(db, project, file, callee.syntax().clone());
@@ -180,6 +218,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
     }
   }
 
+  // Handle index expression
   if let Some(index) = IndexExpr::cast(inner.syntax().clone()) {
     if let Some(expr) = index.expr() {
       let expr = lower_expr(db, project, file, expr.syntax().clone());
@@ -198,22 +237,7 @@ fn _lower_expr(db: &TypedownDatabase, project: Project, file: File, expr: &Expr)
   HirValueKind::Str(inner.syntax().text().trim().to_string())
 }
 
-fn unwrap_tag(expr: Expr) -> Expr {
-  if let Some(unary) = UnaryExpr::cast(expr.syntax().clone()) {
-    let is_tag = unary
-      .op()
-      .and_then(|o| o.syntax().as_token())
-      .and_then(|t| t.text().map(|s| s.starts_with('!') && s.len() > 1))
-      .unwrap_or(false);
-    if is_tag {
-      if let Some(inner) = unary.expr() {
-        return inner;
-      }
-    }
-  }
-  expr
-}
-
+// Remove unnecessary parens
 fn unwrap_parens(expr: Expr) -> Expr {
   if let Some(paren) = ParenExpr::cast(expr.syntax().clone()) {
     if let Some(inner) = paren.expr() {

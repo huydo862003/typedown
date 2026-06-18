@@ -303,4 +303,11 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// A mapping has duplicate keys.
+  DuplicateKey {
+    key: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }
