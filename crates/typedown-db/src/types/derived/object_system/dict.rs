@@ -18,7 +18,7 @@ impl TdrObjectLike for TdrDictType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
@@ -35,11 +35,11 @@ impl TdrTypeLike for TdrDictType {
     Box::new(TdrObjectType::get(db))
   }
 
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
 
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(
@@ -122,7 +122,7 @@ impl TdrObjectLike for TdrDictObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrDictType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }

@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
@@ -15,23 +14,23 @@ impl TdrObjectLike for TdrDateTimeType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
 
 impl TdrTypeLike for TdrDateTimeType {
-  fn arity(&self, db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(
@@ -71,7 +70,7 @@ impl TdrObjectLike for TdrDateTimeObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrDateTimeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
@@ -85,23 +84,23 @@ impl TdrObjectLike for TdrDateType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
 
 impl TdrTypeLike for TdrDateType {
-  fn arity(&self, db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(
@@ -141,7 +140,7 @@ impl TdrObjectLike for TdrDateObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrDateType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
@@ -157,23 +156,23 @@ impl TdrObjectLike for TdrTimeType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
 
 impl TdrTypeLike for TdrTimeType {
-  fn arity(&self, db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(
@@ -213,7 +212,7 @@ impl TdrObjectLike for TdrTimeObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTimeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }

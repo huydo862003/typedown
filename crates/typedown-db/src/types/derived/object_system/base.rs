@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::{
-  get_object_type, get_schema_type, get_str_type, get_type_type,
+  get_object_type, get_str_type, get_type_type,
 };
 use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};

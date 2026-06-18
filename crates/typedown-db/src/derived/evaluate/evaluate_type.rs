@@ -21,7 +21,7 @@ use crate::types::{
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn evaluate_schema(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
+pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
   match symbol.kind(db) {
     SymbolKind::BuiltinSchema(kind) => {
       let typ: Box<dyn TdrTypeLike> = match kind {
@@ -169,7 +169,7 @@ fn resolve_type_member(
       let resolved = referee(db, hir);
       match resolved.value(db) {
         Some(symbol) => {
-          let result = evaluate_schema(db, symbol);
+          let result = evaluate_type(db, symbol);
           diagnostics.extend(result.diagnostics(db).iter().cloned());
           result.typ(db).map(MemberType::Simple)
         }
@@ -235,7 +235,7 @@ mod tests {
 
   use crate::{
     QueryStorage, TypedownDatabase,
-    derived::evaluate::evaluate_schema::evaluate_schema,
+    derived::evaluate::evaluate_type::evaluate_type,
     derived::get_builtin_types::get_schema_type,
     derived::name_resolver::file_symbol::file_symbol,
     fixtures::load_vault_fixture,
@@ -249,7 +249,7 @@ mod tests {
   }
 
   #[test]
-  fn evaluate_schema_builtin_schema_returns_schema_type() {
+  fn evaluate_type_builtin_schema_returns_schema_type() {
     let db = make_db();
     let symbol = Symbol::new(
       &db,
@@ -257,7 +257,7 @@ mod tests {
       "Schema".to_string(),
     );
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
 
     let expected = Some(Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>);
     assert!(
@@ -275,7 +275,7 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
 
     let typ = result.typ(&db).expect("should return a type");
     assert!(
@@ -291,7 +291,7 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).unwrap();
     let product = (typ.as_ref() as &dyn Any)
       .downcast_ref::<TdrProductType>()
@@ -302,11 +302,11 @@ mod tests {
   }
 
   #[test]
-  fn evaluate_schema_no_properties_returns_empty_product() {
+  fn evaluate_type_no_properties_returns_empty_product() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/NoProperties.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).expect("should return a type");
     let product = (typ.as_ref() as &dyn Any)
       .downcast_ref::<TdrProductType>()
@@ -318,12 +318,12 @@ mod tests {
   }
 
   #[test]
-  fn evaluate_schema_wrong_properties_type_has_diagnostics() {
+  fn evaluate_type_wrong_properties_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("evaluate/my_vault", "schemas/WrongProperties.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
     assert!(
       !result.diagnostics(&db).is_empty(),
       "schema with non-mapping properties should have diagnostics"
@@ -331,12 +331,12 @@ mod tests {
   }
 
   #[test]
-  fn evaluate_schema_wrong_property_descriptor_has_diagnostics() {
+  fn evaluate_type_wrong_property_descriptor_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("evaluate/my_vault", "schemas/WrongPropertyDescriptor.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
     assert!(
       !result.diagnostics(&db).is_empty(),
       "schema with unresolved property type should have diagnostics: {:?}",
@@ -397,7 +397,7 @@ mod tests {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
-    let result = evaluate_schema(&db, symbol);
+    let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).unwrap();
     assert_eq!(typ.display_name(&db), "Person");
   }

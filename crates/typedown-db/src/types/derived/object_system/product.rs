@@ -41,13 +41,13 @@ impl TdrObjectLike for TdrProductType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
 
 impl TdrTypeLike for TdrProductType {
-  fn arity(&self, db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
 
@@ -55,7 +55,7 @@ impl TdrTypeLike for TdrProductType {
     Box::new(TdrObjectType::get(db))
   }
 
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
 

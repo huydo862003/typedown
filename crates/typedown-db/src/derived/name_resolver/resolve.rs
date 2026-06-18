@@ -4,6 +4,6 @@ use crate::types::{HirValue, Symbol};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn resolve(db: &TypedownDatabase, hir: HirValue) -> Symbol {
+pub fn resolve(db: &TypedownDatabase, _hir: HirValue) -> Symbol {
   todo!()
 }

@@ -3,7 +3,7 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use crate::derived::evaluate::evaluate_schema::evaluate_schema;
+use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
   get_bool_type, get_list_type, get_num_type, get_str_type, instantiate_type,
 };
@@ -40,16 +40,15 @@ pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
     HirValueKind::Tag { tag, .. } => get_tag_type(db, *tag),
     HirValueKind::Unary { op, operand } => get_unary_type(db, &op, *operand),
     HirValueKind::Binary { op, left, right } => get_binary_type(db, &op, *left, *right),
-    _ => TypeResult::new(db, None, vec![]),
   }
 }
 
 /// Helper to get the type of a mapping
-/// Always return a product type, if _type is not given
+/// NOTE: Always return a product type, if _type is not given
 /// Can be generalized to a dict type
 fn get_mapping_type(
   db: &TypedownDatabase,
-  hir: HirValue,
+  _hir: HirValue,
   entries: Vec<(String, HirValue)>,
 ) -> TypeResult {
   // If _type is present, resolve and evaluate the schema
@@ -57,7 +56,7 @@ fn get_mapping_type(
     if key == "_type" {
       let resolved = referee(db, *value_hir);
       if let Some(symbol) = resolved.value(db) {
-        return evaluate_schema(db, symbol);
+        return evaluate_type(db, symbol);
       }
       let node = value_hir.node(db);
       return TypeResult::new(
@@ -96,7 +95,7 @@ fn get_mapping_type(
 fn get_tag_type(db: &TypedownDatabase, tag: HirValue) -> TypeResult {
   let resolved = referee(db, tag);
   match resolved.value(db) {
-    Some(symbol) => evaluate_schema(db, symbol),
+    Some(symbol) => evaluate_type(db, symbol),
     None => {
       let node = tag.node(db);
       TypeResult::new(
@@ -129,12 +128,7 @@ fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeRes
 }
 
 /// Helper to get the return type of a binary expression
-fn get_binary_type(
-  db: &TypedownDatabase,
-  op: &str,
-  left: HirValue,
-  right: HirValue,
-) -> TypeResult {
+fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirValue) -> TypeResult {
   let left_result = get_node_type(db, left);
   let right_result = get_node_type(db, right);
   let mut diagnostics = left_result.diagnostics(db).clone();
@@ -156,7 +150,7 @@ fn get_binary_type(
 }
 
 /// Helper to get the type of a sequence
-/// Infers element type as the most general type across all items, then instantiates list[elem]
+/// NOTE: This function infers element type as the most general type across all items, then instantiates list[elem]
 fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult {
   let mut diagnostics = vec![];
   let mut elem_type: Option<Box<dyn TdrTypeLike>> = None;
@@ -185,8 +179,8 @@ fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult 
 }
 
 /// Helper to get the type of a call expression
-/// NOTE: This only synthesizes the return type
-/// Arg checking is done by typecheck
+/// NOTE: This function only synthesizes the return type & arg checking is done by typecheck (not
+/// tis function)
 fn get_call_type(db: &TypedownDatabase, callee: HirValue, _args: Vec<HirValue>) -> TypeResult {
   let callee_result = get_node_type(db, callee);
   let diagnostics = callee_result.diagnostics(db).clone();
@@ -205,7 +199,8 @@ fn get_call_type(db: &TypedownDatabase, callee: HirValue, _args: Vec<HirValue>) 
 }
 
 /// Helper to get the type of an index expression
-/// NOTE: This only synthesizes the result type, index checking is done by typecheck
+/// NOTE: This funcion only returns the result type & index checking is done by typecheck (not this
+/// function)
 fn get_index_type(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) -> TypeResult {
   let expr_result = get_node_type(db, expr);
   let mut diagnostics = expr_result.diagnostics(db).clone();
@@ -223,7 +218,7 @@ fn get_index_type(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>)
       let resolved = referee(db, idx_hir);
       match resolved.value(db) {
         Some(symbol) => {
-          let schema_result = evaluate_schema(db, symbol);
+          let schema_result = evaluate_type(db, symbol);
           diagnostics.extend(schema_result.diagnostics(db).iter().cloned());
           match schema_result.typ(db) {
             Some(typ) => arg_types.push(typ),

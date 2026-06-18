@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
@@ -17,23 +16,23 @@ impl TdrObjectLike for TdrFuncType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrTypeType::get(db))
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 }
 
 impl TdrTypeLike for TdrFuncType {
-  fn arity(&self, db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(

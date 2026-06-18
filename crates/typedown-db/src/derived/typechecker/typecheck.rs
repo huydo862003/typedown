@@ -235,7 +235,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
     None => return diagnostics,
   };
 
-  // Type instantiation - no checking needed, just arity (handled by instantiate_type)
+  // Type instantiation: no checking is needed because we do not support type bound, only check arity
   if expr_type.arity(db) > 0 {
     return diagnostics;
   }
