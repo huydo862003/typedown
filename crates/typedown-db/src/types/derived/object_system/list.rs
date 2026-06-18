@@ -3,9 +3,9 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::{Id, TypedownDatabase};
 use crate::derived::get_builtin_types::get_list_type;
-use crate::types::TypeMember;
+use crate::types::{HirValue, HirValueKind, TypeMember};
+use crate::{Id, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrListType {
@@ -69,6 +69,22 @@ impl TdrTypeLike for TdrListType {
 
   fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
     self.elem(db).into_iter().collect()
+  }
+
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Sequence(items) => {
+        let objs: Vec<Box<dyn TdrObjectLike>> = items
+          .into_iter()
+          .filter_map(|item| {
+            let item_type = crate::derived::typechecker::get_node_type::get_node_type(db, item);
+            item_type.typ(db).and_then(|typ| typ.construct(db, item))
+          })
+          .collect();
+        Some(Box::new(TdrListObj::new(db, objs)))
+      }
+      _ => None,
+    }
   }
 
   fn display_name(&self, db: &TypedownDatabase) -> String {

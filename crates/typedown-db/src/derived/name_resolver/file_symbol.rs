@@ -20,24 +20,20 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
     .iter()
     .any(|(path, handle)| *handle == file_handle && path.starts_with(&schema_dir));
 
-  if is_schema_file {
-    let name = match file.handle(db) {
-      FileHandle::Path(path) => path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or_default()
-        .to_string(),
-      FileHandle::Content(_) => String::new(),
-    };
-    return MaybeSymbol::new(
-      db,
-      Some(Symbol::new(
-        db,
-        SymbolKind::UserDefinedSchema(project, file),
-        name,
-      )),
-    );
-  }
+  let name = match file.handle(db) {
+    FileHandle::Path(path) => path
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or_default()
+      .to_string(),
+    FileHandle::Content(_) => String::new(),
+  };
 
-  MaybeSymbol::new(db, None)
+  let kind = if is_schema_file {
+    SymbolKind::UserDefinedSchema(project, file)
+  } else {
+    SymbolKind::UserDefinedResource(project, file)
+  };
+
+  MaybeSymbol::new(db, Some(Symbol::new(db, kind, name)))
 }

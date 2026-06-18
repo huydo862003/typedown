@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::get_link_type;
-use crate::types::TypeMember;
+use crate::types::{HirValue, HirValueKind, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -69,6 +69,13 @@ impl TdrTypeLike for TdrLinkType {
 
   fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
     self.schema(db).into_iter().collect()
+  }
+
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Str(val) => Some(Box::new(TdrLinkObj::new(db, val))),
+      _ => None,
+    }
   }
 
   fn display_name(&self, db: &TypedownDatabase) -> String {

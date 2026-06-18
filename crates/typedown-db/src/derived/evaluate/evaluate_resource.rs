@@ -49,3 +49,87 @@ fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn Td
   let typ = type_result.typ(db)?;
   typ.construct(db, hir)
 }
+
+#[cfg(test)]
+mod tests {
+  use std::any::Any;
+
+  use crate::{
+    derived::evaluate::evaluate_resource::evaluate_resource,
+    derived::name_resolver::file_symbol::file_symbol,
+    fixtures::load_vault_fixture,
+    types::{TdrProductObj, TdrProductType, TdrStrObj},
+  };
+
+  #[test]
+  fn evaluate_resource_valid_person() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+
+    let result = evaluate_resource(&db, symbol);
+    assert!(
+      result.value(&db).is_some(),
+      "should produce an object, diagnostics: {:?}",
+      result.diagnostics(&db)
+    );
+    let obj = result.value(&db).unwrap();
+    let product = (obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrProductObj>()
+      .expect("should be TdrProductObj");
+    let fields = product.fields(&db);
+    let name = fields.get("name").expect("should have name");
+    let name_str = (name.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("name should be TdrStrObj");
+    assert_eq!(name_str.value(&db), "Alice");
+  }
+
+  #[test]
+  fn evaluate_resource_wrong_type_has_diagnostics() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/wrong_field_type.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+
+    let result = evaluate_resource(&db, symbol);
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "should have diagnostics for wrong field type"
+    );
+  }
+
+  // A schema file placed in content dir is treated as a resource, not a schema
+  // but evaluate_resource still produces a value (a TdrProductType)
+  #[test]
+  fn schema_in_content_dir_is_resource() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/schema_in_content.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a symbol");
+
+    assert!(
+      symbol.kind(&db).is_resource(),
+      "schema file in content dir should be a resource symbol"
+    );
+
+    let result = evaluate_resource(&db, symbol);
+    assert!(
+      result.value(&db).is_some(),
+      "should produce an object, diagnostics: {:?}",
+      result.diagnostics(&db)
+    );
+    let obj = result.value(&db).unwrap();
+    let product_type = (obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrProductType>()
+      .expect("schema in content dir should produce TdrProductType");
+    assert!(
+      product_type.fields(&db).contains_key("title"),
+      "should have title field"
+    );
+  }
+}

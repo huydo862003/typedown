@@ -5,7 +5,8 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::get_dict_type;
-use crate::types::{TdrProductType, TypeMember};
+use crate::derived::typechecker::get_node_type::get_node_type;
+use crate::types::{HirValue, HirValueKind, TdrProductType, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -94,6 +95,24 @@ impl TdrTypeLike for TdrDictType {
     match (self.key(db), self.value(db)) {
       (Some(key), Some(value)) => vec![key, value],
       _ => vec![],
+    }
+  }
+
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Mapping(entries) => {
+        let mut map = HashMap::new();
+        for (key, value_hir) in entries {
+          let value_type = get_node_type(db, value_hir);
+          if let Some(typ) = value_type.typ(db) {
+            if let Some(obj) = typ.construct(db, value_hir) {
+              map.insert(key, obj);
+            }
+          }
+        }
+        Some(Box::new(TdrDictObj::new(db, map)))
+      }
+      _ => None,
     }
   }
 

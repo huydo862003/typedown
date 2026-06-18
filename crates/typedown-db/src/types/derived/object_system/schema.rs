@@ -4,8 +4,9 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrTypeLike, TdrTypeType};
 use super::dict::TdrDictType;
 use super::func::TdrFuncType;
+use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::derived::get_builtin_types::{get_schema_property_type, get_schema_type, get_str_type};
-use crate::types::{MemberType, TypeMember, TypeMemberDescriptors};
+use crate::types::{HirValue, HirValueKind, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 
 // Schema type is actually a kind
@@ -67,6 +68,40 @@ impl TdrTypeLike for TdrSchemaType {
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
+  }
+
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    hir: HirValue,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    // Build a TdrProductType from the properties field
+    let entries = match hir.kind(db) {
+      HirValueKind::Mapping(entries) => entries,
+      _ => return None,
+    };
+
+    let properties_entries = match entries.iter().find(|(key, _)| key == "properties") {
+      Some((_, props_hir)) => match props_hir.kind(db) {
+        HirValueKind::Mapping(entries) => entries,
+        _ => return None,
+      },
+      None => return Some(Box::new(TdrProductType::new(db, None, HashMap::new()))),
+    };
+
+    let mut fields = HashMap::new();
+    for (prop_name, prop_hir) in properties_entries {
+      if let Some((member_type, descriptors)) =
+        resolve_property_descriptor(db, prop_hir, &mut vec![])
+      {
+        fields.insert(
+          prop_name.clone(),
+          TypeMember::new(db, member_type, descriptors),
+        );
+      }
+    }
+
+    Some(Box::new(TdrProductType::new(db, None, fields)))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

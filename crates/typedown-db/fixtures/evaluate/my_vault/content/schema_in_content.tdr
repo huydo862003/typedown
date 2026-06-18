@@ -1,0 +1,6 @@
+---
+_type: Schema
+properties:
+  title:
+    type: string
+---

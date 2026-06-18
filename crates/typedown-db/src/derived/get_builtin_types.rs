@@ -1,6 +1,5 @@
 //! Derived queries for constructing builtin type singletons
 
-use std::collections::HashMap;
 
 use typedown_macros::query_derived;
 
@@ -246,7 +245,7 @@ mod tests {
       result.diagnostics(&db).is_empty(),
       "expected no diagnostics"
     );
-    let expected = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let _expected = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
     let instantiated = result.typ(&db);
     // The result should be a TdrListType with elem = str
     assert!(

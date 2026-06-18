@@ -5,7 +5,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::TypedownDatabase;
 
-use crate::types::{MemberType, TypeMember};
+use crate::types::{HirValue, HirValueKind, MemberType, TypeMember};
 
 fn member_type_compatible(
   db: &TypedownDatabase,
@@ -99,6 +99,31 @@ impl TdrTypeLike for TdrProductType {
     true
   }
 
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Mapping(entries) => {
+        let mut fields = HashMap::new();
+        for (key, value_hir) in entries {
+          if key == "_type" {
+            continue;
+          }
+          let value_type = crate::derived::typechecker::get_node_type::get_node_type(db, value_hir);
+          if let Some(typ) = value_type.typ(db) {
+            if let Some(obj) = typ.construct(db, value_hir) {
+              fields.insert(key, obj);
+            }
+          }
+        }
+        Some(Box::new(TdrProductObj::new(
+          db,
+          Box::new(self.clone()) as Box<dyn TdrTypeLike>,
+          fields,
+        )))
+      }
+      _ => None,
+    }
+  }
+
   fn display_name(&self, db: &TypedownDatabase) -> String {
     if let Some(name) = self.name(db) {
       return name;
@@ -129,5 +154,20 @@ pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberTyp
       .collect::<Vec<_>>()
       .join(" | "),
     MemberType::Literal(val) => format!("{:?}", val),
+  }
+}
+
+#[query_derived]
+pub struct TdrProductObj {
+  pub schema: Box<dyn TdrTypeLike>,
+  pub fields: HashMap<String, Box<dyn TdrObjectLike>>,
+}
+
+impl TdrObjectLike for TdrProductObj {
+  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+    self.schema(db)
+  }
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+    self.fields(db).get(key).cloned()
   }
 }

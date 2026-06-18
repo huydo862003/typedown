@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::{get_bool_type, get_false, get_true};
-use crate::types::TypeMember;
+use crate::types::{HirValue, HirValueKind, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -48,6 +48,13 @@ impl TdrTypeLike for TdrBoolType {
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
+  }
+
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Bool(val) => Some(Box::new(TdrBoolObj::new(db, val))),
+      _ => None,
+    }
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

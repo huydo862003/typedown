@@ -3,7 +3,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use crate::derived::get_builtin_types::get_func_type;
-use crate::types::{FuncSignature, TypeMember};
+use crate::types::{FuncSignature, HirValue, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -50,6 +50,14 @@ impl TdrTypeLike for TdrFuncType {
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
+  }
+
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    _hir: HirValue,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    None
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

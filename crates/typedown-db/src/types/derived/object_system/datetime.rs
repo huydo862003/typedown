@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
-use crate::types::TypeMember;
+use crate::types::{HirValue, HirValueKind, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -48,6 +48,13 @@ impl TdrTypeLike for TdrDateTimeType {
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
+  }
+
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Str(val) => Some(Box::new(TdrDateTimeObj::new(db, val))),
+      _ => None,
+    }
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
@@ -120,6 +127,13 @@ impl TdrTypeLike for TdrDateType {
     self.as_id() == actual.as_id()
   }
 
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Str(val) => Some(Box::new(TdrDateObj::new(db, val))),
+      _ => None,
+    }
+  }
+
   fn display_name(&self, _db: &TypedownDatabase) -> String {
     "date".to_string()
   }
@@ -190,6 +204,13 @@ impl TdrTypeLike for TdrTimeType {
 
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
     self.as_id() == actual.as_id()
+  }
+
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+    match hir.kind(db) {
+      HirValueKind::Str(val) => Some(Box::new(TdrTimeObj::new(db, val))),
+      _ => None,
+    }
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
