@@ -8,10 +8,9 @@ use typedown_types::diagnostic::Diagnostic;
 
 use crate::types::FuncSignature;
 use crate::types::{
-  InstResult, MemberType, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType,
-  TdrDateType, TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType,
-  TdrProductType, TdrSchemaPropertyType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
-  TypeMember, TypeMemberDescriptors,
+  InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
+  TdrDictType, TdrFuncType, TdrLinkType, TdrListType, TdrNumType, TdrObjectType,
+  TdrSchemaPropertyType, TdrSchemaType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
 };
 use crate::{QueryDatabase, TypedownDatabase, types::BuiltinSchemaKind};
 
@@ -85,24 +84,11 @@ pub fn get_schema_property_type(db: &TypedownDatabase) -> TdrSchemaPropertyType 
   TdrSchemaPropertyType::new(db)
 }
 
+// Schema type is actually a kind
+// and its a subtype of the "type" kind
 #[query_derived]
-pub fn get_schema_type(db: &TypedownDatabase) -> TdrProductType {
-  let properties_value_type = get_schema_property_type(db);
-  let properties_type = TdrDictType::new(
-    db,
-    Some(Box::new(get_str_type(db))),
-    Some(Box::new(properties_value_type)),
-  );
-  let properties_member = TypeMember::new(
-    db,
-    MemberType::Simple(Box::new(properties_type)),
-    TypeMemberDescriptors::empty(),
-  );
-  TdrProductType::new(
-    db,
-    Some("Schema".to_string()),
-    HashMap::from([("properties".to_string(), properties_member)]),
-  )
+pub fn get_schema_type(db: &TypedownDatabase) -> TdrSchemaType {
+  TdrSchemaType::new(db)
 }
 
 #[query_derived]

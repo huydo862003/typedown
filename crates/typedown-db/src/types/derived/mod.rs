@@ -55,3 +55,9 @@ pub struct InstResult {
   pub typ: Box<dyn TdrTypeLike>,
   pub diagnostics: Vec<Diagnostic>,
 }
+
+#[query_derived]
+pub struct ResourceResult {
+  pub value: Option<Box<dyn TdrObjectLike>>,
+  pub diagnostics: Vec<Diagnostic>,
+}

@@ -10,7 +10,8 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
   HirValue, HirValueKind, InterpolatedPart, MemberType, TdrDictType, TdrFuncType, TdrListType,
-  TdrProductType, TdrTypeLike, TypeMemberDescriptors, TypecheckResult, member_type_display_name,
+  TdrProductType, TdrSchemaType, TdrTypeLike, TypeMemberDescriptors, TypecheckResult,
+  member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -143,19 +144,34 @@ fn check_mapping_fields(
   let present_keys: std::collections::HashSet<&str> =
     entries.iter().map(|(key, _)| key.as_str()).collect();
 
-  if let Some(product) = (expected_type as &dyn Any).downcast_ref::<TdrProductType>()
-  {
-    for (field_name, member) in product.fields(db) {
-      let is_optional = member
-        .descriptors(db)
-        .contains(TypeMemberDescriptors::OPTIONAL);
-      if !is_optional && !present_keys.contains(field_name.as_str()) {
-        diagnostics.push(Diagnostic::MissingRequiredField {
-          field: field_name.clone(),
-          start_offset: mapping_node.offset(),
-          end_offset: mapping_node.offset() + mapping_node.text_len(),
-        });
-      }
+  // Enumerate declared fields to check required ones are present
+  let declared_fields: Vec<(String, crate::types::TypeMember)> =
+    if let Some(product) = (expected_type as &dyn Any).downcast_ref::<TdrProductType>() {
+      product.fields(db).into_iter().collect()
+    } else if (expected_type as &dyn Any).downcast_ref::<TdrSchemaType>().is_some() {
+      // TdrSchemaType has a fixed set of fields
+      vec!["properties"]
+        .into_iter()
+        .filter_map(|name| {
+          expected_type
+            .get_owned_field_type(db, name)
+            .map(|member| (name.to_string(), member))
+        })
+        .collect()
+    } else {
+      vec![]
+    };
+
+  for (field_name, member) in declared_fields {
+    let is_optional = member
+      .descriptors(db)
+      .contains(TypeMemberDescriptors::OPTIONAL);
+    if !is_optional && !present_keys.contains(field_name.as_str()) {
+      diagnostics.push(Diagnostic::MissingRequiredField {
+        field: field_name,
+        start_offset: mapping_node.offset(),
+        end_offset: mapping_node.offset() + mapping_node.text_len(),
+      });
     }
   }
 
