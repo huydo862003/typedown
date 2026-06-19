@@ -3,7 +3,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
-use crate::TypedownDatabase;
+use crate::{Id, TypedownDatabase};
 
 use crate::types::{HirValue, HirValueKind, MemberType, TypeMember};
 
