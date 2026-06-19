@@ -31,5 +31,7 @@ pub fn get_symbol_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
       let hir = lower_expr(db, project, file, mapping.syntax().clone());
       get_node_type(db, hir)
     }
+    // Macros don't have a type themselves
+    SymbolKind::BuiltinMacro(_) => TypeResult::new(db, None, vec![]),
   }
 }

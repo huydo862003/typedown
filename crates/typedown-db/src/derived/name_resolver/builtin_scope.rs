@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use crate::derived::get_builtin_types::{
-  get_bool_symbol, get_date_symbol, get_datetime_symbol, get_dict_symbol, get_link_symbol,
-  get_list_symbol, get_num_symbol, get_schema_symbol, get_str_symbol, get_time_symbol,
-  get_type_type_symbol,
+  get_bool_symbol, get_date_symbol, get_datetime_symbol, get_dict_symbol, get_list_symbol,
+  get_num_symbol, get_schema_symbol, get_str_symbol, get_time_symbol, get_type_type_symbol,
 };
-use crate::types::Symbol;
+use crate::types::{BuiltinMacroKind, Symbol, SymbolKind};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -27,8 +26,15 @@ pub fn builtin_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
     ("time".to_string(), get_time_symbol(db)),
     ("list".to_string(), get_list_symbol(db)),
     ("dict".to_string(), get_dict_symbol(db)),
-    ("link".to_string(), get_link_symbol(db)),
     ("type".to_string(), get_type_type_symbol(db)),
+    (
+      "fref".to_string(),
+      Symbol::new(
+        db,
+        SymbolKind::BuiltinMacro(BuiltinMacroKind::Fref),
+        "fref".to_string(),
+      ),
+    ),
   ]);
   BuiltinScopeMembers::new(db, members)
 }

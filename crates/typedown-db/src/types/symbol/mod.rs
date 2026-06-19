@@ -9,6 +9,12 @@ pub enum SymbolKind {
   UserDefinedSchema(Project, File),
   UserDefinedResource(Project, File),
   BuiltinSchema(BuiltinSchemaKind),
+  BuiltinMacro(BuiltinMacroKind),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum BuiltinMacroKind {
+  Fref,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -23,7 +29,6 @@ pub enum BuiltinSchemaKind {
   Time,
   List,
   Dict,
-  Link,
 }
 
 impl SymbolKind {

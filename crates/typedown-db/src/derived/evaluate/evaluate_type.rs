@@ -7,8 +7,8 @@ use typedown_syntax::ast::{AstNode, SourceFile};
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_link_type, get_list_type,
-  get_num_type, get_schema_type, get_str_type, get_time_type, get_type_type,
+  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_num_type,
+  get_schema_type, get_str_type, get_time_type, get_type_type,
 };
 use crate::derived::hir::lower_expr;
 use crate::derived::name_resolver::referee::referee;
@@ -35,7 +35,6 @@ pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
         BuiltinSchemaKind::Time => Box::new(get_time_type(db)),
         BuiltinSchemaKind::List => Box::new(get_list_type(db)),
         BuiltinSchemaKind::Dict => Box::new(get_dict_type(db)),
-        BuiltinSchemaKind::Link => Box::new(get_link_type(db)),
         BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
         BuiltinSchemaKind::TypeType => Box::new(get_type_type(db)),
       };
@@ -44,8 +43,7 @@ pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
     SymbolKind::UserDefinedSchema(project, file) => {
       evaluate_user_defined_schema(db, symbol.name(db), project, file)
     }
-    SymbolKind::UserDefinedResource(_, _) => {
-      // Resources are not types
+    SymbolKind::UserDefinedResource(_, _) | SymbolKind::BuiltinMacro(_) => {
       TypeResult::new(db, None, vec![])
     }
   }
@@ -269,8 +267,8 @@ mod tests {
     inputs::{File, FileHandle},
     types::{
       BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrDictObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductObj,
-      TdrProductType, TdrStrObj, TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
+      SymbolKind, TdrBoolObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductObj, TdrProductType,
+      TdrStrObj, TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
   };
 
@@ -388,7 +386,6 @@ mod tests {
     assert_eq!(get_time_type(&db).display_name(&db), "time");
     assert_eq!(get_list_type(&db).display_name(&db), "list");
     assert_eq!(get_dict_type(&db).display_name(&db), "dict");
-    assert_eq!(get_link_type(&db).display_name(&db), "link");
     assert_eq!(get_type_type(&db).display_name(&db), "type");
     assert_eq!(get_object_type(&db).display_name(&db), "object");
     assert_eq!(get_schema_type(&db).display_name(&db), "Schema");
@@ -709,34 +706,27 @@ age: 42
   }
 
   // link[Person] accepts a schema type
+  // fref("file.tdr") returns the target resource's type
   #[test]
-  fn link_instantiate_with_schema() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
-    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
-    let person_type = evaluate_type(&db, symbol).typ(&db).unwrap();
+  fn fref_returns_resource_type() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/with_fref.tdr");
+    let root = parse_file(&db, project, file).ast(&db);
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
+    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
 
-    let result = instantiate_type(&db, Box::new(get_link_type(&db)), vec![person_type]);
-    assert!(
-      result.diagnostics(&db).is_empty(),
-      "link[Person] should have no diagnostics: {:?}",
-      result.diagnostics(&db)
-    );
-    assert_eq!(result.typ(&db).display_name(&db), "link[Person]");
-  }
+    let friend_hir = match hir.kind(&db) {
+      HirValueKind::Mapping(entries) => entries.into_iter().find(|(k, _)| k == "friend").unwrap().1,
+      _ => panic!("expected mapping"),
+    };
 
-  // link[string] rejects a non-schema type
-  #[test]
-  fn link_instantiate_rejects_non_schema() {
-    let db = make_db();
-    let result = instantiate_type(
-      &db,
-      Box::new(get_link_type(&db)),
-      vec![Box::new(get_str_type(&db))],
-    );
-    assert!(
-      !result.diagnostics(&db).is_empty(),
-      "link[string] should have diagnostics"
-    );
+    let type_result = get_node_type(&db, friend_hir);
+    let typ = type_result.typ(&db).expect("fref should return a type");
+    assert_eq!(typ.display_name(&db), "Person");
   }
 
   // Enum schema where type is a union of string literals

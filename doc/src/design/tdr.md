@@ -267,7 +267,7 @@ Free-form markdown body content.
 
 ### Links
 
-A link is a property tagged with `!link`, pointing to another `.tdr` file by filename. Links form directed edges in the resource graph.
+A link is a property pointing to another `.tdr` file by filename. You can refer to another file by using `fref`. Links form directed edges in the resource graph.
 
 ```yaml
 author: fref("bob.tdr")
@@ -276,7 +276,7 @@ author: fref("bob.tdr")
 A link can also reference a property that resolves to the target:
 
 ```yaml
-author: !link self.default_author
+author: self.default_author
 ```
 
 Multi-valued links are expressed as a YAML sequence:
@@ -295,7 +295,7 @@ Whether a value is an identifier or a literal is inferred from context in most c
 
 ### Scalars
 
-A scalar is a single primitive value. Every value in frontmatter is an expression. The scalar types are: `string`, `number`, `boolean`, `date`, `link`:
+A scalar is a single primitive value. Every value in frontmatter is an expression. The scalar types are: `string`, `number`, `boolean`, `date`:
 
 ```yaml
 first_name: "Bob" # string (quoted)
@@ -336,7 +336,7 @@ A list is a YAML sequence. Its type is `list[T]`, where `T` is the element type.
 tags: # list[string]
   - "research"
   - "rdf"
-authors: # list[link]
+authors: # list of file references
   - fref("bob.tdr")
   - fref("alice.tdr")
 ```
@@ -364,13 +364,12 @@ address: # { street: string, city: string, zip: number }
 
 ### Type Expressions
 
-A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `list[T]`, `dict[K, V]`, `link[schema]`, and literal types:
+A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `list[T]`, `dict[K, V]`, and literal types:
 
 ```yaml
 type: !type string
 type: !type list[string]
 type: !type dict[string, number]
-type: !type link[person]
 ```
 
 A fixed-key dict type is expressed as a YAML mapping under the `!type` tag:
@@ -407,7 +406,7 @@ An enum type is therefore shorthand for a union of literal types.
 
 ## TDR Explicit Type Tags
 
-A value can carry an explicit type tag to override inference or disambiguate. The available tags are: `!string`, `!number`, `!boolean`, `!date`, `!link`. Any tagged value is an expression and can use operators, property references, and built-in functions:
+A value can carry an explicit type tag to override inference or disambiguate. The available tags are: `!string`, `!number`, `!boolean`, `!date`. Any tagged value is an expression and can use operators, property references, and built-in functions:
 
 ```yaml
 first_name: !string "Bob"
@@ -416,7 +415,7 @@ count: !number 42
 active: !boolean true
 author: fref("bob.tdr")
 full_name: !string self.first_name + " " + self.last_name
-reviewer: !link self.default_reviewer
+reviewer: self.default_reviewer
 ```
 
 Expressions can reference:
@@ -456,7 +455,6 @@ properties:
     type: !type string
     default: !string formula(self.first_name + " " + self.last_name)
   author:
-    type: !type link[person]
 ---
 ```
 

@@ -7,11 +7,12 @@ use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
   get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type, instantiate_type,
 };
+use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
 use crate::types::{
-  HirValue, HirValueKind, MemberType, TdrDictType, TdrFuncType, TdrListType, TdrProductType,
-  TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
+  TdrListType, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
@@ -186,7 +187,15 @@ fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult 
 /// Helper to get the type of a call expression
 /// NOTE: This function only synthesizes the return type & arg checking is done by typecheck (not
 /// tis function)
-fn get_call_type(db: &TypedownDatabase, callee: HirValue, _args: Vec<HirValue>) -> TypeResult {
+fn get_call_type(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> TypeResult {
+  // Check if callee is a macro
+  let resolved = referee(db, callee);
+  if let Some(symbol) = resolved.value(db) {
+    if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
+      return get_macro_call_type(db, kind, args);
+    }
+  }
+
   let callee_result = get_node_type(db, callee);
   let diagnostics = callee_result.diagnostics(db).clone();
 
@@ -201,6 +210,88 @@ fn get_call_type(db: &TypedownDatabase, callee: HirValue, _args: Vec<HirValue>) 
   }
 
   TypeResult::new(db, None, diagnostics)
+}
+
+fn get_macro_call_type(
+  db: &TypedownDatabase,
+  kind: BuiltinMacroKind,
+  args: Vec<HirValue>,
+) -> TypeResult {
+  match kind {
+    BuiltinMacroKind::Fref => get_fref_type(db, args),
+  }
+}
+
+// fref("file.tdr") returns link[T] where T is the target file's schema type
+fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeResult {
+  if args.len() != 1 {
+    let node = args.first().map(|a| a.node(db));
+    return TypeResult::new(
+      db,
+      None,
+      vec![Diagnostic::WrongArgCount {
+        expected: 1,
+        got: args.len(),
+        start_offset: node.as_ref().map_or(0, |n| n.offset()),
+        end_offset: node.as_ref().map_or(0, |n| n.offset() + n.text_len()),
+      }],
+    );
+  }
+  let arg = args[0];
+  let node = arg.node(db);
+  let path_str = match arg.kind(db) {
+    HirValueKind::Str(val) => val,
+    _ => {
+      return TypeResult::new(
+        db,
+        None,
+        vec![Diagnostic::ArgTypeMismatch {
+          expected: "string".to_string(),
+          start_offset: node.offset(),
+          end_offset: node.offset() + node.text_len(),
+        }],
+      );
+    }
+  };
+
+  let project = arg.project(db);
+  let handles = project.handles(db);
+  let root_dir = project.root_dir(db);
+  let target_path = root_dir.join(&path_str);
+
+  let target_handle = match handles.get(&target_path) {
+    Some(handle) => handle.clone(),
+    None => {
+      return TypeResult::new(
+        db,
+        None,
+        vec![Diagnostic::UnresolvedFileRef {
+          path: path_str,
+          start_offset: node.offset(),
+          end_offset: node.offset() + node.text_len(),
+        }],
+      );
+    }
+  };
+
+  let target_file = File::new(db, target_handle);
+  let target_symbol = file_symbol(db, project, target_file);
+
+  match target_symbol.value(db) {
+    Some(sym) => {
+      // Return the resource's type directly
+      get_symbol_type(db, sym)
+    }
+    None => TypeResult::new(
+      db,
+      None,
+      vec![Diagnostic::UnresolvedSchema {
+        name: path_str,
+        start_offset: node.offset(),
+        end_offset: node.offset() + node.text_len(),
+      }],
+    ),
+  }
 }
 
 /// Helper to get the type of an index expression

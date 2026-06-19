@@ -310,4 +310,11 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// A file reference could not be resolved
+  UnresolvedFileRef {
+    path: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

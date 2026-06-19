@@ -2,7 +2,6 @@
 
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{AstNode, SourceFile};
-use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::hir::lower_expr;
 use crate::derived::parse_file::parse_file;
