@@ -17,8 +17,8 @@ use crate::derived::typechecker::typecheck::typecheck;
 use crate::inputs::File;
 use crate::types::Project;
 use crate::types::{
-  BuiltinSchemaKind, HirValue, HirValueKind, MemberType, Symbol, SymbolKind, TdrProductType,
-  TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Symbol, SymbolKind,
+  TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -232,6 +232,10 @@ fn resolve_type_member(
         fields,
       ))))
     }
+    // Literal types
+    HirValueKind::Str(val) => Some(MemberType::Literal(LiteralValue::Str(val))),
+    HirValueKind::Num(val) => Some(MemberType::Literal(LiteralValue::Num(val))),
+    HirValueKind::Bool(val) => Some(MemberType::Literal(LiteralValue::Bool(val))),
     _ => {
       let node = hir.node(db);
       diagnostics.push(Diagnostic::UnresolvedSchema {

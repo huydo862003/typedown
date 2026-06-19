@@ -388,31 +388,22 @@ type: !type [1, 2, 3]                           # number enum
 
 An enum type is therefore a union of literal types.
 
-A literal type is a type whose only valid value is a specific literal. Since `!type` prefers identifier interpretation in ambiguous contexts, string literals must be quoted to disambiguate from type names:
-
-```yaml
-type: !type 'draft'    # string literal type: only "draft" is valid
-type: !type "draft"    # equivalent
-type: !type 42         # number literal type: only 42 is valid (unambiguous)
-type: !type true       # boolean literal type: only true is valid (unambiguous)
-```
-
-A resource property declared with a literal type can only hold that exact value:
+A literal type is a type whose only valid value is a specific literal. Literal types are expressed directly without the `!type` tag:
 
 ```yaml
 # schema
 properties:
   version:
-    type: !type 1 # version must always be 1
+    type: 1           # version must always be 1
   status:
-    type: !type "draft" # status must always be "draft"
+    type: "draft"     # status must always be "draft"
 
 # resource
 version: 1
 status: draft
 ```
 
-An enum type is therefore shorthand for a union of string literal types.
+An enum type is therefore shorthand for a union of literal types.
 
 ## TDR Explicit Type Tags
 
