@@ -14,12 +14,12 @@ use crate::derived::hir::lower_expr;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::parse_file::parse_file;
 use crate::derived::typechecker::typecheck::typecheck;
+use crate::inputs::File;
+use crate::types::Project;
 use crate::types::{
   BuiltinSchemaKind, HirValue, HirValueKind, MemberType, Symbol, SymbolKind, TdrProductType,
   TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
-use crate::inputs::File;
-use crate::types::Project;
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -104,6 +104,7 @@ fn evaluate_user_defined_schema(
         Some(Box::new(TdrProductType::new(
           db,
           Some(schema_name.clone()),
+          Box::new(get_schema_type(db)),
           HashMap::new(),
         ))),
         diagnostics,
@@ -128,7 +129,12 @@ fn evaluate_user_defined_schema(
 
   TypeResult::new(
     db,
-    Some(Box::new(TdrProductType::new(db, Some(schema_name), fields))),
+    Some(Box::new(TdrProductType::new(
+      db,
+      Some(schema_name),
+      Box::new(get_schema_type(db)),
+      fields,
+    ))),
     diagnostics,
   )
 }
@@ -220,7 +226,10 @@ fn resolve_type_member(
         }
       }
       Some(MemberType::Simple(Box::new(TdrProductType::new(
-        db, None, fields,
+        db,
+        None,
+        Box::new(get_type_type(db)),
+        fields,
       ))))
     }
     _ => {
@@ -425,6 +434,7 @@ mod tests {
     let product = TdrProductType::new(
       &db,
       None,
+      Box::new(get_type_type(&db)),
       HashMap::from([(
         "name".to_string(),
         TypeMember::new(
@@ -439,7 +449,6 @@ mod tests {
 
   // Helper to create an HirValue from a frontmatter string
   fn make_hir(db: &TypedownDatabase, content: &str) -> HirValue {
-
     let file = File::new(db, FileHandle::Content(content.to_string()));
     let project = Project::new(db, PathBuf::new(), HashMap::new());
     let parse_result = parse_file(db, project, file);
@@ -452,9 +461,7 @@ mod tests {
   // Helper to get a specific field's HirValue from a frontmatter mapping
   fn get_field_hir(db: &TypedownDatabase, hir: HirValue, field: &str) -> HirValue {
     match hir.kind(db) {
-      HirValueKind::Mapping(entries) => {
-        entries.into_iter().find(|(k, _)| k == field).unwrap().1
-      }
+      HirValueKind::Mapping(entries) => entries.into_iter().find(|(k, _)| k == field).unwrap().1,
       _ => panic!("expected mapping"),
     }
   }
@@ -462,55 +469,76 @@ mod tests {
   #[test]
   fn construct_str() {
     let db = make_db();
-    let hir = make_hir(&db, r#"---
+    let hir = make_hir(
+      &db,
+      r#"---
 val: "hello"
----"#);
+---"#,
+    );
     let val_hir = get_field_hir(&db, hir, "val");
 
     let str_type = get_str_type(&db);
     let obj = str_type.construct(&db, val_hir).expect("should construct");
-    let str_obj = (obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>().expect("should be TdrStrObj");
+    let str_obj = (obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("should be TdrStrObj");
     assert_eq!(str_obj.value(&db), "hello");
   }
 
   #[test]
   fn construct_num() {
     let db = make_db();
-    let hir = make_hir(&db, r#"---
+    let hir = make_hir(
+      &db,
+      r#"---
 val: 42
----"#);
+---"#,
+    );
     let val_hir = get_field_hir(&db, hir, "val");
 
     let num_type = get_num_type(&db);
     let obj = num_type.construct(&db, val_hir).expect("should construct");
-    let num_obj = (obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>().expect("should be TdrNumObj");
+    let num_obj = (obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrNumObj>()
+      .expect("should be TdrNumObj");
     assert_eq!(num_obj.value(&db), 42.0);
   }
 
   #[test]
   fn construct_bool() {
     let db = make_db();
-    let hir = make_hir(&db, r#"---
+    let hir = make_hir(
+      &db,
+      r#"---
 val: true
----"#);
+---"#,
+    );
     let val_hir = get_field_hir(&db, hir, "val");
 
     let bool_type = get_bool_type(&db);
     let obj = bool_type.construct(&db, val_hir).expect("should construct");
-    let bool_obj = (obj.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>().expect("should be TdrBoolObj");
+    let bool_obj = (obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrBoolObj>()
+      .expect("should be TdrBoolObj");
     assert!(bool_obj.value(&db));
   }
 
   #[test]
   fn construct_str_returns_none_for_wrong_hir() {
     let db = make_db();
-    let hir = make_hir(&db, r#"---
+    let hir = make_hir(
+      &db,
+      r#"---
 val: 42
----"#);
+---"#,
+    );
     let val_hir = get_field_hir(&db, hir, "val");
 
     let str_type = get_str_type(&db);
-    assert!(str_type.construct(&db, val_hir).is_none(), "str construct should reject Num HIR");
+    assert!(
+      str_type.construct(&db, val_hir).is_none(),
+      "str construct should reject Num HIR"
+    );
   }
 
   // Product type construct from a mapping
@@ -544,9 +572,12 @@ val: 42
   #[test]
   fn construct_list() {
     let db = make_db();
-    let hir = make_hir(&db, r#"---
+    let hir = make_hir(
+      &db,
+      r#"---
 val: [1, 2, 3]
----"#);
+---"#,
+    );
     let val_hir = get_field_hir(&db, hir, "val");
 
     let list_num = instantiate_type(
@@ -554,7 +585,10 @@ val: [1, 2, 3]
       Box::new(get_list_type(&db)),
       vec![Box::new(get_num_type(&db))],
     );
-    let obj = list_num.typ(&db).construct(&db, val_hir).expect("should construct list");
+    let obj = list_num
+      .typ(&db)
+      .construct(&db, val_hir)
+      .expect("should construct list");
     let list_obj = (obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrListObj>()
       .expect("should be TdrListObj");
@@ -580,27 +614,40 @@ val: [1, 2, 3]
     let hir = lower_expr(&db, project, file, mapping.syntax().clone());
 
     let schema_type = get_schema_type(&db);
-    let obj = schema_type.construct(&db, hir).expect("should construct schema");
+    let obj = schema_type
+      .construct(&db, hir)
+      .expect("should construct schema");
     let product_type = (obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrProductType>()
       .expect("schema construct should produce TdrProductType");
-    assert!(product_type.fields(&db).contains_key("name"), "should have name field");
-    assert!(product_type.fields(&db).contains_key("age"), "should have age field");
+    assert!(
+      product_type.fields(&db).contains_key("name"),
+      "should have name field"
+    );
+    assert!(
+      product_type.fields(&db).contains_key("age"),
+      "should have age field"
+    );
   }
 
   // TdrObjectType construct falls back to dict for mappings without _type
   #[test]
   fn construct_object_type_fallback_to_dict() {
     let db = make_db();
-    let hir = make_hir(&db, r#"---
+    let hir = make_hir(
+      &db,
+      r#"---
 name: "Alice"
 age: 42
----"#);
+---"#,
+    );
     let val_hir = get_field_hir(&db, hir, "name");
 
     // Calling construct on ObjectType for a string value delegates to TdrStrType
     let obj_type = TdrObjectType::get(&db);
-    let obj = obj_type.construct(&db, val_hir).expect("should construct via delegation");
+    let obj = obj_type
+      .construct(&db, val_hir)
+      .expect("should construct via delegation");
     let str_obj = (obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("should delegate to TdrStrType and produce TdrStrObj");
@@ -612,16 +659,29 @@ age: 42
   fn construct_type_type() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
     let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root).unwrap().frontmatter().unwrap().mapping().unwrap();
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
     let hir = lower_expr(&db, project, file, mapping.syntax().clone());
 
     let type_type = TdrTypeType::get(&db);
-    let obj = type_type.construct(&db, hir).expect("should construct type from schema");
+    let obj = type_type
+      .construct(&db, hir)
+      .expect("should construct type from schema");
     let product_type = (obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrProductType>()
       .expect("TdrTypeType construct should produce TdrProductType");
-    assert!(product_type.fields(&db).contains_key("name"), "should have name field");
-    assert!(product_type.fields(&db).contains_key("age"), "should have age field");
+    assert!(
+      product_type.fields(&db).contains_key("name"),
+      "should have name field"
+    );
+    assert!(
+      product_type.fields(&db).contains_key("age"),
+      "should have age field"
+    );
   }
 
   // TdrTypeType construct returns None for non-schema mappings
@@ -629,13 +689,49 @@ age: 42
   fn construct_type_type_rejects_non_schema() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
     let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root).unwrap().frontmatter().unwrap().mapping().unwrap();
+    let mapping = SourceFile::cast(root)
+      .unwrap()
+      .frontmatter()
+      .unwrap()
+      .mapping()
+      .unwrap();
     let hir = lower_expr(&db, project, file, mapping.syntax().clone());
 
     let type_type = TdrTypeType::get(&db);
     assert!(
       type_type.construct(&db, hir).is_none(),
       "TdrTypeType construct should reject non-schema mappings"
+    );
+  }
+
+  // link[Person] accepts a schema type
+  #[test]
+  fn link_instantiate_with_schema() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let person_type = evaluate_type(&db, symbol).typ(&db).unwrap();
+
+    let result = instantiate_type(&db, Box::new(get_link_type(&db)), vec![person_type]);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "link[Person] should have no diagnostics: {:?}",
+      result.diagnostics(&db)
+    );
+    assert_eq!(result.typ(&db).display_name(&db), "link[Person]");
+  }
+
+  // link[string] rejects a non-schema type
+  #[test]
+  fn link_instantiate_rejects_non_schema() {
+    let db = make_db();
+    let result = instantiate_type(
+      &db,
+      Box::new(get_link_type(&db)),
+      vec![Box::new(get_str_type(&db))],
+    );
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "link[string] should have diagnostics"
     );
   }
 }

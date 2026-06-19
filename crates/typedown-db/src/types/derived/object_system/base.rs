@@ -10,7 +10,7 @@ use crate::derived::get_builtin_types::{
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  BuiltinSchemaKind, HirValue, HirValueKind, MemberType, SymbolKind, TypeMember,
+  BuiltinSchemaKind, HirValue, HirValueKind, InstResult, MemberType, SymbolKind, TypeMember,
   TypeMemberDescriptors,
 };
 use crate::{Id, TypedownDatabase};
@@ -75,7 +75,7 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
     &self,
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike>;
+  ) -> InstResult;
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool;
 
@@ -145,10 +145,10 @@ impl TdrTypeLike for TdrTypeType {
   }
   fn instantiate(
     &self,
-    _db: &TypedownDatabase,
+    db: &TypedownDatabase,
     _args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
-    Box::new(self.clone())
+  ) -> InstResult {
+    InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
@@ -225,10 +225,10 @@ impl TdrTypeLike for TdrObjectType {
   }
   fn instantiate(
     &self,
-    _db: &TypedownDatabase,
+    db: &TypedownDatabase,
     _args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
-    Box::new(self.clone())
+  ) -> InstResult {
+    InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {

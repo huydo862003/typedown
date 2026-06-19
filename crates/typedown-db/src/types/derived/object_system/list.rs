@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::get_list_type;
-use crate::types::{HirValue, HirValueKind, TypeMember};
+use crate::types::{InstResult, HirValue, HirValueKind, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -42,10 +42,10 @@ impl TdrTypeLike for TdrListType {
     &self,
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
+  ) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
-    Box::new(TdrListType::new(db, Some(iter.next().unwrap())))
+    InstResult::new(db, Box::new(TdrListType::new(db, Some(iter.next().unwrap()))), vec![])
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {

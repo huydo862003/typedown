@@ -5,7 +5,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::{Id, TypedownDatabase};
 
-use crate::types::{HirValue, HirValueKind, MemberType, TypeMember};
+use crate::types::{HirValue, HirValueKind, InstResult, MemberType, TypeMember};
 
 fn member_type_compatible(
   db: &TypedownDatabase,
@@ -34,12 +34,13 @@ fn member_type_compatible(
 #[query_derived]
 pub struct TdrProductType {
   pub name: Option<String>,
+  pub metatype: Box<dyn TdrTypeLike>,
   pub fields: HashMap<String, TypeMember>,
 }
 
 impl TdrObjectLike for TdrProductType {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrTypeType::get(db))
+    self.metatype(db)
   }
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
@@ -63,13 +64,9 @@ impl TdrTypeLike for TdrProductType {
     self.fields(db).get(name).cloned()
   }
 
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
-    Box::new(self.clone())
+    InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {

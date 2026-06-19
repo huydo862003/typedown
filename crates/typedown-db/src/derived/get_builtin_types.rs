@@ -1,6 +1,5 @@
 //! Derived queries for constructing builtin type singletons
 
-
 use typedown_macros::query_derived;
 
 use typedown_types::diagnostic::Diagnostic;
@@ -211,8 +210,7 @@ pub fn instantiate_type(
       }],
     );
   }
-  let typ = constructor.instantiate(db, args);
-  InstResult::new(db, typ, vec![])
+  constructor.instantiate(db, args)
 }
 
 #[cfg(test)]

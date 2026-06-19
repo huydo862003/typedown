@@ -6,7 +6,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::get_dict_type;
 use crate::derived::typechecker::get_node_type::get_node_type;
-use crate::types::{HirValue, HirValueKind, TdrProductType, TypeMember};
+use crate::types::{InstResult, HirValue, HirValueKind, TdrProductType, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -47,12 +47,12 @@ impl TdrTypeLike for TdrDictType {
     &self,
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
+  ) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
     let key = iter.next().unwrap();
     let value = iter.next().unwrap();
-    Box::new(TdrDictType::new(db, Some(key), Some(value)))
+    InstResult::new(db, Box::new(TdrDictType::new(db, Some(key), Some(value))), vec![])
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {

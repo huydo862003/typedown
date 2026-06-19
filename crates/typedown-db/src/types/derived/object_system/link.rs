@@ -4,7 +4,10 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::get_link_type;
-use crate::types::{HirValue, HirValueKind, TypeMember};
+use typedown_types::diagnostic::Diagnostic;
+
+use crate::derived::get_builtin_types::get_schema_type;
+use crate::types::{HirValue, HirValueKind, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -42,10 +45,22 @@ impl TdrTypeLike for TdrLinkType {
     &self,
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
+  ) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
-    Box::new(TdrLinkType::new(db, Some(iter.next().unwrap())))
+    let target = iter.next().unwrap();
+    // link can only be instantiated with a type whose metatype is Schema
+    let is_schema = target.get_type(db).as_id() == get_schema_type(db).as_id();
+    let diagnostics = if is_schema {
+      vec![]
+    } else {
+      vec![Diagnostic::ArgTypeMismatch {
+        expected: "schema".to_string(),
+        start_offset: 0,
+        end_offset: 0,
+      }]
+    };
+    InstResult::new(db, Box::new(TdrLinkType::new(db, Some(target))), diagnostics)
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {

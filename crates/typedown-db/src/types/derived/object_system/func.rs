@@ -3,7 +3,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use crate::derived::get_builtin_types::get_func_type;
-use crate::types::{FuncSignature, HirValue, TypeMember};
+use crate::types::{InstResult, FuncSignature, HirValue, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -39,9 +39,9 @@ impl TdrTypeLike for TdrFuncType {
     &self,
     db: &TypedownDatabase,
     args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> Box<dyn TdrTypeLike> {
+  ) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
-    Box::new(self.clone())
+    InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_list_type, get_num_type, get_str_type, instantiate_type,
+  get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type, instantiate_type,
 };
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
@@ -86,7 +86,12 @@ fn get_mapping_type(
   }
   TypeResult::new(
     db,
-    Some(Box::new(TdrProductType::new(db, None, fields))),
+    Some(Box::new(TdrProductType::new(
+      db,
+      None,
+      Box::new(get_type_type(db)),
+      fields,
+    ))),
     diagnostics,
   )
 }
