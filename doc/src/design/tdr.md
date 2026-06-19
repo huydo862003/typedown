@@ -249,7 +249,7 @@ _label: !string self.first_name + " " + self.last_name
 
 ### Properties
 
-All frontmatter keys other than reserved `$` keys are properties of the resource. Property values are [TDR Expressions](#tdr-expression).
+All frontmatter keys other than reserved `_` keys are properties of the resource. Property values are [TDR Expressions](#tdr-expression).
 
 ```yaml
 ---
