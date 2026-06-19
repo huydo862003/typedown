@@ -373,25 +373,17 @@ type: !type dict[string, number]
 type: !type link[person]
 ```
 
-A fixed-key dict type is expressed as a YAML mapping under the `!type` tag, either flow or block:
+A fixed-key dict type is expressed as a YAML mapping under the `!type` tag:
 
 ```yaml
-type: !type { street: string, city: string, zip: number }  # flow
-type: !type           # block
-  street: string
-  city: string
-  zip: number
+type: !type { street: string, city: string, zip: number }
 ```
 
 An enum type is expressed as a YAML sequence of literal values under the `!type` tag. Each element is a literal of any type. String literals must be quoted to distinguish them from type name identifiers; number and boolean literals are unambiguous without quotes:
 
 ```yaml
-type: !type ['draft', 'published', 'archived']  # string enum, flow
-type: !type [1, 2, 3]                           # number enum, flow
-type: !type                                     # block
-  - 'draft'
-  - 'published'
-  - 'archived'
+type: !type ['draft', 'published', 'archived']  # string enum
+type: !type [1, 2, 3]                           # number enum
 ```
 
 An enum type is therefore a union of literal types.
