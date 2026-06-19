@@ -257,7 +257,7 @@ _type: person
 _label: !string self.first_name + " " + self.last_name
 first_name: "Bob"
 birth_date: "1990-07-04"
-author: !link fref("mona_lisa.tdr")
+author: fref("mona_lisa.tdr")
 tags:
   - "research"
   - "rdf"
@@ -270,7 +270,7 @@ Free-form markdown body content.
 A link is a property tagged with `!link`, pointing to another `.tdr` file by filename. Links form directed edges in the resource graph.
 
 ```yaml
-author: !link fref("bob.tdr")
+author: fref("bob.tdr")
 ```
 
 A link can also reference a property that resolves to the target:
@@ -283,8 +283,8 @@ Multi-valued links are expressed as a YAML sequence:
 
 ```yaml
 tags:
-  - !link fref("research.tdr")
-  - !link fref("rdf.tdr")
+  - fref("research.tdr")
+  - fref("rdf.tdr")
 ```
 
 ## TDR Expression
@@ -302,7 +302,7 @@ first_name: "Bob" # string (quoted)
 birth_date: "1990-07-04" # date (quoted)
 count: 42 # number
 active: true # boolean (identifier)
-author: !link fref("bob.tdr") # link
+author: fref("bob.tdr") # link
 ```
 
 Unquoted values are identifiers or expressions, not strings. Strings must always be quoted with double quotes (`"..."`) or single quotes (`'...'`):
@@ -337,8 +337,8 @@ tags: # list[string]
   - "research"
   - "rdf"
 authors: # list[link]
-  - !link fref("bob.tdr")
-  - !link fref("alice.tdr")
+  - fref("bob.tdr")
+  - fref("alice.tdr")
 ```
 
 ### Dicts
@@ -414,7 +414,7 @@ first_name: !string "Bob"
 birth_date: !date "1990-07-04"
 count: !number 42
 active: !boolean true
-author: !link fref("bob.tdr")
+author: fref("bob.tdr")
 full_name: !string self.first_name + " " + self.last_name
 reviewer: !link self.default_reviewer
 ```
