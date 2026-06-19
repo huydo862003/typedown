@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
+use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncType;
+use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::{Id, TypedownDatabase};
 
 use crate::types::{HirValue, HirValueKind, InstResult, MemberType, TypeMember};
@@ -104,7 +105,7 @@ impl TdrTypeLike for TdrProductType {
           if key == "_type" {
             continue;
           }
-          let value_type = crate::derived::typechecker::get_node_type::get_node_type(db, value_hir);
+          let value_type = get_node_type(db, value_hir);
           if let Some(typ) = value_type.typ(db) {
             if let Some(obj) = typ.construct(db, value_hir) {
               fields.insert(key, obj);
