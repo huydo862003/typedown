@@ -1,0 +1,6 @@
+---
+_type: Schema
+properties:
+  value:
+    type: ['draft', number, boolean]
+---

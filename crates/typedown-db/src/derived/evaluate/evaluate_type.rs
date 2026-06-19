@@ -268,9 +268,9 @@ mod tests {
     fixtures::load_vault_fixture,
     inputs::{File, FileHandle},
     types::{
-      BuiltinSchemaKind, HirValue, HirValueKind, MemberType, Project, Symbol, SymbolKind,
-      TdrBoolObj, TdrDictObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductObj, TdrProductType,
-      TdrStrObj, TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
+      BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
+      SymbolKind, TdrBoolObj, TdrDictObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductObj,
+      TdrProductType, TdrStrObj, TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
   };
 
@@ -737,5 +737,60 @@ age: 42
       !result.diagnostics(&db).is_empty(),
       "link[string] should have diagnostics"
     );
+  }
+
+  // Enum schema where type is a union of string literals
+  #[test]
+  fn evaluate_enum_schema() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Status.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+
+    let result = evaluate_type(&db, symbol);
+    let typ = result.typ(&db).expect("should produce a type");
+    let product = (typ.as_ref() as &dyn Any)
+      .downcast_ref::<TdrProductType>()
+      .expect("should be TdrProductType");
+    let fields = product.fields(&db);
+    let status_field = fields.get("status").expect("should have status field");
+
+    assert!(
+      matches!(status_field.typ(&db), MemberType::Sum(members) if members.len() == 3),
+      "status should be a union of 3 literal types"
+    );
+  }
+
+  // Mixed union where type is a union of literal and simple types
+  #[test]
+  fn evaluate_mixed_union_schema() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Mixed.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+
+    let result = evaluate_type(&db, symbol);
+    let typ = result.typ(&db).expect("should produce a type");
+    let product = (typ.as_ref() as &dyn Any)
+      .downcast_ref::<TdrProductType>()
+      .expect("should be TdrProductType");
+    let fields = product.fields(&db);
+    let value_field = fields.get("value").expect("should have value field");
+
+    // Should be Sum(['draft', number, boolean])
+    match value_field.typ(&db) {
+      MemberType::Sum(members) => {
+        assert_eq!(members.len(), 3, "should have 3 members in union");
+        assert!(
+          matches!(members[0].typ(&db), MemberType::Literal(LiteralValue::Str(s)) if s == "draft"),
+          "first member should be literal 'draft'"
+        );
+        assert!(
+          matches!(members[1].typ(&db), MemberType::Simple(_)),
+          "second member should be a simple type"
+        );
+        assert!(
+          matches!(members[2].typ(&db), MemberType::Simple(_)),
+          "third member should be a simple type"
+        );
+      }
+      _ => panic!("expected Sum"),
+    }
   }
 }

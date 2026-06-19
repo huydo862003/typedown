@@ -1,0 +1,6 @@
+---
+_type: Schema
+properties:
+  status:
+    type: ['draft', 'published', 'archived']
+---
