@@ -317,4 +317,12 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// A field does not exist on the given type.
+  UnknownField {
+    field: String,
+    on_type: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

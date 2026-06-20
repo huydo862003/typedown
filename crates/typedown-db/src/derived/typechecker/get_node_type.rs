@@ -12,8 +12,7 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
-  TdrListType, TdrObjectLike, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
-  TypeResult,
+  TdrListType, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
@@ -139,7 +138,7 @@ fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirVa
   // Field access such as `obj.field`
   if op == "." {
     let left_result = get_node_type(db, left);
-    let diagnostics = left_result.diagnostics(db).clone();
+    let mut diagnostics = left_result.diagnostics(db).clone();
     let left_type = match left_result.typ(db) {
       Some(typ) => typ,
       None => return TypeResult::new(db, None, diagnostics),
@@ -150,7 +149,16 @@ fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirVa
     };
     return match left_type.lookup_field_type(db, &field_name) {
       Some(typ) => TypeResult::new(db, Some(typ), diagnostics),
-      None => TypeResult::new(db, None, diagnostics),
+      None => {
+        let node = right.node(db);
+        diagnostics.push(Diagnostic::UnknownField {
+          field: field_name,
+          on_type: left_type.display_name(db),
+          start_offset: node.offset(),
+          end_offset: node.offset() + node.text_len(),
+        });
+        TypeResult::new(db, None, diagnostics)
+      }
     };
   }
 

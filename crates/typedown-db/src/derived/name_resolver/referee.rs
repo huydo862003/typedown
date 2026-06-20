@@ -1,4 +1,6 @@
 use typedown_macros::query_derived;
+use typedown_syntax::red::RedNode;
+use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::derived::name_resolver::file_symbol::MaybeSymbol;
 use crate::derived::name_resolver::members::members;
@@ -13,6 +15,10 @@ pub fn referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
     _ => return MaybeSymbol::new(db, None),
   };
 
+  if is_dot_rhs(&hir.node(db)) {
+    return MaybeSymbol::new(db, None);
+  }
+
   let mut current_scope = scope(db, hir);
   loop {
     let result = members(db, current_scope);
@@ -23,5 +29,23 @@ pub fn referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
       Some(parent) => current_scope = parent,
       None => return MaybeSymbol::new(db, None),
     }
+  }
+}
+
+// Returns true if `node` is the right-hand operand of a dot binary expression.
+fn is_dot_rhs(node: &RedNode) -> bool {
+  let parent = match node.parent() {
+    Some(parent) => parent,
+    None => return false,
+  };
+  if parent.kind() != SyntaxKind::BinaryExpr {
+    return false;
+  }
+  let dot_op = parent
+    .children()
+    .find(|child| child.kind() == SyntaxKind::YamlOp && child.text() == ".");
+  match dot_op {
+    Some(op) => node.offset() > op.offset(),
+    None => false,
   }
 }
