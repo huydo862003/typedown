@@ -148,7 +148,10 @@ fn check_mapping_fields(
   let declared_fields: Vec<(String, crate::types::TypeMember)> =
     if let Some(product) = (expected_type as &dyn Any).downcast_ref::<TdrProductType>() {
       product.fields(db).into_iter().collect()
-    } else if (expected_type as &dyn Any).downcast_ref::<TdrSchemaType>().is_some() {
+    } else if (expected_type as &dyn Any)
+      .downcast_ref::<TdrSchemaType>()
+      .is_some()
+    {
       // TdrSchemaType has a fixed set of fields
       vec!["properties"]
         .into_iter()
@@ -492,27 +495,17 @@ fn member_type_compatible(
 
 #[cfg(test)]
 mod tests {
-  use typedown_syntax::ast::{AstNode, SourceFile};
-
   use crate::{
-    derived::{hir::lower_expr, parse_file::parse_file, typechecker::typecheck::typecheck},
-    fixtures::load_vault_fixture,
+    derived::typechecker::typecheck::typecheck, fixtures::load_vault_fixture,
+    utils::lower_frontmatter,
   };
 
   // Mapping without _type: infers product type, no validation errors
   #[test]
   fn typecheck_mapping_without_type_infers_product_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
       "mapping without _type infers product type, no errors expected: {:?}",
@@ -525,16 +518,8 @@ mod tests {
   fn typecheck_unresolved_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/unresolved_type.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       !result.diagnostics(&db).is_empty(),
       "expected diagnostics for unresolved schema"
@@ -545,16 +530,8 @@ mod tests {
   #[test]
   fn typecheck_mapping_with_ident_value() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/ident_value.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
       "expected no diagnostics, got: {:?}",
@@ -569,16 +546,8 @@ mod tests {
       "typecheck/my_vault",
       "content/schema_missing_properties.tdr",
     );
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
       diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::MissingRequiredField { field, .. } if field == "properties")),
@@ -591,16 +560,8 @@ mod tests {
   #[test]
   fn typecheck_valid_person_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
       "valid Person should have no errors: {:?}",
@@ -613,16 +574,8 @@ mod tests {
   fn typecheck_wrong_field_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/wrong_field_type.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
       diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, expected, .. } if field == "name" && expected == "string")),
@@ -635,16 +588,8 @@ mod tests {
   #[test]
   fn typecheck_nested_valid_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/nested_valid.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
       "valid nested PersonWithAddress should have no errors: {:?}",
@@ -657,16 +602,8 @@ mod tests {
   fn typecheck_nested_wrong_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/nested_wrong_type.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
       diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, .. } if field == "address")),
@@ -679,16 +616,8 @@ mod tests {
   #[test]
   fn typecheck_unary_valid() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/unary_valid.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
       "unary minus on number should have no errors: {:?}",
@@ -701,15 +630,8 @@ mod tests {
   fn typecheck_unary_wrong_type() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/unary_wrong_type.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
       diags.iter().any(|d| matches!(
@@ -725,16 +647,8 @@ mod tests {
   #[test]
   fn typecheck_binary_valid() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/binary_valid.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
       "binary addition of numbers should have no errors: {:?}",
@@ -747,16 +661,8 @@ mod tests {
   fn typecheck_binary_wrong_type() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/binary_wrong_type.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
-
-    let result = typecheck(&db, hir);
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
       diags.iter().any(|d| matches!(

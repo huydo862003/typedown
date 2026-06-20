@@ -7,18 +7,16 @@ use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
   get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type, instantiate_type,
 };
-use crate::derived::hir::lower_expr;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
-use crate::derived::parse_file::parse_file;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
   TdrListType, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
+use crate::utils::lower_frontmatter;
 use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
-use typedown_syntax::ast::{AstNode, SourceFile};
 use typedown_types::diagnostic::Diagnostic;
 
 #[query_derived]
@@ -416,26 +414,22 @@ fn find_common_supertype(
 fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   let project = hir.project(db);
   let file = hir.file(db);
-  let parse_result = parse_file(db, project, file);
-  let root = parse_result.ast(db);
-  let source_file = match SourceFile::cast(root) {
-    Some(sf) => sf,
-    None => return TypeResult::new(db, None, vec![]),
-  };
-  let mapping = match source_file.frontmatter().and_then(|fm| fm.mapping()) {
-    Some(m) => m,
+  let (mapping_hir, _) = lower_frontmatter(db, project, file);
+  let mapping_hir = match mapping_hir {
+    Some(mapping_hir) => mapping_hir,
     None => return TypeResult::new(db, None, vec![]),
   };
 
-  for (key, val_expr) in mapping.entries() {
-    if key == "_type" {
-      let val_hir = lower_expr(db, project, file, val_expr.syntax().clone());
-      let resolved = referee(db, val_hir);
-      return match resolved.value(db) {
-        Some(symbol) => evaluate_type(db, symbol),
-        // Unresolved _type is already caught by typecheck on the mapping itself
-        None => TypeResult::new(db, None, vec![]),
-      };
+  if let HirValueKind::Mapping(entries) = mapping_hir.kind(db) {
+    for (key, val_hir) in entries {
+      if key == "_type" {
+        let resolved = referee(db, val_hir);
+        return match resolved.value(db) {
+          Some(symbol) => evaluate_type(db, symbol),
+          // Unresolved _type is already caught by typecheck on the mapping itself
+          None => TypeResult::new(db, None, vec![]),
+        };
+      }
     }
   }
   TypeResult::new(db, None, vec![])
@@ -445,16 +439,12 @@ fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
 mod tests {
   use std::{collections::HashMap, path::PathBuf};
 
-  use typedown_syntax::ast::{AstNode, SourceFile};
-
   use crate::{
     QueryStorage, TypedownDatabase,
-    derived::{
-      get_builtin_types::get_schema_type, hir::lower_expr, parse_file::parse_file,
-      typechecker::get_node_type::get_node_type,
-    },
+    derived::{get_builtin_types::get_schema_type, typechecker::get_node_type::get_node_type},
     inputs::{File, FileHandle},
     types::{Project, TdrTypeLike},
+    utils::lower_frontmatter,
   };
 
   fn vault_root() -> PathBuf {
@@ -474,17 +464,8 @@ mod tests {
     let handles = HashMap::from([(schema_file_path, file.handle(&db))]);
     let project = Project::new(&db, vault, handles);
 
-    let parse_result = parse_file(&db, project, file);
-    let root = parse_result.ast(&db);
-
-    let source_file = SourceFile::cast(root).expect("root should be SourceFile");
-    let mapping = source_file
-      .frontmatter()
-      .expect("schema file should have frontmatter")
-      .mapping()
-      .expect("frontmatter should have a mapping");
-
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.expect("schema file should have parseable frontmatter");
     let type_result = get_node_type(&db, hir);
 
     let expected = Some(Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>);

@@ -3,19 +3,17 @@
 use std::collections::HashMap;
 
 use typedown_macros::query_derived;
-use typedown_syntax::ast::{AstNode, SourceFile};
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::get_builtin_types::{
   get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_num_type,
   get_schema_type, get_str_type, get_time_type, get_type_type,
 };
-use crate::derived::hir::lower_expr;
 use crate::derived::name_resolver::referee::referee;
-use crate::derived::parse_file::parse_file;
 use crate::derived::typechecker::typecheck::typecheck;
 use crate::inputs::File;
 use crate::types::Project;
+use crate::utils::lower_frontmatter;
 use crate::types::{
   BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Symbol, SymbolKind,
   TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
@@ -58,17 +56,11 @@ fn evaluate_user_defined_schema(
   let mut diagnostics = vec![];
 
   // Parse file and lower frontmatter to HIR
-  let parse_result = parse_file(db, project, file);
-  let root = parse_result.ast(db);
-  let source_file = match SourceFile::cast(root) {
-    Some(sf) => sf,
+  let (hir, _) = lower_frontmatter(db, project, file);
+  let hir = match hir {
+    Some(hir) => hir,
     None => return TypeResult::new(db, None, vec![]),
   };
-  let mapping = match source_file.frontmatter().and_then(|fm| fm.mapping()) {
-    Some(m) => m,
-    None => return TypeResult::new(db, None, vec![]),
-  };
-  let hir = lower_expr(db, project, file, mapping.syntax().clone());
 
   // Typecheck the schema file (diagnostics not propagated to callers)
   let _ = typecheck(db, hir);
@@ -256,23 +248,20 @@ mod tests {
   use std::collections::HashMap;
   use std::path::PathBuf;
 
-  use typedown_syntax::ast::{AstNode, SourceFile};
-
   use crate::{
     QueryStorage, TypedownDatabase,
     derived::evaluate::evaluate_type::evaluate_type,
     derived::get_builtin_types::*,
-    derived::hir::lower_expr,
     derived::name_resolver::file_symbol::file_symbol,
-    derived::parse_file::parse_file,
     derived::typechecker::get_node_type::get_node_type,
     fixtures::load_vault_fixture,
     inputs::{File, FileHandle},
     types::{
       BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductObj, TdrProductType,
+      SymbolKind, TdrBoolObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductType,
       TdrStrObj, TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
+    utils::lower_frontmatter,
   };
 
   fn make_db() -> TypedownDatabase {
@@ -455,11 +444,8 @@ mod tests {
   fn make_hir(db: &TypedownDatabase, content: &str) -> HirValue {
     let file = File::new(db, FileHandle::Content(content.to_string()));
     let project = Project::new(db, PathBuf::new(), HashMap::new());
-    let parse_result = parse_file(db, project, file);
-    let root = parse_result.ast(db);
-    let source_file = SourceFile::cast(root).unwrap();
-    let mapping = source_file.frontmatter().unwrap().mapping().unwrap();
-    lower_expr(db, project, file, mapping.syntax().clone())
+    let (hir, _) = lower_frontmatter(db, project, file);
+    hir.unwrap()
   }
 
   // Helper to get a specific field's HirValue from a frontmatter mapping
@@ -549,14 +535,8 @@ val: 42
   #[test]
   fn construct_product() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.unwrap();
 
     let type_result = get_node_type(&db, hir);
     let typ = type_result.typ(&db).unwrap();
@@ -611,14 +591,8 @@ val: [1, 2, 3]
   #[test]
   fn construct_schema() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.unwrap();
 
     let schema_type = get_schema_type(&db);
     let obj = schema_type
@@ -665,14 +639,8 @@ age: 42
   #[test]
   fn construct_type_type() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.unwrap();
 
     let type_type = TdrTypeType::get(&db);
     let obj = type_type
@@ -695,14 +663,8 @@ age: 42
   #[test]
   fn construct_type_type_rejects_non_schema() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.unwrap();
 
     let type_type = TdrTypeType::get(&db);
     assert!(
@@ -716,14 +678,8 @@ age: 42
   #[test]
   fn fref_returns_resource_type() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/with_fref.tdr");
-    let root = parse_file(&db, project, file).ast(&db);
-    let mapping = SourceFile::cast(root)
-      .unwrap()
-      .frontmatter()
-      .unwrap()
-      .mapping()
-      .unwrap();
-    let hir = lower_expr(&db, project, file, mapping.syntax().clone());
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.unwrap();
 
     let friend_hir = match hir.kind(&db) {
       HirValueKind::Mapping(entries) => entries.into_iter().find(|(k, _)| k == "friend").unwrap().1,

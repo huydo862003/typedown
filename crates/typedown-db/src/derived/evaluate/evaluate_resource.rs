@@ -1,12 +1,10 @@
 //! Evaluate a resource file into typed objects
 
 use typedown_macros::query_derived;
-use typedown_syntax::ast::{AstNode, SourceFile};
 
 use crate::derived::evaluate::evaluate_node::evaluate_node;
-use crate::derived::hir::lower_expr;
-use crate::derived::parse_file::parse_file;
 use crate::types::{ResourceResult, Symbol, SymbolKind};
+use crate::utils::lower_frontmatter;
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -16,21 +14,11 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
     _ => return ResourceResult::new(db, None, vec![]),
   };
 
-  let mut diagnostics = vec![];
-
-  // Parse file and lower frontmatter to HIR
-  let parse_result = parse_file(db, project, file);
-  diagnostics.extend(parse_result.diagnostics(db).iter().cloned());
-  let root = parse_result.ast(db);
-  let source_file = match SourceFile::cast(root) {
-    Some(sf) => sf,
+  let (hir, mut diagnostics) = lower_frontmatter(db, project, file);
+  let hir = match hir {
+    Some(hir) => hir,
     None => return ResourceResult::new(db, None, diagnostics),
   };
-  let mapping = match source_file.frontmatter().and_then(|fm| fm.mapping()) {
-    Some(m) => m,
-    None => return ResourceResult::new(db, None, diagnostics),
-  };
-  let hir = lower_expr(db, project, file, mapping.syntax().clone());
 
   let node_result = evaluate_node(db, hir);
   diagnostics.extend(node_result.diagnostics(db).iter().cloned());
