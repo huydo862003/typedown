@@ -105,7 +105,7 @@ impl TdrTypeLike for TdrSchemaType {
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
-    "Schema".to_string()
+    "schema".to_string()
   }
 }
 

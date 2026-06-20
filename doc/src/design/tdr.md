@@ -208,7 +208,7 @@ For example, given a `person` schema defined as:
 
 ```yaml
 ---
-_type: Schema
+_type: schema
 properties:
   first_name:
     type: !type string
@@ -428,10 +428,9 @@ Expressions can reference:
 
 A schema file self-identifies by setting `_type: schema`. It defines the shape of resources that reference it: what properties they have, their types, constraints, and default values. Each property supports the following fields:
 
-- `type`: the type of the property, as a `!type` expression.
-- `required`: whether the property must be present on the resource (default: `false`).
-- `default`: a default value used when the property is absent. Wrap in `formula()` to derive the default from other properties.
-- `values`: the allowed values for `!type enum` properties.
+- `type`: the type of the property, as a `!type` expression, a literal value, or a list (union)
+- `required`: whether the property must be present on the resource (default: `false`)
+- `default`: a default value used when the property is absent
 
 ```yaml
 ---
@@ -445,20 +444,15 @@ properties:
   tags:
     type: !type list[string]
   status:
-    type: !type enum
-    values:
-      - "draft"
-      - "published"
-      - "archived"
+    type: ['draft', 'published', 'archived']
     default: "draft"
   full_name:
     type: !type string
-    default: !string formula(self.first_name + " " + self.last_name)
-  author:
+    default: self.first_name + " " + self.last_name
 ---
 ```
 
-`Schema` itself is a built-in schema, defined by the Typedown processor. It is typed by itself.
+`schema` itself is a built-in type, defined by the Typedown processor
 
 ## TDR Body (Markdown Mode)
 

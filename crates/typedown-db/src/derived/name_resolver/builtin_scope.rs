@@ -17,7 +17,7 @@ pub struct BuiltinScopeMembers {
 #[query_derived]
 pub fn builtin_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
   let members = HashMap::from([
-    ("Schema".to_string(), get_schema_symbol(db)),
+    ("schema".to_string(), get_schema_symbol(db)),
     ("string".to_string(), get_str_symbol(db)),
     ("number".to_string(), get_num_symbol(db)),
     ("boolean".to_string(), get_bool_symbol(db)),

@@ -287,7 +287,7 @@ mod tests {
     let symbol = Symbol::new(
       &db,
       SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema),
-      "Schema".to_string(),
+      "schema".to_string(),
     );
 
     let result = evaluate_type(&db, symbol);
@@ -391,7 +391,7 @@ mod tests {
     assert_eq!(get_dict_type(&db).display_name(&db), "dict");
     assert_eq!(get_type_type(&db).display_name(&db), "type");
     assert_eq!(get_object_type(&db).display_name(&db), "object");
-    assert_eq!(get_schema_type(&db).display_name(&db), "Schema");
+    assert_eq!(get_schema_type(&db).display_name(&db), "schema");
   }
 
   #[test]

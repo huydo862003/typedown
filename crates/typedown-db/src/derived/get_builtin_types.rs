@@ -98,7 +98,7 @@ pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema),
-    "Schema".to_string(),
+    "schema".to_string(),
   )
 }
 

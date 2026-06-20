@@ -1,5 +1,5 @@
 ---
-_type: Schema
+_type: schema
 properties:
   name:
     type: string
