@@ -107,7 +107,6 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     quote! {
       typedown_db::inventory::submit! {
         typedown_db::Inventory {
-          kind: typedown_db::IngredientKind::Input,
           register: |factories| {
             let start_index = factories.len();
             #(
@@ -365,7 +364,6 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
     quote! {
       typedown_db::inventory::submit! {
         typedown_db::Inventory {
-          kind: typedown_db::IngredientKind::Derived,
           register: |factories| {
             let index = factories.len();
             factories.push(|index| Box::new(
@@ -416,6 +414,8 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
   // Validate each field
   for field in &fields {
     let field_ty = &field.ty;
+
+    // skipped fields should still be Send + Sync + Clone
     output.extend::<TokenStream>(
       quote! {
         const _: () = {
@@ -439,16 +439,29 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
   let field_indices: Vec<_> = (0..fields.len()).collect();
 
   // Register per-field ingredients via inventory
+  let mut register_tokens = quote! {};
+  for field in &fields {
+    let field_ty = &field.ty;
+    let is_skip = field.attrs.iter().any(|a| a.path().is_ident("skip"));
+    if is_skip {
+      // If the field is skipped, register untracked field ingredient
+      register_tokens.extend(quote! {
+        factories.push(|_| Box::new(typedown_db::UntrackedFieldIngredient::<#field_ty>::new()));
+      });
+    } else {
+      // If the field is not skipped, register derived field ingredient
+      register_tokens.extend(quote! {
+        factories.push(|_| Box::new(typedown_db::DerivedFieldIngredient::<#field_ty>::new()));
+      });
+    }
+  }
   output.extend::<TokenStream>(
     quote! {
       typedown_db::inventory::submit! {
         typedown_db::Inventory {
-          kind: typedown_db::IngredientKind::Derived,
           register: |factories| {
             let start_index = factories.len();
-            #(
-              factories.push(|_| Box::new(typedown_db::DerivedFieldIngredient::<#field_types>::new()));
-            )*
+            #register_tokens
             #struct_name::set_ingredient_start_index(start_index);
           },
         }
@@ -463,28 +476,42 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     let field_name = field.ident.as_ref().unwrap();
     let field_ty = &field.ty;
 
-    getter_tokens.extend(quote! {
-      pub fn #field_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
-        let storage = unsafe { db.storage() };
-        let ingredient_index = Self::ingredient_start_index() + #idx;
-        let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
-          .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
-        let entry = ingredient.data.get(&self.0).expect("invalid derived id");
+    // Whether the field is skipped
+    let is_skipped_field = field.attrs.iter().any(|attr| attr.path().is_ident("skip"));
 
-        // Record dependency if inside a derived query
-        storage.with_context(|ctx| {
-          if let Some(ctx) = ctx {
-            ctx.dependencies.push(typedown_db::Dependency {
-              ingredient_index,
-              arg_id: self.0,
-              changed_at: entry.changed_at,
-            });
-          }
-        });
+    if is_skipped_field {
+      getter_tokens.extend(quote! {
+        pub fn #field_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
+          let storage = unsafe { db.storage() };
+          let ingredient = (&*storage.ingredients[Self::ingredient_start_index() + #idx] as &dyn std::any::Any)
+            .downcast_ref::<typedown_db::UntrackedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
+          ingredient.data.get(&self.0).expect("invalid untracked id").clone()
+        }
+      });
+    } else {
+      getter_tokens.extend(quote! {
+        pub fn #field_name<DB: typedown_db::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
+          let storage = unsafe { db.storage() };
+          let ingredient_index = Self::ingredient_start_index() + #idx;
+          let ingredient = (&*storage.ingredients[ingredient_index] as &dyn std::any::Any)
+            .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
+          let entry = ingredient.data.get(&self.0).expect("invalid derived id");
 
-        entry.value.clone()
-      }
-    });
+          // Record dependency if inside a derived query
+          storage.with_context(|ctx| {
+            if let Some(ctx) = ctx {
+              ctx.dependencies.push(typedown_db::Dependency {
+                ingredient_index,
+                arg_id: self.0,
+                changed_at: entry.changed_at,
+              });
+            }
+          });
+
+          entry.value.clone()
+        }
+      });
+    }
   }
 
   let id_fields: Vec<_> = fields
@@ -504,6 +531,50 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
   // Identity type = (creating_query, disambiguator, ids)
   let identity_ty = quote! {((usize, usize), usize, (#(#id_field_tys,)*) )};
+
+  let mut new_body_tokens = quote! {};
+
+  for (idx, field) in fields.iter().enumerate() {
+    let field_name = field.ident.as_ref().unwrap();
+    let field_ty = &field.ty;
+    let is_skip = field.attrs.iter().any(|a| a.path().is_ident("skip"));
+
+    if is_skip {
+      // If the field is skipped, add to untracked field ingredient
+      new_body_tokens.extend(quote! {
+        {
+          let ingredient = (&*storage.ingredients[start_index + #idx] as &dyn std::any::Any)
+            .downcast_ref::<typedown_db::UntrackedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
+          ingredient.data.insert(id, #field_name);
+        }
+      });
+    } else {
+      // If the field is not skipped, add to derived field ingredient
+      new_body_tokens.extend(quote! {
+        {
+          let ingredient = (&*storage.ingredients[start_index + #idx] as &dyn std::any::Any)
+            .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
+          // Backdate: only update changed_at if the value actually changed
+          if let Some(existing) = ingredient.data.get(&id) {
+            if existing.value == #field_name.clone() {
+              // Value unchanged, keep old changed_at (backdating)
+            } else {
+              drop(existing);
+              ingredient.data.insert(id, typedown_db::StampedDerivedField {
+                value: #field_name.clone(),
+                changed_at: current_revision,
+              });
+            }
+          } else {
+            ingredient.data.insert(id, typedown_db::StampedDerivedField {
+              value: #field_name.clone(),
+              changed_at: current_revision,
+            });
+          }
+        }
+      });
+    }
+  }
 
   output.extend::<TokenStream>(
     quote! {
@@ -566,30 +637,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
             *map.entry(identity).or_insert(new_id)
           };
 
-          #(
-            {
-              let ingredient = (&*storage.ingredients[start_index + #field_indices] as &dyn std::any::Any)
-                .downcast_ref::<typedown_db::DerivedFieldIngredient<#field_types>>().expect("ingredient type mismatch");
-
-              // Backdate: only update changed_at if the value actually changed
-              if let Some(existing) = ingredient.data.get(&id) {
-                if existing.value == #field_names.clone() {
-                  // Value unchanged, keep old changed_at (backdating)
-                } else {
-                  drop(existing);
-                  ingredient.data.insert(id, typedown_db::StampedDerivedField {
-                    value: #field_names.clone(),
-                    changed_at: current_revision,
-                  });
-                }
-              } else {
-                ingredient.data.insert(id, typedown_db::StampedDerivedField {
-                  value: #field_names.clone(),
-                  changed_at: current_revision,
-                });
-              }
-            }
-          )*
+          #new_body_tokens
 
           Self(id)
         }
@@ -674,7 +722,6 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
     quote! {
       typedown_db::inventory::submit! {
         typedown_db::Inventory {
-          kind: typedown_db::IngredientKind::Input,
           register: |factories| {
             let index = factories.len();
             factories.push(|_| Box::new(typedown_db::InternedIngredient::<#intern_key_ty>::new()));

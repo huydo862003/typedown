@@ -1,4 +1,5 @@
 use std::{
+  any::Any,
   hash::Hash,
   sync::atomic::{AtomicUsize, Ordering},
 };
@@ -289,7 +290,7 @@ impl<
   }
 
   fn re_execute(&self, db: &dyn QueryDatabase, arg_id: usize) {
-    let db: &DB = (db as &dyn std::any::Any)
+    let db: &DB = (db as &dyn Any)
       .downcast_ref::<DB>()
       .expect("database type mismatch in re_execute");
     // Look up the key from the memo and re-execute
