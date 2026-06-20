@@ -47,7 +47,10 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
   ResourceResult::new(db, obj, diagnostics)
 }
 
-pub(crate) fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+pub(crate) fn construct_from_hir(
+  db: &TypedownDatabase,
+  hir: HirValue,
+) -> Option<Box<dyn TdrObjectLike>> {
   match hir.kind(db) {
     // Field access: obj.field
     HirValueKind::Binary { op, left, right } if op == "." => {
@@ -63,7 +66,10 @@ pub(crate) fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option
           if let HirValueKind::Ident(method_name) = right.kind(db) {
             let this = construct_from_hir(db, *left)?;
             let func_obj = this.lookup_method(db, &method_name)?;
-            let arg_objs: Vec<_> = args.into_iter().filter_map(|arg| construct_from_hir(db, arg)).collect();
+            let arg_objs: Vec<_> = args
+              .into_iter()
+              .filter_map(|arg| construct_from_hir(db, arg))
+              .collect();
             return func_obj.call(db, this, arg_objs);
           }
         }
@@ -129,16 +135,13 @@ mod tests {
     derived::evaluate::evaluate_resource::evaluate_resource,
     derived::name_resolver::file_symbol::file_symbol,
     fixtures::load_vault_fixture,
-    types::{TdrProductObj, TdrProductType, TdrStrObj},
+    types::{TdrProductType, TdrStrObj},
   };
 
   #[test]
   fn evaluate_resource_valid_person() {
     let (db, project, file) =
       load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
-=======
-    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
->>>>>>> 8e688f1 (fix: referee should only work on Ident)
     let symbol = file_symbol(&db, project, file)
       .value(&db)
       .expect("file_symbol should return a resource symbol");
@@ -240,16 +243,24 @@ mod tests {
     let alice = result_a.value(&db).unwrap();
 
     // Alice -> friend -> Bob
-    let friend = alice.get_owned_field(&db, "friend").expect("should have friend");
-    let friend_name = friend.get_owned_field(&db, "name").expect("friend should have name");
+    let friend = alice
+      .get_owned_field(&db, "friend")
+      .expect("should have friend");
+    let friend_name = friend
+      .get_owned_field(&db, "name")
+      .expect("friend should have name");
     let friend_name_str = (friend_name.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("friend name should be TdrStrObj");
     assert_eq!(friend_name_str.value(&db), "Bob");
 
     // Bob -> friend -> Alice (circular, should not panic)
-    let friend_of_friend = friend.get_owned_field(&db, "friend").expect("Bob should have friend");
-    let fof_name = friend_of_friend.get_owned_field(&db, "name").expect("should have name");
+    let friend_of_friend = friend
+      .get_owned_field(&db, "friend")
+      .expect("Bob should have friend");
+    let fof_name = friend_of_friend
+      .get_owned_field(&db, "name")
+      .expect("should have name");
     let fof_name_str = (fof_name.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("should be TdrStrObj");
@@ -265,7 +276,9 @@ mod tests {
       .expect("file_symbol should return a resource symbol");
     let result = evaluate_resource(&db, symbol);
     let obj = result.value(&db).expect("should produce an object");
-    let result_field = obj.get_owned_field(&db, "result").expect("should have result field");
+    let result_field = obj
+      .get_owned_field(&db, "result")
+      .expect("should have result field");
     let str_obj = (result_field.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("result should be TdrStrObj");
@@ -281,7 +294,9 @@ mod tests {
       .expect("file_symbol should return a resource symbol");
     let result = evaluate_resource(&db, symbol);
     let obj = result.value(&db).expect("should produce an object");
-    let result_field = obj.get_owned_field(&db, "result").expect("should have result field");
+    let result_field = obj
+      .get_owned_field(&db, "result")
+      .expect("should have result field");
     let str_obj = (result_field.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("result should be TdrStrObj");
@@ -297,7 +312,9 @@ mod tests {
       .expect("file_symbol should return a resource symbol");
     let result = evaluate_resource(&db, symbol);
     let obj = result.value(&db).expect("should produce an object");
-    let result_field = obj.get_owned_field(&db, "result").expect("should have result field");
+    let result_field = obj
+      .get_owned_field(&db, "result")
+      .expect("should have result field");
     let str_obj = (result_field.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("result should be TdrStrObj");
