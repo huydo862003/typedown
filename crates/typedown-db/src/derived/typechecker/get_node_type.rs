@@ -7,8 +7,10 @@ use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
   get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type, instantiate_type,
 };
+use crate::derived::hir::lower_expr;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
+use crate::derived::parse_file::parse_file;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
@@ -16,6 +18,7 @@ use crate::types::{
 };
 use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
+use typedown_syntax::ast::{AstNode, SourceFile};
 use typedown_types::diagnostic::Diagnostic;
 
 #[query_derived]
@@ -27,6 +30,7 @@ pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
     HirValueKind::Num(_) => TypeResult::new(db, Some(Box::new(get_num_type(db))), vec![]),
     HirValueKind::Bool(_) => TypeResult::new(db, Some(Box::new(get_bool_type(db))), vec![]),
     HirValueKind::Null => TypeResult::new(db, None, vec![]),
+    HirValueKind::Ident(ref name) if name == "self" => get_self_type(db, hir),
     HirValueKind::Ident(_) => {
       let resolved = referee(db, hir);
       match resolved.value(db) {
@@ -405,6 +409,36 @@ fn find_common_supertype(
     }
     current = super_type;
   }
+}
+
+/// Return the type of `self` in the current file
+/// If the file declares `_type: SomeSchema`, self has that schema's type
+fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
+  let project = hir.project(db);
+  let file = hir.file(db);
+  let parse_result = parse_file(db, project, file);
+  let root = parse_result.ast(db);
+  let source_file = match SourceFile::cast(root) {
+    Some(sf) => sf,
+    None => return TypeResult::new(db, None, vec![]),
+  };
+  let mapping = match source_file.frontmatter().and_then(|fm| fm.mapping()) {
+    Some(m) => m,
+    None => return TypeResult::new(db, None, vec![]),
+  };
+
+  for (key, val_expr) in mapping.entries() {
+    if key == "_type" {
+      let val_hir = lower_expr(db, project, file, val_expr.syntax().clone());
+      let resolved = referee(db, val_hir);
+      return match resolved.value(db) {
+        Some(symbol) => evaluate_type(db, symbol),
+        // Unresolved _type is already caught by typecheck on the mapping itself
+        None => TypeResult::new(db, None, vec![]),
+      };
+    }
+  }
+  TypeResult::new(db, None, vec![])
 }
 
 #[cfg(test)]

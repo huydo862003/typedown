@@ -2,19 +2,23 @@ use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::name_resolver::referee::referee;
-use crate::types::{HirValue, HirValueKind, InterpolatedPart, TypecheckResult};
+use crate::types::{HirValue, HirValueKind, InterpolatedPart, ResolveResult};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
-pub fn resolve(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
+pub fn resolve(db: &TypedownDatabase, hir: HirValue) -> ResolveResult {
   let mut diagnostics = vec![];
   collect_unresolved(db, hir, &mut diagnostics);
-  TypecheckResult::new(db, diagnostics)
+  ResolveResult::new(db, diagnostics)
 }
 
 fn collect_unresolved(db: &TypedownDatabase, hir: HirValue, diagnostics: &mut Vec<Diagnostic>) {
   match hir.kind(db) {
-    HirValueKind::Ident(_) => {
+    HirValueKind::Ident(name) => {
+      // self is a keyword, not a free variable
+      if name == "self" {
+        return;
+      }
       let resolved = referee(db, hir);
       if resolved.value(db).is_none() {
         let node = hir.node(db);

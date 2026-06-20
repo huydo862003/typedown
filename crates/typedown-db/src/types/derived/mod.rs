@@ -45,6 +45,11 @@ pub struct TypecheckResult {
 }
 
 #[query_derived]
+pub struct ResolveResult {
+  diagnostics: Vec<Diagnostic>,
+}
+
+#[query_derived]
 pub struct TypeResult {
   typ: Option<Box<dyn TdrTypeLike>>,
   diagnostics: Vec<Diagnostic>,

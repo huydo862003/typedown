@@ -1,15 +1,22 @@
+use crate::TypedownDatabase;
 use crate::derived::evaluate::evaluate_resource::evaluate_resource;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{BuiltinMacroKind, File, HirValue, HirValueKind, SymbolKind, TdrObjectLike};
-use crate::TypedownDatabase;
 
 pub(crate) fn construct_from_hir(
   db: &TypedownDatabase,
   hir: HirValue,
 ) -> Option<Box<dyn TdrObjectLike>> {
   match hir.kind(db) {
+    // self evaluates to the current file's resource object
+    HirValueKind::Ident(name) if name == "self" => {
+      let project = hir.project(db);
+      let file = hir.file(db);
+      let symbol = file_symbol(db, project, file).value(db)?;
+      return evaluate_resource(db, symbol).value(db);
+    }
     // Field access: obj.field
     HirValueKind::Binary { op, left, right } if op == "." => {
       if let HirValueKind::Ident(field_name) = right.kind(db) {
