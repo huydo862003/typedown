@@ -3,15 +3,10 @@
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{AstNode, SourceFile};
 
+use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::hir::lower_expr;
-use crate::derived::name_resolver::file_symbol::file_symbol;
-use crate::derived::name_resolver::referee::referee;
 use crate::derived::parse_file::parse_file;
-use crate::derived::typechecker::get_node_type::get_node_type;
-use crate::derived::typechecker::typecheck::typecheck;
-use crate::types::{
-  BuiltinMacroKind, File, HirValue, HirValueKind, ResourceResult, Symbol, SymbolKind, TdrObjectLike,
-};
+use crate::types::{ResourceResult, Symbol, SymbolKind};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -37,94 +32,10 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
   };
   let hir = lower_expr(db, project, file, mapping.syntax().clone());
 
-  // Typecheck the resource
-  let typecheck_result = typecheck(db, hir);
-  diagnostics.extend(typecheck_result.diagnostics(db).iter().cloned());
+  let node_result = evaluate_node(db, hir);
+  diagnostics.extend(node_result.diagnostics(db).iter().cloned());
 
-  // Construct the object using the type's constructor
-  let obj = construct_from_hir(db, hir);
-
-  ResourceResult::new(db, obj, diagnostics)
-}
-
-pub(crate) fn construct_from_hir(
-  db: &TypedownDatabase,
-  hir: HirValue,
-) -> Option<Box<dyn TdrObjectLike>> {
-  match hir.kind(db) {
-    // Field access: obj.field
-    HirValueKind::Binary { op, left, right } if op == "." => {
-      if let HirValueKind::Ident(field_name) = right.kind(db) {
-        let this = construct_from_hir(db, *left)?;
-        return this.lookup_field(db, &field_name);
-      }
-    }
-    HirValueKind::Call { callee, args } => {
-      match callee.kind(db) {
-        // Method call: obj.method(args)
-        HirValueKind::Binary { op, left, right } if op == "." => {
-          if let HirValueKind::Ident(method_name) = right.kind(db) {
-            let this = construct_from_hir(db, *left)?;
-            let func_obj = this.lookup_method(db, &method_name)?;
-            let arg_objs: Vec<_> = args
-              .into_iter()
-              .filter_map(|arg| construct_from_hir(db, arg))
-              .collect();
-            return func_obj.call(db, this, arg_objs);
-          }
-        }
-        // Macro calls like fref("file.tdr")
-        _ => {
-          let resolved = referee(db, *callee);
-          if let Some(symbol) = resolved.value(db) {
-            if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
-              return construct_macro(db, kind, args);
-            }
-          }
-        }
-      }
-    }
-    _ => {}
-  }
-
-  // Normal construction
-  let type_result = get_node_type(db, hir);
-  let typ = type_result.typ(db)?;
-  typ.construct(db, hir)
-}
-
-fn construct_macro(
-  db: &TypedownDatabase,
-  kind: BuiltinMacroKind,
-  args: Vec<HirValue>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  match kind {
-    BuiltinMacroKind::Fref => construct_fref(db, args),
-  }
-}
-
-// fref("file.tdr") evaluates to the target resource's object
-fn construct_fref(db: &TypedownDatabase, args: Vec<HirValue>) -> Option<Box<dyn TdrObjectLike>> {
-  if args.len() != 1 {
-    return None;
-  }
-  let arg = args[0];
-  let path_str = match arg.kind(db) {
-    HirValueKind::Str(val) => val,
-    _ => return None,
-  };
-
-  let project = arg.project(db);
-  let handles = project.handles(db);
-  let root_dir = project.root_dir(db);
-  let target_path = root_dir.join(&path_str);
-
-  let target_handle = handles.get(&target_path)?.clone();
-  let target_file = File::new(db, target_handle);
-  let target_symbol = file_symbol(db, project, target_file).value(db)?;
-
-  let result = evaluate_resource(db, target_symbol);
-  result.value(db)
+  ResourceResult::new(db, node_result.value(db), diagnostics)
 }
 
 #[cfg(test)]

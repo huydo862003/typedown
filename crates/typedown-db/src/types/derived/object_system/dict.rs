@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
-use crate::derived::evaluate::evaluate_resource::construct_from_hir;
+use crate::derived::evaluate::utils::construct_from_hir;
 use crate::derived::get_builtin_types::get_dict_type;
 use crate::types::{HirValue, HirValueKind, InstResult, TdrProductType, TypeMember};
 use crate::{Id, TypedownDatabase};
