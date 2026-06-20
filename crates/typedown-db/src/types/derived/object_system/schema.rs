@@ -3,10 +3,12 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrTypeLike, TdrTypeType};
 use super::dict::TdrDictType;
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::derived::get_builtin_types::{get_schema_property_type, get_schema_type, get_str_type};
-use crate::types::{InstResult, HirValue, HirValueKind, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors};
+use crate::types::{
+  HirValue, HirValueKind, InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors,
+};
 use crate::{Id, TypedownDatabase};
 
 // Schema type is actually a kind
@@ -32,7 +34,7 @@ impl TdrTypeLike for TdrSchemaType {
     Box::new(TdrTypeType::get(db))
   }
 
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
 
@@ -54,11 +56,7 @@ impl TdrTypeLike for TdrSchemaType {
     }
   }
 
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    _args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, _args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
@@ -70,11 +68,7 @@ impl TdrTypeLike for TdrSchemaType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(
-    &self,
-    db: &TypedownDatabase,
-    hir: HirValue,
-  ) -> Option<Box<dyn TdrObjectLike>> {
+  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
     // Build a TdrProductType from the properties field
     let entries = match hir.kind(db) {
       HirValueKind::Mapping(entries) => entries,
@@ -86,7 +80,14 @@ impl TdrTypeLike for TdrSchemaType {
         HirValueKind::Mapping(entries) => entries,
         _ => return None,
       },
-      None => return Some(Box::new(TdrProductType::new(db, None, Box::new(TdrSchemaType::get(db)), HashMap::new()))),
+      None => {
+        return Some(Box::new(TdrProductType::new(
+          db,
+          None,
+          Box::new(TdrSchemaType::get(db)),
+          HashMap::new(),
+        )));
+      }
     };
 
     let mut fields = HashMap::new();
@@ -101,7 +102,12 @@ impl TdrTypeLike for TdrSchemaType {
       }
     }
 
-    Some(Box::new(TdrProductType::new(db, None, Box::new(TdrSchemaType::get(db)), fields)))
+    Some(Box::new(TdrProductType::new(
+      db,
+      None,
+      Box::new(TdrSchemaType::get(db)),
+      fields,
+    )))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

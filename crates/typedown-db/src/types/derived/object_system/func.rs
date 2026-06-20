@@ -1,7 +1,9 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
+use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::get_func_type;
 use crate::types::{FuncSignature, HirValue, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
@@ -35,8 +37,16 @@ impl TdrTypeLike for TdrFuncType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
-    HashMap::new()
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let func_obj = TdrFuncObj::new(
+      db,
+      "to_string".to_string(),
+      Box::new(self.clone()),
+      sig,
+      func_to_string,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
@@ -103,4 +113,13 @@ impl TdrObjectLike for TdrFuncObj {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+}
+
+fn func_to_string(
+  db: &TypedownDatabase,
+  this: Box<dyn TdrObjectLike>,
+  _args: Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let func = (this.as_ref() as &dyn Any).downcast_ref::<TdrFuncObj>()?;
+  Some(Box::new(TdrStrObj::new(db, func.name(db))))
 }

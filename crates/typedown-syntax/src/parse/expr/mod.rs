@@ -136,19 +136,17 @@ impl<S: Utf8Stream> ParseCtx<S> {
     loop {
       let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
 
-      // Check for call expression: expr followed by `(`
-      if peek.token.kind() == SyntaxKind::LParen {
-        let (node, exit) = self.parse_call_expr(lhs, block_indent);
-        lhs = node;
-        if exit.is_some() {
-          return (lhs, exit);
+      if matches!(peek.token.kind(), SyntaxKind::LParen | SyntaxKind::LBracket) {
+        let op_text = if peek.token.kind() == SyntaxKind::LParen { "(" } else { "[" };
+        let (left_bp, ()) = postfix_binding_power(op_text).expect("( and [ are in the table");
+        if left_bp < min_bp {
+          break;
         }
-        continue;
-      }
-
-      // Check for index expression: expr followed by `[`
-      if peek.token.kind() == SyntaxKind::LBracket {
-        let (node, exit) = self.parse_index_expr(lhs, block_indent);
+        let (node, exit) = if peek.token.kind() == SyntaxKind::LParen {
+          self.parse_call_expr(lhs, block_indent)
+        } else {
+          self.parse_index_expr(lhs, block_indent)
+        };
         lhs = node;
         if exit.is_some() {
           return (lhs, exit);
@@ -1719,5 +1717,9 @@ pub(in crate::parse) fn infix_binding_power(op: &str) -> Option<(u8, u8)> {
 }
 
 pub(in crate::parse) fn postfix_binding_power(op: &str) -> Option<(u8, ())> {
-  None
+  let bp = match op {
+    "(" | "[" => 19,
+    _ => return None,
+  };
+  Some((bp, ()))
 }

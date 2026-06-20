@@ -12,7 +12,8 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
-  TdrListType, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  TdrListType, TdrObjectLike, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
+  TypeResult,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
@@ -135,6 +136,24 @@ fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeRes
 
 /// Helper to get the return type of a binary expression
 fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirValue) -> TypeResult {
+  // Field access such as `obj.field`
+  if op == "." {
+    let left_result = get_node_type(db, left);
+    let diagnostics = left_result.diagnostics(db).clone();
+    let left_type = match left_result.typ(db) {
+      Some(typ) => typ,
+      None => return TypeResult::new(db, None, diagnostics),
+    };
+    let field_name = match right.kind(db) {
+      HirValueKind::Ident(name) => name,
+      _ => return TypeResult::new(db, None, diagnostics),
+    };
+    return match left_type.lookup_field_type(db, &field_name) {
+      Some(typ) => TypeResult::new(db, Some(typ), diagnostics),
+      None => TypeResult::new(db, None, diagnostics),
+    };
+  }
+
   let left_result = get_node_type(db, left);
   let right_result = get_node_type(db, right);
   let mut diagnostics = left_result.diagnostics(db).clone();

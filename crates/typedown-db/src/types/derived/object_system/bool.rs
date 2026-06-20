@@ -1,10 +1,12 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
+use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_bool_type, get_false, get_true};
-use crate::types::{InstResult, HirValue, HirValueKind, TypeMember};
+use crate::types::{FuncSignature, HirValue, HirValueKind, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -27,17 +29,21 @@ impl TdrTypeLike for TdrBoolType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
-    HashMap::new()
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let func_obj = TdrFuncObj::new(
+      db,
+      "to_string".to_string(),
+      Box::new(TdrBoolType::get(db)),
+      sig,
+      bool_to_string,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
@@ -90,4 +96,14 @@ impl TdrBoolObj {
   pub fn get_false(db: &TypedownDatabase) -> TdrBoolObj {
     get_false(db)
   }
+}
+
+fn bool_to_string(
+  db: &TypedownDatabase,
+  this: Box<dyn TdrObjectLike>,
+  _args: Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let b = (this.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>()?;
+  let s = if b.value(db) { "true" } else { "false" };
+  Some(Box::new(TdrStrObj::new(db, s.to_string())))
 }

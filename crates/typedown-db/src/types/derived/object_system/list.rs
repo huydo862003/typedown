@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
 use crate::derived::get_builtin_types::get_list_type;
-use crate::types::{InstResult, HirValue, HirValueKind, TypeMember};
+use crate::types::{HirValue, HirValueKind, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -30,7 +30,7 @@ impl TdrTypeLike for TdrListType {
     Box::new(TdrObjectType::get(db))
   }
 
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
 
@@ -38,14 +38,14 @@ impl TdrTypeLike for TdrListType {
     None
   }
 
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
-    InstResult::new(db, Box::new(TdrListType::new(db, Some(iter.next().unwrap()))), vec![])
+    InstResult::new(
+      db,
+      Box::new(TdrListType::new(db, Some(iter.next().unwrap()))),
+      vec![],
+    )
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {

@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use super::func::TdrFuncType;
-use crate::derived::get_builtin_types::get_dict_type;
+use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_resource::construct_from_hir;
-use crate::types::{InstResult, HirValue, HirValueKind, TdrProductType, TypeMember};
+use crate::derived::get_builtin_types::get_dict_type;
+use crate::types::{HirValue, HirValueKind, InstResult, TdrProductType, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -36,23 +36,23 @@ impl TdrTypeLike for TdrDictType {
     Box::new(TdrObjectType::get(db))
   }
 
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
 
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
     let key = iter.next().unwrap();
     let value = iter.next().unwrap();
-    InstResult::new(db, Box::new(TdrDictType::new(db, Some(key), Some(value))), vec![])
+    InstResult::new(
+      db,
+      Box::new(TdrDictType::new(db, Some(key), Some(value))),
+      vec![],
+    )
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {

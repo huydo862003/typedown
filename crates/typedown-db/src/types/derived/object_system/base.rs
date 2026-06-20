@@ -2,7 +2,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
+use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
   get_dict_type, get_object_type, get_schema_type, get_str_type, get_type_type,
@@ -10,8 +11,8 @@ use crate::derived::get_builtin_types::{
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  BuiltinSchemaKind, HirValue, HirValueKind, InstResult, MemberType, SymbolKind, TypeMember,
-  TypeMemberDescriptors,
+  BuiltinSchemaKind, FuncSignature, HirValue, HirValueKind, InstResult, MemberType, SymbolKind,
+  TypeMember, TypeMemberDescriptors,
 };
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
@@ -21,13 +22,27 @@ use typedown_macros::query_derived;
 pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
 
-  fn lookup_method(&self, db: &TypedownDatabase, key: &str) -> Option<TdrFuncType> {
-    let typ = self.get_type(db);
-    typ.get_vtable(db).remove(key)
+  fn lookup_method(&self, db: &TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
+    let mut current = self.get_type(db);
+    loop {
+      if let Some(func_obj) = current.get_vtable(db).remove(key) {
+        return Some(func_obj);
+      }
+      let supertype = current.get_supertype(db);
+      if supertype.as_id() == current.as_id() {
+        return None;
+      }
+      current = supertype;
+    }
   }
 
   fn lookup_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    self.get_owned_field(db, key)
+    if let Some(field) = self.get_owned_field(db, key) {
+      return Some(field);
+    }
+    self
+      .lookup_method(db, key)
+      .map(|func_obj| Box::new(func_obj) as Box<dyn TdrObjectLike>)
   }
 
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>>;
@@ -67,15 +82,11 @@ fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
 pub trait TdrTypeLike: TdrObjectLike + DynClone {
   fn arity(&self, db: &TypedownDatabase) -> usize;
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncType>;
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj>;
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember>;
 
   // This function doesn't handle arity cecking
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult;
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult;
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool;
 
@@ -98,6 +109,30 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
       return None;
     }
     supertype.get_field_type(db, name)
+  }
+
+  // Walk this type's own vtable for an instance method
+  fn lookup_instance_method(&self, db: &TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
+    if let Some(func_obj) = self.get_vtable(db).remove(key) {
+      return Some(func_obj);
+    }
+    let supertype = self.get_supertype(db);
+    if supertype.as_id() == self.as_id() {
+      return None;
+    }
+    supertype.lookup_instance_method(db, key)
+  }
+
+  // Look up a field or method type
+  fn lookup_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<Box<dyn TdrTypeLike>> {
+    if let Some(member) = self.get_field_type(db, name) {
+      if let MemberType::Simple(typ) = member.typ(db) {
+        return Some(typ);
+      }
+    }
+    self
+      .lookup_instance_method(db, name)
+      .map(|func_obj| func_obj.get_type(db))
   }
 }
 
@@ -137,17 +172,13 @@ impl TdrTypeLike for TdrTypeType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    _args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, _args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
@@ -217,17 +248,22 @@ impl TdrTypeLike for TdrObjectType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
-    HashMap::new()
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+    // Default to_string: returns the type's display name
+    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let func_obj = TdrFuncObj::new(
+      db,
+      "to_string".to_string(),
+      Box::new(TdrObjectType::get(db)),
+      sig,
+      object_to_string,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    _args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, _args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
 
@@ -263,4 +299,13 @@ impl TdrObjectType {
   pub fn get(db: &TypedownDatabase) -> TdrObjectType {
     get_object_type(db)
   }
+}
+
+fn object_to_string(
+  db: &TypedownDatabase,
+  this: Box<dyn TdrObjectLike>,
+  _args: Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let display = this.get_type(db).display_name(db);
+  Some(Box::new(TdrStrObj::new(db, display)))
 }

@@ -1,10 +1,12 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
+use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
-use crate::types::{InstResult, HirValue, HirValueKind, TypeMember};
+use crate::types::{FuncSignature, HirValue, HirValueKind, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -27,17 +29,21 @@ impl TdrTypeLike for TdrDateTimeType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
-    HashMap::new()
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let func_obj = TdrFuncObj::new(
+      db,
+      "to_string".to_string(),
+      Box::new(TdrDateTimeType::get(db)),
+      sig,
+      datetime_to_string,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
@@ -104,17 +110,21 @@ impl TdrTypeLike for TdrDateType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
-    HashMap::new()
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let func_obj = TdrFuncObj::new(
+      db,
+      "to_string".to_string(),
+      Box::new(TdrDateType::get(db)),
+      sig,
+      date_to_string,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
@@ -183,17 +193,21 @@ impl TdrTypeLike for TdrTimeType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
-    HashMap::new()
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let func_obj = TdrFuncObj::new(
+      db,
+      "to_string".to_string(),
+      Box::new(TdrTimeType::get(db)),
+      sig,
+      time_to_string,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
@@ -236,4 +250,31 @@ impl TdrObjectLike for TdrTimeObj {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+}
+
+fn datetime_to_string(
+  db: &TypedownDatabase,
+  this: Box<dyn TdrObjectLike>,
+  _args: Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let dt = (this.as_ref() as &dyn Any).downcast_ref::<TdrDateTimeObj>()?;
+  Some(Box::new(TdrStrObj::new(db, dt.value(db))))
+}
+
+fn date_to_string(
+  db: &TypedownDatabase,
+  this: Box<dyn TdrObjectLike>,
+  _args: Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let d = (this.as_ref() as &dyn Any).downcast_ref::<TdrDateObj>()?;
+  Some(Box::new(TdrStrObj::new(db, d.value(db))))
+}
+
+fn time_to_string(
+  db: &TypedownDatabase,
+  this: Box<dyn TdrObjectLike>,
+  _args: Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let t = (this.as_ref() as &dyn Any).downcast_ref::<TdrTimeObj>()?;
+  Some(Box::new(TdrStrObj::new(db, t.value(db))))
 }

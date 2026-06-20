@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_resource::construct_from_hir;
 use crate::{Id, TypedownDatabase};
 
@@ -57,7 +57,7 @@ impl TdrTypeLike for TdrProductType {
     Box::new(TdrObjectType::get(db))
   }
 
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
 

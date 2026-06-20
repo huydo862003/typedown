@@ -48,14 +48,37 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 }
 
 pub(crate) fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-  // Handle macro calls like fref("file.tdr")
-  if let HirValueKind::Call { callee, args } = hir.kind(db) {
-    let resolved = referee(db, *callee);
-    if let Some(symbol) = resolved.value(db) {
-      if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
-        return construct_macro(db, kind, args);
+  match hir.kind(db) {
+    // Field access: obj.field
+    HirValueKind::Binary { op, left, right } if op == "." => {
+      if let HirValueKind::Ident(field_name) = right.kind(db) {
+        let this = construct_from_hir(db, *left)?;
+        return this.lookup_field(db, &field_name);
       }
     }
+    HirValueKind::Call { callee, args } => {
+      match callee.kind(db) {
+        // Method call: obj.method(args)
+        HirValueKind::Binary { op, left, right } if op == "." => {
+          if let HirValueKind::Ident(method_name) = right.kind(db) {
+            let this = construct_from_hir(db, *left)?;
+            let func_obj = this.lookup_method(db, &method_name)?;
+            let arg_objs: Vec<_> = args.into_iter().filter_map(|arg| construct_from_hir(db, arg)).collect();
+            return func_obj.call(db, this, arg_objs);
+          }
+        }
+        // Macro calls like fref("file.tdr")
+        _ => {
+          let resolved = referee(db, *callee);
+          if let Some(symbol) = resolved.value(db) {
+            if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
+              return construct_macro(db, kind, args);
+            }
+          }
+        }
+      }
+    }
+    _ => {}
   }
 
   // Normal construction
@@ -231,5 +254,53 @@ mod tests {
       .downcast_ref::<TdrStrObj>()
       .expect("should be TdrStrObj");
     assert_eq!(fof_name_str.value(&db), "Alice");
+  }
+
+  #[test]
+  fn str_to_string_produces_same_value() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/str_method_call.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce an object");
+    let result_field = obj.get_owned_field(&db, "result").expect("should have result field");
+    let str_obj = (result_field.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "hello");
+  }
+
+  #[test]
+  fn num_to_string_produces_string_repr() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/num_method_call.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce an object");
+    let result_field = obj.get_owned_field(&db, "result").expect("should have result field");
+    let str_obj = (result_field.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "42");
+  }
+
+  #[test]
+  fn bool_to_string_produces_string_repr() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/bool_method_call.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce an object");
+    let result_field = obj.get_owned_field(&db, "result").expect("should have result field");
+    let str_obj = (result_field.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "true");
   }
 }

@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use super::func::TdrFuncType;
+use super::func::TdrFuncObj;
 use crate::derived::get_builtin_types::{get_bool_type, get_schema_property_type, get_type_type};
-use crate::types::{InstResult, HirValue, MemberType, TypeMember, TypeMemberDescriptors};
+use crate::types::{HirValue, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 
 /// The type of a single property descriptor inside a schema's `properties` field.
@@ -30,7 +30,7 @@ impl TdrTypeLike for TdrSchemaPropertyType {
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrObjectType::get(db))
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncType> {
+  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
@@ -48,11 +48,7 @@ impl TdrTypeLike for TdrSchemaPropertyType {
       _ => None,
     }
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
