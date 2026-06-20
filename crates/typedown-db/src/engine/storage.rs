@@ -7,7 +7,7 @@ use super::ingredient::{Dependency, Ingredient, IngredientFactory, Inventory};
 
 /// A registry of ingredient factories
 /// This is used in QueryStorage::default() to initialize the internal ingredient vector
-/// TIL: By storing the callbacks, instead of the empty ingredients (used as templates so default can clone), this avoid requiring the  ingredient to cloneable... but Any is not clonable so cannot be used with dyn!
+/// TIL: By storing the callbacks (IngredientFactory is a function pointer type), instead of the empty dyn Ingredients (used as templates so default can clone), this avoid requiring the Ingredient to be cloneable... but Ingredient is a supertrait of Any, which is not clonable so cannot be used with dyn!
 static INGREDIENT_REGISTRY: OnceLock<Vec<IngredientFactory>> = OnceLock::new();
 
 /// An entry in the query stack, used for cycle detection
