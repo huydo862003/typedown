@@ -1,8 +1,10 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
+use crate::derived::evaluate::utils::construct_from_hir;
 use crate::derived::get_builtin_types::get_str_type;
 use crate::types::{
   FuncSignature, HirValue, HirValueKind, InstResult, InterpolatedPart, TypeMember,
@@ -59,6 +61,22 @@ impl TdrTypeLike for TdrStrType {
   fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
     match hir.kind(db) {
       HirValueKind::Str(val) => Some(Box::new(TdrStrObj::new(db, val))),
+      HirValueKind::Interpolated(parts) => {
+        let mut val = String::new();
+        for part in parts {
+          match part {
+            InterpolatedPart::Literal(lit) => val.push_str(&lit),
+            InterpolatedPart::Expr(expr) => {
+              let obj = construct_from_hir(db, expr)?;
+              let to_string_fn = obj.lookup_method(db, "to_string")?;
+              let str_obj = to_string_fn.call(db, obj, vec![])?;
+              let str_val = (str_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+              val.push_str(&str_val.value(db));
+            }
+          }
+        }
+        Some(Box::new(TdrStrObj::new(db, val)))
+      }
       _ => None,
     }
   }

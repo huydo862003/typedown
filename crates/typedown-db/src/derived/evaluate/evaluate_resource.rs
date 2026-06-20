@@ -231,4 +231,41 @@ mod tests {
       .expect("result should be TdrStrObj");
     assert_eq!(str_obj.value(&db), "true");
   }
+
+  // fref("file.tdr").prop evaluates the referenced resource and accesses a field on it
+  #[test]
+  fn fref_prop_accesses_field_on_referenced_resource() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/fref_prop.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce an object");
+    let result_field = obj
+      .get_owned_field(&db, "result")
+      .expect("should have result field");
+    let str_obj = (result_field.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "Alice");
+  }
+
+  #[test]
+  fn str_interp_evaluates_expr_parts() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/str_interp.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce an object");
+    let result_field = obj
+      .get_owned_field(&db, "result")
+      .expect("should have result field");
+    let str_obj = (result_field.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "hello 42");
+  }
 }

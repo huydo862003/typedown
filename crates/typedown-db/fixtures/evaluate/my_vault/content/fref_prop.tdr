@@ -1,0 +1,3 @@
+---
+result: fref("content/valid_person.tdr").name
+---
