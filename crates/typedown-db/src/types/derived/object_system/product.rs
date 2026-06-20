@@ -3,7 +3,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncType;
-use crate::derived::typechecker::get_node_type::get_node_type;
+use crate::derived::evaluate::evaluate_resource::construct_from_hir;
 use crate::{Id, TypedownDatabase};
 
 use crate::types::{HirValue, HirValueKind, InstResult, MemberType, TypeMember};
@@ -105,12 +105,7 @@ impl TdrTypeLike for TdrProductType {
           if key == "_type" {
             continue;
           }
-          let value_type = get_node_type(db, value_hir);
-          if let Some(typ) = value_type.typ(db) {
-            if let Some(obj) = typ.construct(db, value_hir) {
-              fields.insert(key, obj);
-            }
-          }
+          fields.insert(key, value_hir);
         }
         Some(Box::new(TdrProductObj::new(
           db,
@@ -158,7 +153,7 @@ pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberTyp
 #[query_derived]
 pub struct TdrProductObj {
   pub schema: Box<dyn TdrTypeLike>,
-  pub fields: HashMap<String, Box<dyn TdrObjectLike>>,
+  pub fields: HashMap<String, HirValue>,
 }
 
 impl TdrObjectLike for TdrProductObj {
@@ -166,6 +161,7 @@ impl TdrObjectLike for TdrProductObj {
     self.schema(db)
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    self.fields(db).get(key).cloned()
+    let hir = self.fields(db).get(key).cloned()?;
+    construct_from_hir(db, hir)
   }
 }

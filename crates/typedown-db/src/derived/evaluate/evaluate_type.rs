@@ -561,11 +561,7 @@ val: 42
     let type_result = get_node_type(&db, hir);
     let typ = type_result.typ(&db).unwrap();
     let obj = typ.construct(&db, hir).expect("should construct product");
-    let product_obj = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductObj>()
-      .expect("should be TdrProductObj");
-    let fields = product_obj.fields(&db);
-    let name_obj = fields.get("name").expect("should have name field");
+    let name_obj = obj.get_owned_field(&db, "name").expect("should have name field");
     let name_str = (name_obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("name should be TdrStrObj");
@@ -598,7 +594,10 @@ val: [1, 2, 3]
       .expect("should be TdrListObj");
     let items = list_obj.items(&db);
     assert_eq!(items.len(), 3);
-    let first = (items[0].as_ref() as &dyn Any)
+    // Items are HIR values, evaluate the first one
+    let first_type = get_node_type(&db, items[0]).typ(&db).unwrap();
+    let first_obj = first_type.construct(&db, items[0]).expect("should construct first item");
+    let first = (first_obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrNumObj>()
       .expect("first item should be TdrNumObj");
     assert_eq!(first.value(&db), 1.0);

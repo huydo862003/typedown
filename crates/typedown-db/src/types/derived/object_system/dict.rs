@@ -5,7 +5,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncType;
 use crate::derived::get_builtin_types::get_dict_type;
-use crate::derived::typechecker::get_node_type::get_node_type;
+use crate::derived::evaluate::evaluate_resource::construct_from_hir;
 use crate::types::{InstResult, HirValue, HirValueKind, TdrProductType, TypeMember};
 use crate::{Id, TypedownDatabase};
 
@@ -101,15 +101,7 @@ impl TdrTypeLike for TdrDictType {
   fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
     match hir.kind(db) {
       HirValueKind::Mapping(entries) => {
-        let mut map = HashMap::new();
-        for (key, value_hir) in entries {
-          let value_type = get_node_type(db, value_hir);
-          if let Some(typ) = value_type.typ(db) {
-            if let Some(obj) = typ.construct(db, value_hir) {
-              map.insert(key, obj);
-            }
-          }
-        }
+        let map = entries.into_iter().collect();
         Some(Box::new(TdrDictObj::new(db, map)))
       }
       _ => None,
@@ -134,14 +126,15 @@ impl TdrDictType {
 
 #[query_derived]
 pub struct TdrDictObj {
-  pub entries: HashMap<String, Box<dyn TdrObjectLike>>,
+  pub entries: HashMap<String, HirValue>,
 }
 
 impl TdrObjectLike for TdrDictObj {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
     Box::new(TdrDictType::get(db))
   }
-  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    None
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+    let hir = self.entries(db).get(key).cloned()?;
+    construct_from_hir(db, hir)
   }
 }

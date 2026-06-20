@@ -73,16 +73,7 @@ impl TdrTypeLike for TdrListType {
 
   fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
     match hir.kind(db) {
-      HirValueKind::Sequence(items) => {
-        let objs: Vec<Box<dyn TdrObjectLike>> = items
-          .into_iter()
-          .filter_map(|item| {
-            let item_type = crate::derived::typechecker::get_node_type::get_node_type(db, item);
-            item_type.typ(db).and_then(|typ| typ.construct(db, item))
-          })
-          .collect();
-        Some(Box::new(TdrListObj::new(db, objs)))
-      }
+      HirValueKind::Sequence(items) => Some(Box::new(TdrListObj::new(db, items))),
       _ => None,
     }
   }
@@ -103,7 +94,7 @@ impl TdrListType {
 
 #[query_derived]
 pub struct TdrListObj {
-  pub items: Vec<Box<dyn TdrObjectLike>>,
+  pub items: Vec<HirValue>,
 }
 
 impl TdrObjectLike for TdrListObj {

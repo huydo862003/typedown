@@ -47,7 +47,7 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
   ResourceResult::new(db, obj, diagnostics)
 }
 
-fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+pub(crate) fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
   // Handle macro calls like fref("file.tdr")
   if let HirValueKind::Call { callee, args } = hir.kind(db) {
     let resolved = referee(db, *callee);
@@ -127,12 +127,8 @@ mod tests {
       result.diagnostics(&db)
     );
     let obj = result.value(&db).unwrap();
-    let product = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductObj>()
-      .expect("should be TdrProductObj");
-    let fields = product.fields(&db);
-    let name = fields.get("name").expect("should have name");
-    let name_str = (name.as_ref() as &dyn Any)
+    let name_obj = obj.get_owned_field(&db, "name").expect("should have name");
+    let name_str = (name_obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("name should be TdrStrObj");
     assert_eq!(name_str.value(&db), "Alice");
@@ -182,5 +178,58 @@ mod tests {
       product_type.fields(&db).contains_key("title"),
       "should have title field"
     );
+  }
+
+  // Circular fref does not cause infinite recursion due to lazy evaluation
+  #[test]
+  fn circular_fref_does_not_panic() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/circular_a.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("should return a resource symbol");
+
+    let result = evaluate_resource(&db, symbol);
+    assert!(
+      result.value(&db).is_some(),
+      "circular fref should still produce an object"
+    );
+
+    // Access a non-fref field to verify the object works
+    let obj = result.value(&db).unwrap();
+    let name_obj = obj.get_owned_field(&db, "name").expect("should have name");
+    let name_str = (name_obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("name should be TdrStrObj");
+    assert_eq!(name_str.value(&db), "Alice");
+  }
+
+  // Lazy field access: accessing the fref field evaluates the target on both sides
+  #[test]
+  fn lazy_fref_field_access() {
+    let (db, project, file_a) =
+      load_vault_fixture("evaluate/my_vault", "content/circular_a.tdr");
+    let symbol_a = file_symbol(&db, project, file_a)
+      .value(&db)
+      .expect("should return a resource symbol");
+
+    let result_a = evaluate_resource(&db, symbol_a);
+    let alice = result_a.value(&db).unwrap();
+
+    // Alice -> friend -> Bob
+    let friend = alice.get_owned_field(&db, "friend").expect("should have friend");
+    let friend_name = friend.get_owned_field(&db, "name").expect("friend should have name");
+    let friend_name_str = (friend_name.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("friend name should be TdrStrObj");
+    assert_eq!(friend_name_str.value(&db), "Bob");
+
+    // Bob -> friend -> Alice (circular, should not panic)
+    let friend_of_friend = friend.get_owned_field(&db, "friend").expect("Bob should have friend");
+    let fof_name = friend_of_friend.get_owned_field(&db, "name").expect("should have name");
+    let fof_name_str = (fof_name.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("should be TdrStrObj");
+    assert_eq!(fof_name_str.value(&db), "Alice");
   }
 }
