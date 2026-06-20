@@ -174,6 +174,9 @@ fn resolve_type_member(
   diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<MemberType> {
   match hir.kind(db) {
+    // If there are some special macros, handle it here
+    // HirValueKind::Call(...)
+
     // Simple type reference like `type: string`
     HirValueKind::Ident(_) => {
       let resolved = referee(db, hir);

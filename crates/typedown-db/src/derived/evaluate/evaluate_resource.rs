@@ -4,10 +4,14 @@ use typedown_macros::query_derived;
 use typedown_syntax::ast::{AstNode, SourceFile};
 
 use crate::derived::hir::lower_expr;
+use crate::derived::name_resolver::file_symbol::file_symbol;
+use crate::derived::name_resolver::referee::referee;
 use crate::derived::parse_file::parse_file;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::derived::typechecker::typecheck::typecheck;
-use crate::types::{HirValue, ResourceResult, Symbol, SymbolKind, TdrObjectLike};
+use crate::types::{
+  BuiltinMacroKind, File, HirValue, HirValueKind, ResourceResult, Symbol, SymbolKind, TdrObjectLike,
+};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -44,9 +48,54 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 }
 
 fn construct_from_hir(db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+  // Handle macro calls like fref("file.tdr")
+  if let HirValueKind::Call { callee, args } = hir.kind(db) {
+    let resolved = referee(db, *callee);
+    if let Some(symbol) = resolved.value(db) {
+      if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
+        return construct_macro(db, kind, args);
+      }
+    }
+  }
+
+  // Normal construction
   let type_result = get_node_type(db, hir);
   let typ = type_result.typ(db)?;
   typ.construct(db, hir)
+}
+
+fn construct_macro(
+  db: &TypedownDatabase,
+  kind: BuiltinMacroKind,
+  args: Vec<HirValue>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  match kind {
+    BuiltinMacroKind::Fref => construct_fref(db, args),
+  }
+}
+
+// fref("file.tdr") evaluates to the target resource's object
+fn construct_fref(db: &TypedownDatabase, args: Vec<HirValue>) -> Option<Box<dyn TdrObjectLike>> {
+  if args.len() != 1 {
+    return None;
+  }
+  let arg = args[0];
+  let path_str = match arg.kind(db) {
+    HirValueKind::Str(val) => val,
+    _ => return None,
+  };
+
+  let project = arg.project(db);
+  let handles = project.handles(db);
+  let root_dir = project.root_dir(db);
+  let target_path = root_dir.join(&path_str);
+
+  let target_handle = handles.get(&target_path)?.clone();
+  let target_file = File::new(db, target_handle);
+  let target_symbol = file_symbol(db, project, target_file).value(db)?;
+
+  let result = evaluate_resource(db, target_symbol);
+  result.value(db)
 }
 
 #[cfg(test)]
@@ -64,6 +113,9 @@ mod tests {
   fn evaluate_resource_valid_person() {
     let (db, project, file) =
       load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
+=======
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
+>>>>>>> 8e688f1 (fix: referee should only work on Ident)
     let symbol = file_symbol(&db, project, file)
       .value(&db)
       .expect("file_symbol should return a resource symbol");

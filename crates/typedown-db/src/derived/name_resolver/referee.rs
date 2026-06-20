@@ -9,8 +9,8 @@ use crate::{QueryDatabase, TypedownDatabase};
 #[query_derived]
 pub fn referee(db: &TypedownDatabase, hir: HirValue) -> MaybeSymbol {
   let name = match hir.kind(db) {
-    HirValueKind::Tag { tag, .. } => tag.node(db).text().trim().to_string(),
-    _ => hir.node(db).text().trim().to_string(),
+    HirValueKind::Ident(name) => name,
+    _ => return MaybeSymbol::new(db, None),
   };
 
   let mut current_scope = scope(db, hir);
