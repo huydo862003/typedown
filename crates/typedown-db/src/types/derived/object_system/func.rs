@@ -3,8 +3,14 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use crate::derived::get_builtin_types::get_func_type;
-use crate::types::{InstResult, FuncSignature, HirValue, TypeMember};
+use crate::types::{FuncSignature, HirValue, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
+
+pub type NativeFn = fn(
+  &TypedownDatabase,
+  Box<dyn TdrObjectLike>,
+  Vec<Box<dyn TdrObjectLike>>,
+) -> Option<Box<dyn TdrObjectLike>>;
 
 #[query_derived]
 pub struct TdrFuncType {
@@ -35,11 +41,7 @@ impl TdrTypeLike for TdrFuncType {
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrTypeLike>>,
-  ) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     InstResult::new(db, Box::new(self.clone()), vec![])
   }
@@ -52,11 +54,7 @@ impl TdrTypeLike for TdrFuncType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(
-    &self,
-    _db: &TypedownDatabase,
-    _hir: HirValue,
-  ) -> Option<Box<dyn TdrObjectLike>> {
+  fn construct(&self, _db: &TypedownDatabase, _hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 
@@ -77,9 +75,25 @@ impl TdrFuncType {
 
 #[query_derived]
 pub struct TdrFuncObj {
+  #[id]
   pub name: String,
   #[id]
+  pub typ: Box<dyn TdrTypeLike>,
+  #[id]
   pub signature: FuncSignature,
+  #[skip]
+  pub func: NativeFn,
+}
+
+impl TdrFuncObj {
+  pub fn call(
+    &self,
+    db: &TypedownDatabase,
+    this: Box<dyn TdrObjectLike>,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    (self.func(db))(db, this, args)
+  }
 }
 
 impl TdrObjectLike for TdrFuncObj {
