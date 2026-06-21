@@ -1,6 +1,7 @@
 //! Tracked query for typechecking
 
 use std::any::Any;
+use std::collections::HashSet;
 
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
@@ -10,7 +11,7 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
   HirValue, HirValueKind, InterpolatedPart, MemberType, TdrDictType, TdrFuncType, TdrListType,
-  TdrProductType, TdrSchemaType, TdrTypeLike, TypeMemberDescriptors, TypecheckResult,
+  TdrProductType, TdrSchemaType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypecheckResult,
   member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
@@ -139,13 +140,12 @@ fn check_mapping_fields(
     }
   }
 
-  // Check required fields are present.
+  // Check required fields are present (not null are checked above)
   let mapping_node = mapping_hir.node(db);
-  let present_keys: std::collections::HashSet<&str> =
-    entries.iter().map(|(key, _)| key.as_str()).collect();
+  let present_keys: HashSet<&str> = entries.iter().map(|(key, _)| key.as_str()).collect();
 
   // Enumerate declared fields to check required ones are present
-  let declared_fields: Vec<(String, crate::types::TypeMember)> =
+  let declared_fields: Vec<(String, TypeMember)> =
     if let Some(product) = (expected_type as &dyn Any).downcast_ref::<TdrProductType>() {
       product.fields(db).into_iter().collect()
     } else if (expected_type as &dyn Any)
@@ -342,7 +342,7 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
   let expected_type: Box<dyn TdrTypeLike> = match op {
     "-" | "+" => Box::new(get_num_type(db)),
     // ~ is logical not: accepts any type (only null and false are falsy)
-    "~" | "!" => return diagnostics,
+    "~" => return diagnostics,
     _ => return diagnostics,
   };
 

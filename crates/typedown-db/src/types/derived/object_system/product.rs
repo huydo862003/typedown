@@ -3,7 +3,7 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::func::TdrFuncObj;
-use crate::derived::evaluate::utils::construct_from_hir;
+use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::{Id, TypedownDatabase};
 
 use crate::types::{HirValue, HirValueKind, InstResult, MemberType, TypeMember};
@@ -162,6 +162,6 @@ impl TdrObjectLike for TdrProductObj {
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
     let hir = self.fields(db).get(key).cloned()?;
-    construct_from_hir(db, hir)
+    evaluate_node(db, hir).value(db)
   }
 }

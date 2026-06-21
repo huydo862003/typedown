@@ -127,8 +127,6 @@ fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeRes
   match op {
     // Arithmetic negation and plus: returns number
     "-" | "+" => TypeResult::new(db, Some(Box::new(get_num_type(db))), diagnostics),
-    // Logical not: returns boolean
-    "!" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
     // Logical not: accepts any type, returns boolean
     "~" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
     _ => TypeResult::new(db, None, diagnostics),

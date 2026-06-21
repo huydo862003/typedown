@@ -34,13 +34,13 @@ mod tests {
     derived::evaluate::evaluate_resource::evaluate_resource,
     derived::name_resolver::file_symbol::file_symbol,
     fixtures::load_vault_fixture,
-    types::{TdrProductType, TdrStrObj},
+    types::{TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj},
   };
 
+  // A valid resource with _type produces an object with the declared fields
   #[test]
   fn evaluate_resource_valid_person() {
-    let (db, project, file) =
-      load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
     let symbol = file_symbol(&db, project, file)
       .value(&db)
       .expect("file_symbol should return a resource symbol");
@@ -59,6 +59,7 @@ mod tests {
     assert_eq!(name_str.value(&db), "Alice");
   }
 
+  // A field value that doesn't match the declared schema type produces diagnostics
   #[test]
   fn evaluate_resource_wrong_type_has_diagnostics() {
     let (db, project, file) =
@@ -108,8 +109,7 @@ mod tests {
   // Circular fref does not cause infinite recursion due to lazy evaluation
   #[test]
   fn circular_fref_does_not_panic() {
-    let (db, project, file) =
-      load_vault_fixture("evaluate/my_vault", "content/circular_a.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/circular_a.tdr");
     let symbol = file_symbol(&db, project, file)
       .value(&db)
       .expect("should return a resource symbol");
@@ -132,8 +132,7 @@ mod tests {
   // Lazy field access: accessing the fref field evaluates the target on both sides
   #[test]
   fn lazy_fref_field_access() {
-    let (db, project, file_a) =
-      load_vault_fixture("evaluate/my_vault", "content/circular_a.tdr");
+    let (db, project, file_a) = load_vault_fixture("evaluate/my_vault", "content/circular_a.tdr");
     let symbol_a = file_symbol(&db, project, file_a)
       .value(&db)
       .expect("should return a resource symbol");
@@ -166,6 +165,7 @@ mod tests {
     assert_eq!(fof_name_str.value(&db), "Alice");
   }
 
+  // str.to_string() returns the same string value
   #[test]
   fn str_to_string_produces_same_value() {
     let (db, project, file) =
@@ -184,6 +184,7 @@ mod tests {
     assert_eq!(str_obj.value(&db), "hello");
   }
 
+  // num.to_string() returns the decimal representation, without trailing .0 for integers
   #[test]
   fn num_to_string_produces_string_repr() {
     let (db, project, file) =
@@ -202,6 +203,7 @@ mod tests {
     assert_eq!(str_obj.value(&db), "42");
   }
 
+  // bool.to_string() returns "true" or "false"
   #[test]
   fn bool_to_string_produces_string_repr() {
     let (db, project, file) =
@@ -223,8 +225,7 @@ mod tests {
   // fref("file.tdr").prop evaluates the referenced resource and accesses a field on it
   #[test]
   fn fref_prop_accesses_field_on_referenced_resource() {
-    let (db, project, file) =
-      load_vault_fixture("evaluate/my_vault", "content/fref_prop.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/fref_prop.tdr");
     let symbol = file_symbol(&db, project, file)
       .value(&db)
       .expect("file_symbol should return a resource symbol");
@@ -239,10 +240,28 @@ mod tests {
     assert_eq!(str_obj.value(&db), "Alice");
   }
 
+  // self.field accesses a field on the current resource object
+  #[test]
+  fn self_ref_accesses_own_field() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/self_ref.tdr");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a resource symbol");
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce an object");
+    let result_field = obj
+      .get_owned_field(&db, "result")
+      .expect("should have result field");
+    let str_obj = (result_field.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "Alice");
+  }
+
+  // String interpolation evaluates embedded expressions and concatenates the parts
   #[test]
   fn str_interp_evaluates_expr_parts() {
-    let (db, project, file) =
-      load_vault_fixture("evaluate/my_vault", "content/str_interp.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/str_interp.tdr");
     let symbol = file_symbol(&db, project, file)
       .value(&db)
       .expect("file_symbol should return a resource symbol");
@@ -255,5 +274,130 @@ mod tests {
       .downcast_ref::<TdrStrObj>()
       .expect("result should be TdrStrObj");
     assert_eq!(str_obj.value(&db), "hello 42");
+  }
+
+  fn get_num_field(
+    db: &crate::TypedownDatabase,
+    obj: &Box<dyn crate::types::TdrObjectLike>,
+    field: &str,
+  ) -> f64 {
+    let field_obj = obj.get_owned_field(db, field).expect("should have field");
+    (field_obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrNumObj>()
+      .unwrap_or_else(|| panic!("{field} should be TdrNumObj"))
+      .value(db)
+  }
+
+  fn get_bool_field(
+    db: &crate::TypedownDatabase,
+    obj: &Box<dyn crate::types::TdrObjectLike>,
+    field: &str,
+  ) -> bool {
+    let field_obj = obj.get_owned_field(db, field).expect("should have field");
+    (field_obj.as_ref() as &dyn Any)
+      .downcast_ref::<TdrBoolObj>()
+      .unwrap_or_else(|| panic!("{field} should be TdrBoolObj"))
+      .value(db)
+  }
+
+  // 1 + 2 evaluates to 3
+  #[test]
+  fn binary_add_evaluates_to_sum() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/binary_valid.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert_eq!(get_num_field(&db, &obj, "result"), 3.0);
+  }
+
+  // -, *, /, %, ** all produce the expected numeric result
+  #[test]
+  fn arithmetic_ops_evaluate_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/arithmetic_ops.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert_eq!(get_num_field(&db, &obj, "sub"), 7.0);
+    assert_eq!(get_num_field(&db, &obj, "mul"), 12.0);
+    assert_eq!(get_num_field(&db, &obj, "div"), 2.5);
+    assert_eq!(get_num_field(&db, &obj, "mod"), 1.0);
+    assert_eq!(get_num_field(&db, &obj, "pow"), 256.0);
+  }
+
+  // Unary - negates the number
+  #[test]
+  fn unary_negation_evaluates_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/unary_valid.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert_eq!(get_num_field(&db, &obj, "result"), -42.0);
+  }
+
+  // <, >, ==, !=, <=, >= all produce bool results for numeric operands
+  #[test]
+  fn comparison_ops_evaluate_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/comparison_ops.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert!(get_bool_field(&db, &obj, "lt"));
+    assert!(get_bool_field(&db, &obj, "gt"));
+    assert!(get_bool_field(&db, &obj, "eq"));
+    assert!(get_bool_field(&db, &obj, "ne"));
+    assert!(get_bool_field(&db, &obj, "le"));
+    assert!(get_bool_field(&db, &obj, "ge"));
+  }
+
+  // && and || produce the expected bool result
+  #[test]
+  fn logical_ops_evaluate_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/logical_ops.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert!(!get_bool_field(&db, &obj, "and_false"));
+    assert!(get_bool_field(&db, &obj, "or_true"));
+  }
+
+  // Unary + is identity; ~ is logical not (falsy: null/false; truthy: everything else)
+  #[test]
+  fn unary_extras_evaluate_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/unary_extras.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert_eq!(get_num_field(&db, &obj, "pos"), 5.0);
+    assert!(get_bool_field(&db, &obj, "logical_not_false"));
+    assert!(!get_bool_field(&db, &obj, "logical_not_true"));
+    assert!(!get_bool_field(&db, &obj, "logical_not_num"));
+  }
+
+  // String comparison operators work lexicographically
+  #[test]
+  fn str_comparison_evaluates_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/str_comparison.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert!(get_bool_field(&db, &obj, "eq"));
+    assert!(get_bool_field(&db, &obj, "ne"));
+    assert!(get_bool_field(&db, &obj, "lt"));
+  }
+
+  // list[n] evaluates the list and returns the nth element
+  #[test]
+  fn list_index_evaluates_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/list_index.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    assert_eq!(get_num_field(&db, &obj, "result"), 20.0);
+  }
+
+  // Tag expressions like !str "Alice" strip the tag and evaluate the inner value
+  #[test]
+  fn tag_expr_strips_tag_and_evaluates_inner() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/tag_expr.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    let name = obj.get_owned_field(&db, "name").unwrap();
+    let name_str = (name.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("name should be TdrStrObj");
+    assert_eq!(name_str.value(&db), "Alice");
+    assert_eq!(get_num_field(&db, &obj, "age"), 30.0);
   }
 }

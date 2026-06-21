@@ -13,11 +13,11 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::typecheck::typecheck;
 use crate::inputs::File;
 use crate::types::Project;
-use crate::utils::lower_frontmatter;
 use crate::types::{
   BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Symbol, SymbolKind,
   TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
+use crate::utils::lower_frontmatter;
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -258,8 +258,8 @@ mod tests {
     inputs::{File, FileHandle},
     types::{
       BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductType,
-      TdrStrObj, TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
+      SymbolKind, TdrBoolObj, TdrListObj, TdrNumObj, TdrObjectType, TdrProductType, TdrStrObj,
+      TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_frontmatter,
   };
@@ -412,7 +412,7 @@ mod tests {
 
   #[test]
   fn display_name_user_defined_schema() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
     let result = evaluate_type(&db, symbol);
@@ -534,7 +534,7 @@ val: 42
   // Product type construct from a mapping
   #[test]
   fn construct_product() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
@@ -590,7 +590,7 @@ val: [1, 2, 3]
   // Schema construct via evaluate_type
   #[test]
   fn construct_schema() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
@@ -638,7 +638,7 @@ age: 42
   // TdrTypeType construct produces a TdrProductType from a schema mapping
   #[test]
   fn construct_type_type() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Person.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
@@ -662,7 +662,7 @@ age: 42
   // TdrTypeType construct returns None for non-schema mappings
   #[test]
   fn construct_type_type_rejects_non_schema() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
@@ -677,7 +677,7 @@ age: 42
   // fref("file.tdr") returns the target resource's type
   #[test]
   fn fref_returns_resource_type() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/with_fref.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/with_fref.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
@@ -694,7 +694,7 @@ age: 42
   // Enum schema where type is a union of string literals
   #[test]
   fn evaluate_enum_schema() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Status.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Status.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
     let result = evaluate_type(&db, symbol);
@@ -714,7 +714,7 @@ age: 42
   // Mixed union where type is a union of literal and simple types
   #[test]
   fn evaluate_mixed_union_schema() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/Mixed.tdr");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Mixed.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
 
     let result = evaluate_type(&db, symbol);
