@@ -249,8 +249,8 @@ mod tests {
   use std::path::PathBuf;
 
   use crate::{
-    QueryStorage, TypedownDatabase,
     derived::evaluate::evaluate_type::evaluate_type,
+    derived::evaluate::utils::construct_from_hir,
     derived::get_builtin_types::*,
     derived::name_resolver::file_symbol::file_symbol,
     derived::typechecker::get_node_type::get_node_type,
@@ -262,6 +262,7 @@ mod tests {
       TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_frontmatter,
+    QueryStorage, TypedownDatabase,
   };
 
   fn make_db() -> TypedownDatabase {
@@ -513,12 +514,11 @@ mod tests {
   // Product type construct from a mapping
   #[test]
   fn construct_product() {
-    use crate::derived::evaluate::utils::construct_from_hir;
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
-    let obj = construct_from_hir(&db, hir).expect("should construct product");
+    let obj = construct_from_hir(&db, hir, &mut vec![]).expect("should construct product");
     let name_obj = obj
       .get_owned_field(&db, "name")
       .expect("should have name field");
@@ -571,7 +571,6 @@ mod tests {
   // TdrObjectType construct passes through when given exactly one arg
   #[test]
   fn construct_object_type_fallback_to_dict() {
-    use crate::derived::evaluate::utils::construct_from_hir;
     let db = make_db();
     let hir = make_hir(
       &db,
@@ -583,7 +582,8 @@ age: 42
     let val_hir = get_field_hir(&db, hir, "name");
 
     // construct_from_hir evaluates str HIR to TdrStrObj
-    let obj = construct_from_hir(&db, val_hir).expect("should construct via delegation");
+    let obj =
+      construct_from_hir(&db, val_hir, &mut vec![]).expect("should construct via delegation");
     let str_obj = (obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("should produce TdrStrObj");
@@ -593,12 +593,11 @@ age: 42
   // TdrTypeType::construct returns None (HIR path lives in utils.rs)
   #[test]
   fn construct_type_type() {
-    use crate::derived::evaluate::utils::construct_from_hir;
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
 
-    let obj = construct_from_hir(&db, hir).expect("should construct type from schema");
+    let obj = construct_from_hir(&db, hir, &mut vec![]).expect("should construct type from schema");
     let product_type = (obj.as_ref() as &dyn Any)
       .downcast_ref::<TdrProductType>()
       .expect("should produce TdrProductType");
@@ -615,7 +614,6 @@ age: 42
   // TdrTypeType::construct returns None; construct_from_hir returns None for non-schema mappings
   #[test]
   fn construct_type_type_rejects_non_schema() {
-    use crate::derived::evaluate::utils::construct_from_hir;
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
     let (hir, _) = lower_frontmatter(&db, project, file);
     let hir = hir.unwrap();
@@ -627,7 +625,7 @@ age: 42
     );
     // construct_from_hir on a non-schema mapping should produce a product/dict, not a type
     // (it no longer returns None, it returns a TdrProductObj or TdrDictObj)
-    let _ = construct_from_hir(&db, hir);
+    let _ = construct_from_hir(&db, hir, &mut vec![]);
   }
 
   // link[Person] accepts a schema type

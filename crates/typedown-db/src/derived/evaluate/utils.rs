@@ -7,8 +7,6 @@ use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::derived::get_builtin_types::get_schema_type;
 use crate::derived::evaluate::evaluate_resource::evaluate_resource;
-use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
-use crate::derived::get_builtin_types::get_schema_type;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
@@ -18,10 +16,12 @@ use crate::types::{
   TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
   TypeMemberDescriptors,
 };
+use typedown_types::diagnostic::Diagnostic;
 
 pub(crate) fn construct_from_hir(
   db: &TypedownDatabase,
   hir: HirValue,
+  diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<Box<dyn TdrObjectLike>> {
   match hir.kind(db) {
     // self evaluates to the current file's resource object
@@ -52,7 +52,7 @@ pub(crate) fn construct_from_hir(
     }
     // Index access: list[n] or dict["key"]
     HirValueKind::Index { expr, indices } => {
-      return evaluate_index(db, *expr, indices);
+      return evaluate_index(db, *expr, indices, diagnostics);
     }
     HirValueKind::Call { callee, args } => {
       match callee.kind(db) {
@@ -259,17 +259,27 @@ fn evaluate_index(
   db: &TypedownDatabase,
   expr: HirValue,
   indices: Vec<HirValue>,
+  diagnostics: &mut Vec<Diagnostic>,
 ) -> Option<Box<dyn TdrObjectLike>> {
   if indices.len() != 1 {
     return None;
   }
+  let index_hir = indices[0];
   let container = evaluate_node(db, expr).value(db)?;
-  let index_obj = evaluate_node(db, indices[0]).value(db)?;
+  let index_obj = evaluate_node(db, index_hir).value(db)?;
 
   if let Some(list) = (container.as_ref() as &dyn Any).downcast_ref::<TdrListObj>() {
     let num = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
     let idx = num.value(db) as usize;
-    if idx >= list.len(db) {
+    let len = list.len(db);
+    if idx >= len {
+      let node = index_hir.node(db);
+      diagnostics.push(Diagnostic::IndexOutOfBounds {
+        index: idx,
+        length: len,
+        start_offset: node.offset(),
+        end_offset: node.offset() + node.text_len(),
+      });
       return None;
     }
     return list.get(db, idx);
@@ -277,6 +287,22 @@ fn evaluate_index(
   if let Some(dict) = (container.as_ref() as &dyn Any).downcast_ref::<TdrDictObj>() {
     let key = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
     return dict.get_owned_field(db, &key.value(db));
+  }
+  if let Some(str_obj) = (container.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>() {
+    let num = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
+    let idx = num.value(db) as usize;
+    let chars: Vec<char> = str_obj.value(db).chars().collect();
+    if idx >= chars.len() {
+      let node = index_hir.node(db);
+      diagnostics.push(Diagnostic::IndexOutOfBounds {
+        index: idx,
+        length: chars.len(),
+        start_offset: node.offset(),
+        end_offset: node.offset() + node.text_len(),
+      });
+      return None;
+    }
+    return Some(Box::new(TdrStrObj::new(db, chars[idx].to_string())));
   }
   None
 }

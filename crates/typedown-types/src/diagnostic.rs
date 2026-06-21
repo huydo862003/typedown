@@ -325,4 +325,12 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+
+  /// An index is out of bounds for the container.
+  IndexOutOfBounds {
+    index: usize,
+    length: usize,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }

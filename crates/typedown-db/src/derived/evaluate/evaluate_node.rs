@@ -14,7 +14,7 @@ pub fn evaluate_node(db: &TypedownDatabase, hir: HirValue) -> ResourceResult {
   let typecheck_result = typecheck(db, hir);
   diagnostics.extend(typecheck_result.diagnostics(db).iter().cloned());
 
-  let obj = construct_from_hir(db, hir);
+  let obj = construct_from_hir(db, hir, &mut diagnostics);
 
   ResourceResult::new(db, obj, diagnostics)
 }

@@ -12,7 +12,8 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
-  TdrListType, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  TdrListType, TdrProductType, TdrStrType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
+  TypeResult,
 };
 use crate::utils::lower_frontmatter;
 use crate::{QueryDatabase, TypedownDatabase};
@@ -372,6 +373,11 @@ fn get_index_type(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>)
   // Element access on instantiated dict
   if let Some(dict) = (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrDictType>() {
     return TypeResult::new(db, dict.value(db), diagnostics);
+  }
+
+  // Element access on string (returns single-character string)
+  if (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrStrType>().is_some() {
+    return TypeResult::new(db, Some(Box::new(TdrStrType::get(db))), diagnostics);
   }
 
   TypeResult::new(db, None, diagnostics)

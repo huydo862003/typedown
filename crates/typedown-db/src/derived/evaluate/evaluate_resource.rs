@@ -31,10 +31,12 @@ mod tests {
   use std::any::Any;
 
   use crate::{
+    derived::evaluate::evaluate_node::evaluate_node,
     derived::evaluate::evaluate_resource::evaluate_resource,
     derived::name_resolver::file_symbol::file_symbol,
     fixtures::load_vault_fixture,
-    types::{TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj},
+    types::{HirValueKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj},
+    utils::lower_frontmatter,
   };
 
   // A valid resource with _type produces an object with the declared fields
@@ -385,6 +387,56 @@ mod tests {
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
     let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
     assert_eq!(get_num_field(&db, &obj, "result"), 20.0);
+  }
+
+  // out-of-bounds index on list and string evaluates to undefined and emits a diagnostic
+  #[test]
+  fn index_out_of_bounds_emits_diagnostic() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/index_oob.tdr");
+    let (hir, _) = lower_frontmatter(&db, project, file);
+    let hir = hir.unwrap();
+
+    // Extract field HIRs from the top-level mapping
+    let HirValueKind::Mapping(entries) = hir.kind(&db) else {
+      panic!("expected mapping at top level");
+    };
+    let field_hirs: std::collections::HashMap<_, _> =
+      entries.into_iter().collect();
+
+    let list_result = evaluate_node(&db, field_hirs["list_oob"]);
+    assert!(list_result.value(&db).is_none(), "list OOB should be undefined");
+    assert!(
+      list_result.diagnostics(&db).iter().any(|d| matches!(
+        d,
+        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds { index: 99, length: 3, .. }
+      )),
+      "expected IndexOutOfBounds(99, 3) for list, got: {:?}",
+      list_result.diagnostics(&db)
+    );
+
+    let str_result = evaluate_node(&db, field_hirs["str_oob"]);
+    assert!(str_result.value(&db).is_none(), "string OOB should be undefined");
+    assert!(
+      str_result.diagnostics(&db).iter().any(|d| matches!(
+        d,
+        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds { index: 99, length: 5, .. }
+      )),
+      "expected IndexOutOfBounds(99, 5) for string, got: {:?}",
+      str_result.diagnostics(&db)
+    );
+  }
+
+  // string[n] returns the nth character as a string
+  #[test]
+  fn str_index_evaluates_correctly() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/str_index.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    let result = obj.get_owned_field(&db, "result").unwrap();
+    let str_obj = (result.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("result should be TdrStrObj");
+    assert_eq!(str_obj.value(&db), "e");
   }
 
   // Tag expressions like !str "Alice" strip the tag and evaluate the inner value

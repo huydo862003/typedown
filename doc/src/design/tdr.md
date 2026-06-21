@@ -15,6 +15,7 @@ TDR (Typedown Resource) is the serialization format for Typedown resources.
   - [Links](#links)
 - [TDR Expression](#tdr-expression)
   - [Scalars](#scalars)
+  - [Operators](#operators)
   - [Lists](#lists)
   - [Dicts](#dicts)
   - [Type Expressions](#type-expressions)
@@ -187,7 +188,7 @@ first_name: "Bob" # string literal
 status: "draft" # string literal
 count: 42 # number expression
 active: true # boolean identifier
-author: bob.tdr # identifier (link reference)
+author: fref("bob.tdr") # file reference (link)
 full_name: self.first_name + " " + self.last_name # expression
 ```
 
@@ -284,7 +285,7 @@ Whether a value is an identifier or a literal is inferred from context in most c
 
 ### Scalars
 
-A scalar is a single primitive value. Every value in frontmatter is an expression. The scalar types are: `string`, `number`, `boolean`, `date`:
+A scalar is a single primitive value. Every value in frontmatter is an expression. The scalar types are: `string`, `number`, `boolean`, `date`, `time`, `datetime`:
 
 ```yaml
 first_name: "Bob" # string (quoted)
@@ -316,6 +317,40 @@ Interpolations can be nested. A string inside an interpolation can itself contai
 ```yaml
 label: "Result: ${"value is ${self.compute()}"}"
 ```
+
+### Operators
+
+The following operators are available in TDR expressions:
+
+| Operator | Description                                     |
+| -------- | ----------------------------------------------- |
+| `+`      | Addition (numbers) or concatenation (strings)   |
+| `-`      | Subtraction                                     |
+| `*`      | Multiplication                                  |
+| `/`      | Division                                        |
+| `**`     | Exponentiation                                  |
+| `%`      | Remainder                                       |
+| `==`     | Equality                                        |
+| `!=`     | Inequality                                      |
+| `<`      | Less than                                       |
+| `>`      | Greater than                                    |
+| `<=`     | Less than or equal                              |
+| `>=`     | Greater than or equal                           |
+| `&&`     | Logical AND                                     |
+| `\|\|`   | Logical OR                                      |
+| `~`      | String concatenation (alternative to `+`)       |
+| `.`      | Property access on an object or linked resource |
+| `[n]`    | Index by zero-based integer (lists and strings) |
+| `[key]`  | Dict indexing by string key                     |
+
+```yaml
+first_tag: self.tags[0] # list indexing
+city: self.address["city"] # dict indexing
+initial: self.first_name[0] # string indexing
+author_name: self.author.name # property access on linked resource
+```
+
+Out-of-bounds index access and missing dict keys evaluate to `undefined`. Any expression that depends on an `undefined` value also evaluates to `undefined`.
 
 ### Lists
 
@@ -353,10 +388,25 @@ address: # { street: string, city: string, zip: number }
 
 ### Type Expressions
 
-A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions. The built-in types are: `string`, `number`, `boolean`, `date`, `list[T]`, `dict[K, V]`, and literal types:
+A type expression resolves to a type value rather than a data value. Type expressions use the `!type` tag and are only valid in schema property definitions.
+
+The built-in types are:
+
+| Type         | Description                                         |
+| ------------ | --------------------------------------------------- |
+| `string`     | A Unicode text value                                |
+| `number`     | A floating-point number                             |
+| `boolean`    | `true` or `false`                                   |
+| `date`       | An ISO 8601 date (e.g. `"2024-01-15"`)              |
+| `time`       | An ISO 8601 time (e.g. `"14:30:00"`)                |
+| `datetime`   | An ISO 8601 datetime (e.g. `"2024-01-15T14:30:00"`) |
+| `list[T]`    | A list of values of type `T`                        |
+| `dict[K, V]` | A homogeneous mapping from keys of type `K` to `V`  |
 
 ```yaml
 type: !type string
+type: !type number
+type: !type date
 type: !type list[string]
 type: !type dict[string, number]
 ```
@@ -367,14 +417,15 @@ A fixed-key dict type is expressed as a YAML mapping under the `!type` tag:
 type: !type { street: string, city: string, zip: number }
 ```
 
-An enum type is expressed as a YAML sequence of literal values under the `!type` tag. Each element is a literal of any type. String literals must be quoted to distinguish them from type name identifiers; number and boolean literals are unambiguous without quotes:
+A union type is expressed as a YAML sequence under the `!type` tag. Each element is a type name or a literal value:
 
 ```yaml
-type: !type ['draft', 'published', 'archived']  # string enum
-type: !type [1, 2, 3]                           # number enum
+type: !type [string, number]             # union of string and number
+type: !type ['draft', 'published']       # string enum (union of string literals)
+type: !type [1, 2, 3]                    # number enum (union of number literals)
 ```
 
-An enum type is therefore a union of literal types.
+String literals in a union must be quoted to distinguish them from type name identifiers. Number and boolean literals are unambiguous without quotes.
 
 A literal type is a type whose only valid value is a specific literal. Literal types are expressed directly without the `!type` tag:
 
@@ -395,11 +446,13 @@ An enum type is therefore shorthand for a union of literal types.
 
 ## TDR Explicit Type Tags
 
-A value can carry an explicit type tag to override inference or disambiguate. The available tags are: `!string`, `!number`, `!boolean`, `!date`. Any tagged value is an expression and can use operators, property references, and built-in functions:
+A value can carry an explicit type tag to override inference or disambiguate. The available tags are: `!string`, `!number`, `!boolean`, `!date`, `!time`, `!datetime`, `!type`. Any tagged value is an expression and can use operators, property references, and built-in functions:
 
 ```yaml
 first_name: !string "Bob"
 birth_date: !date "1990-07-04"
+start_time: !time "09:00"
+created_at: !datetime "2024-01-15T14:30:00"
 count: !number 42
 active: !boolean true
 author: fref("bob.tdr")
@@ -415,11 +468,12 @@ Expressions can reference:
 
 ## TDR Schema
 
-A schema file self-identifies by setting `_type: schema`. It defines the shape of resources that reference it: what properties they have, their types, constraints, and default values. Each property supports the following fields:
+A schema file self-identifies by setting `_type: schema`. It defines the shape of resources that reference it: what properties they have, their types, and whether each property is required or optional.
+
+Each property supports the following fields:
 
 - `type`: the type of the property, as a `!type` expression, a literal value, or a list (union)
 - `optional`: whether the property may be absent on the resource (default: `false`)
-- `default`: a default value used when the property is absent (This is currently unsupported)
 
 ```yaml
 ---
@@ -434,15 +488,9 @@ properties:
     type: !type list[string]
     optional: true
   status:
-    type: ['draft', 'published', 'archived']
-    default: "draft"
-  full_name:
-    type: !type string
-    default: self.first_name + " " + self.last_name
+    type: !type ["draft", "published", "archived"]
 ---
 ```
-
-`schema` itself is a built-in type, defined by the Typedown processor
 
 ## TDR Body (Markdown Mode)
 
