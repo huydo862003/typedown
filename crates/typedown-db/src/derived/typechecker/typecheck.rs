@@ -490,6 +490,7 @@ fn member_type_compatible(
       .iter()
       .any(|member| member_type_compatible(db, &member.typ(db), actual)),
     MemberType::Literal(_) => false,
+    MemberType::Never => false,
   }
 }
 

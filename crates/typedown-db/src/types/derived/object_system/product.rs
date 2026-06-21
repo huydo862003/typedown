@@ -1,12 +1,15 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
+use super::dict::TdrDictObj;
+use typedown_types::either::Either;
 use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::{Id, TypedownDatabase};
 
-use crate::types::{HirValue, HirValueKind, InstResult, MemberType, TypeMember};
+use crate::types::{HirValue, InstResult, MemberType, TypeMember};
 
 fn member_type_compatible(
   db: &TypedownDatabase,
@@ -28,6 +31,7 @@ fn member_type_compatible(
         .zip(act_arms.iter())
         .all(|(exp_arm, act_arm)| member_type_compatible(db, &exp_arm.typ(db), &act_arm.typ(db)))
     }
+    (MemberType::Never, _) | (_, MemberType::Never) => false,
     _ => false,
   }
 }
@@ -100,24 +104,19 @@ impl TdrTypeLike for TdrProductType {
     true
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Mapping(entries) => {
-        let mut fields = HashMap::new();
-        for (key, value_hir) in entries {
-          if key == "_type" {
-            continue;
-          }
-          fields.insert(key, value_hir);
-        }
-        Some(Box::new(TdrProductObj::new(
-          db,
-          Box::new(self.clone()) as Box<dyn TdrTypeLike>,
-          fields,
-        )))
-      }
-      _ => None,
-    }
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    let dict = (arg.as_ref() as &dyn Any).downcast_ref::<TdrDictObj>()?;
+    let fields = dict.entries(db);
+    Some(Box::new(TdrProductObj::new(
+      db,
+      Box::new(self.clone()) as Box<dyn TdrTypeLike>,
+      fields,
+    )))
   }
 
   fn display_name(&self, db: &TypedownDatabase) -> String {
@@ -150,13 +149,14 @@ pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberTyp
       .collect::<Vec<_>>()
       .join(" | "),
     MemberType::Literal(val) => format!("{:?}", val),
+    MemberType::Never => "never".to_string(),
   }
 }
 
 #[query_derived]
 pub struct TdrProductObj {
   pub schema: Box<dyn TdrTypeLike>,
-  pub fields: HashMap<String, HirValue>,
+  pub fields: HashMap<String, Either<HirValue, Box<dyn TdrObjectLike>>>,
 }
 
 impl TdrObjectLike for TdrProductObj {
@@ -164,7 +164,9 @@ impl TdrObjectLike for TdrProductObj {
     self.schema(db)
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    let hir = self.fields(db).get(key).cloned()?;
-    evaluate_node(db, hir).value(db)
+    match self.fields(db).get(key).cloned()? {
+      Either::Left(hir) => evaluate_node(db, hir).value(db),
+      Either::Right(obj) => Some(obj),
+    }
   }
 }

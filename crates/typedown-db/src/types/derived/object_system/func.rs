@@ -5,7 +5,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::get_func_type;
-use crate::types::{FuncSignature, HirValue, InstResult, TypeMember};
+use crate::types::{FuncSignature, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 pub type NativeFn = fn(
@@ -67,7 +67,11 @@ impl TdrTypeLike for TdrFuncType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, _db: &TypedownDatabase, _hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    _args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 

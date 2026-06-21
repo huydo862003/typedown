@@ -1,14 +1,20 @@
 use std::any::Any;
+use std::collections::HashMap;
 
 use crate::TypedownDatabase;
+use typedown_types::either::Either;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
+use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
+use crate::derived::get_builtin_types::get_schema_type;
 use crate::derived::evaluate::evaluate_resource::evaluate_resource;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  BuiltinMacroKind, File, HirValue, HirValueKind, SymbolKind, TdrBoolObj, TdrDictObj, TdrFuncObj,
-  TdrListObj, TdrNumObj, TdrObjectLike, TdrStrObj,
+  BuiltinMacroKind, File, HirValue, HirValueKind, InterpolatedPart, SymbolKind, TdrBoolObj,
+  MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrNumObj, TdrObjectLike,
+  TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
+  TypeMemberDescriptors,
 };
 
 pub(crate) fn construct_from_hir(
@@ -84,10 +90,34 @@ pub(crate) fn construct_from_hir(
     _ => {}
   }
 
-  // Normal construction
+  // Normal construction: convert HIR to args, then call construct
   let type_result = get_node_type(db, hir);
   let typ = type_result.typ(db)?;
-  typ.construct(db, hir)
+  match hir.kind(db) {
+    HirValueKind::Str(val) => typ.construct(db, vec![Box::new(TdrStrObj::new(db, val))]),
+    HirValueKind::Num(val) => {
+      let num: f64 = val.parse().unwrap_or(0.0);
+      typ.construct(db, vec![Box::new(TdrNumObj::new(db, num))])
+    }
+    HirValueKind::Bool(val) => typ.construct(db, vec![Box::new(TdrBoolObj::new(db, val))]),
+    HirValueKind::Interpolated(parts) => {
+      let obj = evaluate_interpolated(db, parts)?;
+      typ.construct(db, vec![obj])
+    }
+    HirValueKind::Sequence(items) => {
+      if (typ.as_ref() as &dyn Any).downcast_ref::<TdrListType>().is_some() {
+        let hir_items = items.into_iter().map(Either::Left).collect();
+        return Some(Box::new(TdrListObj::new(db, hir_items)));
+      }
+      let args: Vec<_> = items
+        .into_iter()
+        .filter_map(|item| evaluate_node(db, item).value(db))
+        .collect();
+      typ.construct(db, args)
+    }
+    HirValueKind::Mapping(entries) => evaluate_mapping(db, &*typ, entries),
+    _ => None,
+  }
 }
 
 fn evaluate_unary(
@@ -237,8 +267,10 @@ fn evaluate_index(
   if let Some(list) = (container.as_ref() as &dyn Any).downcast_ref::<TdrListObj>() {
     let num = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
     let idx = num.value(db) as usize;
-    let item_hir = list.items(db).get(idx).cloned()?;
-    return evaluate_node(db, item_hir).value(db);
+    if idx >= list.len(db) {
+      return None;
+    }
+    return list.get(db, idx);
   }
   if let Some(dict) = (container.as_ref() as &dyn Any).downcast_ref::<TdrDictObj>() {
     let key = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
@@ -255,6 +287,87 @@ fn construct_macro(
   match kind {
     BuiltinMacroKind::Fref => construct_fref(db, args),
   }
+}
+
+fn evaluate_interpolated(
+  db: &TypedownDatabase,
+  parts: Vec<InterpolatedPart>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  let mut val = String::new();
+  for part in parts {
+    match part {
+      InterpolatedPart::Literal(lit) => val.push_str(&lit),
+      InterpolatedPart::Expr(expr) => {
+        let obj = evaluate_node(db, expr).value(db)?;
+        let to_string_fn = obj.lookup_method(db, "to_string")?;
+        let str_obj = to_string_fn.call(db, obj, vec![])?;
+        let str_val = (str_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+        val.push_str(&str_val.value(db));
+      }
+    }
+  }
+  Some(Box::new(TdrStrObj::new(db, val)))
+}
+
+fn evaluate_mapping(
+  db: &TypedownDatabase,
+  typ: &dyn crate::types::TdrTypeLike,
+  entries: Vec<(String, HirValue)>,
+) -> Option<Box<dyn TdrObjectLike>> {
+  // Schema type
+  if (typ as &dyn Any).downcast_ref::<TdrSchemaType>().is_some() {
+    let properties_entries = match entries.iter().find(|(key, _)| key == "properties") {
+      Some((_, props_hir)) => match props_hir.kind(db) {
+        HirValueKind::Mapping(entries) => entries,
+        _ => return None,
+      },
+      None => vec![],
+    };
+    let mut fields = HashMap::new();
+    for (prop_name, prop_hir) in properties_entries {
+      if prop_name.starts_with('_') && prop_name != "_type" && prop_name != "_label" {
+        fields.insert(
+          prop_name,
+          TypeMember::new(db, MemberType::Never, TypeMemberDescriptors::empty()),
+        );
+        continue;
+      }
+      if let Some((member_type, descriptors)) =
+        resolve_property_descriptor(db, prop_hir, &mut vec![])
+      {
+        fields.insert(prop_name, TypeMember::new(db, member_type, descriptors));
+      }
+    }
+    return Some(Box::new(TdrProductType::new(
+      db,
+      None,
+      Box::new(get_schema_type(db)),
+      fields,
+    )));
+  }
+
+  // Product type
+  if let Some(product_typ) = (typ as &dyn Any).downcast_ref::<TdrProductType>() {
+    let mut fields = HashMap::new();
+    for (key, val_hir) in entries {
+      if key == "_type" {
+        continue;
+      }
+      fields.insert(key, Either::Left(val_hir));
+    }
+    return Some(Box::new(TdrProductObj::new(
+      db,
+      Box::new(product_typ.clone()) as Box<dyn crate::types::TdrTypeLike>,
+      fields,
+    )));
+  }
+
+
+  let dict_entries: HashMap<_, _> = entries
+    .into_iter()
+    .map(|(k, v)| (k, Either::Left(v)))
+    .collect();
+  Some(Box::new(TdrDictObj::new(db, dict_entries)))
 }
 
 // fref("file.tdr") evaluates to the target resource's object

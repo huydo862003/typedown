@@ -4,11 +4,8 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
-use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::get_str_type;
-use crate::types::{
-  FuncSignature, HirValue, HirValueKind, InstResult, InterpolatedPart, TypeMember,
-};
+use crate::types::{FuncSignature, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -61,27 +58,14 @@ impl TdrTypeLike for TdrStrType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Str(val) => Some(Box::new(TdrStrObj::new(db, val))),
-      HirValueKind::Interpolated(parts) => {
-        let mut val = String::new();
-        for part in parts {
-          match part {
-            InterpolatedPart::Literal(lit) => val.push_str(&lit),
-            InterpolatedPart::Expr(expr) => {
-              let obj = evaluate_node(db, expr).value(db)?;
-              let to_string_fn = obj.lookup_method(db, "to_string")?;
-              let str_obj = to_string_fn.call(db, obj, vec![])?;
-              let str_val = (str_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
-              val.push_str(&str_val.value(db));
-            }
-          }
-        }
-        Some(Box::new(TdrStrObj::new(db, val)))
-      }
-      _ => None,
-    }
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+    Some(arg)
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

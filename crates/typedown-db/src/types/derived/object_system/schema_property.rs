@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
 use crate::derived::get_builtin_types::{get_bool_type, get_schema_property_type, get_type_type};
-use crate::types::{HirValue, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
+use crate::types::{InstResult, MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 
 /// The type of a single property descriptor inside a schema's `properties` field.
@@ -64,7 +64,11 @@ impl TdrTypeLike for TdrSchemaPropertyType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, _db: &TypedownDatabase, _hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    _args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
 

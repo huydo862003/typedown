@@ -6,7 +6,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
-use crate::types::{FuncSignature, HirValue, HirValueKind, InstResult, TypeMember};
+use crate::types::{FuncSignature, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -59,11 +59,14 @@ impl TdrTypeLike for TdrDateTimeType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Str(val) => Some(Box::new(TdrDateTimeObj::new(db, val))),
-      _ => None,
-    }
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    let str_obj = (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+    Some(Box::new(TdrDateTimeObj::new(db, str_obj.value(db))))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
@@ -143,11 +146,14 @@ impl TdrTypeLike for TdrDateType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Str(val) => Some(Box::new(TdrDateObj::new(db, val))),
-      _ => None,
-    }
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    let str_obj = (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+    Some(Box::new(TdrDateObj::new(db, str_obj.value(db))))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
@@ -229,11 +235,14 @@ impl TdrTypeLike for TdrTimeType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Str(val) => Some(Box::new(TdrTimeObj::new(db, val))),
-      _ => None,
-    }
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    let str_obj = (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+    Some(Box::new(TdrTimeObj::new(db, str_obj.value(db))))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

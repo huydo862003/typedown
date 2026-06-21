@@ -1,13 +1,15 @@
+use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrTypeLike, TdrTypeType};
-use super::dict::TdrDictType;
+use super::dict::{TdrDictObj, TdrDictType};
+use typedown_types::either::Either;
+use crate::derived::evaluate::evaluate_node::evaluate_node;
 use super::func::TdrFuncObj;
-use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::derived::get_builtin_types::{get_schema_property_type, get_schema_type, get_str_type};
 use crate::types::{
-  HirValue, HirValueKind, InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors,
+  InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors,
 };
 use crate::{Id, TypedownDatabase};
 
@@ -71,40 +73,25 @@ impl TdrTypeLike for TdrSchemaType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    // Build a TdrProductType from the properties field
-    let entries = match hir.kind(db) {
-      HirValueKind::Mapping(entries) => entries,
-      _ => return None,
-    };
-
-    let properties_entries = match entries.iter().find(|(key, _)| key == "properties") {
-      Some((_, props_hir)) => match props_hir.kind(db) {
-        HirValueKind::Mapping(entries) => entries,
-        _ => return None,
-      },
-      None => {
-        return Some(Box::new(TdrProductType::new(
-          db,
-          None,
-          Box::new(TdrSchemaType::get(db)),
-          HashMap::new(),
-        )));
-      }
-    };
-
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    let dict = (arg.as_ref() as &dyn Any).downcast_ref::<TdrDictObj>()?;
     let mut fields = HashMap::new();
-    for (prop_name, prop_hir) in properties_entries {
-      if let Some((member_type, descriptors)) =
-        resolve_property_descriptor(db, prop_hir, &mut vec![])
-      {
-        fields.insert(
-          prop_name.clone(),
-          TypeMember::new(db, member_type, descriptors),
-        );
-      }
+    for (name, entry) in dict.entries(db) {
+      let obj = match entry {
+        Either::Left(hir) => evaluate_node(db, hir).value(db)?,
+        Either::Right(obj) => obj,
+      };
+      let typ = obj.as_type()?;
+      fields.insert(
+        name,
+        TypeMember::new(db, MemberType::Simple(typ), TypeMemberDescriptors::empty()),
+      );
     }
-
     Some(Box::new(TdrProductType::new(
       db,
       None,

@@ -24,6 +24,8 @@ pub enum MemberType {
   Sum(Vec<TypeMember>),
   /// A literal value constraint (e.g. `"foo"`, `42`, `true`)
   Literal(LiteralValue),
+  /// The bottom type: no value can be assigned to this field
+  Never,
 }
 
 /// A concrete literal value used in literal constraints
@@ -40,3 +42,4 @@ pub struct TypeMember {
   pub typ: MemberType,
   pub descriptors: TypeMemberDescriptors,
 }
+

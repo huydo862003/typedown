@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use typedown_macros::query_derived;
+use typedown_types::either::Either;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
+use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::get_list_type;
-use crate::types::{HirValue, HirValueKind, InstResult, TypeMember};
+use crate::types::{HirValue, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -57,7 +59,6 @@ impl TdrTypeLike for TdrListType {
     }
     let self_args = self.get_type_args(db);
     if self_args.is_empty() {
-      // Uninstantiated list: accept any list.
       return true;
     }
     let actual_args = actual.get_type_args(db);
@@ -74,11 +75,13 @@ impl TdrTypeLike for TdrListType {
     self.elem(db).into_iter().collect()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Sequence(items) => Some(Box::new(TdrListObj::new(db, items))),
-      _ => None,
-    }
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let items = args.into_iter().map(Either::Right).collect();
+    Some(Box::new(TdrListObj::new(db, items)))
   }
 
   fn display_name(&self, db: &TypedownDatabase) -> String {
@@ -97,7 +100,7 @@ impl TdrListType {
 
 #[query_derived]
 pub struct TdrListObj {
-  pub items: Vec<HirValue>,
+  pub items: Vec<Either<HirValue, Box<dyn TdrObjectLike>>>,
 }
 
 impl TdrObjectLike for TdrListObj {
@@ -106,5 +109,18 @@ impl TdrObjectLike for TdrListObj {
   }
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
+  }
+}
+
+impl TdrListObj {
+  pub fn len(&self, db: &TypedownDatabase) -> usize {
+    self.items(db).len()
+  }
+
+  pub fn get(&self, db: &TypedownDatabase, idx: usize) -> Option<Box<dyn TdrObjectLike>> {
+    match self.items(db).into_iter().nth(idx)? {
+      Either::Left(hir) => evaluate_node(db, hir).value(db),
+      Either::Right(obj) => Some(obj),
+    }
   }
 }

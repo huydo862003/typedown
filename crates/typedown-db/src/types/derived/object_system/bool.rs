@@ -6,7 +6,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_bool_type, get_false, get_true};
-use crate::types::{FuncSignature, HirValue, HirValueKind, InstResult, TypeMember};
+use crate::types::{FuncSignature, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -59,11 +59,14 @@ impl TdrTypeLike for TdrBoolType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Bool(val) => Some(Box::new(TdrBoolObj::new(db, val))),
-      _ => None,
-    }
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let arg = args.into_iter().next()?;
+    (arg.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>()?;
+    Some(arg)
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

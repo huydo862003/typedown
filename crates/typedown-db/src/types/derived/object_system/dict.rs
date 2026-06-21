@@ -1,12 +1,15 @@
 use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
+use typedown_types::either::Either;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
+use super::list::TdrListObj;
+use super::str::TdrStrObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::get_dict_type;
-use crate::types::{HirValue, HirValueKind, InstResult, TdrProductType, TypeMember};
+use crate::types::{HirValue, InstResult, TdrProductType, TypeMember};
 use crate::{Id, TypedownDatabase};
 
 #[query_derived]
@@ -46,6 +49,7 @@ impl TdrTypeLike for TdrDictType {
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
+
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
     let mut iter = args.into_iter();
@@ -59,7 +63,6 @@ impl TdrTypeLike for TdrDictType {
   }
 
   fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    // Structural compatibility: accept a product type if all field values match the dict's value type
     if let Some(product) = (actual as &dyn Any).downcast_ref::<TdrProductType>() {
       let value_type = match self.value(db) {
         Some(vt) => vt,
@@ -76,7 +79,6 @@ impl TdrTypeLike for TdrDictType {
         });
     }
 
-    // Dict-to-dict compatibility
     if self.as_id().0 != actual.as_id().0 {
       return false;
     }
@@ -101,14 +103,24 @@ impl TdrTypeLike for TdrDictType {
     }
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      HirValueKind::Mapping(entries) => {
-        let map = entries.into_iter().collect();
-        Some(Box::new(TdrDictObj::new(db, map)))
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    let mut entries = HashMap::new();
+    for arg in args {
+      let pair = (arg.as_ref() as &dyn Any).downcast_ref::<TdrListObj>()?;
+      if pair.len(db) != 2 {
+        return None;
       }
-      _ => None,
+      let key_str = (pair.get(db, 0)?.as_ref() as &dyn Any)
+        .downcast_ref::<TdrStrObj>()?
+        .value(db);
+      let val = pair.get(db, 1)?;
+      entries.insert(key_str, Either::Right(val));
     }
+    Some(Box::new(TdrDictObj::new(db, entries)))
   }
 
   fn display_name(&self, db: &TypedownDatabase) -> String {
@@ -129,7 +141,7 @@ impl TdrDictType {
 
 #[query_derived]
 pub struct TdrDictObj {
-  pub entries: HashMap<String, HirValue>,
+  pub entries: HashMap<String, Either<HirValue, Box<dyn TdrObjectLike>>>,
 }
 
 impl TdrObjectLike for TdrDictObj {
@@ -137,7 +149,9 @@ impl TdrObjectLike for TdrDictObj {
     Box::new(TdrDictType::get(db))
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
-    let hir = self.entries(db).get(key).cloned()?;
-    evaluate_node(db, hir).value(db)
+    match self.entries(db).get(key).cloned()? {
+      Either::Left(hir) => evaluate_node(db, hir).value(db),
+      Either::Right(obj) => Some(obj),
+    }
   }
 }

@@ -4,16 +4,8 @@ use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
-use crate::derived::evaluate::evaluate_type::evaluate_type;
-use crate::derived::get_builtin_types::{
-  get_dict_type, get_object_type, get_schema_type, get_str_type, get_type_type,
-};
-use crate::derived::name_resolver::referee::referee;
-use crate::derived::typechecker::get_node_type::get_node_type;
-use crate::types::{
-  BuiltinSchemaKind, FuncSignature, HirValue, HirValueKind, InstResult, MemberType, SymbolKind,
-  TypeMember, TypeMemberDescriptors,
-};
+use crate::derived::get_builtin_types::{get_object_type, get_str_type, get_type_type};
+use crate::types::{FuncSignature, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
 use typedown_macros::query_derived;
@@ -98,7 +90,11 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
 
   fn display_name(&self, db: &TypedownDatabase) -> String;
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>>;
+  fn construct(
+    &self,
+    db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>>;
 
   fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     if let Some(field) = get_builtin_field(db, name) {
@@ -197,30 +193,13 @@ impl TdrTypeLike for TdrTypeType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    match hir.kind(db) {
-      // Ident should resolve to a symbol and evaluate the type it defines
-      HirValueKind::Ident(_) => {
-        let resolved = referee(db, hir);
-        let symbol = resolved.value(db)?;
-        let result = evaluate_type(db, symbol);
-        result.typ(db).map(|typ| typ as Box<dyn TdrObjectLike>)
-      }
-      // Mapping with _type: Schema should delegate to SchemaType construct
-      HirValueKind::Mapping(entries) => {
-        let type_hir = entries.iter().find(|(key, _)| key == "_type")?.1;
-        let resolved = referee(db, type_hir);
-        let symbol = resolved.value(db)?;
-        if !matches!(
-          symbol.kind(db),
-          SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema)
-        ) {
-          return None;
-        }
-        get_schema_type(db).construct(db, hir)
-      }
-      _ => None,
-    }
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    _args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    // HIR-level construction (ident/mapping paths) lives in utils.rs
+    None
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
@@ -285,19 +264,12 @@ impl TdrTypeLike for TdrObjectType {
     self.as_id() == actual.as_id()
   }
 
-  fn construct(&self, db: &TypedownDatabase, hir: HirValue) -> Option<Box<dyn TdrObjectLike>> {
-    // Delegate to the inferred type's constructor
-    let type_result = get_node_type(db, hir);
-    let typ = match type_result.typ(db) {
-      Some(typ) => typ,
-      // None (any) cannot be constructed
-      None => return None,
-    };
-    // If inferred type is ObjectType, fall back to dict
-    if typ.as_id() == self.as_id() {
-      return get_dict_type(db).construct(db, hir);
-    }
-    typ.construct(db, hir)
+  fn construct(
+    &self,
+    _db: &TypedownDatabase,
+    args: Vec<Box<dyn TdrObjectLike>>,
+  ) -> Option<Box<dyn TdrObjectLike>> {
+    args.into_iter().next()
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {

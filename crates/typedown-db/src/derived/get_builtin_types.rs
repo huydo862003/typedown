@@ -7,8 +7,8 @@ use typedown_types::diagnostic::Diagnostic;
 use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
-  TdrDictType, TdrFuncType, TdrListType, TdrNumType, TdrObjectType,
-  TdrSchemaPropertyType, TdrSchemaType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
+  TdrDictType, TdrFuncType, TdrListType, TdrNumType, TdrObjectType, TdrSchemaPropertyType,
+  TdrSchemaType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
 };
 use crate::{QueryDatabase, TypedownDatabase, types::BuiltinSchemaKind};
 

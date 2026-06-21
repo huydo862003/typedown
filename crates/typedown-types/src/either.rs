@@ -1,4 +1,4 @@
-/// A value that is either of type `L` or type `R`.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Either<L, R> {
   Left(L),
   Right(R),
