@@ -212,10 +212,8 @@ _type: schema
 properties:
   first_name:
     type: !type string
-    required: true
   last_name:
     type: !type string
-    required: true
   birth_date:
     type: !type date
 ---
@@ -429,7 +427,7 @@ Expressions can reference:
 A schema file self-identifies by setting `_type: schema`. It defines the shape of resources that reference it: what properties they have, their types, constraints, and default values. Each property supports the following fields:
 
 - `type`: the type of the property, as a `!type` expression, a literal value, or a list (union)
-- `required`: whether the property must be present on the resource (default: `false`)
+- `optional`: whether the property may be absent on the resource (default: `false`)
 - `default`: a default value used when the property is absent (This is currently unsupported)
 
 ```yaml
@@ -438,11 +436,12 @@ _type: schema
 properties:
   first_name:
     type: !type string
-    required: true
   birth_date:
     type: !type date
+    optional: true
   tags:
     type: !type list[string]
+    optional: true
   status:
     type: ['draft', 'published', 'archived']
     default: "draft"

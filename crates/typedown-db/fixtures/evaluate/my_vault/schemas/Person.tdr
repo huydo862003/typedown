@@ -5,5 +5,4 @@ properties:
     type: string
   age:
     type: number
-    required: true
 ---

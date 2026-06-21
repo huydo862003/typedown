@@ -129,7 +129,7 @@ fn evaluate_user_defined_schema(
   )
 }
 
-// Process a property descriptor like `{ type: string, required: true }`
+// Process a property descriptor like `{ type: string, optional: true }`
 pub(crate) fn resolve_property_descriptor(
   db: &TypedownDatabase,
   hir: HirValue,
@@ -148,8 +148,8 @@ pub(crate) fn resolve_property_descriptor(
       "type" => {
         field_type = resolve_type_member(db, *value, diagnostics);
       }
-      "required" => {
-        if let HirValueKind::Bool(false) = value.kind(db) {
+      "optional" => {
+        if let HirValueKind::Bool(true) = value.kind(db) {
           descriptors |= TypeMemberDescriptors::OPTIONAL;
         }
       }
@@ -208,7 +208,7 @@ fn resolve_type_member(
       }
     }
     // Inline object like `type: { name: { type: string }, age: { type: number } }`
-    // Each entry is a property descriptor with `type` and optional `required`
+    // Each entry is a property descriptor with `type` and optional `optional`
     HirValueKind::Mapping(entries) => {
       let mut fields = HashMap::new();
       for (key, value_hir) in entries {

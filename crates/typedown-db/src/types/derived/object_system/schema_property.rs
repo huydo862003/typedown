@@ -10,7 +10,7 @@ use crate::{Id, TypedownDatabase};
 /// The type of a single property descriptor inside a schema's `properties` field.
 /// Each property descriptor has:
 ///   - `type`: a type value (required)
-///   - `required`: a boolean (optional)
+///   - `optional`: a boolean (optional, defaults to false)
 #[query_derived]
 pub struct TdrSchemaPropertyType {}
 
@@ -43,7 +43,7 @@ impl TdrTypeLike for TdrSchemaPropertyType {
         MemberType::Simple(Box::new(get_type_type(db))),
         TypeMemberDescriptors::empty(),
       )),
-      "required" => Some(TypeMember::new(
+      "optional" => Some(TypeMember::new(
         db,
         MemberType::Simple(Box::new(get_bool_type(db))),
         TypeMemberDescriptors::OPTIONAL,
