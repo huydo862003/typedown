@@ -430,7 +430,7 @@ A schema file self-identifies by setting `_type: schema`. It defines the shape o
 
 - `type`: the type of the property, as a `!type` expression, a literal value, or a list (union)
 - `required`: whether the property must be present on the resource (default: `false`)
-- `default`: a default value used when the property is absent
+- `default`: a default value used when the property is absent (This is currently unsupported)
 
 ```yaml
 ---
