@@ -7,6 +7,8 @@ use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::derived::get_builtin_types::get_schema_type;
 use crate::derived::evaluate::evaluate_resource::evaluate_resource;
+use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
+use crate::derived::get_builtin_types::get_schema_type;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
@@ -309,9 +311,10 @@ fn evaluate_interpolated(
   Some(Box::new(TdrStrObj::new(db, val)))
 }
 
+// Evaluate mapping as an object of type `typ`
 fn evaluate_mapping(
   db: &TypedownDatabase,
-  typ: &dyn crate::types::TdrTypeLike,
+  typ: &dyn TdrTypeLike,
   entries: Vec<(String, HirValue)>,
 ) -> Option<Box<dyn TdrObjectLike>> {
   // Schema type

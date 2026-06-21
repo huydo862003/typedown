@@ -249,6 +249,7 @@ mod tests {
   use std::path::PathBuf;
 
   use crate::{
+    QueryStorage, TypedownDatabase,
     derived::evaluate::evaluate_type::evaluate_type,
     derived::get_builtin_types::*,
     derived::name_resolver::file_symbol::file_symbol,
@@ -261,7 +262,6 @@ mod tests {
       TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_frontmatter,
-    QueryStorage, TypedownDatabase,
   };
 
   fn make_db() -> TypedownDatabase {
