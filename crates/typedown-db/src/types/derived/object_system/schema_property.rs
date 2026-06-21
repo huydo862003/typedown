@@ -21,6 +21,9 @@ impl TdrObjectLike for TdrSchemaPropertyType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
+    Some(Box::new(self.clone()))
+  }
 }
 
 impl TdrTypeLike for TdrSchemaPropertyType {

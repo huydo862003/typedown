@@ -46,6 +46,10 @@ pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
   }
 
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>>;
+
+  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
+    None
+  }
 }
 
 clone_trait_object!(TdrObjectLike);
@@ -163,6 +167,9 @@ impl TdrObjectLike for TdrTypeType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
+    Some(Box::new(self.clone()))
+  }
 }
 
 impl TdrTypeLike for TdrTypeType {
@@ -237,6 +244,9 @@ impl TdrObjectLike for TdrObjectType {
   }
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
+  }
+  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
+    Some(Box::new(self.clone()))
   }
 }
 
