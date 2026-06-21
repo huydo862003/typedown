@@ -117,9 +117,9 @@ $$
 $$
 ```
 
-## Escape Sequences
+## Escape Sequences & HTML Entities
 
-Backslash `\` is the escape character. It works in quoted strings (both `"..."` and `'...'`) and in Markdown body text.
+Backslash `\` is the escape character. It works in quoted strings (both `"..."` and `'...'`).
 
 In quoted strings:
 
@@ -132,16 +132,7 @@ In quoted strings:
 | `\t`     | Tab                                    |
 | `\$`     | Literal `$` (prevents interpolation)   |
 
-In Markdown body text, backslash escapes any special character to produce a literal:
-
-```markdown
-\# Not a heading
-\*Not bold\*
-\$ Not math
-\${ Not interpolation
-```
-
-Inside code spans and math spans, backslash has no special meaning. All content is literal.
+In markdown body, we use HTML entities.
 
 ## String Interpolation
 
