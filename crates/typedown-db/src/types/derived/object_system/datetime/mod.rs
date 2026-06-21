@@ -1,8 +1,11 @@
+mod utils;
+
 use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
+use utils::{is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time};
 use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
@@ -66,7 +69,11 @@ impl TdrTypeLike for TdrDateTimeType {
   ) -> Option<Box<dyn TdrObjectLike>> {
     let arg = args.into_iter().next()?;
     let str_obj = (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
-    Some(Box::new(TdrDateTimeObj::new(db, str_obj.value(db))))
+    let val = str_obj.value(db);
+    if !is_valid_iso_datetime(&val) {
+      return None;
+    }
+    Some(Box::new(TdrDateTimeObj::new(db, val)))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
@@ -153,7 +160,11 @@ impl TdrTypeLike for TdrDateType {
   ) -> Option<Box<dyn TdrObjectLike>> {
     let arg = args.into_iter().next()?;
     let str_obj = (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
-    Some(Box::new(TdrDateObj::new(db, str_obj.value(db))))
+    let val = str_obj.value(db);
+    if !is_valid_iso_date(&val) {
+      return None;
+    }
+    Some(Box::new(TdrDateObj::new(db, val)))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
@@ -242,7 +253,11 @@ impl TdrTypeLike for TdrTimeType {
   ) -> Option<Box<dyn TdrObjectLike>> {
     let arg = args.into_iter().next()?;
     let str_obj = (arg.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
-    Some(Box::new(TdrTimeObj::new(db, str_obj.value(db))))
+    let val = str_obj.value(db);
+    if !is_valid_iso_time(&val) {
+      return None;
+    }
+    Some(Box::new(TdrTimeObj::new(db, val)))
   }
 
   fn display_name(&self, _db: &TypedownDatabase) -> String {
