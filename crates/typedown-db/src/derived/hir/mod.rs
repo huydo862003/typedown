@@ -3,7 +3,7 @@
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{
   AstNode, BinaryExpr, CallExpr, CodeBlock, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
-  InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody,
+  CodeLit, InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody,
   NumberLit, ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
@@ -194,6 +194,12 @@ fn lower_expr_kind(
         return HirValueKind::Math(val);
       }
     }
+    // A string containing only a code literal lowers to Str with code content
+    if let Some(code) = inner.syntax().children().find_map(CodeLit::cast) {
+      if let Some(val) = code.value() {
+        return HirValueKind::Str(val);
+      }
+    }
     return if lit.is_interpolated() {
       let hir_parts = lit
         .fragments()
@@ -233,6 +239,13 @@ fn lower_expr_kind(
   if let Some(lit) = MathLit::cast(inner.syntax().clone()) {
     if let Some(val) = lit.value() {
       return HirValueKind::Math(val);
+    }
+  }
+
+  // Handle code lit
+  if let Some(lit) = CodeLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return HirValueKind::Str(val);
     }
   }
 
