@@ -12,7 +12,7 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, InterpolatedPart, SymbolKind, TdrBoolObj,
-  MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrNumObj, TdrObjectLike,
+  MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj, TdrObjectLike,
   TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
   TypeMemberDescriptors,
 };
@@ -102,6 +102,7 @@ pub(crate) fn construct_from_hir(
       typ.construct(db, vec![Box::new(TdrNumObj::new(db, num))])
     }
     HirValueKind::Bool(val) => typ.construct(db, vec![Box::new(TdrBoolObj::new(db, val))]),
+    HirValueKind::Math(val) => typ.construct(db, vec![Box::new(TdrMathObj::new(db, val))]),
     HirValueKind::Interpolated(parts) => {
       let obj = evaluate_interpolated(db, parts)?;
       typ.construct(db, vec![obj])
