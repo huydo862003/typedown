@@ -6,7 +6,8 @@ use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_num_type,
+  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_math_type,
+  get_num_type,
   get_schema_type, get_str_type, get_time_type, get_type_type,
 };
 use crate::derived::name_resolver::referee::referee;
@@ -33,6 +34,7 @@ pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
         BuiltinSchemaKind::Time => Box::new(get_time_type(db)),
         BuiltinSchemaKind::List => Box::new(get_list_type(db)),
         BuiltinSchemaKind::Dict => Box::new(get_dict_type(db)),
+        BuiltinSchemaKind::Math => Box::new(get_math_type(db)),
         BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
         BuiltinSchemaKind::TypeType => Box::new(get_type_type(db)),
       };
