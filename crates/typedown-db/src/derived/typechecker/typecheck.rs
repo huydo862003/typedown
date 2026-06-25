@@ -52,7 +52,7 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
       diagnostics.extend(check_sequence(db, declared_type.as_ref(), items));
     }
     // Typecheck each embedded expression in an interpolated string
-    HirValueKind::Interpolated(parts) => {
+    HirValueKind::Interpolated(parts) | HirValueKind::Markdown(parts) => {
       for part in parts {
         if let InterpolatedPart::Expr(expr) = part {
           let tc_result = typecheck(db, expr);
@@ -672,6 +672,30 @@ mod tests {
       )),
       "expected OperandTypeMismatch for binary addition with boolean, got: {:?}",
       diags
+    );
+  }
+
+  #[test]
+  fn typecheck_math_field_valid() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_math.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "math field should typecheck with no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_markdown_body_with_interpolation() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_markdown.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "markdown body with interpolation should typecheck with no errors: {:?}",
+      result.diagnostics(&db)
     );
   }
 }

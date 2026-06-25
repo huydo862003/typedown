@@ -3,8 +3,8 @@
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{
   AstNode, BinaryExpr, CallExpr, CodeBlock, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
-  InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MdBody, NumberLit,
-  ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
+  InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody,
+  NumberLit, ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
@@ -188,6 +188,12 @@ fn lower_expr_kind(
 
   // Handle various kinds of string literal
   if let Some(lit) = StrLit::cast(inner.syntax().clone()) {
+    // A string containing only a math literal lowers to Math
+    if let Some(math) = inner.syntax().children().find_map(MathLit::cast) {
+      if let Some(val) = math.value() {
+        return HirValueKind::Math(val);
+      }
+    }
     return if lit.is_interpolated() {
       let hir_parts = lit
         .fragments()
@@ -220,6 +226,13 @@ fn lower_expr_kind(
   if let Some(lit) = NumberLit::cast(inner.syntax().clone()) {
     if let Some(val) = lit.value() {
       return HirValueKind::Num(val.to_string());
+    }
+  }
+
+  // Handle math lit
+  if let Some(lit) = MathLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return HirValueKind::Math(val);
     }
   }
 
