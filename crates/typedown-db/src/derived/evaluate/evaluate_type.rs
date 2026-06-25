@@ -539,13 +539,12 @@ mod tests {
       Box::new(get_list_type(&db)),
       vec![Box::new(get_num_type(&db))],
     );
-    // List objects are built directly from HIR sequences, not via the construct API.
     let items: Vec<Box<dyn crate::types::TdrObjectLike>> = vec![
       Box::new(TdrNumObj::new(&db, 1.0)),
       Box::new(TdrNumObj::new(&db, 2.0)),
       Box::new(TdrNumObj::new(&db, 3.0)),
     ];
-    assert!(list_num.typ(&db).construct(&db, items).is_none());
+    assert!(list_num.typ(&db).construct(&db, items).is_some());
   }
 
   // Schema construct via evaluate_type
