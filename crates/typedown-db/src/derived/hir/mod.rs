@@ -2,9 +2,9 @@
 
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{
-  AstNode, BinaryExpr, CallExpr, DictEntry, DictLit, Expr, IdentLit, IndexExpr, InlineCode,
-  InlineMath, InterpFragment, ListItem, ListLit, MdBody, NumberLit, ParenExpr, SourceFile, StrLit,
-  UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
+  AstNode, BinaryExpr, CallExpr, CodeBlock, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
+  InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MdBody, NumberLit,
+  ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
@@ -50,6 +50,20 @@ fn lower_markdown(db: &TypedownDatabase, project: Project, file: File, node: Red
         parts.push(InterpolatedPart::Expr(hir));
         return;
       }
+    }
+    // Math block: $$...$$
+    if let Some(math) = MathBlock::cast(node.clone()) {
+      let value = math.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Math(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
+    }
+    // Code block: ```...```
+    if let Some(code) = CodeBlock::cast(node.clone()) {
+      let value = code.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Str(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
     }
     // Inline math: $...$
     if let Some(math) = InlineMath::cast(node.clone()) {
@@ -442,5 +456,45 @@ mod tests {
     };
     let has_expr = parts.iter().any(|p| matches!(p, InterpolatedPart::Expr(_)));
     assert!(has_expr, "expected interpolated expr part");
+  }
+
+  #[test]
+  fn markdown_body_math_block() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_math_block.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_math = parts.iter().any(|p| {
+      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Math(_)))
+    });
+    assert!(has_math, "expected math block part");
+  }
+
+  #[test]
+  fn markdown_body_code_block() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_code_block.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_code = parts.iter().any(|p| {
+      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_)))
+    });
+    assert!(has_code, "expected code block part as Str");
   }
 }
