@@ -378,7 +378,6 @@ impl<S: Utf8Stream> LexCtx<S> {
               // Single $ not followed by {: inline math
               let buf_len = self.text_buffer.len();
               let string_text: String = self.text_buffer.drain(..buf_len - 1).collect();
-              self.text_buffer.clear();
 
               let math_token = self.lex_inline_math_content();
 

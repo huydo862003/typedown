@@ -35,7 +35,7 @@ mod tests {
     derived::evaluate::evaluate_resource::evaluate_resource,
     derived::name_resolver::file_symbol::file_symbol,
     fixtures::load_vault_fixture,
-    types::{HirValueKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj},
+    types::{HirValueKind, TdrBoolObj, TdrMathObj, TdrNumObj, TdrProductType, TdrStrObj},
     utils::lower_file,
   };
 
@@ -451,5 +451,31 @@ mod tests {
       .expect("name should be TdrStrObj");
     assert_eq!(name_str.value(&db), "Alice");
     assert_eq!(get_num_field(&db, &obj, "age"), 30.0);
+  }
+
+  // A math field evaluates to TdrMathObj with the correct value
+  #[test]
+  fn evaluate_math_field() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_math_eval.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    let formula = obj.get_owned_field(&db, "formula").expect("should have formula field");
+    let math_obj = (formula.as_ref() as &dyn Any)
+      .downcast_ref::<TdrMathObj>()
+      .expect("formula should be TdrMathObj");
+    assert_eq!(math_obj.value(&db), "E = mc^2");
+  }
+
+  // _content is injected from the markdown body and evaluates to a string
+  #[test]
+  fn evaluate_content_field() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_with_content.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
+    let content = obj.get_owned_field(&db, "_content").expect("should have _content field");
+    let str_obj = (content.as_ref() as &dyn Any)
+      .downcast_ref::<TdrStrObj>()
+      .expect("_content should be TdrStrObj");
+    assert!(str_obj.value(&db).contains("Hello world"));
   }
 }

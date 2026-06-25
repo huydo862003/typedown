@@ -241,6 +241,35 @@ mod tests {
     assert_eq!(tokens[6], (SyntaxKind::DqStrEnd, "\"".to_string()));
   }
 
+
+  #[test]
+  fn yaml_inline_math_in_dq_string() {
+    let tokens = lex_yaml("\"$E = mc^2$\"");
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::InlineMath, "$E = mc^2$".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::DqStrEnd, "\"".to_string()));
+  }
+
+  #[test]
+  fn yaml_inline_math_in_sq_string() {
+    let tokens = lex_yaml("'$E = mc^2$'");
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::SqStrStart, "'".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::InlineMath, "$E = mc^2$".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::SqStrEnd, "'".to_string()));
+  }
+
+  #[test]
+  fn yaml_inline_math_with_text_prefix() {
+    let tokens = lex_yaml("\"value: $x^2$\"");
+    assert_eq!(tokens[0], (SyntaxKind::YamlIndent, "".to_string()));
+    assert_eq!(tokens[1], (SyntaxKind::DqStrStart, "\"".to_string()));
+    assert_eq!(tokens[2], (SyntaxKind::DqStrContent, "value: ".to_string()));
+    assert_eq!(tokens[3], (SyntaxKind::InlineMath, "$x^2$".to_string()));
+    assert_eq!(tokens[4], (SyntaxKind::DqStrEnd, "\"".to_string()));
+  }
+
   #[test]
   fn yaml_mapping_line() {
     let tokens = lex_yaml("key: \"value\"");
