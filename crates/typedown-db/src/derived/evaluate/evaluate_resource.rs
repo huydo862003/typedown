@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::types::{ResourceResult, Symbol, SymbolKind};
-use crate::utils::lower_frontmatter;
+use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -14,7 +14,7 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
     _ => return ResourceResult::new(db, None, vec![]),
   };
 
-  let (hir, mut diagnostics) = lower_frontmatter(db, project, file);
+  let (hir, mut diagnostics) = lower_file(db, project, file);
   let hir = match hir {
     Some(hir) => hir,
     None => return ResourceResult::new(db, None, diagnostics),
@@ -36,7 +36,7 @@ mod tests {
     derived::name_resolver::file_symbol::file_symbol,
     fixtures::load_vault_fixture,
     types::{HirValueKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj},
-    utils::lower_frontmatter,
+    utils::lower_file,
   };
 
   // A valid resource with _type produces an object with the declared fields
@@ -393,7 +393,7 @@ mod tests {
   #[test]
   fn index_out_of_bounds_emits_diagnostic() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/index_oob.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let hir = hir.unwrap();
 
     // Extract field HIRs from the top-level mapping

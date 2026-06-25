@@ -6,8 +6,8 @@ use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_math_type,
-  get_num_type,
+  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type,
+  get_math_type, get_num_type,
   get_schema_type, get_str_type, get_time_type, get_type_type,
 };
 use crate::derived::name_resolver::referee::referee;
@@ -18,7 +18,7 @@ use crate::types::{
   BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Symbol, SymbolKind,
   TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
-use crate::utils::lower_frontmatter;
+use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -58,7 +58,7 @@ fn evaluate_user_defined_schema(
   let mut diagnostics = vec![];
 
   // Parse file and lower frontmatter to HIR
-  let (hir, _) = lower_frontmatter(db, project, file);
+  let (hir, _) = lower_file(db, project, file);
   let hir = match hir {
     Some(hir) => hir,
     None => return TypeResult::new(db, None, vec![]),
@@ -263,7 +263,7 @@ mod tests {
       SymbolKind, TdrBoolObj, TdrNumObj, TdrObjectType, TdrProductType, TdrStrObj,
       TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
-    utils::lower_frontmatter,
+    utils::lower_file,
     QueryStorage, TypedownDatabase,
   };
 
@@ -447,7 +447,7 @@ mod tests {
   fn make_hir(db: &TypedownDatabase, content: &str) -> HirValue {
     let file = File::new(db, FileHandle::Content(content.to_string()));
     let project = Project::new(db, PathBuf::new(), HashMap::new());
-    let (hir, _) = lower_frontmatter(db, project, file);
+    let (hir, _) = lower_file(db, project, file);
     hir.unwrap()
   }
 
@@ -517,7 +517,7 @@ mod tests {
   #[test]
   fn construct_product() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let hir = hir.unwrap();
 
     let obj = construct_from_hir(&db, hir, &mut vec![]).expect("should construct product");
@@ -596,7 +596,7 @@ age: 42
   #[test]
   fn construct_type_type() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let hir = hir.unwrap();
 
     let obj = construct_from_hir(&db, hir, &mut vec![]).expect("should construct type from schema");
@@ -617,7 +617,7 @@ age: 42
   #[test]
   fn construct_type_type_rejects_non_schema() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let hir = hir.unwrap();
 
     let type_type = TdrTypeType::get(&db);
@@ -635,7 +635,7 @@ age: 42
   #[test]
   fn fref_returns_resource_type() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/with_fref.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let hir = hir.unwrap();
 
     let friend_hir = match hir.kind(&db) {

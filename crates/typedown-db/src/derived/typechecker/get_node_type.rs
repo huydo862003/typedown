@@ -5,7 +5,8 @@ use std::collections::HashMap;
 
 use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type, instantiate_type,
+  get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type,
+  instantiate_type,
 };
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
@@ -15,7 +16,7 @@ use crate::types::{
   TdrListType, TdrProductType, TdrStrType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
   TypeResult,
 };
-use crate::utils::lower_frontmatter;
+use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
@@ -44,6 +45,7 @@ pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
     HirValueKind::Tag { tag, .. } => get_tag_type(db, *tag),
     HirValueKind::Unary { op, operand } => get_unary_type(db, &op, *operand),
     HirValueKind::Binary { op, left, right } => get_binary_type(db, &op, *left, *right),
+    HirValueKind::Markdown(_) => TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![]),
   }
 }
 
@@ -418,7 +420,7 @@ fn find_common_supertype(
 fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   let project = hir.project(db);
   let file = hir.file(db);
-  let (mapping_hir, _) = lower_frontmatter(db, project, file);
+  let (mapping_hir, _) = lower_file(db, project, file);
   let mapping_hir = match mapping_hir {
     Some(mapping_hir) => mapping_hir,
     None => return TypeResult::new(db, None, vec![]),
@@ -448,7 +450,7 @@ mod tests {
     derived::{get_builtin_types::get_schema_type, typechecker::get_node_type::get_node_type},
     inputs::{File, FileHandle},
     types::{Project, TdrTypeLike},
-    utils::lower_frontmatter,
+    utils::lower_file,
   };
 
   fn vault_root() -> PathBuf {
@@ -468,7 +470,7 @@ mod tests {
     let handles = HashMap::from([(schema_file_path, file.handle(&db))]);
     let project = Project::new(&db, vault, handles);
 
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("schema file should have parseable frontmatter");
     let type_result = get_node_type(&db, hir);
 

@@ -27,6 +27,7 @@ pub enum HirValueKind {
   Mapping(Vec<(String, HirValue)>),
   Sequence(Vec<HirValue>),
   Interpolated(Vec<InterpolatedPart>),
+  Markdown(Vec<InterpolatedPart>),
   Tag {
     tag: Box<HirValue>,
     inner: Box<HirValue>,

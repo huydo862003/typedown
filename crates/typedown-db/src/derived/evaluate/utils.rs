@@ -118,6 +118,7 @@ pub(crate) fn construct_from_hir(
       typ.construct(db, args)
     }
     HirValueKind::Mapping(entries) => evaluate_mapping(db, &*typ, entries),
+    HirValueKind::Markdown(parts) => evaluate_interpolated(db, parts),
     _ => None,
   }
 }
@@ -354,7 +355,7 @@ fn evaluate_mapping(
     };
     let mut fields = HashMap::new();
     for (prop_name, prop_hir) in properties_entries {
-      if prop_name.starts_with('_') && prop_name != "_type" && prop_name != "_label" {
+      if prop_name.starts_with('_') && prop_name != "_type" && prop_name != "_label" && prop_name != "_content" {
         fields.insert(
           prop_name,
           TypeMember::new(db, MemberType::Never, TypeMemberDescriptors::empty()),

@@ -498,14 +498,14 @@ fn member_type_compatible(
 mod tests {
   use crate::{
     derived::typechecker::typecheck::typecheck, fixtures::load_vault_fixture,
-    utils::lower_frontmatter,
+    utils::lower_file,
   };
 
   // Mapping without _type: infers product type, no validation errors
   #[test]
   fn typecheck_mapping_without_type_infers_product_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -519,7 +519,7 @@ mod tests {
   fn typecheck_unresolved_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/unresolved_type.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       !result.diagnostics(&db).is_empty(),
@@ -531,7 +531,7 @@ mod tests {
   #[test]
   fn typecheck_mapping_with_ident_value() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/ident_value.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -547,7 +547,7 @@ mod tests {
       "typecheck/my_vault",
       "content/schema_missing_properties.tdr",
     );
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
@@ -561,7 +561,7 @@ mod tests {
   #[test]
   fn typecheck_valid_person_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -575,7 +575,7 @@ mod tests {
   fn typecheck_wrong_field_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/wrong_field_type.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
@@ -589,7 +589,7 @@ mod tests {
   #[test]
   fn typecheck_nested_valid_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/nested_valid.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -603,7 +603,7 @@ mod tests {
   fn typecheck_nested_wrong_type_has_diagnostics() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/nested_wrong_type.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
@@ -617,7 +617,7 @@ mod tests {
   #[test]
   fn typecheck_unary_valid() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/unary_valid.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -631,7 +631,7 @@ mod tests {
   fn typecheck_unary_wrong_type() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/unary_wrong_type.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
@@ -648,7 +648,7 @@ mod tests {
   #[test]
   fn typecheck_binary_valid() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/binary_valid.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -662,7 +662,7 @@ mod tests {
   fn typecheck_binary_wrong_type() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "content/binary_wrong_type.tdr");
-    let (hir, _) = lower_frontmatter(&db, project, file);
+    let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(

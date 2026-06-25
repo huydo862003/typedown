@@ -2,12 +2,14 @@
 
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{
-  AstNode, BinaryExpr, CallExpr, DictEntry, DictLit, Expr, IdentLit, IndexExpr, ListItem, ListLit,
-  NumberLit, ParenExpr, StrLit, UnaryExpr, YamlMapping, YamlSequence,
+  AstNode, BinaryExpr, CallExpr, DictEntry, DictLit, Expr, IdentLit, IndexExpr, InterpFragment,
+  ListItem, ListLit, MdBody, NumberLit, ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter,
+  YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::either::Either;
+use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::{
   QueryDatabase, TypedownDatabase,
@@ -16,11 +18,65 @@ use crate::{
 
 // Normalize expressions to a hir form
 #[query_derived]
-pub fn lower_expr(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
-  let expr = Expr::cast(node.clone()).expect("node must be an Expr");
+pub fn lower_node(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
+  if SourceFile::cast(node.clone()).is_some() {
+    return lower_source_file(db, project, file, node);
+  }
+  if YamlFrontmatter::cast(node.clone()).is_some() {
+    return lower_frontmatter(db, project, file, node);
+  }
+  if MdBody::cast(node.clone()).is_some() {
+    return lower_markdown(db, project, file, node);
+  }
+  let expr =
+    Expr::cast(node.clone()).expect("node must be an Expr, MdBody, YamlFrontmatter, or SourceFile");
   let mut diagnostics = vec![];
   let kind = lower_expr_kind(db, project, file, &expr, &mut diagnostics);
   HirValue::new(db, project, file, node, kind, diagnostics)
+}
+
+fn lower_markdown(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
+  fn collect_interpolated_parts(
+    db: &TypedownDatabase,
+    project: Project,
+    file: File,
+    node: RedNode,
+    parts: &mut Vec<InterpolatedPart>,
+  ) {
+    // If node is an interp fragment, lower the expression inside it
+    if node.kind() == SyntaxKind::InterpFragment {
+      if let Some(expr) = InterpFragment::cast(node.clone()).and_then(|f| f.expr()) {
+        let hir = lower_node(db, project, file, expr.syntax().clone());
+        parts.push(InterpolatedPart::Expr(hir));
+        return;
+      }
+    }
+    // If node is a token, it must be a string token
+    if node.is_token() {
+      let text = node.text();
+      if !text.is_empty() {
+        match parts.last_mut() {
+          Some(InterpolatedPart::Literal(existing)) => existing.push_str(&text),
+          _ => parts.push(InterpolatedPart::Literal(text)),
+        }
+      }
+      return;
+    }
+    for child in node.children() {
+      collect_interpolated_parts(db, project, file, child, parts);
+    }
+  }
+
+  let mut parts: Vec<InterpolatedPart> = vec![];
+  collect_interpolated_parts(db, project, file, node.clone(), &mut parts);
+  HirValue::new(
+    db,
+    project,
+    file,
+    node,
+    HirValueKind::Markdown(parts),
+    vec![],
+  )
 }
 
 fn lower_expr_kind(
@@ -47,7 +103,7 @@ fn lower_expr_kind(
             end_offset: node.offset() + node.text_len(),
           });
         }
-        let child = lower_expr(db, project, file, val_expr.syntax().clone());
+        let child = lower_node(db, project, file, val_expr.syntax().clone());
         (key, child)
       })
       .collect();
@@ -72,7 +128,7 @@ fn lower_expr_kind(
             end_offset: node.offset() + node.text_len(),
           });
         }
-        let child = lower_expr(db, project, file, val_expr.syntax().clone());
+        let child = lower_node(db, project, file, val_expr.syntax().clone());
         (key, child)
       })
       .collect();
@@ -84,7 +140,7 @@ fn lower_expr_kind(
     let items = seq.values().collect::<Vec<_>>();
     let hir_items = items
       .into_iter()
-      .map(|item_expr| lower_expr(db, project, file, item_expr.syntax().clone()))
+      .map(|item_expr| lower_node(db, project, file, item_expr.syntax().clone()))
       .collect();
     return HirValueKind::Sequence(hir_items);
   }
@@ -97,7 +153,7 @@ fn lower_expr_kind(
       .collect::<Vec<_>>();
     let hir_items = items
       .into_iter()
-      .map(|item_expr| lower_expr(db, project, file, item_expr.syntax().clone()))
+      .map(|item_expr| lower_node(db, project, file, item_expr.syntax().clone()))
       .collect();
     return HirValueKind::Sequence(hir_items);
   }
@@ -113,7 +169,7 @@ fn lower_expr_kind(
             let child_expr = frag
               .expr()
               .expect("interpolated fragment must have an expr");
-            let child = lower_expr(db, project, file, child_expr.syntax().clone());
+            let child = lower_node(db, project, file, child_expr.syntax().clone());
             InterpolatedPart::Expr(child)
           }
         })
@@ -159,7 +215,7 @@ fn lower_expr_kind(
         .and_then(|o| o.syntax().as_token())
         .and_then(|t| t.text().map(|s| s.to_string()))
         .unwrap_or_default();
-      let operand = lower_expr(db, project, file, operand.syntax().clone());
+      let operand = lower_node(db, project, file, operand.syntax().clone());
       // This is a tag expression
       if op.starts_with('!') && op.len() > 1 {
         let tag_name = op[1..].to_string();
@@ -192,8 +248,8 @@ fn lower_expr_kind(
         .and_then(|o| o.syntax().as_token())
         .and_then(|t| t.text().map(|s| s.to_string()))
         .unwrap_or_default();
-      let left = lower_expr(db, project, file, lhs.syntax().clone());
-      let right = lower_expr(db, project, file, rhs.syntax().clone());
+      let left = lower_node(db, project, file, lhs.syntax().clone());
+      let right = lower_node(db, project, file, rhs.syntax().clone());
       return HirValueKind::Binary {
         op,
         left: Box::new(left),
@@ -205,11 +261,11 @@ fn lower_expr_kind(
   // Handle call expression
   if let Some(call) = CallExpr::cast(inner.syntax().clone()) {
     if let Some(callee) = call.callee() {
-      let callee = lower_expr(db, project, file, callee.syntax().clone());
+      let callee = lower_node(db, project, file, callee.syntax().clone());
       let args = call
         .args()
         .into_iter()
-        .map(|arg| lower_expr(db, project, file, arg.syntax().clone()))
+        .map(|arg| lower_node(db, project, file, arg.syntax().clone()))
         .collect();
       return HirValueKind::Call {
         callee: Box::new(callee),
@@ -221,11 +277,11 @@ fn lower_expr_kind(
   // Handle index expression
   if let Some(index) = IndexExpr::cast(inner.syntax().clone()) {
     if let Some(expr) = index.expr() {
-      let expr = lower_expr(db, project, file, expr.syntax().clone());
+      let expr = lower_node(db, project, file, expr.syntax().clone());
       let indices = index
         .indices()
         .into_iter()
-        .map(|idx| lower_expr(db, project, file, idx.syntax().clone()))
+        .map(|idx| lower_node(db, project, file, idx.syntax().clone()))
         .collect();
       return HirValueKind::Index {
         expr: Box::new(expr),
@@ -245,4 +301,49 @@ fn unwrap_parens(expr: Expr) -> Expr {
     }
   }
   expr
+}
+
+fn lower_frontmatter(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  node: RedNode,
+) -> HirValue {
+  let fm = YamlFrontmatter::cast(node.clone()).expect("node must be a YamlFrontmatter");
+  match fm.mapping() {
+    Some(mapping) => lower_node(db, project, file, mapping.syntax().clone()),
+    None => HirValue::new(db, project, file, node, HirValueKind::Null, vec![]),
+  }
+}
+
+fn lower_source_file(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  node: RedNode,
+) -> HirValue {
+  let source_file = SourceFile::cast(node.clone()).expect("node must be a SourceFile");
+  let fm_node = match source_file.frontmatter() {
+    Some(fm) => fm,
+    None => return HirValue::new(db, project, file, node, HirValueKind::Null, vec![]),
+  };
+  let mapping_hir = lower_node(db, project, file, fm_node.syntax().clone());
+  let Some(body) = source_file.body() else {
+    return mapping_hir;
+  };
+  let content_hir = lower_node(db, project, file, body.syntax().clone());
+  let mut entries = match mapping_hir.kind(db) {
+    HirValueKind::Mapping(entries) => entries,
+    _ => vec![],
+  };
+  entries.push(("_content".to_string(), content_hir));
+  let mapping_diagnostics = mapping_hir.diagnostics(db);
+  HirValue::new(
+    db,
+    project,
+    file,
+    node,
+    HirValueKind::Mapping(entries),
+    mapping_diagnostics,
+  )
 }

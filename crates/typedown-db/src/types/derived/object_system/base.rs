@@ -71,6 +71,11 @@ fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
       MemberType::Simple(Box::new(get_str_type(db))),
       TypeMemberDescriptors::OPTIONAL,
     )),
+    "_content" => Some(TypeMember::new(
+      db,
+      MemberType::Simple(Box::new(get_str_type(db))),
+      TypeMemberDescriptors::OPTIONAL,
+    )),
     _ => None,
   }
 }
