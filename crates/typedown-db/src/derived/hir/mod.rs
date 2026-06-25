@@ -2,9 +2,9 @@
 
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{
-  AstNode, BinaryExpr, CallExpr, DictEntry, DictLit, Expr, IdentLit, IndexExpr, InterpFragment,
-  ListItem, ListLit, MdBody, NumberLit, ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter,
-  YamlMapping, YamlSequence,
+  AstNode, BinaryExpr, CallExpr, DictEntry, DictLit, Expr, IdentLit, IndexExpr, InlineCode,
+  InlineMath, InterpFragment, ListItem, ListLit, MdBody, NumberLit, ParenExpr, SourceFile, StrLit,
+  UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
@@ -50,6 +50,20 @@ fn lower_markdown(db: &TypedownDatabase, project: Project, file: File, node: Red
         parts.push(InterpolatedPart::Expr(hir));
         return;
       }
+    }
+    // Inline math: $...$
+    if let Some(math) = InlineMath::cast(node.clone()) {
+      let value = math.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Math(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
+    }
+    // Inline code: `...`
+    if let Some(code) = InlineCode::cast(node.clone()) {
+      let value = code.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Str(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
     }
     // If node is a token, it must be a string token
     if node.is_token() {
@@ -346,4 +360,87 @@ fn lower_source_file(
     HirValueKind::Mapping(entries),
     mapping_diagnostics,
   )
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::fixtures::load_vault_fixture;
+  use crate::types::{HirValueKind, InterpolatedPart};
+  use crate::utils::lower_file;
+
+  #[test]
+  fn markdown_body_plain_text() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_plain.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => {
+        assert!(parts.iter().all(|p| matches!(p, InterpolatedPart::Literal(_))));
+      }
+      _ => panic!("expected Markdown kind"),
+    }
+  }
+
+  #[test]
+  fn markdown_body_inline_math() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_inline_math.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_math = parts.iter().any(|p| {
+      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Math(_)))
+    });
+    assert!(has_math, "expected inline math part");
+  }
+
+  #[test]
+  fn markdown_body_inline_code() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_inline_code.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_code = parts.iter().any(|p| {
+      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_)))
+    });
+    assert!(has_code, "expected inline code part as Str");
+  }
+
+  #[test]
+  fn markdown_body_interpolation() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_interp.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_expr = parts.iter().any(|p| matches!(p, InterpolatedPart::Expr(_)));
+    assert!(has_expr, "expected interpolated expr part");
+  }
 }

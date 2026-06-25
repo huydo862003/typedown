@@ -160,10 +160,10 @@ impl<S: Utf8Stream> ParseCtx<S> {
         (fragment, early_exit)
       }
       SyntaxKind::InlineMath | SyntaxKind::InlineCode => {
-        // These are already lexed as single tokens
+        let kind = next.token.kind();
         let mut children = vec![];
         self.advance_md(&mut children, SKIP_NONE);
-        (self.emit(SyntaxKind::MdText, &children), None)
+        (self.emit(kind, &children), None)
       }
       _ => self.parse_text(),
     }

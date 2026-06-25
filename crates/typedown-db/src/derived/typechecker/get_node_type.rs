@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_list_type, get_num_type, get_str_type, get_type_type,
+  get_bool_type, get_list_type, get_math_type, get_num_type, get_str_type, get_type_type,
   instantiate_type,
 };
 use crate::derived::name_resolver::file_symbol::file_symbol;
@@ -45,6 +45,7 @@ pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
     HirValueKind::Tag { tag, .. } => get_tag_type(db, *tag),
     HirValueKind::Unary { op, operand } => get_unary_type(db, &op, *operand),
     HirValueKind::Binary { op, left, right } => get_binary_type(db, &op, *left, *right),
+    HirValueKind::Math(_) => TypeResult::new(db, Some(Box::new(get_math_type(db))), vec![]),
     HirValueKind::Markdown(_) => TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![]),
   }
 }

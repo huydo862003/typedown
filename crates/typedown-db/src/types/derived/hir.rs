@@ -21,6 +21,7 @@ pub struct HirValue {
 pub enum HirValueKind {
   Str(String),
   Num(String),
+  Math(String),
   Bool(bool),
   Null,
   Ident(String),
