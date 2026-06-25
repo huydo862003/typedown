@@ -119,7 +119,10 @@ pub(crate) fn construct_from_hir(
       typ.construct(db, args)
     }
     HirValueKind::Mapping(entries) => evaluate_mapping(db, &*typ, entries),
-    HirValueKind::Markdown(parts) => evaluate_interpolated(db, parts),
+    HirValueKind::Markdown(parts) => {
+      let obj = evaluate_interpolated(db, parts)?;
+      typ.construct(db, vec![obj])
+    }
     _ => None,
   }
 }
