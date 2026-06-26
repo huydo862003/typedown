@@ -16,9 +16,6 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
       let mut members = HashMap::new();
 
       if let Some(sym) = file_symbol(db, project, file).value(db) {
-        let config = get_vault_config(db, project);
-        let _schema_dir = config.schema_dir(db);
-
         let name = match file.handle(db) {
           FileHandle::Path(path) => path
             .file_stem()

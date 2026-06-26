@@ -233,7 +233,7 @@ A resource file can declare a human-readable label using `_label`. The label is 
 ```yaml
 ---
 _type: person
-_label: !string self.first_name + " " + self.last_name
+_label: !string "${self.first_name} ${self.last_name}"
 ---
 ```
 
@@ -244,7 +244,7 @@ All frontmatter keys other than reserved `_` keys are properties of the resource
 ```yaml
 ---
 _type: person
-_label: !string self.first_name + " " + self.last_name
+_label: !string "${self.first_name} ${self.last_name}"
 first_name: "Bob"
 birth_date: "1990-07-04"
 author: fref("mona_lisa.tdr")
@@ -300,7 +300,7 @@ Unquoted values are identifiers or expressions, not strings. Strings must always
 ```yaml
 name: "Bob"              # string
 name: Bob                # identifier, NOT a string
-full_name: self.first_name + " " + self.last_name  # expression
+full_name: "${self.first_name} ${self.last_name}"  # expression
 ```
 
 String values support interpolation with `${}`. Any expression can appear inside the braces:
@@ -324,7 +324,7 @@ The following operators are available in TDR expressions:
 
 | Operator | Description                                     |
 | -------- | ----------------------------------------------- |
-| `+`      | Addition (numbers) or concatenation (strings)   |
+| `+`      | Addition (numbers)                              |
 | `-`      | Subtraction                                     |
 | `*`      | Multiplication                                  |
 | `/`      | Division                                        |
@@ -439,7 +439,7 @@ properties:
 
 # resource
 version: 1
-status: draft
+status: "draft"
 ```
 
 An enum type is therefore shorthand for a union of literal types.
@@ -456,7 +456,7 @@ created_at: !datetime "2024-01-15T14:30:00"
 count: !number 42
 active: !boolean true
 author: fref("bob.tdr")
-full_name: !string self.first_name + " " + self.last_name
+full_name: !string "${self.first_name} ${self.last_name}"
 reviewer: self.default_reviewer
 ```
 
