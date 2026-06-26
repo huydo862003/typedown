@@ -19,6 +19,7 @@ pub use inventory;
 use typedown_macros::query_db;
 
 #[query_db]
+#[derive(Clone)]
 pub struct TypedownDatabase {
-  storage: QueryStorage,
+  pub storage: QueryStorage,
 }
