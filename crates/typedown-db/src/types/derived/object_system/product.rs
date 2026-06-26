@@ -11,7 +11,7 @@ use crate::{Id, TypedownDatabase};
 
 use crate::types::{HirValue, InstResult, MemberType, TypeMember};
 
-fn member_type_compatible(
+fn member_types_compatible(
   db: &TypedownDatabase,
   expected: &MemberType,
   actual: &MemberType,
@@ -29,8 +29,9 @@ fn member_type_compatible(
       exp_arms
         .iter()
         .zip(act_arms.iter())
-        .all(|(exp_arm, act_arm)| member_type_compatible(db, &exp_arm.typ(db), &act_arm.typ(db)))
+        .all(|(exp_arm, act_arm)| member_types_compatible(db, &exp_arm.typ(db), &act_arm.typ(db)))
     }
+    (MemberType::Literal(exp_val), MemberType::Literal(act_val)) => exp_val == act_val,
     (MemberType::Never, _) | (_, MemberType::Never) => false,
     _ => false,
   }
@@ -97,7 +98,7 @@ impl TdrTypeLike for TdrProductType {
         Some(member) => member,
         None => return false,
       };
-      if !member_type_compatible(db, &expected_member.typ(db), &actual_member.typ(db)) {
+      if !member_types_compatible(db, &expected_member.typ(db), &actual_member.typ(db)) {
         return false;
       }
     }

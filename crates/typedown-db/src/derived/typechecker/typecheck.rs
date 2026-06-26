@@ -10,9 +10,9 @@ use crate::derived::get_builtin_types::get_num_type;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  HirValue, HirValueKind, InterpolatedPart, MemberType, TdrDictType, TdrFuncType, TdrListType,
-  TdrProductType, TdrSchemaType, TdrStrType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
-  TypecheckResult, member_type_display_name,
+  HirValue, HirValueKind, InterpolatedPart, LiteralValue, MemberType, TdrDictType, TdrFuncType,
+  TdrListType, TdrProductType, TdrSchemaType, TdrStrType, TdrTypeLike, TypeMember,
+  TypeMemberDescriptors, TypecheckResult, member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -115,7 +115,7 @@ fn check_mapping_fields(
         .contains(TypeMemberDescriptors::OPTIONAL);
       match value_result.typ(db) {
         Some(actual_type) => {
-          if !member_type_compatible(db, &member.typ(db), actual_type.as_ref()) {
+          if !value_matches_member_type(db, &member.typ(db), actual_type.as_ref(), *value_hir) {
             let node = value_hir.node(db);
             diagnostics.push(Diagnostic::FieldTypeMismatch {
               field: key.clone(),
@@ -318,7 +318,10 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   }
 
   // String indexing is valid: index must be a number
-  if (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrStrType>().is_some() {
+  if (expr_type.as_ref() as &dyn Any)
+    .downcast_ref::<TdrStrType>()
+    .is_some()
+  {
     for idx_hir in &indices {
       let idx_result = get_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
@@ -499,17 +502,29 @@ fn check_sequence(
   diagnostics
 }
 
-fn member_type_compatible(
+fn value_matches_member_type(
   db: &TypedownDatabase,
   expected: &MemberType,
   actual: &dyn TdrTypeLike,
+  value_hir: HirValue,
 ) -> bool {
   match expected {
     MemberType::Simple(exp_type) => exp_type.is_compatible_with(db, actual),
     MemberType::Sum(members) => members
       .iter()
-      .any(|member| member_type_compatible(db, &member.typ(db), actual)),
-    MemberType::Literal(_) => false,
+      .any(|member| value_matches_member_type(db, &member.typ(db), actual, value_hir)),
+    MemberType::Literal(literal) => match (literal, value_hir.kind(db)) {
+      (LiteralValue::Str(expected_val), HirValueKind::Str(actual_val)) => {
+        *expected_val == actual_val
+      }
+      (LiteralValue::Num(expected_val), HirValueKind::Num(actual_val)) => {
+        *expected_val == actual_val
+      }
+      (LiteralValue::Bool(expected_val), HirValueKind::Bool(actual_val)) => {
+        *expected_val == actual_val
+      }
+      _ => false,
+    },
     MemberType::Never => false,
   }
 }
@@ -517,8 +532,7 @@ fn member_type_compatible(
 #[cfg(test)]
 mod tests {
   use crate::{
-    derived::typechecker::typecheck::typecheck, fixtures::load_vault_fixture,
-    utils::lower_file,
+    derived::typechecker::typecheck::typecheck, fixtures::load_vault_fixture, utils::lower_file,
   };
 
   // Mapping without _type: infers product type, no validation errors
@@ -709,7 +723,8 @@ mod tests {
 
   #[test]
   fn typecheck_markdown_body_with_interpolation() {
-    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_markdown.tdr");
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "content/valid_markdown.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
@@ -722,6 +737,32 @@ mod tests {
   // Quoted string values for date/time/datetime fields should pass typechecking
   // because get_node_type deduces the specific subtype from ISO format
   #[test]
+  fn typecheck_literal_type_valid() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_status.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "state: \"draft\" should match literal type \"draft\": {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_literal_type_mismatch() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "content/invalid_status.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    let diags = result.diagnostics(&db);
+    assert!(
+      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, .. } if field == "state")),
+      "state: \"published\" should fail literal type \"draft\": {:?}",
+      diags
+    );
+  }
+
+  #[test]
   fn typecheck_date_time_fields_accept_quoted_strings() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_event.tdr");
     let (hir, _) = lower_file(&db, project, file);
@@ -733,3 +774,4 @@ mod tests {
     );
   }
 }
+
