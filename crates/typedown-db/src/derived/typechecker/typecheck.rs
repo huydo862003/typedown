@@ -11,8 +11,8 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
   HirValue, HirValueKind, InterpolatedPart, MemberType, TdrDictType, TdrFuncType, TdrListType,
-  TdrProductType, TdrSchemaType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypecheckResult,
-  member_type_display_name,
+  TdrProductType, TdrSchemaType, TdrStrType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
+  TypecheckResult, member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -311,6 +311,26 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
               end_offset: node.offset() + node.text_len(),
             });
           }
+        }
+      }
+    }
+    return diagnostics;
+  }
+
+  // String indexing is valid: index must be a number
+  if (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrStrType>().is_some() {
+    for idx_hir in &indices {
+      let idx_result = get_node_type(db, *idx_hir);
+      diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
+      if let Some(idx_type) = idx_result.typ(db) {
+        let num_type = get_num_type(db);
+        if !num_type.is_compatible_with(db, idx_type.as_ref()) {
+          let node = idx_hir.node(db);
+          diagnostics.push(Diagnostic::IndexTypeMismatch {
+            expected: "number".to_string(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
         }
       }
     }
