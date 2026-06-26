@@ -338,7 +338,7 @@ The following operators are available in TDR expressions:
 | `>=`     | Greater than or equal                           |
 | `&&`     | Logical AND                                     |
 | `\|\|`   | Logical OR                                      |
-| `~`      | String concatenation (alternative to `+`)       |
+| `~`      | Logical NOT (unary)                             |
 | `.`      | Property access on an object or linked resource |
 | `[n]`    | Index by zero-based integer (lists and strings) |
 | `[key]`  | Dict indexing by string key                     |
