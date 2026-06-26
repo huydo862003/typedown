@@ -53,8 +53,9 @@ pub fn load_vault_fixture(
   let target_path = vault.join(file_path);
   let target_file = File::new(&db, FileHandle::Path(target_path.clone()));
 
-  // Collect all .tdr files in the vault
-  let mut handles = collect_tdr_files(&vault, &db);
+  // Collect all .tdr and config files in the vault
+  let mut handles = collect_vault_files(&vault, &db);
+
   // Ensure the target file is registered
   handles.insert(target_path, target_file.handle(&db));
 
@@ -62,16 +63,22 @@ pub fn load_vault_fixture(
   (db, project, target_file)
 }
 
-// Collect all tdr files recursively in a directory
-fn collect_tdr_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, FileHandle> {
-  // Walk the AST and return the folder files
+/// Collect all vault files (`.tdr` and `typedown.yaml`/`typedown.yml`) recursively.
+fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, FileHandle> {
+  fn is_vault_file(path: &Path) -> bool {
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    path.extension().is_some_and(|ext| ext == "tdr")
+      || name == "typedown.yaml"
+      || name == "typedown.yml"
+  }
+
   fn walk(dir: &Path, db: &TypedownDatabase, handles: &mut HashMap<PathBuf, FileHandle>) {
     if let Ok(entries) = std::fs::read_dir(dir) {
       for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
           walk(&path, db, handles);
-        } else if path.extension().is_some_and(|ext| ext == "tdr") {
+        } else if is_vault_file(&path) {
           let file = File::new(db, FileHandle::Path(path.clone()));
           handles.insert(path, file.handle(db));
         }

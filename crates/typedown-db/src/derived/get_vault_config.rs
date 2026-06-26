@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use typedown_types::stream::Utf8Result;
+
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
@@ -15,14 +17,15 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
   let root = project.root_dir(db);
   let mut diagnostics = Vec::new();
 
-  // Prioritize .yaml over .yml
+  // Prioritize .yaml over .yml, look up from tracked handles
+  let handles = project.handles(db);
   let yaml_path = root.join("typedown.yaml");
   let yml_path = root.join("typedown.yml");
 
-  let config_path = if yaml_path.exists() {
-    yaml_path
-  } else if yml_path.exists() {
-    yml_path
+  let (config_path, handle) = if let Some(handle) = handles.get(&yaml_path) {
+    (yaml_path, handle)
+  } else if let Some(handle) = handles.get(&yml_path) {
+    (yml_path, handle)
   } else {
     diagnostics.push(Diagnostic::MissingVaultConfig {
       root_dir: root.display().to_string(),
@@ -36,8 +39,8 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
     );
   };
 
-  let contents = match std::fs::read_to_string(&config_path) {
-    Ok(contents) => contents,
+  let mut reader = match handle.open() {
+    Ok(reader) => reader,
     Err(err) => {
       diagnostics.push(Diagnostic::VaultConfigReadError {
         path: config_path.display().to_string(),
@@ -52,6 +55,15 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       );
     }
   };
+
+  let mut contents = String::new();
+  loop {
+    match reader.advance() {
+      Utf8Result::Char(ch) => contents.push(ch),
+      Utf8Result::Invalid { .. } => {}
+      Utf8Result::Eof => break,
+    }
+  }
 
   let mut docs = match yaml_rust2::YamlLoader::load_from_str(&contents) {
     Ok(docs) => docs,
