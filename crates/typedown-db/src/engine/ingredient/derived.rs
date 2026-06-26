@@ -2,7 +2,10 @@ use std::{
   any::Any,
   hash::Hash,
   panic::panic_any,
-  sync::atomic::{AtomicUsize, Ordering},
+  sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+  },
 };
 
 use dashmap::DashMap;
@@ -41,14 +44,15 @@ pub enum QueryState<K, V: DerivedId> {
 }
 
 /// Ingredient for a derived query function: maps key tuple to memoized result
+#[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
   ingredient_index: usize,
-  next_arg_id: AtomicUsize,
+  next_arg_id: Arc<AtomicUsize>,
   query_fn: fn(&DB, K) -> V,
-  intern_map: DashMap<K, usize>, // key -> stable arg_id
+  intern_map: Arc<DashMap<K, usize>>, // key -> stable arg_id
   #[doc(hidden)]
-  pub data: DashMap<usize, QueryState<K, V>>, // arg_id -> state
+  pub data: Arc<DashMap<usize, QueryState<K, V>>>, // arg_id -> state
 }
 
 impl<
@@ -60,10 +64,10 @@ impl<
   pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
     Self {
       ingredient_index,
-      next_arg_id: AtomicUsize::new(0),
+      next_arg_id: Arc::new(AtomicUsize::new(0)),
       query_fn,
-      intern_map: DashMap::new(),
-      data: DashMap::new(),
+      intern_map: Arc::new(DashMap::new()),
+      data: Arc::new(DashMap::new()),
     }
   }
 
@@ -322,10 +326,11 @@ pub struct StampedDerivedField<T> {
 }
 
 /// Ingredient for a derived struct field: maps entry id to stamped value
+#[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedFieldIngredient<T> {
   #[doc(hidden)]
-  pub data: DashMap<usize, StampedDerivedField<T>>,
+  pub data: Arc<DashMap<usize, StampedDerivedField<T>>>,
 }
 
 impl<T> DerivedFieldIngredient<T> {
@@ -335,7 +340,7 @@ impl<T> DerivedFieldIngredient<T> {
 
   pub fn new() -> Self {
     Self {
-      data: DashMap::new(),
+      data: Arc::new(DashMap::new()),
     }
   }
 }

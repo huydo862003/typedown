@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use dashmap::DashMap;
 
 use crate::QueryDatabase;
@@ -5,10 +7,11 @@ use crate::QueryDatabase;
 use super::Ingredient;
 
 /// An ingredient for an interned struct
+#[derive(Clone)]
 #[doc(hidden)]
 pub struct InternedIngredient<T> {
   #[doc(hidden)]
-  pub data: DashMap<usize, T>,
+  pub data: Arc<DashMap<usize, T>>,
 }
 
 impl<T> InternedIngredient<T> {
@@ -18,7 +21,7 @@ impl<T> InternedIngredient<T> {
 
   pub fn new() -> Self {
     Self {
-      data: DashMap::new(),
+      data: Arc::new(DashMap::new()),
     }
   }
 }

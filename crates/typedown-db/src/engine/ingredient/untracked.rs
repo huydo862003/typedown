@@ -2,14 +2,17 @@
 //! Useful for fields that are not needed to be tracked
 //! And lift the requirements that tracked fields must implement Clone + PartialEq + Hash
 
+use std::sync::Arc;
+
 use dashmap::DashMap;
 
 use crate::{Ingredient, QueryDatabase};
 
+#[derive(Clone)]
 #[doc(hidden)]
 pub struct UntrackedFieldIngredient<T> {
   #[doc(hidden)]
-  pub data: DashMap<usize, T>,
+  pub data: Arc<DashMap<usize, T>>,
 }
 
 impl<T> UntrackedFieldIngredient<T> {
@@ -18,7 +21,7 @@ impl<T> UntrackedFieldIngredient<T> {
   pub const __TYPEDOWN_UNTRACKED_INGREDIENT: () = ();
 
   pub fn new() -> Self {
-    Self { data: DashMap::new() }
+    Self { data: Arc::new(DashMap::new()) }
   }
 }
 

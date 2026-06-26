@@ -1,4 +1,6 @@
 // TIL: We use DashMap to support high-performance concrruent reads, which fits the workload of IDEs
+use std::sync::Arc;
+
 use dashmap::DashMap;
 
 use crate::QueryDatabase;
@@ -11,12 +13,13 @@ pub struct StampedInputField<T> {
 }
 
 /// A field of an input ingredient, containing data for that input type
+#[derive(Clone)]
 #[doc(hidden)]
 pub struct InputFieldIngredient<T> {
   // A map from id to field value
   // DashMap is used to better support parallel workload
   #[doc(hidden)]
-  pub data: DashMap<usize, StampedInputField<T>>,
+  pub data: Arc<DashMap<usize, StampedInputField<T>>>,
 }
 
 impl<T> InputFieldIngredient<T> {
@@ -27,7 +30,7 @@ impl<T> InputFieldIngredient<T> {
 
   pub fn new() -> Self {
     Self {
-      data: DashMap::new(),
+      data: Arc::new(DashMap::new()),
     }
   }
 }
