@@ -1,7 +1,10 @@
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex};
 
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use typedown_db::TypedownDatabase;
 
 use crate::analysis::Analysis;
@@ -10,14 +13,30 @@ pub struct AnalysisHost {
   db: TypedownDatabase,
   project_dir: PathBuf,
   snapshot_counter: Arc<(Mutex<usize>, Condvar)>,
+  open_files: HashMap<PathBuf, String>, // editor-managed content
+  project_files: HashSet<PathBuf>,      // all .tdr files known on disk
+  _watcher: RecommendedWatcher,
 }
 
 impl AnalysisHost {
-  pub fn new(db: TypedownDatabase, project_dir: PathBuf) -> Self {
+  pub fn new(
+    db: TypedownDatabase,
+    project_dir: PathBuf,
+    watcher_tx: Sender<notify::Result<Event>>,
+  ) -> Self {
+    let mut watcher =
+      notify::recommended_watcher(watcher_tx).expect("failed to create file watcher");
+    watcher
+      .watch(&project_dir, RecursiveMode::Recursive)
+      .expect("failed to watch project directory");
+
     Self {
       db,
       project_dir,
       snapshot_counter: Arc::new((Mutex::new(1), Condvar::new())),
+      open_files: HashMap::new(),
+      project_files: HashSet::new(),
+      _watcher: watcher,
     }
   }
 
@@ -39,6 +58,39 @@ impl AnalysisHost {
 
     self.db.storage.cancelled.store(false, Ordering::Relaxed);
     f(&mut self.db);
+  }
+
+  /// Called on textDocument/didOpen.
+  pub fn on_editor_open_file(&mut self, path: PathBuf, content: String) {
+    self.open_files.insert(path, content);
+  }
+
+  /// Called on textDocument/didChange.
+  pub fn on_editor_change_file(&mut self, path: PathBuf, content: String) {
+    self.open_files.insert(path, content);
+  }
+
+  /// Called on textDocument/didClose.
+  pub fn on_close_file(&mut self, path: &PathBuf) {
+    self.open_files.remove(path);
+  }
+
+  /// Called by the file watcher for disk changes to non-open files.
+  pub fn on_disk_change(&mut self, path: PathBuf) {
+    if self.open_files.contains_key(&path) {
+      return; // editor owns this file, ignore disk change
+    }
+    if path.extension().is_some_and(|ext| ext == "tdr") {
+      self.project_files.insert(path);
+    }
+  }
+
+  /// Called by the file watcher when a file is deleted.
+  pub fn on_disk_delete(&mut self, path: &PathBuf) {
+    if self.open_files.contains_key(path) {
+      return;
+    }
+    self.project_files.remove(path);
   }
 
   pub fn project_dir(&self) -> &PathBuf {
