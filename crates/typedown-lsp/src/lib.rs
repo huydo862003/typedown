@@ -1,2 +1,2 @@
-mod analysis;
-mod analysis_host;
+pub mod analysis;
+pub mod analysis_host;
