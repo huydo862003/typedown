@@ -1,3 +1,4 @@
+mod cancel;
 mod db;
 mod derived;
 mod id;
@@ -8,6 +9,7 @@ mod storage;
 #[cfg(test)]
 mod tests;
 
+pub use cancel::*;
 pub use db::*;
 pub use derived::*;
 pub use id::*;

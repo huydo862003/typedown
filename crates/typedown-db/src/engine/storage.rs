@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 
 use super::ingredient::{Dependency, Ingredient, IngredientFactory, Inventory};
 
@@ -27,6 +27,8 @@ pub struct QueryStorage {
   #[doc(hidden)]
   pub revision: AtomicUsize, // The current version of the query storage
   #[doc(hidden)]
+  pub cancelled: AtomicBool, // Set to true to cancel in-flight derived queries
+  #[doc(hidden)]
   pub ingredients: Vec<Box<dyn Ingredient>>, // All ingredients
 }
 
@@ -34,6 +36,7 @@ impl QueryStorage {
   pub fn default() -> Self {
     QueryStorage {
       revision: AtomicUsize::new(0),
+      cancelled: AtomicBool::new(false),
       ingredients: registry()
         .iter()
         .enumerate()

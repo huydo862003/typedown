@@ -1,12 +1,17 @@
 use std::{
   any::Any,
   hash::Hash,
+  panic::panic_any,
   sync::atomic::{AtomicUsize, Ordering},
 };
 
 use dashmap::DashMap;
 
-use crate::{DerivedId, ExecuteContext, QueryDatabase, QueryStackEntry};
+use crate::{
+  Cancelled,
+  engine::storage::{ExecuteContext, QueryStackEntry},
+};
+use crate::{DerivedId, QueryDatabase};
 
 use super::Ingredient;
 
@@ -200,6 +205,12 @@ impl<
         std::mem::take(&mut ctx.disambiguator_map),
       )
     });
+
+    // Check for cancellation before recomputing
+    let storage = unsafe { db.storage() };
+    if storage.cancelled.load(Ordering::Relaxed) {
+      panic_any(Cancelled);
+    }
 
     // Recompute
     let key = arg.clone();

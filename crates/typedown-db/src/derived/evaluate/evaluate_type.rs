@@ -276,7 +276,7 @@ mod tests {
     inputs::{File, FileHandle},
     types::{
       BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrNumObj, TdrObjectType, TdrProductType, TdrStrObj,
+      SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj,
       TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_file,
