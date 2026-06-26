@@ -698,4 +698,18 @@ mod tests {
       result.diagnostics(&db)
     );
   }
+
+  // Quoted string values for date/time/datetime fields should pass typechecking
+  // because get_node_type deduces the specific subtype from ISO format
+  #[test]
+  fn typecheck_date_time_fields_accept_quoted_strings() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_event.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "date/time/datetime fields should accept quoted string values: {:?}",
+      result.diagnostics(&db)
+    );
+  }
 }

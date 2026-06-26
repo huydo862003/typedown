@@ -25,15 +25,15 @@ fn iso_datetime_re() -> &'static Regex {
   })
 }
 
-pub(super) fn is_valid_iso_date(s: &str) -> bool {
+pub(crate) fn is_valid_iso_date(s: &str) -> bool {
   iso_date_re().is_match(s)
 }
 
-pub(super) fn is_valid_iso_time(s: &str) -> bool {
+pub(crate) fn is_valid_iso_time(s: &str) -> bool {
   iso_time_re().is_match(s)
 }
 
-pub(super) fn is_valid_iso_datetime(s: &str) -> bool {
+pub(crate) fn is_valid_iso_datetime(s: &str) -> bool {
   iso_datetime_re().is_match(s)
 }
 

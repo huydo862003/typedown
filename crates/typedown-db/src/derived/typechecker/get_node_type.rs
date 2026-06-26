@@ -5,8 +5,11 @@ use std::collections::HashMap;
 
 use crate::derived::evaluate::evaluate_type::evaluate_type;
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_list_type, get_math_type, get_num_type, get_str_type, get_type_type,
-  instantiate_type,
+  get_bool_type, get_date_type, get_datetime_type, get_list_type, get_math_type, get_num_type,
+  get_str_type, get_time_type, get_type_type, instantiate_type,
+};
+use crate::types::derived::object_system::datetime::utils::{
+  is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
 };
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
@@ -24,7 +27,20 @@ use typedown_types::diagnostic::Diagnostic;
 #[query_derived]
 pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   match hir.kind(db) {
-    HirValueKind::Str(_) | HirValueKind::Interpolated(_) => {
+    HirValueKind::Str(ref val) => {
+      // Deduce the most specific string subtype from the value's format
+      let typ: Box<dyn TdrTypeLike> = if is_valid_iso_datetime(val) {
+        Box::new(get_datetime_type(db))
+      } else if is_valid_iso_date(val) {
+        Box::new(get_date_type(db))
+      } else if is_valid_iso_time(val) {
+        Box::new(get_time_type(db))
+      } else {
+        Box::new(get_str_type(db))
+      };
+      TypeResult::new(db, Some(typ), vec![])
+    }
+    HirValueKind::Interpolated(_) => {
       TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![])
     }
     HirValueKind::Num(_) => TypeResult::new(db, Some(Box::new(get_num_type(db))), vec![]),

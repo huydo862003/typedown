@@ -54,8 +54,22 @@ impl TdrTypeLike for TdrStrType {
     vec![]
   }
 
-  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
-    self.as_id() == actual.as_id()
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+    if self.as_id() == actual.as_id() {
+      return true;
+    }
+    // Accept subtypes of string (e.g. date, time, datetime) by walking the supertype chain
+    let mut current = actual.get_supertype(db);
+    loop {
+      if self.as_id() == current.as_id() {
+        return true;
+      }
+      let next = current.get_supertype(db);
+      if next.as_id() == current.as_id() {
+        return false;
+      }
+      current = next;
+    }
   }
 
   fn construct(

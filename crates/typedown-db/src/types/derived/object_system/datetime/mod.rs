@@ -1,4 +1,4 @@
-mod utils;
+pub(crate) mod utils;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ impl TdrTypeLike for TdrDateTimeType {
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+    Box::new(TdrStrType::get(db))
   }
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
@@ -124,7 +124,7 @@ impl TdrTypeLike for TdrDateType {
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+    Box::new(TdrStrType::get(db))
   }
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
@@ -217,7 +217,7 @@ impl TdrTypeLike for TdrTimeType {
   }
 
   fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+    Box::new(TdrStrType::get(db))
   }
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
