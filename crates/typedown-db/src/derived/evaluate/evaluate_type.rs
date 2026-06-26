@@ -171,6 +171,21 @@ fn resolve_type_member(
     // If there are some special macros, handle it here
     // HirValueKind::Call(...)
 
+    // `!type expr` is redundant but valid: strip the tag and recurse on the inner value
+    HirValueKind::Tag { tag, inner } => {
+      if matches!(tag.kind(db), HirValueKind::Ident(ref name) if name == "type") {
+        return resolve_type_member(db, *inner, diagnostics);
+      }
+      let node = hir.node(db);
+      diagnostics.push(Diagnostic::FieldTypeMismatch {
+        field: "type".to_string(),
+        expected: "type expression".to_string(),
+        start_offset: node.offset(),
+        end_offset: node.offset() + node.text_len(),
+      });
+      None
+    }
+
     // Simple type reference like `type: string`
     HirValueKind::Ident(_) => {
       let resolved = referee(db, hir);
@@ -233,8 +248,9 @@ fn resolve_type_member(
     HirValueKind::Bool(val) => Some(MemberType::Literal(LiteralValue::Bool(val))),
     _ => {
       let node = hir.node(db);
-      diagnostics.push(Diagnostic::UnresolvedSchema {
-        name: node.text(),
+      diagnostics.push(Diagnostic::FieldTypeMismatch {
+        field: "type".to_string(),
+        expected: "type expression".to_string(),
         start_offset: node.offset(),
         end_offset: node.offset() + node.text_len(),
       });
@@ -318,6 +334,28 @@ mod tests {
 
     let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).unwrap();
+    let product = (typ.as_ref() as &dyn Any)
+      .downcast_ref::<TdrProductType>()
+      .unwrap();
+    let fields = product.fields(&db);
+    assert!(fields.contains_key("name"), "should have 'name' field");
+    assert!(fields.contains_key("age"), "should have 'age' field");
+  }
+
+  // Schema where property types use the explicit `!type` tag: `type: !type string`
+  #[test]
+  fn evaluate_schema_with_explicit_type_tag() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "schemas/PersonExplicitType.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+
+    let result = evaluate_type(&db, symbol);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with !type tags should have no diagnostics: {:?}",
+      result.diagnostics(&db)
+    );
+    let typ = result.typ(&db).expect("should return a type");
     let product = (typ.as_ref() as &dyn Any)
       .downcast_ref::<TdrProductType>()
       .unwrap();
