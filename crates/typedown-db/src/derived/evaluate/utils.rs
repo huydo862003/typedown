@@ -12,8 +12,8 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
   BuiltinMacroKind, File, HirValue, HirValueKind, InterpolatedPart, SymbolKind, TdrBoolObj,
-  MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj, TdrObjectLike,
-  TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
+  MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj,
+  TdrObjectLike, TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
   TypeMemberDescriptors,
 };
 use typedown_types::diagnostic::Diagnostic;
@@ -181,7 +181,7 @@ fn evaluate_binary(
       Some(Box::new(TdrNumObj::new(db, result)))
     }
     "==" | "!=" | "<" | ">" | "<=" | ">=" => {
-      let result = compare_objects(db, op, left_obj.as_ref(), right_obj.as_ref())?;
+      let result = compare_objects(db, op, left_obj.as_ref(), right_obj.as_ref());
       Some(Box::new(TdrBoolObj::new(db, result)))
     }
     "&&" | "||" => {
@@ -203,61 +203,16 @@ fn compare_objects(
   op: &str,
   left: &dyn TdrObjectLike,
   right: &dyn TdrObjectLike,
-) -> Option<bool> {
-  if let (Some(lnum), Some(rnum)) = (
-    (left as &dyn Any).downcast_ref::<TdrNumObj>(),
-    (right as &dyn Any).downcast_ref::<TdrNumObj>(),
-  ) {
-    let lval = lnum.value(db);
-    let rval = rnum.value(db);
-    return Some(match op {
-      "==" => lval == rval,
-      "!=" => lval != rval,
-      "<" => lval < rval,
-      ">" => lval > rval,
-      "<=" => lval <= rval,
-      ">=" => lval >= rval,
-      _ => return None,
-    });
+) -> bool {
+  match op {
+    "==" => left.eq(db, right),
+    "!=" => !left.eq(db, right),
+    "<" => left.lt(db, right),
+    ">" => left.gt(db, right),
+    "<=" => left.le(db, right),
+    ">=" => left.ge(db, right),
+    _ => false,
   }
-  if let (Some(lstr), Some(rstr)) = (
-    (left as &dyn Any).downcast_ref::<TdrStrObj>(),
-    (right as &dyn Any).downcast_ref::<TdrStrObj>(),
-  ) {
-    let lval = lstr.value(db);
-    let rval = rstr.value(db);
-    return Some(match op {
-      "==" => lval == rval,
-      "!=" => lval != rval,
-      "<" => lval < rval,
-      ">" => lval > rval,
-      "<=" => lval <= rval,
-      ">=" => lval >= rval,
-      _ => return None,
-    });
-  }
-  if let (Some(lbool), Some(rbool)) = (
-    (left as &dyn Any).downcast_ref::<TdrBoolObj>(),
-    (right as &dyn Any).downcast_ref::<TdrBoolObj>(),
-  ) {
-    return Some(match op {
-      "==" => lbool.value(db) == rbool.value(db),
-      "!=" => lbool.value(db) != rbool.value(db),
-      _ => return None,
-    });
-  }
-  // Fallback: use ID-based comparison for any two objects
-  let lid = left.as_id();
-  let rid = right.as_id();
-  Some(match op {
-    "==" => lid == rid,
-    "!=" => lid != rid,
-    "<" => lid < rid,
-    ">" => lid > rid,
-    "<=" => lid <= rid,
-    ">=" => lid >= rid,
-    _ => return None,
-  })
 }
 
 fn evaluate_index(

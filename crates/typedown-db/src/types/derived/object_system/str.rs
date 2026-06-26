@@ -105,6 +105,37 @@ impl TdrObjectLike for TdrStrObj {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+
+  fn eq(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    match (other as &dyn Any).downcast_ref::<TdrStrObj>() {
+      Some(other) => self.value(db) == other.value(db),
+      None => self.as_id() == other.as_id(),
+    }
+  }
+  fn lt(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    match (other as &dyn Any).downcast_ref::<TdrStrObj>() {
+      Some(other) => self.value(db) < other.value(db),
+      None => self.as_id() < other.as_id(),
+    }
+  }
+  fn gt(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    match (other as &dyn Any).downcast_ref::<TdrStrObj>() {
+      Some(other) => self.value(db) > other.value(db),
+      None => self.as_id() > other.as_id(),
+    }
+  }
+  fn le(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    match (other as &dyn Any).downcast_ref::<TdrStrObj>() {
+      Some(other) => self.value(db) <= other.value(db),
+      None => self.as_id() <= other.as_id(),
+    }
+  }
+  fn ge(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    match (other as &dyn Any).downcast_ref::<TdrStrObj>() {
+      Some(other) => self.value(db) >= other.value(db),
+      None => self.as_id() >= other.as_id(),
+    }
+  }
 }
 
 fn str_to_string(

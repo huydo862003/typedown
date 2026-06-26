@@ -42,6 +42,26 @@ pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     None
   }
+
+  fn eq(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    self.as_id() == other.as_id()
+  }
+
+  fn lt(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    self.as_id() < other.as_id()
+  }
+
+  fn gt(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    self.as_id() > other.as_id()
+  }
+
+  fn le(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    self.as_id() <= other.as_id()
+  }
+
+  fn ge(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+    self.as_id() >= other.as_id()
+  }
 }
 
 clone_trait_object!(TdrObjectLike);
