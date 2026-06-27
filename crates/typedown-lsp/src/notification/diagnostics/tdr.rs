@@ -1,15 +1,15 @@
 use lsp_server::Notification;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
-use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, PublishDiagnosticsParams};
-use ropey::Rope;
+use lsp_types::{Diagnostic, PublishDiagnosticsParams};
 use typedown_db::derived::evaluate::evaluate_resource::evaluate_resource;
 use typedown_db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_db::derived::parse_file::parse_file;
 use typedown_types::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
-use crate::utils::position::text_offset_to_lsp_position;
 use crate::utils::uri::path_to_uri;
+
+use super::to_lsp_diagnostic;
 
 pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let db = &analysis.db;
@@ -60,27 +60,6 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   }
 
   notifications
-}
-
-fn to_lsp_diagnostic(diag: &TdrDiagnostic, rope: &Rope) -> Option<Diagnostic> {
-  let (start_offset, end_offset) = diag.offsets()?;
-
-  let start_offset = start_offset.min(rope.len_chars());
-  let end_offset = end_offset.min(rope.len_chars());
-
-  let range = lsp_types::Range {
-    start: text_offset_to_lsp_position(rope, start_offset),
-    end: text_offset_to_lsp_position(rope, end_offset),
-  };
-
-  Some(Diagnostic {
-    range,
-    severity: Some(DiagnosticSeverity::ERROR),
-    code: Some(NumberOrString::String(diag.code().into())),
-    source: Some("typedown".into()),
-    message: diag.message(),
-    ..Default::default()
-  })
 }
 
 #[cfg(test)]
