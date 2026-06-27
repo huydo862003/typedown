@@ -1,16 +1,23 @@
 use std::sync::{Arc, Condvar, Mutex};
 
 use typedown_db::TypedownDatabase;
+use typedown_db::types::Project;
 
 pub struct Analysis {
   pub(crate) db: TypedownDatabase,
+  pub(crate) project: Project,
   snapshot_counter: Arc<(Mutex<usize>, Condvar)>,
 }
 
 impl Analysis {
-  pub(crate) fn new(db: TypedownDatabase, snapshot_counter: Arc<(Mutex<usize>, Condvar)>) -> Self {
+  pub(crate) fn new(
+    db: TypedownDatabase,
+    project: Project,
+    snapshot_counter: Arc<(Mutex<usize>, Condvar)>,
+  ) -> Self {
     Self {
       db,
+      project,
       snapshot_counter,
     }
   }

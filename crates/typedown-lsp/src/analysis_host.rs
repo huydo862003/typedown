@@ -54,7 +54,11 @@ impl AnalysisHost {
   /// Take a read-only snapshot of the current database state.
   pub fn snapshot(&self) -> Analysis {
     *self.snapshot_counter.0.lock().unwrap() += 1;
-    Analysis::new(self.db.clone(), Arc::clone(&self.snapshot_counter))
+    Analysis::new(
+      self.db.clone(),
+      self.project,
+      Arc::clone(&self.snapshot_counter),
+    )
   }
 
   /// Cancel all in-flight snapshots, wait for them to finish, then apply a write.
