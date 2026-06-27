@@ -581,6 +581,7 @@ dependencies = [
  "ropey",
  "serde_json",
  "typedown-db",
+ "typedown-syntax",
  "typedown-types",
 ]
 
