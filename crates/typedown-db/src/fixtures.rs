@@ -16,7 +16,7 @@ pub struct Fixture {
 pub fn load_fixtures(subdir: &str) -> HashMap<String, Fixture> {
   // TIL: CARGO_MANIFEST_DIR is set to the folder containing the Cargo.toml
   let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .join("fixtures")
+    .join("tests/fixtures")
     .join(subdir);
 
   let mut result = HashMap::new();
@@ -46,7 +46,7 @@ pub fn load_vault_fixture(
   file_path: &str,
 ) -> (TypedownDatabase, Project, File) {
   let vault = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .join("fixtures")
+    .join("tests/fixtures")
     .join(vault_subdir);
   let db = TypedownDatabase {
     storage: QueryStorage::default(),
