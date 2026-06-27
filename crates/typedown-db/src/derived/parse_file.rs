@@ -36,7 +36,7 @@ pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAs
 
 #[cfg(test)]
 mod tests {
-  use std::{collections::HashMap, path::PathBuf};
+  use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 
   use typedown_syntax::ast::{AstNode, SourceFile};
 
@@ -89,7 +89,10 @@ mod tests {
     };
 
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
-    let file = File::new(&db, FileHandle::Path(fixture.path.clone()));
+    let file = File::new(
+      &db,
+      FileHandle::Path(fixture.path.clone(), SystemTime::UNIX_EPOCH),
+    );
     let result = parse_file(&db, project, file);
 
     assert!(
@@ -144,7 +147,10 @@ mod tests {
     };
 
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
-    let file = File::new(&db, FileHandle::Path(fixture.path.clone()));
+    let file = File::new(
+      &db,
+      FileHandle::Path(fixture.path.clone(), SystemTime::UNIX_EPOCH),
+    );
     let result = parse_file(&db, project, file);
 
     assert!(

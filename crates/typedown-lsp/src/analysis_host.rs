@@ -3,12 +3,13 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex};
+use std::time::SystemTime;
 use std::{fs, io};
 
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ropey::Rope;
 use typedown_db::TypedownDatabase;
-use typedown_db::inputs::{FileHandle, Project};
+use typedown_db::inputs::{File, FileHandle, Project};
 
 use crate::analysis::Analysis;
 
@@ -19,6 +20,7 @@ pub struct AnalysisHost {
   snapshot_counter: Arc<(Mutex<usize>, Condvar)>,
   open_files: HashMap<PathBuf, Rope>, // editor-managed content
   project_files: HashSet<PathBuf>,    // all .tdr files known on disk
+  file_map: HashMap<PathBuf, File>,   // stable File IDs, one per tracked path
   _watcher: RecommendedWatcher,
 }
 
@@ -37,8 +39,16 @@ impl AnalysisHost {
     // Scan project directory for .tdr files
     let project_files = scan_project_files(&project_dir)?;
 
-    let handles = build_handles(&project_files, &HashMap::new());
-    let project = Project::new(&db, project_dir.clone(), handles);
+    // Create stable File IDs and initial project
+    let mut file_map = HashMap::new();
+    let mut files = HashMap::new();
+    for path in &project_files {
+      let handle = disk_handle(path);
+      let file = File::new(&db, handle);
+      file_map.insert(path.clone(), file);
+      files.insert(path.clone(), file);
+    }
+    let project = Project::new(&db, project_dir.clone(), files);
 
     Ok(Self {
       db,
@@ -47,6 +57,7 @@ impl AnalysisHost {
       snapshot_counter: Arc::new((Mutex::new(1), Condvar::new())),
       open_files: HashMap::new(),
       project_files,
+      file_map,
       _watcher: watcher,
     })
   }
@@ -62,7 +73,7 @@ impl AnalysisHost {
   }
 
   /// Cancel all in-flight snapshots, wait for them to finish, then apply a write.
-  pub fn write(&mut self, f: impl FnOnce(&mut TypedownDatabase)) {
+  pub fn write<R>(&mut self, f: impl FnOnce(&mut TypedownDatabase) -> R) -> R {
     self.db.storage.cancelled.store(true, Ordering::Relaxed);
 
     let mut clones = self.snapshot_counter.0.lock().unwrap();
@@ -72,33 +83,62 @@ impl AnalysisHost {
     drop(clones);
 
     self.db.storage.cancelled.store(false, Ordering::Relaxed);
-    f(&mut self.db);
+    f(&mut self.db)
   }
 
-  fn sync_handles(&mut self) {
-    let handles = build_handles(&self.project_files, &self.open_files);
+  fn sync_files(&mut self) {
+    // Compute desired handles for all tracked paths
+    let mut desired: HashMap<PathBuf, FileHandle> = self
+      .project_files
+      .iter()
+      .map(|path| (path.clone(), disk_handle(path)))
+      .collect();
+    for (path, rope) in &self.open_files {
+      desired.insert(path.clone(), FileHandle::Content(rope.to_string()));
+    }
+
     let project = self.project;
-    self.write(move |db| {
-      project.set_handles(db, handles);
+    let old_file_map = std::mem::take(&mut self.file_map);
+
+    let new_file_map = self.write(|db| {
+      let mut file_map = HashMap::new();
+      let mut files = HashMap::new();
+
+      for (path, handle) in desired {
+        let file = if let Some(existing) = old_file_map.get(&path) {
+          // Reuse stable ID, update handle for invalidation
+          existing.set_handle(db, handle);
+          *existing
+        } else {
+          File::new(db, handle)
+        };
+        files.insert(path.clone(), file);
+        file_map.insert(path, file);
+      }
+
+      project.set_files(db, files);
+      file_map
     });
+
+    self.file_map = new_file_map;
   }
 
   /// Called on textDocument/didOpen.
   pub fn on_editor_open_file(&mut self, path: PathBuf, content: String) {
     self.open_files.insert(path, Rope::from(content));
-    self.sync_handles();
+    self.sync_files();
   }
 
   /// Called on textDocument/didChange.
   pub fn on_editor_change_file(&mut self, path: PathBuf, rope: Rope) {
     self.open_files.insert(path, rope);
-    self.sync_handles();
+    self.sync_files();
   }
 
   /// Called on textDocument/didClose. Falls back to disk version.
   pub fn on_close_file(&mut self, path: &PathBuf) {
     self.open_files.remove(path);
-    self.sync_handles();
+    self.sync_files();
   }
 
   /// Called by the file watcher for disk changes to non-open files.
@@ -110,7 +150,7 @@ impl AnalysisHost {
       || (path.parent().is_some_and(|p| p == self.project_dir) && is_vault_config(&path))
     {
       self.project_files.insert(path);
-      self.sync_handles();
+      self.sync_files();
     }
   }
 
@@ -120,7 +160,7 @@ impl AnalysisHost {
       return;
     }
     if self.project_files.remove(&path) {
-      self.sync_handles();
+      self.sync_files();
     }
   }
 
@@ -133,22 +173,11 @@ impl AnalysisHost {
   }
 }
 
-/// From the profile + open file handles to a hash map
-fn build_handles(
-  project_files: &HashSet<PathBuf>,
-  open_files: &HashMap<PathBuf, Rope>,
-) -> HashMap<PathBuf, FileHandle> {
-  let mut handles: HashMap<PathBuf, FileHandle> = project_files
-    .iter()
-    .map(|path| (path.clone(), FileHandle::Path(path.clone())))
-    .collect();
-
-  // Editor content overrides disk for open files
-  for (path, rope) in open_files {
-    handles.insert(path.clone(), FileHandle::Content(rope.to_string()));
-  }
-
-  handles
+fn disk_handle(path: &PathBuf) -> FileHandle {
+  let mtime = fs::metadata(path)
+    .and_then(|meta| meta.modified())
+    .unwrap_or(SystemTime::UNIX_EPOCH);
+  FileHandle::Path(path.clone(), mtime)
 }
 
 /// Read all relevant project files (based on is_tracked_file)
@@ -177,7 +206,7 @@ fn is_tdr_file(path: &PathBuf) -> bool {
 
 fn is_vault_config(path: &PathBuf) -> bool {
   matches!(
-    path.file_name().and_then(|n| n.to_str()),
+    path.file_name().and_then(|name| name.to_str()),
     Some("typedown.yaml") | Some("typedown.yml")
   )
 }

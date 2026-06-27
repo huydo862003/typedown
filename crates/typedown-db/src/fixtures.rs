@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use crate::inputs::{File, FileHandle};
 use crate::types::Project;
@@ -51,20 +53,22 @@ pub fn load_vault_fixture(
   };
 
   let target_path = vault.join(file_path);
-  let target_file = File::new(&db, FileHandle::Path(target_path.clone()));
 
   // Collect all .tdr and config files in the vault
-  let mut handles = collect_vault_files(&vault, &db);
+  let mut files = collect_vault_files(&vault, &db);
 
   // Ensure the target file is registered
-  handles.insert(target_path, target_file.handle(&db));
+  let target_file = *files.entry(target_path.clone()).or_insert_with(|| {
+    let mtime = path_mtime(&target_path);
+    File::new(&db, FileHandle::Path(target_path.clone(), mtime))
+  });
 
-  let project = Project::new(&db, vault, handles);
+  let project = Project::new(&db, vault, files);
   (db, project, target_file)
 }
 
 /// Collect all vault files (`.tdr` and `typedown.yaml`/`typedown.yml`) recursively.
-fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, FileHandle> {
+fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, File> {
   fn is_vault_file(path: &Path) -> bool {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
     path.extension().is_some_and(|ext| ext == "tdr")
@@ -72,21 +76,28 @@ fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, Fi
       || name == "typedown.yml"
   }
 
-  fn walk(dir: &Path, db: &TypedownDatabase, handles: &mut HashMap<PathBuf, FileHandle>) {
+  fn walk(dir: &Path, db: &TypedownDatabase, files: &mut HashMap<PathBuf, File>) {
     if let Ok(entries) = std::fs::read_dir(dir) {
       for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-          walk(&path, db, handles);
+          walk(&path, db, files);
         } else if is_vault_file(&path) {
-          let file = File::new(db, FileHandle::Path(path.clone()));
-          handles.insert(path, file.handle(db));
+          let mtime = path_mtime(&path);
+          let file = File::new(db, FileHandle::Path(path.clone(), mtime));
+          files.insert(path, file);
         }
       }
     }
   }
 
-  let mut handles = HashMap::new();
-  walk(dir, db, &mut handles);
-  handles
+  let mut files = HashMap::new();
+  walk(dir, db, &mut files);
+  files
+}
+
+fn path_mtime(path: &Path) -> SystemTime {
+  fs::metadata(path)
+    .and_then(|meta| meta.modified())
+    .unwrap_or(SystemTime::UNIX_EPOCH)
 }

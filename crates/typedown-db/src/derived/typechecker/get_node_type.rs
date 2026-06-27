@@ -8,14 +8,14 @@ use crate::derived::get_builtin_types::{
   get_bool_type, get_date_type, get_datetime_type, get_list_type, get_math_type, get_num_type,
   get_str_type, get_time_type, get_type_type, instantiate_type,
 };
-use crate::types::derived::object_system::datetime::utils::{
-  is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
-};
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
+use crate::types::derived::object_system::datetime::utils::{
+  is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
+};
 use crate::types::{
-  BuiltinMacroKind, File, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
+  BuiltinMacroKind, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
   TdrListType, TdrProductType, TdrStrType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
   TypeResult,
 };
@@ -40,9 +40,7 @@ pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
       };
       TypeResult::new(db, Some(typ), vec![])
     }
-    HirValueKind::Interpolated(_) => {
-      TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![])
-    }
+    HirValueKind::Interpolated(_) => TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![]),
     HirValueKind::Num(_) => TypeResult::new(db, Some(Box::new(get_num_type(db))), vec![]),
     HirValueKind::Bool(_) => TypeResult::new(db, Some(Box::new(get_bool_type(db))), vec![]),
     HirValueKind::Null => TypeResult::new(db, None, vec![]),
@@ -302,12 +300,12 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeResult {
   };
 
   let project = arg.project(db);
-  let handles = project.handles(db);
+  let files = project.files(db);
   let root_dir = project.root_dir(db);
   let target_path = root_dir.join(&path_str);
 
-  let target_handle = match handles.get(&target_path) {
-    Some(handle) => handle.clone(),
+  let target_file = match files.get(&target_path) {
+    Some(file) => *file,
     None => {
       return TypeResult::new(
         db,
@@ -320,8 +318,6 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeResult {
       );
     }
   };
-
-  let target_file = File::new(db, target_handle);
   let target_symbol = file_symbol(db, project, target_file);
 
   match target_symbol.value(db) {
@@ -395,7 +391,10 @@ fn get_index_type(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>)
   }
 
   // Element access on string (returns single-character string)
-  if (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrStrType>().is_some() {
+  if (expr_type.as_ref() as &dyn Any)
+    .downcast_ref::<TdrStrType>()
+    .is_some()
+  {
     return TypeResult::new(db, Some(Box::new(TdrStrType::get(db))), diagnostics);
   }
 
@@ -460,7 +459,7 @@ fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
 
 #[cfg(test)]
 mod tests {
-  use std::{collections::HashMap, path::PathBuf};
+  use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 
   use crate::{
     QueryStorage, TypedownDatabase,
@@ -483,9 +482,12 @@ mod tests {
       storage: QueryStorage::default(),
     };
 
-    let file = File::new(&db, FileHandle::Path(schema_file_path.clone()));
-    let handles = HashMap::from([(schema_file_path, file.handle(&db))]);
-    let project = Project::new(&db, vault, handles);
+    let file = File::new(
+      &db,
+      FileHandle::Path(schema_file_path.clone(), SystemTime::UNIX_EPOCH),
+    );
+    let files = HashMap::from([(schema_file_path, file)]);
+    let project = Project::new(&db, vault, files);
 
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("schema file should have parseable frontmatter");

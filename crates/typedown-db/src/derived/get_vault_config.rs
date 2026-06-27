@@ -17,15 +17,15 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
   let root = project.root_dir(db);
   let mut diagnostics = Vec::new();
 
-  // Prioritize .yaml over .yml, look up from tracked handles
-  let handles = project.handles(db);
+  // Prioritize .yaml over .yml, look up from tracked files
+  let files = project.files(db);
   let yaml_path = root.join("typedown.yaml");
   let yml_path = root.join("typedown.yml");
 
-  let (config_path, handle) = if let Some(handle) = handles.get(&yaml_path) {
-    (yaml_path, handle)
-  } else if let Some(handle) = handles.get(&yml_path) {
-    (yml_path, handle)
+  let (config_path, config_file) = if let Some(file) = files.get(&yaml_path) {
+    (yaml_path, *file)
+  } else if let Some(file) = files.get(&yml_path) {
+    (yml_path, *file)
   } else {
     diagnostics.push(Diagnostic::MissingVaultConfig {
       root_dir: root.display().to_string(),
@@ -39,7 +39,7 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
     );
   };
 
-  let mut reader = match handle.open() {
+  let mut reader = match config_file.handle(db).open() {
     Ok(reader) => reader,
     Err(err) => {
       diagnostics.push(Diagnostic::VaultConfigReadError {

@@ -5,7 +5,7 @@ use typedown_macros::query_derived;
 use crate::derived::get_vault_config::get_vault_config;
 use crate::derived::name_resolver::builtin_scope::builtin_scope;
 use crate::derived::name_resolver::file_symbol::file_symbol;
-use crate::types::{File, FileHandle, MembersResult, Scope, ScopeKind};
+use crate::types::{FileHandle, MembersResult, Scope, ScopeKind};
 use crate::{QueryDatabase, TypedownDatabase};
 
 #[query_derived]
@@ -17,7 +17,7 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
 
       if let Some(sym) = file_symbol(db, project, file).value(db) {
         let name = match file.handle(db) {
-          FileHandle::Path(path) => path
+          FileHandle::Path(path, _) => path
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or_default()
@@ -35,16 +35,15 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
     ScopeKind::Project(project) => {
       let config = get_vault_config(db, project);
       let _schema_dir = config.schema_dir(db);
-      let handles = project.handles(db);
+      let proj_files = project.files(db);
 
       let mut members = HashMap::new();
 
-      for (path, handle) in &handles {
+      for (path, file) in &proj_files {
         if !path.extension().is_some_and(|ext| ext == "tdr") {
           continue;
         }
-        let file = File::new(db, handle.clone());
-        if let Some(sym) = file_symbol(db, project, file).value(db) {
+        if let Some(sym) = file_symbol(db, project, *file).value(db) {
           let name = path
             .file_stem()
             .and_then(|s| s.to_str())

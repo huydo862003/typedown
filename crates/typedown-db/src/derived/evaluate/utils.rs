@@ -11,7 +11,7 @@ use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_node_type::get_node_type;
 use crate::types::{
-  BuiltinMacroKind, File, HirValue, HirValueKind, InterpolatedPart, SymbolKind, TdrBoolObj,
+  BuiltinMacroKind, HirValue, HirValueKind, InterpolatedPart, SymbolKind, TdrBoolObj,
   MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj,
   TdrObjectLike, TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
   TypeMemberDescriptors,
@@ -371,12 +371,11 @@ fn construct_fref(db: &TypedownDatabase, args: Vec<HirValue>) -> Option<Box<dyn 
   };
 
   let project = arg.project(db);
-  let handles = project.handles(db);
+  let files = project.files(db);
   let root_dir = project.root_dir(db);
   let target_path = root_dir.join(&path_str);
 
-  let target_handle = handles.get(&target_path)?.clone();
-  let target_file = File::new(db, target_handle);
+  let target_file = *files.get(&target_path)?;
   let target_symbol = file_symbol(db, project, target_file).value(db)?;
 
   evaluate_resource(db, target_symbol).value(db)

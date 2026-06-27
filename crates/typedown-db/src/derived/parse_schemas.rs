@@ -6,7 +6,7 @@ use typedown_macros::query_derived;
 
 use crate::{
   QueryDatabase, TypedownDatabase,
-  types::{File, Project, SchemaAstResults},
+  types::{Project, SchemaAstResults},
 };
 
 use super::get_vault_config::get_vault_config;
@@ -16,17 +16,16 @@ use super::parse_file::parse_file;
 pub fn parse_schemas(db: &TypedownDatabase, project: Project) -> SchemaAstResults {
   let config = get_vault_config(db, project);
   let schema_dir = config.schema_dir(db);
-  let handles = project.handles(db);
+  let proj_files = project.files(db);
 
-  let mut files = HashMap::new();
+  let mut schema_asts = HashMap::new();
 
-  for (path, handle) in &handles {
+  for (path, file) in &proj_files {
     if path.starts_with(&schema_dir) && path.extension().is_some_and(|ext| ext == "tdr") {
-      let file = File::new(db, handle.clone());
-      let ast = parse_file(db, project, file);
-      files.insert(path.clone(), ast);
+      let ast = parse_file(db, project, *file);
+      schema_asts.insert(path.clone(), ast);
     }
   }
 
-  SchemaAstResults::new(db, files)
+  SchemaAstResults::new(db, schema_asts)
 }

@@ -13,15 +13,14 @@ pub struct MaybeSymbol {
 pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> MaybeSymbol {
   let config = get_vault_config(db, project);
   let schema_dir = config.schema_dir(db);
-  let handles = project.handles(db);
-  let file_handle = file.handle(db);
+  let proj_files = project.files(db);
 
-  let is_schema_file = handles
+  let is_schema_file = proj_files
     .iter()
-    .any(|(path, handle)| *handle == file_handle && path.starts_with(&schema_dir));
+    .any(|(path, proj_file)| *proj_file == file && path.starts_with(&schema_dir));
 
   let name = match file.handle(db) {
-    FileHandle::Path(path) => path
+    FileHandle::Path(path, _) => path
       .file_stem()
       .and_then(|s| s.to_str())
       .unwrap_or_default()
