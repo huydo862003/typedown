@@ -1,8 +1,5 @@
 //! Tracked query to get the resolved type of a HIR value.
-//!
-//! Reconciles the declared (top-down, schema-driven) type with the inferred
-//! (bottom-up, value-driven) type. The declared type takes precedence when
-//! present; otherwise the inferred type is used.
+//! The declared type takes precedence over the inferred type.
 
 use typedown_macros::query_derived;
 

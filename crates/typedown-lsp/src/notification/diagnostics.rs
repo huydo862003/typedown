@@ -78,3 +78,147 @@ fn to_lsp_diagnostic(diag: &TdrDiagnostic, rope: &Rope) -> Option<Diagnostic> {
     ..Default::default()
   })
 }
+
+#[cfg(test)]
+mod tests {
+  use std::collections::HashMap;
+  use std::path::PathBuf;
+  use std::sync::{Arc, Condvar, Mutex};
+
+  use typedown_db::inputs::{File, FileHandle};
+  use typedown_db::{QueryStorage, TypedownDatabase};
+
+  use crate::analysis::Analysis;
+
+  use super::publish_diagnostics;
+
+  const VAULT_CONFIG: &str = r#"version: "1"
+vault:
+  content_dir: content
+  schema_dir: schemas
+"#;
+  const SCHEMA_PERSON: &str = r#"---
+_type: schema
+properties:
+  name:
+    type: string
+  age:
+    type: number
+---
+"#;
+
+  fn setup(content: &str) -> Analysis {
+    let root = PathBuf::from("/vault");
+    let content_path = root.join("content/file.tdr");
+
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
+    let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
+    let content_file = File::new(&db, FileHandle::Content(content.to_string()));
+
+    let files = HashMap::from([
+      (root.join("typedown.yaml"), config_file),
+      (root.join("schemas/Person.tdr"), person_file),
+      (content_path, content_file),
+    ]);
+
+    let project = typedown_db::types::Project::new(&db, root, files);
+    Analysis::new(
+      db,
+      project,
+      HashMap::new(),
+      HashMap::new(),
+      Arc::new((Mutex::new(1), Condvar::new())),
+    )
+  }
+
+  #[test]
+  fn no_diagnostics_for_valid_file() {
+    let analysis = setup(
+      r#"---
+_type: Person
+name: "Alice"
+age: 30
+---
+"#,
+    );
+    let notifications = publish_diagnostics(&analysis);
+    // Only the content file should have a notification; it must be empty.
+    let content_notif = notifications
+      .iter()
+      .find(|notif| notif.params.to_string().contains("content/file.tdr"));
+    if let Some(notif) = content_notif {
+      let params: serde_json::Value = serde_json::from_str(&notif.params.to_string()).unwrap();
+      let diags = params["diagnostics"].as_array().unwrap();
+      assert!(
+        diags.is_empty(),
+        "valid file should produce no diagnostics, got: {diags:?}"
+      );
+    }
+  }
+
+  #[test]
+  fn unresolved_schema_produces_diagnostic() {
+    // _type references a schema that does not exist.
+    let analysis = setup(
+      r#"---
+_type: NonExistent
+name: "Alice"
+---
+"#,
+    );
+    let notifications = publish_diagnostics(&analysis);
+    let content_notif = notifications
+      .iter()
+      .find(|notif| notif.params.to_string().contains("content/file.tdr"));
+    let notif = content_notif.expect("expected a notification for the content file");
+    let params: serde_json::Value = serde_json::from_str(&notif.params.to_string()).unwrap();
+    let diags = params["diagnostics"].as_array().unwrap();
+    assert!(
+      !diags.is_empty(),
+      "unresolved schema should produce at least one diagnostic"
+    );
+    let codes: Vec<&str> = diags
+      .iter()
+      .filter_map(|diag| diag["code"].as_str())
+      .collect();
+    assert!(
+      codes.iter().any(|code| *code == "unresolved-schema"),
+      "expected an unresolved-schema diagnostic, got codes: {codes:?}"
+    );
+  }
+
+  #[test]
+  fn missing_required_field_produces_diagnostic() {
+    // Required field 'age' is absent.
+    let analysis = setup(
+      r#"---
+_type: Person
+name: "Alice"
+---
+"#,
+    );
+    let notifications = publish_diagnostics(&analysis);
+    let content_notif = notifications
+      .iter()
+      .find(|notif| notif.params.to_string().contains("content/file.tdr"));
+    let notif = content_notif.expect("expected a notification for the content file");
+    let params: serde_json::Value = serde_json::from_str(&notif.params.to_string()).unwrap();
+    let diags = params["diagnostics"].as_array().unwrap();
+    assert!(
+      !diags.is_empty(),
+      "missing required field should produce at least one diagnostic"
+    );
+    let codes: Vec<&str> = diags
+      .iter()
+      .filter_map(|diag| diag["code"].as_str())
+      .collect();
+    assert!(
+      codes.iter().any(|code| *code == "missing-required-field"),
+      "expected a missing-required-field diagnostic, got codes: {codes:?}"
+    );
+  }
+}

@@ -17,3 +17,7 @@ lsp-server = "0.7"
 serde_json = "1"
 notify = "7"
 ropey = "1.6.1"
+
+[dev-dependencies]
+tempfile = "3"
+serde = "1"
