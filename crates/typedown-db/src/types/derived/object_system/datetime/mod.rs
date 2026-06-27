@@ -4,13 +4,13 @@ use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
-use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use utils::{is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time};
+use super::base::{TdrObjectLike, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
 use crate::types::{FuncSignature, InstResult, TypeMember};
 use crate::{Id, TypedownDatabase};
+use utils::{is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time};
 
 #[query_derived]
 pub struct TdrDateTimeType {}

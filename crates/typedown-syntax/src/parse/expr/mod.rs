@@ -137,7 +137,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
       let peek = self.lex_ctx.peek(self.formula_expr_skip_flags(), mode);
 
       if matches!(peek.token.kind(), SyntaxKind::LParen | SyntaxKind::LBracket) {
-        let op_text = if peek.token.kind() == SyntaxKind::LParen { "(" } else { "[" };
+        let op_text = if peek.token.kind() == SyntaxKind::LParen {
+          "("
+        } else {
+          "["
+        };
         let (left_bp, ()) = postfix_binding_power(op_text).expect("( and [ are in the table");
         if left_bp < min_bp {
           break;
@@ -1587,7 +1591,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn parse_math_lit(
     &mut self,
     children: Vec<GreenNode>,
-    block_indent: usize,
+    _block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
@@ -1611,7 +1615,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn parse_code_lit(
     &mut self,
     children: Vec<GreenNode>,
-    block_indent: usize,
+    _block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
@@ -1635,7 +1639,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn parse_number_lit(
     &mut self,
     children: Vec<GreenNode>,
-    block_indent: usize,
+    _block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(
@@ -1657,7 +1661,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   pub(in crate::parse) fn parse_ident_lit(
     &mut self,
     children: Vec<GreenNode>,
-    block_indent: usize,
+    _block_indent: usize,
   ) -> (GreenNode, Option<ExprCtx>) {
     let mode = self.lex_ctx.mode();
     debug_assert!(

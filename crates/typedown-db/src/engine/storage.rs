@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::{Arc, OnceLock};
 
 use super::ingredient::{Dependency, Ingredient, IngredientFactory, Inventory};
 

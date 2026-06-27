@@ -4,14 +4,12 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrTypeLike, TdrTypeType};
 use super::dict::{TdrDictObj, TdrDictType};
-use typedown_types::either::Either;
-use crate::derived::evaluate::evaluate_node::evaluate_node;
 use super::func::TdrFuncObj;
+use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::{get_schema_property_type, get_schema_type, get_str_type};
-use crate::types::{
-  InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors,
-};
+use crate::types::{InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors};
 use crate::{Id, TypedownDatabase};
+use typedown_types::either::Either;
 
 // Schema type is actually a kind
 // and its a subtype of the "type" kind

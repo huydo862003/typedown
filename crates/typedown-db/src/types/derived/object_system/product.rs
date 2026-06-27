@@ -4,10 +4,10 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::dict::TdrDictObj;
-use typedown_types::either::Either;
 use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::{Id, TypedownDatabase};
+use typedown_types::either::Either;
 
 use crate::types::{HirValue, InstResult, MemberType, TypeMember};
 

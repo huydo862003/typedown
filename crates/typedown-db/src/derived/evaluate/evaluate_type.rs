@@ -6,9 +6,8 @@ use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::get_builtin_types::{
-  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type,
-  get_math_type, get_num_type,
-  get_schema_type, get_str_type, get_time_type, get_type_type,
+  get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_math_type,
+  get_num_type, get_schema_type, get_str_type, get_time_type, get_type_type,
 };
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::typecheck::typecheck;
@@ -267,6 +266,7 @@ mod tests {
   use std::path::PathBuf;
 
   use crate::{
+    QueryStorage, TypedownDatabase,
     derived::evaluate::evaluate_type::evaluate_type,
     derived::evaluate::utils::construct_from_hir,
     derived::get_builtin_types::*,
@@ -276,11 +276,10 @@ mod tests {
     inputs::{File, FileHandle},
     types::{
       BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj,
-      TdrTypeLike, TdrTypeType, TypeMember, TypeMemberDescriptors,
+      SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj, TdrTypeLike, TdrTypeType,
+      TypeMember, TypeMemberDescriptors,
     },
     utils::lower_file,
-    QueryStorage, TypedownDatabase,
   };
 
   fn make_db() -> TypedownDatabase {

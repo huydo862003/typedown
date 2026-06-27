@@ -47,10 +47,6 @@ pub struct LexCtx<S: Utf8Stream> {
 pub(super) struct YamlLexCtx {
   // Whether we're just after a newline (linux), CRLF (Windows), carriage return (Mac)
   pub(super) at_line_start: bool,
-  // Indent stack for YAML
-  // In block style, YAML is indentation-sensitive
-  // We keep track of the previous indentations
-  pub(super) indent_stack: Vec<usize>,
   // We allow nested interpolations
   // We need to distinguish between nested strings, interpolations, etc.
   pub(super) interp_stack: Vec<InterpContext>,
@@ -89,7 +85,6 @@ impl<S: Utf8Stream> LexCtx<S> {
       pending_tokens: Vec::new(),
       yaml_lex_ctx: YamlLexCtx {
         at_line_start: true,
-        indent_stack: vec![0],
         interp_stack: vec![],
         indent_char: None,
       },

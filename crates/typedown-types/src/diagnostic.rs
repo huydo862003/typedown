@@ -340,54 +340,212 @@ impl Diagnostic {
   /// Returns `None` for project-level diagnostics that have no file position.
   pub fn offsets(&self) -> Option<(usize, usize)> {
     match self {
-      Diagnostic::UnexpectedEof { start_offset, end_offset, .. }
-      | Diagnostic::UnexpectedChar { start_offset, end_offset, .. }
-      | Diagnostic::UnterminatedString { start_offset, end_offset }
-      | Diagnostic::UnterminatedInterpolation { start_offset, end_offset }
-      | Diagnostic::UnterminatedCodeBlock { start_offset, end_offset }
-      | Diagnostic::UnterminatedInlineCode { start_offset, end_offset }
-      | Diagnostic::UnterminatedMathBlock { start_offset, end_offset }
-      | Diagnostic::UnterminatedInlineMath { start_offset, end_offset }
-      | Diagnostic::MissingCodeBlockNewline { start_offset, end_offset }
-      | Diagnostic::MissingMathBlockNewline { start_offset, end_offset }
-      | Diagnostic::InvalidChar { start_offset, end_offset, .. }
-      | Diagnostic::InvalidUtf8 { start_offset, end_offset }
-      | Diagnostic::MixedIndentation { start_offset, end_offset }
-      | Diagnostic::InconsistentIndentation { start_offset, end_offset, .. }
-      | Diagnostic::UnmatchedDedent { start_offset, end_offset, .. }
-      | Diagnostic::MissingExponentDigits { start_offset, end_offset }
-      | Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine { start_offset, end_offset }
-      | Diagnostic::MissingMarkdownHeadingHash { start_offset, end_offset }
-      | Diagnostic::MissingRequiredSpacesBetweenHashAndHeading { start_offset, end_offset }
-      | Diagnostic::MissingSyntaxNode { start_offset, end_offset, .. }
-      | Diagnostic::UnclosedLink { start_offset, end_offset }
-      | Diagnostic::UnclosedBold { start_offset, end_offset }
-      | Diagnostic::UnclosedItalic { start_offset, end_offset }
-      | Diagnostic::UnclosedStrikethrough { start_offset, end_offset }
-      | Diagnostic::UnclosedBoldItalic { start_offset, end_offset }
-      | Diagnostic::MismatchedItalicDelimiter { start_offset, end_offset }
-      | Diagnostic::MissingExpectMdPrefix { start_offset, end_offset, .. }
-      | Diagnostic::MissingTableSeparatorRow { start_offset, end_offset }
-      | Diagnostic::TableColumnCountMismatch { start_offset, end_offset, .. }
-      | Diagnostic::InsufficientBlockIndent { start_offset, end_offset, .. }
-      | Diagnostic::MissingSchemaField { start_offset, end_offset }
-      | Diagnostic::UnresolvedSchema { start_offset, end_offset, .. }
-      | Diagnostic::NotCallable { start_offset, end_offset }
-      | Diagnostic::WrongArgCount { start_offset, end_offset, .. }
-      | Diagnostic::ArgTypeMismatch { start_offset, end_offset, .. }
-      | Diagnostic::FieldTypeMismatch { start_offset, end_offset, .. }
-      | Diagnostic::NotIndexable { start_offset, end_offset }
-      | Diagnostic::IndexTypeMismatch { start_offset, end_offset, .. }
-      | Diagnostic::TagTypeMismatch { start_offset, end_offset, .. }
-      | Diagnostic::OperandTypeMismatch { start_offset, end_offset, .. }
-      | Diagnostic::MissingRequiredField { start_offset, end_offset, .. }
-      | Diagnostic::ElementTypeMismatch { start_offset, end_offset, .. }
-      | Diagnostic::DuplicateKey { start_offset, end_offset, .. }
-      | Diagnostic::UnresolvedFileRef { start_offset, end_offset, .. }
-      | Diagnostic::UnknownField { start_offset, end_offset, .. }
-      | Diagnostic::IndexOutOfBounds { start_offset, end_offset, .. } => {
-        Some((*start_offset, *end_offset))
+      Diagnostic::UnexpectedEof {
+        start_offset,
+        end_offset,
+        ..
       }
+      | Diagnostic::UnexpectedChar {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::UnterminatedString {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInterpolation {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedCodeBlock {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInlineCode {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedMathBlock {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInlineMath {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingCodeBlockNewline {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingMathBlockNewline {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::InvalidChar {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::InvalidUtf8 {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MixedIndentation {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::InconsistentIndentation {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::UnmatchedDedent {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::MissingExponentDigits {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingMarkdownHeadingHash {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingSyntaxNode {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::UnclosedLink {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedBold {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedItalic {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedStrikethrough {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedBoldItalic {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MismatchedItalicDelimiter {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingExpectMdPrefix {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::MissingTableSeparatorRow {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::TableColumnCountMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::InsufficientBlockIndent {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::MissingSchemaField {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnresolvedSchema {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::NotCallable {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::WrongArgCount {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::ArgTypeMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::FieldTypeMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::NotIndexable {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::IndexTypeMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::TagTypeMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::OperandTypeMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::MissingRequiredField {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::ElementTypeMismatch {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::DuplicateKey {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::UnresolvedFileRef {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::UnknownField {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::IndexOutOfBounds {
+        start_offset,
+        end_offset,
+        ..
+      } => Some((*start_offset, *end_offset)),
       Diagnostic::MissingFrontmatterMarker { offset } => Some((*offset, *offset)),
       Diagnostic::MissingVaultConfig { .. }
       | Diagnostic::VaultConfigReadError { .. }
@@ -404,7 +562,11 @@ impl Diagnostic {
       Diagnostic::UnexpectedEof { expected, .. } => {
         format!("unexpected end of input, expected '{expected}'")
       }
-      Diagnostic::UnexpectedChar { expected, encountered, .. } => {
+      Diagnostic::UnexpectedChar {
+        expected,
+        encountered,
+        ..
+      } => {
         format!("expected '{expected}', found '{encountered}'")
       }
       Diagnostic::UnterminatedString { .. } => "unterminated string literal".into(),
@@ -413,9 +575,7 @@ impl Diagnostic {
       Diagnostic::UnterminatedInlineCode { .. } => "unterminated inline code '`'".into(),
       Diagnostic::UnterminatedMathBlock { .. } => "unterminated math block '$$'".into(),
       Diagnostic::UnterminatedInlineMath { .. } => "unterminated inline math '$'".into(),
-      Diagnostic::MissingCodeBlockNewline { .. } => {
-        "missing newline after code block fence".into()
-      }
+      Diagnostic::MissingCodeBlockNewline { .. } => "missing newline after code block fence".into(),
       Diagnostic::MissingMathBlockNewline { .. } => {
         "missing newline after math block delimiter".into()
       }
@@ -424,7 +584,11 @@ impl Diagnostic {
       }
       Diagnostic::InvalidUtf8 { .. } => "invalid UTF-8 byte sequence".into(),
       Diagnostic::MixedIndentation { .. } => "mixed tabs and spaces in indentation".into(),
-      Diagnostic::InconsistentIndentation { expected, encountered, .. } => {
+      Diagnostic::InconsistentIndentation {
+        expected,
+        encountered,
+        ..
+      } => {
         format!("inconsistent indentation: expected '{expected}', found '{encountered}'")
       }
       Diagnostic::UnmatchedDedent { indent, .. } => {
@@ -452,16 +616,24 @@ impl Diagnostic {
       Diagnostic::MismatchedItalicDelimiter { .. } => {
         "italic closing delimiter does not match opening delimiter".into()
       }
-      Diagnostic::MissingExpectMdPrefix { expected_prefix, .. } => {
+      Diagnostic::MissingExpectMdPrefix {
+        expected_prefix, ..
+      } => {
         format!("missing expected prefix '{expected_prefix}'")
       }
       Diagnostic::MissingTableSeparatorRow { .. } => {
         "missing separator row after table header".into()
       }
-      Diagnostic::TableColumnCountMismatch { expected, found, .. } => {
+      Diagnostic::TableColumnCountMismatch {
+        expected, found, ..
+      } => {
         format!("table row has {found} columns, expected {expected}")
       }
-      Diagnostic::InsufficientBlockIndent { expected_more_than, found, .. } => {
+      Diagnostic::InsufficientBlockIndent {
+        expected_more_than,
+        found,
+        ..
+      } => {
         format!("block indent {found} must be greater than enclosing indent {expected_more_than}")
       }
       Diagnostic::MissingVaultConfig { root_dir } => {
@@ -493,7 +665,9 @@ impl Diagnostic {
       Diagnostic::ArgTypeMismatch { expected, .. } => {
         format!("argument type mismatch: expected {expected}")
       }
-      Diagnostic::FieldTypeMismatch { field, expected, .. } => {
+      Diagnostic::FieldTypeMismatch {
+        field, expected, ..
+      } => {
         format!("field '{field}' type mismatch: expected {expected}")
       }
       Diagnostic::NotIndexable { .. } => "expression is not indexable".into(),

@@ -2,21 +2,21 @@ use std::any::Any;
 use std::collections::HashMap;
 
 use crate::TypedownDatabase;
-use typedown_types::either::Either;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
+use crate::derived::evaluate::evaluate_resource::evaluate_resource;
 use crate::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::derived::get_builtin_types::get_schema_type;
-use crate::derived::evaluate::evaluate_resource::evaluate_resource;
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::infer_node_type::infer_node_type;
 use crate::types::{
-  BuiltinMacroKind, HirValue, HirValueKind, InterpolatedPart, SymbolKind, TdrBoolObj,
-  MemberType, TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj,
-  TdrObjectLike, TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
+  BuiltinMacroKind, HirValue, HirValueKind, InterpolatedPart, MemberType, SymbolKind, TdrBoolObj,
+  TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj, TdrObjectLike,
+  TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
   TypeMemberDescriptors,
 };
 use typedown_types::diagnostic::Diagnostic;
+use typedown_types::either::Either;
 
 pub(crate) fn construct_from_hir(
   db: &TypedownDatabase,
@@ -108,7 +108,10 @@ pub(crate) fn construct_from_hir(
       typ.construct(db, vec![obj])
     }
     HirValueKind::Sequence(items) => {
-      if (typ.as_ref() as &dyn Any).downcast_ref::<TdrListType>().is_some() {
+      if (typ.as_ref() as &dyn Any)
+        .downcast_ref::<TdrListType>()
+        .is_some()
+      {
         let hir_items = items.into_iter().map(Either::Left).collect();
         return Some(Box::new(TdrListObj::new(db, hir_items)));
       }
@@ -314,7 +317,11 @@ fn evaluate_mapping(
     };
     let mut fields = HashMap::new();
     for (prop_name, prop_hir) in properties_entries {
-      if prop_name.starts_with('_') && prop_name != "_type" && prop_name != "_label" && prop_name != "_content" {
+      if prop_name.starts_with('_')
+        && prop_name != "_type"
+        && prop_name != "_label"
+        && prop_name != "_content"
+      {
         fields.insert(
           prop_name,
           TypeMember::new(db, MemberType::Never, TypeMemberDescriptors::empty()),
@@ -350,7 +357,6 @@ fn evaluate_mapping(
       fields,
     )));
   }
-
 
   let dict_entries: HashMap<_, _> = entries
     .into_iter()

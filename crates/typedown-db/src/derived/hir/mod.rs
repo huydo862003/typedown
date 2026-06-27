@@ -2,9 +2,9 @@
 
 use typedown_macros::query_derived;
 use typedown_syntax::ast::{
-  AstNode, BinaryExpr, CallExpr, CodeBlock, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
-  CodeLit, InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody,
-  NumberLit, ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
+  AstNode, BinaryExpr, CallExpr, CodeBlock, CodeLit, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
+  InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody, NumberLit,
+  ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
 use typedown_syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
@@ -417,10 +417,17 @@ mod tests {
       HirValueKind::Mapping(e) => e,
       _ => panic!("expected mapping"),
     };
-    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
     match content.1.kind(&db) {
       HirValueKind::Markdown(parts) => {
-        assert!(parts.iter().all(|p| matches!(p, InterpolatedPart::Literal(_))));
+        assert!(
+          parts
+            .iter()
+            .all(|p| matches!(p, InterpolatedPart::Literal(_)))
+        );
       }
       _ => panic!("expected Markdown kind"),
     }
@@ -435,7 +442,10 @@ mod tests {
       HirValueKind::Mapping(e) => e,
       _ => panic!("expected mapping"),
     };
-    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
     let parts = match content.1.kind(&db) {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
@@ -455,14 +465,17 @@ mod tests {
       HirValueKind::Mapping(e) => e,
       _ => panic!("expected mapping"),
     };
-    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
     let parts = match content.1.kind(&db) {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
     };
-    let has_code = parts.iter().any(|p| {
-      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_)))
-    });
+    let has_code = parts.iter().any(
+      |p| matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_))),
+    );
     assert!(has_code, "expected inline code part as Str");
   }
 
@@ -475,7 +488,10 @@ mod tests {
       HirValueKind::Mapping(e) => e,
       _ => panic!("expected mapping"),
     };
-    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
     let parts = match content.1.kind(&db) {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
@@ -493,7 +509,10 @@ mod tests {
       HirValueKind::Mapping(e) => e,
       _ => panic!("expected mapping"),
     };
-    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
     let parts = match content.1.kind(&db) {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
@@ -513,14 +532,17 @@ mod tests {
       HirValueKind::Mapping(e) => e,
       _ => panic!("expected mapping"),
     };
-    let content = entries.iter().find(|(k, _)| k == "_content").expect("_content missing");
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
     let parts = match content.1.kind(&db) {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
     };
-    let has_code = parts.iter().any(|p| {
-      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_)))
-    });
+    let has_code = parts.iter().any(
+      |p| matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_))),
+    );
     assert!(has_code, "expected code block part as Str");
   }
 }

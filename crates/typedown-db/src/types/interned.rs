@@ -42,4 +42,3 @@ pub struct TypeMember {
   pub typ: MemberType,
   pub descriptors: TypeMemberDescriptors,
 }
-

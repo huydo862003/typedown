@@ -115,7 +115,8 @@ fn check_mapping_fields(
         .contains(TypeMemberDescriptors::OPTIONAL);
       match value_result.typ(db) {
         Some(actual_type) => {
-          let matches = value_matches_member_type(db, &member.typ(db), actual_type.as_ref(), *value_hir);
+          let matches =
+            value_matches_member_type(db, &member.typ(db), actual_type.as_ref(), *value_hir);
           if !matches {
             let node = value_hir.node(db);
             diagnostics.push(Diagnostic::FieldTypeMismatch {
@@ -775,4 +776,3 @@ mod tests {
     );
   }
 }
-

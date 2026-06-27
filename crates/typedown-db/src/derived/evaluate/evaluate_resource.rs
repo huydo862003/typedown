@@ -400,26 +400,39 @@ mod tests {
     let HirValueKind::Mapping(entries) = hir.kind(&db) else {
       panic!("expected mapping at top level");
     };
-    let field_hirs: std::collections::HashMap<_, _> =
-      entries.into_iter().collect();
+    let field_hirs: std::collections::HashMap<_, _> = entries.into_iter().collect();
 
     let list_result = evaluate_node(&db, field_hirs["list_oob"]);
-    assert!(list_result.value(&db).is_none(), "list OOB should be undefined");
+    assert!(
+      list_result.value(&db).is_none(),
+      "list OOB should be undefined"
+    );
     assert!(
       list_result.diagnostics(&db).iter().any(|d| matches!(
         d,
-        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds { index: 99, length: 3, .. }
+        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds {
+          index: 99,
+          length: 3,
+          ..
+        }
       )),
       "expected IndexOutOfBounds(99, 3) for list, got: {:?}",
       list_result.diagnostics(&db)
     );
 
     let str_result = evaluate_node(&db, field_hirs["str_oob"]);
-    assert!(str_result.value(&db).is_none(), "string OOB should be undefined");
+    assert!(
+      str_result.value(&db).is_none(),
+      "string OOB should be undefined"
+    );
     assert!(
       str_result.diagnostics(&db).iter().any(|d| matches!(
         d,
-        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds { index: 99, length: 5, .. }
+        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds {
+          index: 99,
+          length: 5,
+          ..
+        }
       )),
       "expected IndexOutOfBounds(99, 5) for string, got: {:?}",
       str_result.diagnostics(&db)
@@ -456,10 +469,13 @@ mod tests {
   // A math field evaluates to TdrMathObj with the correct value
   #[test]
   fn evaluate_math_field() {
-    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_math_eval.tdr");
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/valid_math_eval.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
     let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
-    let formula = obj.get_owned_field(&db, "formula").expect("should have formula field");
+    let formula = obj
+      .get_owned_field(&db, "formula")
+      .expect("should have formula field");
     let math_obj = (formula.as_ref() as &dyn Any)
       .downcast_ref::<TdrMathObj>()
       .expect("formula should be TdrMathObj");
@@ -469,10 +485,13 @@ mod tests {
   // _content is injected from the markdown body and evaluates to a string
   #[test]
   fn evaluate_content_field() {
-    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_with_content.tdr");
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/md_with_content.tdr");
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
     let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
-    let content = obj.get_owned_field(&db, "_content").expect("should have _content field");
+    let content = obj
+      .get_owned_field(&db, "_content")
+      .expect("should have _content field");
     let str_obj = (content.as_ref() as &dyn Any)
       .downcast_ref::<TdrStrObj>()
       .expect("_content should be TdrStrObj");

@@ -1,6 +1,7 @@
 use std::any::Any;
 
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
+use typedown_db::TypedownDatabase;
 use typedown_db::derived::evaluate::evaluate_type::evaluate_type;
 use typedown_db::derived::hir::lower_node;
 use typedown_db::derived::name_resolver::file_symbol::file_symbol;
@@ -11,7 +12,6 @@ use typedown_db::derived::typechecker::get_symbol_type::get_symbol_type;
 use typedown_db::types::{
   MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
 };
-use typedown_db::TypedownDatabase;
 use typedown_syntax::ast::{AstNode, Expr};
 use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
@@ -241,7 +241,6 @@ fn keyword_item(label: &str) -> CompletionItem {
     ..Default::default()
   }
 }
-
 
 /// Suggest all user-defined schema names visible in the project scope.
 fn schema_completions(db: &TypedownDatabase, project: Project) -> Vec<CompletionItem> {

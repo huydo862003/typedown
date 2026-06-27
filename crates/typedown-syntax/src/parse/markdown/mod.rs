@@ -1437,28 +1437,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     (self.emit(SyntaxKind::MdMedia, &children), None)
   }
 
-  // Stop on `]`, Newline, EOF, or end of inline element.
-  fn synchronize_link_text(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
-    let mut error_children = vec![];
-    let result = loop {
-      let peek = self.lex_ctx.peek_md(SKIP_NONE);
-      if matches!(
-        peek.token.kind(),
-        SyntaxKind::RBracket | SyntaxKind::Newline | SyntaxKind::Eof
-      ) || self.should_end_inline_element(children)
-      {
-        break None;
-      }
-      if let Some(ctx) = self.consume_or_delegate_md(ExprCtx::MdLinkText, &mut error_children) {
-        break Some(ctx);
-      }
-    };
-    if !error_children.is_empty() {
-      children.push(self.emit(SyntaxKind::Error, &error_children));
-    }
-    result
-  }
-
   /// Parse a footnote reference: `[^key]`.
   pub(in crate::parse) fn parse_footnote_ref(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
@@ -2060,16 +2038,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
       }
     }
     true
-  }
-
-  /// Whether the next non-leading-whitespace token starts a block-level element.
-  /// INVARIANT: Must be called right after consuming a newline
-  fn is_md_block_start(&mut self) -> bool {
-    if !self.peek_md_prefix() {
-      return false;
-    }
-
-    self.is_md_any_block_start(SKIP_NONE)
   }
 }
 

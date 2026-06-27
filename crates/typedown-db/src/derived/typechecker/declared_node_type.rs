@@ -128,8 +128,7 @@ mod tests {
   #[test]
   fn declared_node_type_untyped_mapping_returns_none() {
     // literal_value.tdr has no _type field, so no schema to look up
-    let (db, project, file) =
-      load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("literal_value.tdr should have parseable frontmatter");
 

@@ -48,15 +48,6 @@ impl SyntaxNode {
     }
   }
 
-  /// Create a new interned Node via the cache.
-  pub(crate) fn new(
-    cache: &mut super::cache::Cache,
-    kind: SyntaxKind,
-    children: &[GreenNode],
-  ) -> Self {
-    cache.node(kind, children)
-  }
-
   pub fn kind(&self) -> SyntaxKind {
     unsafe { (*self.0).kind }
   }

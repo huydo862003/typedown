@@ -21,7 +21,9 @@ impl<T> UntrackedFieldIngredient<T> {
   pub const __TYPEDOWN_UNTRACKED_INGREDIENT: () = ();
 
   pub fn new() -> Self {
-    Self { data: Arc::new(DashMap::new()) }
+    Self {
+      data: Arc::new(DashMap::new()),
+    }
   }
 }
 

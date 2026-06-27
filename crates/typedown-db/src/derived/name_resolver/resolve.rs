@@ -72,7 +72,11 @@ fn collect_unresolved(db: &TypedownDatabase, hir: HirValue, diagnostics: &mut Ve
         collect_unresolved(db, idx, diagnostics);
       }
     }
-    HirValueKind::Str(_) | HirValueKind::Num(_) | HirValueKind::Math(_) | HirValueKind::Bool(_) | HirValueKind::Null => {}
+    HirValueKind::Str(_)
+    | HirValueKind::Num(_)
+    | HirValueKind::Math(_)
+    | HirValueKind::Bool(_)
+    | HirValueKind::Null => {}
     HirValueKind::Markdown(parts) => {
       for part in parts {
         if let crate::types::InterpolatedPart::Expr(expr) = part {

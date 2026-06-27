@@ -436,7 +436,6 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
   let field_types: Vec<_> = fields.iter().map(|f| &f.ty).collect();
   let field_names: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
-  let field_indices: Vec<_> = (0..fields.len()).collect();
 
   // Register per-field ingredients via inventory
   let mut register_tokens = quote! {};
@@ -714,7 +713,6 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 
   let field_types: Vec<_> = fields.iter().map(|f| &f.ty).collect();
   let field_names: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
-  let field_indices: Vec<_> = (0..fields.len()).collect();
   let intern_key_ty = quote! { (#(#field_types,)*) };
 
   // Register a single InternedIngredient for the whole struct

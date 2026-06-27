@@ -1,4 +1,4 @@
-use typedown_types::diagnostic::{self, Diagnostic};
+use typedown_types::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{InterpContext, LexCtx, LexResult};
