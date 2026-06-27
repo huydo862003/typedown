@@ -710,7 +710,7 @@ fn parse_inline_code_simple() {
     "\n")
   (MdBody
     (MdParagraph
-      (MdText
+      (InlineCode
         "`code`"))
     "\n"))"####
   );
@@ -1564,7 +1564,7 @@ fn parse_inline_math_simple() {
         " "
         "formula"
         " ")
-      (MdText
+      (InlineMath
         "$E=mc^2$")
       (MdText
         " "
