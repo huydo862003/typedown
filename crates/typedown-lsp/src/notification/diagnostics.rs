@@ -86,6 +86,7 @@ mod tests {
   use std::sync::{Arc, Condvar, Mutex};
 
   use typedown_db::inputs::{File, FileHandle};
+  use typedown_db::types::Project;
   use typedown_db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
@@ -125,7 +126,7 @@ properties:
       (content_path, content_file),
     ]);
 
-    let project = typedown_db::types::Project::new(&db, root, files);
+    let project = Project::new(&db, root, files);
     Analysis::new(
       db,
       project,
