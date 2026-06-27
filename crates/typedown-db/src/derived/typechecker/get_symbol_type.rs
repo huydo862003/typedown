@@ -2,7 +2,7 @@
 
 use typedown_macros::query_derived;
 
-use crate::derived::typechecker::get_node_type::get_node_type;
+use crate::derived::typechecker::infer_node_type::infer_node_type;
 use crate::types::{Symbol, SymbolKind, TdrTypeType, TypeResult};
 use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
@@ -18,7 +18,7 @@ pub fn get_symbol_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
     SymbolKind::UserDefinedResource(project, file) => {
       let (hir, _) = lower_file(db, project, file);
       match hir {
-        Some(hir) => get_node_type(db, hir),
+        Some(hir) => infer_node_type(db, hir),
         None => TypeResult::new(db, None, vec![]),
       }
     }

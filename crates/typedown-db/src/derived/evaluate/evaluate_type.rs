@@ -271,7 +271,7 @@ mod tests {
     derived::evaluate::utils::construct_from_hir,
     derived::get_builtin_types::*,
     derived::name_resolver::file_symbol::file_symbol,
-    derived::typechecker::get_node_type::get_node_type,
+    derived::typechecker::infer_node_type::infer_node_type,
     fixtures::load_vault_fixture,
     inputs::{File, FileHandle},
     types::{
@@ -680,7 +680,7 @@ age: 42
       _ => panic!("expected mapping"),
     };
 
-    let type_result = get_node_type(&db, friend_hir);
+    let type_result = infer_node_type(&db, friend_hir);
     let typ = type_result.typ(&db).expect("fref should return a type");
     assert_eq!(typ.display_name(&db), "Person");
   }

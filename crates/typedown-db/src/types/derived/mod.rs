@@ -56,6 +56,12 @@ pub struct TypeResult {
 }
 
 #[query_derived]
+pub struct TypeMemberResult {
+  member: Option<super::interned::TypeMember>,
+  diagnostics: Vec<Diagnostic>,
+}
+
+#[query_derived]
 pub struct InstResult {
   pub typ: Box<dyn TdrTypeLike>,
   pub diagnostics: Vec<Diagnostic>,

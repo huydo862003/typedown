@@ -25,7 +25,7 @@ use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
 #[query_derived]
-pub fn get_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
+pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   match hir.kind(db) {
     HirValueKind::Str(ref val) => {
       // Deduce the most specific string subtype from the value's format
@@ -96,7 +96,7 @@ fn get_mapping_type(
   let mut diagnostics = vec![];
   let mut fields = HashMap::new();
   for (key, value_hir) in entries {
-    let field_result = get_node_type(db, value_hir);
+    let field_result = infer_node_type(db, value_hir);
     diagnostics.extend(field_result.diagnostics(db).iter().cloned());
     if let Some(typ) = field_result.typ(db) {
       fields.insert(
@@ -139,7 +139,7 @@ fn get_tag_type(db: &TypedownDatabase, tag: HirValue) -> TypeResult {
 
 /// Helper to get the return type of a unary expression
 fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeResult {
-  let operand_result = get_node_type(db, operand);
+  let operand_result = infer_node_type(db, operand);
   let diagnostics = operand_result.diagnostics(db).clone();
 
   match op {
@@ -155,7 +155,7 @@ fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeRes
 fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirValue) -> TypeResult {
   // Field access such as `obj.field`
   if op == "." {
-    let left_result = get_node_type(db, left);
+    let left_result = infer_node_type(db, left);
     let mut diagnostics = left_result.diagnostics(db).clone();
     let left_type = match left_result.typ(db) {
       Some(typ) => typ,
@@ -180,8 +180,8 @@ fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirVa
     };
   }
 
-  let left_result = get_node_type(db, left);
-  let right_result = get_node_type(db, right);
+  let left_result = infer_node_type(db, left);
+  let right_result = infer_node_type(db, right);
   let mut diagnostics = left_result.diagnostics(db).clone();
   diagnostics.extend(right_result.diagnostics(db).iter().cloned());
 
@@ -207,7 +207,7 @@ fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult 
   let mut elem_type: Option<Box<dyn TdrTypeLike>> = None;
 
   for item in items {
-    let item_result = get_node_type(db, item);
+    let item_result = infer_node_type(db, item);
     diagnostics.extend(item_result.diagnostics(db).iter().cloned());
 
     if let Some(item_type) = item_result.typ(db) {
@@ -241,7 +241,7 @@ fn get_call_type(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -
     }
   }
 
-  let callee_result = get_node_type(db, callee);
+  let callee_result = infer_node_type(db, callee);
   let diagnostics = callee_result.diagnostics(db).clone();
 
   let callee_type = match callee_result.typ(db) {
@@ -341,7 +341,7 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeResult {
 /// NOTE: This funcion only returns the result type & index checking is done by typecheck (not this
 /// function)
 fn get_index_type(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) -> TypeResult {
-  let expr_result = get_node_type(db, expr);
+  let expr_result = infer_node_type(db, expr);
   let mut diagnostics = expr_result.diagnostics(db).clone();
 
   let expr_type = match expr_result.typ(db) {
@@ -463,7 +463,7 @@ mod tests {
 
   use crate::{
     QueryStorage, TypedownDatabase,
-    derived::{get_builtin_types::get_schema_type, typechecker::get_node_type::get_node_type},
+    derived::{get_builtin_types::get_schema_type, typechecker::infer_node_type::infer_node_type},
     inputs::{File, FileHandle},
     types::{Project, TdrTypeLike},
     utils::lower_file,
@@ -474,7 +474,7 @@ mod tests {
   }
 
   #[test]
-  fn get_node_type_of_schema_file_top_level_mapping_is_schema_type() {
+  fn infer_node_type_of_schema_file_top_level_mapping_is_schema_type() {
     let vault = vault_root();
     let schema_file_path = vault.join("schemas/Person.tdr");
 
@@ -491,7 +491,7 @@ mod tests {
 
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("schema file should have parseable frontmatter");
-    let type_result = get_node_type(&db, hir);
+    let type_result = infer_node_type(&db, hir);
 
     let expected = Some(Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>);
     assert!(
