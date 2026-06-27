@@ -19,6 +19,10 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let mut notifications = Vec::new();
 
   for (path, file) in &files {
+    if path.extension().and_then(|e| e.to_str()) != Some("tdr") {
+      continue;
+    }
+
     let rope = match analysis.file_rope(path) {
       Some(rope) => rope,
       None => continue,
