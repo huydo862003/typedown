@@ -1,13 +1,13 @@
 use lsp_server::Notification;
-use lsp_types::PublishDiagnosticsParams;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
-
+use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, PublishDiagnosticsParams};
+use ropey::Rope;
 use typedown_db::derived::get_vault_config::get_vault_config;
+use typedown_types::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
+use crate::utils::position::text_offset_to_lsp_position;
 use crate::utils::uri::path_to_uri;
-
-use super::to_lsp_diagnostic;
 
 pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let db = &analysis.db;
@@ -32,7 +32,7 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let lsp_diags = config_result
     .diagnostics(db)
     .iter()
-    .filter_map(|diag| to_lsp_diagnostic(diag, &rope))
+    .map(|diag| to_lsp_diagnostic(diag, &rope))
     .collect();
 
   let scheme = analysis
@@ -50,4 +50,25 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
       version: None,
     },
   )]
+}
+
+fn to_lsp_diagnostic(diag: &TdrDiagnostic, rope: &Rope) -> Diagnostic {
+  let (start_offset, end_offset) = diag.offsets().unwrap_or((0, 0));
+
+  let start_offset = start_offset.min(rope.len_chars());
+  let end_offset = end_offset.min(rope.len_chars());
+
+  let range = lsp_types::Range {
+    start: text_offset_to_lsp_position(rope, start_offset),
+    end: text_offset_to_lsp_position(rope, end_offset),
+  };
+
+  Diagnostic {
+    range,
+    severity: Some(DiagnosticSeverity::ERROR),
+    code: Some(NumberOrString::String(diag.code().into())),
+    source: Some("typedown".into()),
+    message: diag.message(),
+    ..Default::default()
+  }
 }

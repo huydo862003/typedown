@@ -208,13 +208,31 @@ pub enum Diagnostic {
   VaultConfigReadError { path: String, message: String },
 
   /// Failed to parse the vault config file as YAML.
-  VaultConfigParseError { path: String, message: String },
+  VaultConfigParseError {
+    path: String,
+    message: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 
   /// The vault config file is empty.
   VaultConfigEmpty { path: String },
 
   /// A required field is missing from the vault config.
-  VaultConfigMissingField { path: String, field: String },
+  VaultConfigMissingField {
+    path: String,
+    field: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
+
+  /// An unknown field is present in the vault config.
+  VaultConfigUnknownField {
+    path: String,
+    field: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 
   /* Typechecker diagnostics */
   /// Missing _type field in top-level mapping.
@@ -547,11 +565,24 @@ impl Diagnostic {
         ..
       } => Some((*start_offset, *end_offset)),
       Diagnostic::MissingFrontmatterMarker { offset } => Some((*offset, *offset)),
+      Diagnostic::VaultConfigParseError {
+        start_offset,
+        end_offset,
+        ..
+      } => Some((*start_offset, *end_offset)),
+      Diagnostic::VaultConfigMissingField {
+        start_offset,
+        end_offset,
+        ..
+      }
+      | Diagnostic::VaultConfigUnknownField {
+        start_offset,
+        end_offset,
+        ..
+      } => Some((*start_offset, *end_offset)),
       Diagnostic::MissingVaultConfig { .. }
       | Diagnostic::VaultConfigReadError { .. }
-      | Diagnostic::VaultConfigParseError { .. }
       | Diagnostic::VaultConfigEmpty { .. }
-      | Diagnostic::VaultConfigMissingField { .. }
       | Diagnostic::WrongTypeArgCount { .. } => None,
     }
   }
@@ -642,14 +673,17 @@ impl Diagnostic {
       Diagnostic::VaultConfigReadError { path, message } => {
         format!("failed to read vault config '{path}': {message}")
       }
-      Diagnostic::VaultConfigParseError { path, message } => {
+      Diagnostic::VaultConfigParseError { path, message, .. } => {
         format!("failed to parse vault config '{path}': {message}")
       }
       Diagnostic::VaultConfigEmpty { path } => {
         format!("vault config '{path}' is empty")
       }
-      Diagnostic::VaultConfigMissingField { path, field } => {
+      Diagnostic::VaultConfigMissingField { path, field, .. } => {
         format!("vault config '{path}' is missing required field '{field}'")
+      }
+      Diagnostic::VaultConfigUnknownField { path, field, .. } => {
+        format!("vault config '{path}' has unknown field '{field}'")
       }
       Diagnostic::MissingSchemaField { .. } => "missing '_type' field in top-level mapping".into(),
       Diagnostic::UnresolvedSchema { name, .. } => {
@@ -742,6 +776,7 @@ impl Diagnostic {
       Diagnostic::VaultConfigParseError { .. } => "vault-config-parse-error",
       Diagnostic::VaultConfigEmpty { .. } => "vault-config-empty",
       Diagnostic::VaultConfigMissingField { .. } => "vault-config-missing-field",
+      Diagnostic::VaultConfigUnknownField { .. } => "vault-config-unknown-field",
       Diagnostic::MissingSchemaField { .. } => "missing-schema-field",
       Diagnostic::UnresolvedSchema { .. } => "unresolved-schema",
       Diagnostic::WrongTypeArgCount { .. } => "wrong-type-arg-count",
