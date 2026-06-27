@@ -5,7 +5,7 @@ local repo_root = vim.fn.fnamemodify(
   ":h:h:h:h"            -- Walk up parent -> parent -> parent. This reach up to '/lsp-clients/nvim/plugin/typedown-lsp.lua/../../../..'
 )
 
-local lsp_binary = repo_root .. "./target/release/typedown-lsp"
+local lsp_binary = repo_root .. "/target/release/typedown-lsp"
 
 -- Trigger on FileType event change
 vim.api.nvim_create_autocmd("FileType", {
@@ -14,8 +14,8 @@ vim.api.nvim_create_autocmd("FileType", {
     -- Start the LSP with root_dir containing typedown config file
     vim.lsp.start({
       name = "typedown-lsp",
-      cmd = { binary = lsp_binary },
-      root_dir = vim.fs.root(0, { "typedown.yaml", "typedown.yml" })
+      cmd = { lsp_binary },
+      root_dir = vim.fs.root(0, { "typedown.yaml", "typedown.yml" }),
     })
   end,
 })
