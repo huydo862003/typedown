@@ -17,7 +17,7 @@ use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{find_ancestor, node_at_offset};
+use crate::utils::ast::{cursor_is_in_value_not_key, find_ancestor, node_at_offset};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
 
@@ -242,18 +242,6 @@ fn keyword_item(label: &str) -> CompletionItem {
   }
 }
 
-/// Returns true if the cursor is in a value position rather than a key position.
-fn cursor_is_in_value_not_key(node: &RedNode) -> bool {
-  let mut current = node.parent();
-  while let Some(ref cur) = current {
-    match cur.kind() {
-      SyntaxKind::YamlMappingEntryValue => return true,
-      SyntaxKind::YamlMappingEntryKey => return false,
-      _ => current = cur.parent(),
-    }
-  }
-  false
-}
 
 /// Suggest all user-defined schema names visible in the project scope.
 fn schema_completions(db: &TypedownDatabase, project: Project) -> Vec<CompletionItem> {

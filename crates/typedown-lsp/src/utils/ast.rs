@@ -21,6 +21,19 @@ pub fn node_at_offset(root: RedNode, offset: usize) -> Option<RedNode> {
   Some(root)
 }
 
+/// Returns true if the cursor is in a value position rather than a key position.
+pub fn cursor_is_in_value_not_key(node: &RedNode) -> bool {
+  let mut current = node.parent();
+  while let Some(ref cur) = current {
+    match cur.kind() {
+      SyntaxKind::YamlMappingEntryValue => return true,
+      SyntaxKind::YamlMappingEntryKey => return false,
+      _ => current = cur.parent(),
+    }
+  }
+  false
+}
+
 /// Walk up to find the nearest ancestor with the given syntax kind.
 pub fn find_ancestor(node: &RedNode, kind: SyntaxKind) -> Option<RedNode> {
   let mut current = node.parent()?;
