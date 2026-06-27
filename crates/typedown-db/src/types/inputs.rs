@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs, io, path::PathBuf, time::SystemTime};
 use typedown_macros::query_input;
 use typedown_types::{file_stream::FileStream, stream::Utf8Stream};
 
-/// Types of file-handle: path-based or editor-managed content.
+/// Types of file-handle: path-based (with mtime for invalidation) or editor-managed content.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum FileHandle {
   /// A file on disk. `mtime` is used to detect changes without reading content eagerly.

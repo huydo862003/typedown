@@ -16,6 +16,7 @@ use lsp_types::{
 };
 use typedown_db::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
+use typedown_lsp::notification;
 use typedown_lsp::service;
 
 // The entrypoint
@@ -84,6 +85,11 @@ fn server_loop(
       Message::Notification(note) => {
         // File open/change/close: update the host's tracked state
         handle_notification(host, &note);
+        // Push diagnostics after each state change
+        let analysis = host.snapshot();
+        for notif in notification::diagnostics::publish_diagnostics(&analysis) {
+          connection.sender.send(Message::Notification(notif))?;
+        }
       }
       Message::Response(_) => {}
     }
@@ -99,9 +105,7 @@ fn handle_notification(host: &mut AnalysisHost, note: &Notification) {
       else {
         return;
       };
-      if let Some(path) = uri_to_path(&params.text_document.uri) {
-        host.on_editor_open_file(path, params.text_document.text);
-      }
+      host.on_editor_open_file(&params.text_document.uri, params.text_document.text);
     }
     // Editor sent incremental diffs: apply each change to the in-memory rope.
     DidChangeTextDocument::METHOD => {

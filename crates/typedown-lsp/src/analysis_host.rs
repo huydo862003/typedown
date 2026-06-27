@@ -6,21 +6,24 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::SystemTime;
 use std::{fs, io};
 
+use lsp_types::Uri;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ropey::Rope;
 use typedown_db::TypedownDatabase;
 use typedown_db::inputs::{File, FileHandle, Project};
 
 use crate::analysis::Analysis;
+use crate::utils::uri::{uri_scheme, uri_to_path};
 
 pub struct AnalysisHost {
   db: TypedownDatabase,
   project: Project,
   project_dir: PathBuf,
   snapshot_counter: Arc<(Mutex<usize>, Condvar)>,
-  open_files: HashMap<PathBuf, Rope>, // editor-managed content
-  project_files: HashSet<PathBuf>,    // all .tdr files known on disk
-  file_map: HashMap<PathBuf, File>,   // stable File IDs, one per tracked path
+  open_files: HashMap<PathBuf, Rope>,   // editor-managed content
+  scheme_map: HashMap<PathBuf, String>, // URI scheme per path, set when editor opens a file
+  project_files: HashSet<PathBuf>,      // all tracked files known on disk
+  file_map: HashMap<PathBuf, File>,     // stable File IDs, one per tracked path
   _watcher: RecommendedWatcher,
 }
 
@@ -56,6 +59,7 @@ impl AnalysisHost {
       project_dir,
       snapshot_counter: Arc::new((Mutex::new(1), Condvar::new())),
       open_files: HashMap::new(),
+      scheme_map: HashMap::new(),
       project_files,
       file_map,
       _watcher: watcher,
@@ -68,6 +72,8 @@ impl AnalysisHost {
     Analysis::new(
       self.db.clone(),
       self.project,
+      self.scheme_map.clone(),
+      self.open_files.clone(),
       Arc::clone(&self.snapshot_counter),
     )
   }
@@ -124,9 +130,13 @@ impl AnalysisHost {
   }
 
   /// Called on textDocument/didOpen.
-  pub fn on_editor_open_file(&mut self, path: PathBuf, content: String) {
-    self.open_files.insert(path, Rope::from(content));
-    self.sync_files();
+  pub fn on_editor_open_file(&mut self, uri: &Uri, content: String) {
+    if let Some(path) = uri_to_path(uri) {
+      let scheme = uri_scheme(uri).to_string();
+      self.scheme_map.insert(path.clone(), scheme);
+      self.open_files.insert(path, Rope::from(content));
+      self.sync_files();
+    }
   }
 
   /// Called on textDocument/didChange.
@@ -180,7 +190,7 @@ fn disk_handle(path: &PathBuf) -> FileHandle {
   FileHandle::Path(path.clone(), mtime)
 }
 
-/// Read all relevant project files (based on is_tracked_file)
+/// Read all relevant project files
 fn scan_project_files(root: &PathBuf) -> io::Result<HashSet<PathBuf>> {
   let mut files = HashSet::new();
   scan_dir(root, root, &mut files)?;
