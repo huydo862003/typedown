@@ -579,7 +579,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     self.expr_ctx_stack.enter(ExprCtx::MdUnorderedList);
 
     // Parse first list item
-    let (item, early_exit) = self.parse_bullet_list_item(&bullet);
+    let (item, early_exit) = self.parse_next_bullet_item(&bullet);
     children.push(item);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedList) {
       self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
@@ -601,7 +601,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
         break;
       }
 
-      let (item, early_exit) = self.parse_bullet_list_item(&bullet);
+      let (item, early_exit) = self.parse_next_bullet_item(&bullet);
       children.push(item);
       if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdUnorderedList) {
         self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
@@ -611,6 +611,24 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     self.expr_ctx_stack.exit(ExprCtx::MdUnorderedList);
     (self.emit(SyntaxKind::MdBulletList, &children), None)
+  }
+
+  fn parse_next_bullet_item(&mut self, bullet: &str) -> (GreenNode, Option<ExprCtx>) {
+    // Check if a checkbox follows the bullet and space
+    if self.lex_ctx.peek_md_nth(2, SKIP_NONE).token.kind() == SyntaxKind::LBracket {
+      let inner: String = self
+        .lex_ctx
+        .peek_md_nth(3, SKIP_NONE)
+        .token
+        .chars()
+        .collect();
+      if (inner == " " || inner.to_lowercase() == "x")
+        && self.lex_ctx.peek_md_nth(4, SKIP_NONE).token.kind() == SyntaxKind::RBracket
+      {
+        return self.parse_task_list_item(bullet);
+      }
+    }
+    self.parse_bullet_list_item(bullet)
   }
 
   /// Parse a bullet list item: `- content` or `* content` or `+ content`.
@@ -682,6 +700,64 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     self.expr_ctx_stack.exit(ExprCtx::MdUnorderedListItem);
     (self.emit(SyntaxKind::MdBulletListItem, &children), None)
+  }
+
+  fn parse_task_list_item(&mut self, bullet: &str) -> (GreenNode, Option<ExprCtx>) {
+    let mut children = vec![];
+
+    self.expr_ctx_stack.enter(ExprCtx::MdTaskListItem);
+
+    // Consume the bullet marker
+    self.advance_md(&mut children, SKIP_NONE);
+
+    // Consume the space after the bullet
+    if self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::Whitespace {
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Consume the checkbox: `[` inner `]`
+    let mut checkbox_children = vec![];
+    self.advance_md(&mut checkbox_children, SKIP_NONE); // `[`
+    self.advance_md(&mut checkbox_children, SKIP_NONE); // ` ` or `x`
+    self.advance_md(&mut checkbox_children, SKIP_NONE); // `]`
+    children.push(self.emit(SyntaxKind::MdCheckbox, &checkbox_children));
+
+    // Parse block elements until end of task list item (same logic as bullet list item)
+    loop {
+      let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
+      if next_kind == SyntaxKind::Eof {
+        break;
+      }
+      if next_kind == SyntaxKind::Newline {
+        if !self.peek_md_newline_and_prefix() {
+          break;
+        }
+        self.consume_md_newline_and_prefix(&mut children);
+        let next = self.lex_ctx.peek_md(SKIP_NONE);
+        if matches!(next.token.kind(), SyntaxKind::Newline | SyntaxKind::Eof) {
+          break;
+        }
+        if next.token.kind() == SyntaxKind::MdSymbol
+          && next.token.chars().collect::<String>() == bullet
+        {
+          break;
+        }
+        continue;
+      }
+
+      let (block, early_exit) = self.parse_md_block_element();
+      children.push(block);
+      if early_exit.is_some_and(|ctx| ctx != ExprCtx::MdTaskListItem) {
+        self.expr_ctx_stack.exit(ExprCtx::MdTaskListItem);
+        return (self.emit(SyntaxKind::MdTaskListItem, &children), early_exit);
+      }
+      if early_exit == Some(ExprCtx::MdTaskListItem) {
+        break;
+      }
+    }
+
+    self.expr_ctx_stack.exit(ExprCtx::MdTaskListItem);
+    (self.emit(SyntaxKind::MdTaskListItem, &children), None)
   }
 
   /// Parse an ordered list: `1. ...`.

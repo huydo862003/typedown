@@ -25,6 +25,8 @@ pub enum SyntaxKind {
   MdTableCell,
   MdBulletList,
   MdBulletListItem,
+  MdTaskListItem, // `- [ ] ...` or `- [x] ...`
+  MdCheckbox,     // `[ ]` or `[x]`
   MdOrderedList,
   MdOrderedListItem,
   MdToggleList,

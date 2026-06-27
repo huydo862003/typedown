@@ -280,6 +280,33 @@ impl MdBulletListItem {
   }
 }
 
+/// A task list item: `- [ ] ...` or `- [x] ...`
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
+pub struct MdTaskListItem(RedNode);
+
+impl MdTaskListItem {
+  pub fn checkbox(&self) -> Option<MdCheckbox> {
+    child::<MdCheckbox>(&self.0)
+  }
+
+  pub fn block_elements(&self) -> impl Iterator<Item = MdBlockElement> {
+    children::<MdBlockElement>(&self.0)
+  }
+}
+
+/// A checkbox marker inside a task list item: `[ ]` or `[x]`
+#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
+pub struct MdCheckbox(RedNode);
+
+impl MdCheckbox {
+  pub fn is_checked(&self) -> bool {
+    self.0.children().any(|child| {
+      let text: String = child.chars().collect();
+      text.to_lowercase() == "x"
+    })
+  }
+}
+
 /// The Markdown ordered list
 /// Represented by:
 /// 1. item 1

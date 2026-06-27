@@ -235,6 +235,99 @@ fn parse_bullet_list_plus() {
   );
 }
 
+// Parses a task list with unchecked and checked items
+#[test]
+fn parse_task_list_simple() {
+  let tree = parse_body(
+    r#"- [ ] unchecked
+- [x] checked
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdBulletList
+      (MdTaskListItem
+        "-"
+        " "
+        (MdCheckbox
+          "["
+          " "
+          "]")
+        (MdParagraph
+          (MdText
+            " "
+            "unchecked")))
+      "\n"
+      (MdTaskListItem
+        "-"
+        " "
+        (MdCheckbox
+          "["
+          "x"
+          "]")
+        (MdParagraph
+          (MdText
+            " "
+            "checked")))
+      "\n")))"####
+  );
+}
+
+// Parses a bullet list mixed with a task list item
+#[test]
+fn parse_task_list_mixed() {
+  let tree = parse_body(
+    r#"- plain item
+- [ ] task item
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
+        "-"
+        " "
+        (MdParagraph
+          (MdText
+            "plain"
+            " "
+            "item")))
+      "\n"
+      (MdTaskListItem
+        "-"
+        " "
+        (MdCheckbox
+          "["
+          " "
+          "]")
+        (MdParagraph
+          (MdText
+            " "
+            "task"
+            " "
+            "item")))
+      "\n")))"####
+  );
+}
+
 // Parses an ordered list
 #[test]
 fn parse_ordered_list_simple() {

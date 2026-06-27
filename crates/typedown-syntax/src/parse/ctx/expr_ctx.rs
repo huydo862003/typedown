@@ -47,6 +47,8 @@ pub(in crate::parse) enum ExprCtx {
   MdUnorderedList,
   /// Inside an unordered list item
   MdUnorderedListItem,
+  /// Inside a task list item (`- [ ] ...` or `- [x] ...`)
+  MdTaskListItem,
   /// Inside a toggle list (`>- ...`)
   MdToggleList,
   /// Inside a toggle list item
@@ -156,7 +158,7 @@ impl ExprCtxStack {
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
-      ExprCtx::MdUnorderedListItem => {
+      ExprCtx::MdUnorderedListItem | ExprCtx::MdTaskListItem => {
         self
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));
@@ -260,6 +262,8 @@ impl ExprCtx {
       | (ExprCtx::MdUnorderedList, SyntaxKind::Eof)
       | (ExprCtx::MdUnorderedListItem, SyntaxKind::Newline)
       | (ExprCtx::MdUnorderedListItem, SyntaxKind::Eof)
+      | (ExprCtx::MdTaskListItem, SyntaxKind::Newline)
+      | (ExprCtx::MdTaskListItem, SyntaxKind::Eof)
       | (ExprCtx::MdToggleList, SyntaxKind::Eof)
       | (ExprCtx::MdToggleListItem, SyntaxKind::Newline)
       | (ExprCtx::MdToggleListItem, SyntaxKind::Eof)
