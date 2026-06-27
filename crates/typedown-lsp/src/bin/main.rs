@@ -5,7 +5,7 @@ use ropey::Rope;
 
 use notify::{Event, EventKind};
 
-use lsp_server::{Connection, ErrorCode, Message, Notification, Response};
+use lsp_server::{Connection, Message, Notification};
 use lsp_types::notification::{
   DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification as _,
 };
@@ -16,6 +16,7 @@ use lsp_types::{
 };
 use typedown_db::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
+use typedown_lsp::service;
 
 // The entrypoint
 fn main() -> anyhow::Result<()> {
@@ -76,12 +77,8 @@ fn server_loop(
         if connection.handle_shutdown(&req)? {
           break;
         }
-        // TODO: dispatch to feature handlers (hover, completion, etc.)
-        let resp = Response::new_err(
-          req.id,
-          ErrorCode::MethodNotFound as i32,
-          format!("unhandled method: {}", req.method),
-        );
+        let analysis = host.snapshot();
+        let resp = service::dispatch(&analysis, req);
         connection.sender.send(Message::Response(resp))?;
       }
       Message::Notification(note) => {
