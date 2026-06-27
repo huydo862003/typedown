@@ -1,0 +1,27 @@
+---
+_type: Task
+title: "Design mockups for new homepage"
+status: "done"
+priority: "high"
+due: "2026-04-15"
+project: fref("content/projects/website-redesign.tdr")
+assignee: fref("content/people/bob.tdr")
+---
+
+Completed ahead of schedule. Bob delivered three homepage variants.
+The team reviewed them in the design review on 2026-04-10 and settled on variant B.
+Figma link and exported assets are stored in the shared drive.
+
+## Variants Reviewed
+
+| Variant | Layout | Verdict |
+|---------|--------|---------|
+| A | Single column | Rejected, too sparse |
+| B | Split hero | Accepted |
+| C | Grid | Rejected, too busy |
+
+## Deliverables
+
+- Figma source file with all components
+- Exported SVG assets for icons
+- Annotated spec sheet for developers

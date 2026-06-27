@@ -1,0 +1,29 @@
+---
+_type: Task
+title: "Write integration tests for auth"
+status: "todo"
+priority: "medium"
+project: fref("content/projects/website-redesign.tdr")
+assignee: fref("content/people/alice.tdr")
+---
+
+Depends on the auth implementation being merged first.
+Tests should cover login success, login failure, session expiry, and password reset flow.
+Use the existing test harness in `tests/integration/`.
+
+## Test Cases
+
+| Scenario | Expected Result |
+|----------|----------------|
+| Valid credentials | 200 with access token |
+| Wrong password | 401 |
+| Expired session | 401, prompt re-login |
+| Password reset request | 200, email sent |
+| Rate limit exceeded | 429 |
+
+## Checklist
+
+- [ ] Set up test database fixtures
+- [ ] Write happy path tests
+- [ ] Write failure and edge case tests
+- [ ] Assert token expiry behavior

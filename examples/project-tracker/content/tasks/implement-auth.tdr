@@ -1,0 +1,33 @@
+---
+_type: Task
+title: "Implement authentication flow"
+status: "in_progress"
+priority: "high"
+due: "2026-07-10"
+project: fref("content/projects/website-redesign.tdr")
+assignee: fref("content/people/alice.tdr")
+---
+
+Covers login, logout, session management, and password reset.
+OAuth integration (GitHub, Google) is out of scope for this iteration.
+
+## Scope
+
+| Feature | Included |
+|---------|----------|
+| Email/password login | Yes |
+| Session management | Yes |
+| Password reset | Yes |
+| OAuth (GitHub) | No |
+| OAuth (Google) | No |
+
+## Implementation Notes
+
+- Use short-lived JWT access tokens with a refresh token rotation strategy
+- Store sessions in Redis with a 30-day TTL
+- Rate-limit login attempts to 10 per minute per IP
+
+## Blockers
+
+- Session token format pending sign-off from security team
+- Need final decision on cookie vs Authorization header for token transport
