@@ -1,7 +1,6 @@
 use std::any::Any;
 
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
-use typedown_db::TypedownDatabase;
 use typedown_db::derived::evaluate::evaluate_type::evaluate_type;
 use typedown_db::derived::hir::lower_node;
 use typedown_db::derived::name_resolver::file_symbol::file_symbol;
@@ -10,14 +9,15 @@ use typedown_db::derived::parse_file::parse_file;
 use typedown_db::derived::typechecker::declared_node_type::declared_node_type;
 use typedown_db::derived::typechecker::get_symbol_type::get_symbol_type;
 use typedown_db::types::{
-  MemberType, Project, Scope, SymbolKind, TdrProductType, TdrTypeLike, TypeMemberDescriptors,
+  MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
 };
+use typedown_db::TypedownDatabase;
 use typedown_syntax::ast::{AstNode, Expr};
 use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::node_at_offset;
+use crate::utils::ast::{find_ancestor, node_at_offset};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
 
@@ -154,7 +154,9 @@ fn enclosing_mapping_product(
     let scope = Scope::project_scope(db, project);
     let symbol = *members(db, scope).members(db).get(&schema_name)?;
     let typ = evaluate_type(db, symbol).typ(db)?;
-    return (typ.as_ref() as &dyn Any).downcast_ref::<TdrProductType>().cloned();
+    return (typ.as_ref() as &dyn Any)
+      .downcast_ref::<TdrProductType>()
+      .cloned();
   }
 
   // No explicit _type. Try resolving via the parent field's declared type.
@@ -165,7 +167,9 @@ fn enclosing_mapping_product(
     MemberType::Simple(typ) => typ,
     _ => return None,
   };
-  (typ.as_ref() as &dyn Any).downcast_ref::<TdrProductType>().cloned()
+  (typ.as_ref() as &dyn Any)
+    .downcast_ref::<TdrProductType>()
+    .cloned()
 }
 
 /// If the cursor is in a field value, return value completions.
@@ -251,17 +255,6 @@ fn cursor_is_in_value_not_key(node: &RedNode) -> bool {
   false
 }
 
-/// Walk up the tree to find the nearest ancestor with the given kind.
-fn find_ancestor(node: &RedNode, kind: SyntaxKind) -> Option<RedNode> {
-  let mut current = node.parent()?;
-  loop {
-    if current.kind() == kind {
-      return Some(current);
-    }
-    current = current.parent()?;
-  }
-}
-
 /// Suggest all user-defined schema names visible in the project scope.
 fn schema_completions(db: &TypedownDatabase, project: Project) -> Vec<CompletionItem> {
   let scope = Scope::project_scope(db, project);
@@ -278,7 +271,10 @@ fn schema_completions(db: &TypedownDatabase, project: Project) -> Vec<Completion
 }
 
 /// Suggest field names from a resolved product type.
-fn field_completions_from_type(db: &TypedownDatabase, product: &TdrProductType) -> Vec<CompletionItem> {
+fn field_completions_from_type(
+  db: &TypedownDatabase,
+  product: &TdrProductType,
+) -> Vec<CompletionItem> {
   product
     .fields(db)
     .keys()
@@ -392,15 +388,20 @@ properties:
     let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
     let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
     let event_file = File::new(&db, FileHandle::Content(SCHEMA_EVENT.to_string()));
-    let person_with_address_file =
-      File::new(&db, FileHandle::Content(SCHEMA_PERSON_WITH_ADDRESS.to_string()));
+    let person_with_address_file = File::new(
+      &db,
+      FileHandle::Content(SCHEMA_PERSON_WITH_ADDRESS.to_string()),
+    );
     let content_file = File::new(&db, FileHandle::Content(content.to_string()));
 
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
       (root.join("schemas/Person.tdr"), person_file),
       (root.join("schemas/Event.tdr"), event_file),
-      (root.join("schemas/PersonWithAddress.tdr"), person_with_address_file),
+      (
+        root.join("schemas/PersonWithAddress.tdr"),
+        person_with_address_file,
+      ),
       (content_path, content_file),
     ]);
 
