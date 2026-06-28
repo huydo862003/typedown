@@ -6,7 +6,7 @@ use lsp_types::{
   CompletionOptions, HoverProviderCapability, InitializeParams, OneOf, SemanticTokenModifier,
   SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
   SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
-  TextDocumentSyncKind, Uri,
+  TextDocumentSyncKind, TextDocumentSyncOptions, Uri,
 };
 use typedown_db::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
@@ -19,8 +19,14 @@ fn main() -> anyhow::Result<()> {
 
   // Capabilities of the server
   let capabilities = ServerCapabilities {
-    text_document_sync: Some(TextDocumentSyncCapability::Kind(
-      TextDocumentSyncKind::INCREMENTAL,
+    text_document_sync: Some(TextDocumentSyncCapability::Options(
+      TextDocumentSyncOptions {
+        // Required for clients to send didOpen, which triggers semantic token requests.
+        // See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocumentSyncOptions
+        open_close: Some(true),
+        change: Some(TextDocumentSyncKind::INCREMENTAL),
+        ..Default::default()
+      },
     )),
     hover_provider: Some(HoverProviderCapability::Simple(true)),
     completion_provider: Some(CompletionOptions::default()),

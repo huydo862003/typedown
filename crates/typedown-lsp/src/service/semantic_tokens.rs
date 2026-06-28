@@ -1,6 +1,5 @@
 use lsp_types::{
-  SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
-  SemanticTokensFullOptions, SemanticTokensOptions, SemanticTokensParams, SemanticTokensResult,
+  SemanticToken, SemanticTokenType, SemanticTokens, SemanticTokensParams, SemanticTokensResult,
 };
 use ropey::Rope;
 use typedown_db::derived::parse_file::parse_file;
