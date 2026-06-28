@@ -45,9 +45,8 @@ fn main() -> anyhow::Result<()> {
   };
 
   // Handshake with the capabilities and get back the client
-  let init_params: InitializeParams = serde_json::from_value(
-    connection.initialize(serde_json::json!({ "capabilities": capabilities }))?,
-  )?;
+  let init_params: InitializeParams =
+    serde_json::from_value(connection.initialize(serde_json::to_value(capabilities)?)?)?;
 
   // Lookup the project root
   let workspace_dir = init_params

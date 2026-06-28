@@ -13,6 +13,7 @@ local function start_lsp()
     name = "typedown-lsp",
     cmd = { lsp_binary },
     root_dir = vim.fs.root(0, { "typedown.yaml", "typedown.yml" }),
+    capabilities = vim.lsp.protocol.make_client_capabilities(),
   })
 end
 
