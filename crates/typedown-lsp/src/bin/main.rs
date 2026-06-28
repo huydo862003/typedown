@@ -3,10 +3,10 @@ use std::sync::mpsc;
 
 use lsp_server::Connection;
 use lsp_types::{
-  CompletionOptions, HoverProviderCapability, InitializeParams, OneOf, SemanticTokenModifier,
-  SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
-  SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
-  TextDocumentSyncKind, TextDocumentSyncOptions, Uri,
+  CompletionOptions, HoverProviderCapability, InitializeParams, OneOf, SemanticTokensFullOptions,
+  SemanticTokensLegend, SemanticTokensOptions, SemanticTokensServerCapabilities,
+  ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+  Uri,
 };
 use typedown_db::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
@@ -34,8 +34,8 @@ fn main() -> anyhow::Result<()> {
     semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
       SemanticTokensOptions {
         legend: SemanticTokensLegend {
-          token_types: semantic_tokens::TOKEN_TYPES.to_vec(),
-          token_modifiers: vec![SemanticTokenModifier::READONLY],
+          token_types: semantic_tokens::token_types(),
+          token_modifiers: semantic_tokens::token_modifiers(),
         },
         full: Some(SemanticTokensFullOptions::Bool(true)),
         ..Default::default()

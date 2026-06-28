@@ -8,8 +8,9 @@ project: fref("content/projects/website-redesign.tdr")
 assignee: fref("content/people/bob.tdr")
 ---
 
-Completed ahead of schedule. Bob delivered three homepage variants.
-The team reviewed them in the design review on 2026-04-10 and settled on variant B.
+Completed **ahead of schedule**. Bob delivered three homepage variants.
+The team reviewed them in the design review on *2026-04-10* and settled on **variant B**.
+~~Variant A was briefly reconsidered~~ but ultimately dropped.
 Figma link and exported assets are stored in the shared drive.
 
 ## Variants Reviewed

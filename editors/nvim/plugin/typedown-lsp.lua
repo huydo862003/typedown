@@ -7,6 +7,8 @@ local repo_root = vim.fn.fnamemodify(
 
 local lsp_binary = repo_root .. "/target/release/typedown-lsp"
 
+require("typedown.theme").setup()
+
 local function start_lsp()
   -- Start the LSP with root_dir containing typedown config file
   vim.lsp.start({

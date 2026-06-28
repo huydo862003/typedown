@@ -3,10 +3,12 @@ _type: Person
 name: "Alice Chen"
 role: "developer"
 email: "alice@example.com"
+tags: ["rust", "backend", "auth"]
+scores: [95, 88, 72]
 ---
 
-Alice is a backend developer with a focus on authentication systems and developer tooling.
-She joined the team in 2023 and has been leading the website redesign effort.
+Alice is a **backend developer** with a focus on *authentication systems* and developer tooling.
+She joined the team in 2023 and has been ***leading*** the website redesign effort.
 
 ## Skills
 
@@ -22,3 +24,7 @@ She joined the team in 2023 and has been leading the website redesign effort.
 - Lead backend development on the website redesign
 - Review pull requests for the auth subsystem
 - Mentor junior developers on the team
+
+## Formula Examples
+
+Inline formula reference: ${fref("content/tasks/implement-auth.tdr")}
