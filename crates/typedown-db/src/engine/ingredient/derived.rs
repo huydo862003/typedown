@@ -260,6 +260,8 @@ impl<
   V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
+  /// Check the red-green algo here: https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#improving-accuracy-the-red-green-algorithm
+  /// We're similar in idea
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
     let storage = unsafe { db.storage() };
     let current_revision = storage.revision.load(Ordering::Acquire);
