@@ -9,7 +9,7 @@ use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{find_ancestor, find_expr_ancestor, node_at_offset};
+use crate::utils::ast::{find_ancestor, nearest_expr_ancestor, node_at_offset};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::{path_to_uri, uri_to_path};
 
@@ -46,7 +46,7 @@ pub fn definition(
   }
 
   // Identifier or type reference: resolve via referee.
-  let expr_node = find_expr_ancestor(&node)?;
+  let expr_node = nearest_expr_ancestor(&node)?;
   let hir = lower_node(db, project, file, expr_node);
   let symbol = referee(db, hir).value(db)?;
 

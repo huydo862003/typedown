@@ -11,7 +11,7 @@ use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
 use crate::utils::ast::{
-  cursor_is_in_value_not_key, find_ancestor, find_expr_ancestor, node_at_offset,
+  find_ancestor, is_in_value_position, nearest_expr_ancestor, node_at_offset,
 };
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
@@ -30,9 +30,9 @@ pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
   let lookup = offset.saturating_sub(1);
   let node = node_at_offset(root, lookup)?;
 
-  let text = if cursor_is_in_value_not_key(&node) {
+  let text = if is_in_value_position(&node) {
     // Value position: show the resolved type of the expression.
-    let expr_node = find_expr_ancestor(&node)?;
+    let expr_node = nearest_expr_ancestor(&node)?;
     let hir = lower_node(db, project, file, expr_node);
     let typ = resolved_node_type(db, hir).typ(db)?;
     typ.display_name(db)

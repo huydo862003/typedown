@@ -17,7 +17,7 @@ use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{cursor_is_in_value_not_key, find_ancestor, node_at_offset};
+use crate::utils::ast::{find_ancestor, is_in_value_position, node_at_offset};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
 
@@ -182,7 +182,7 @@ fn value_completions(
   node: &RedNode,
 ) -> Option<Vec<CompletionItem>> {
   // Must be directly inside a value position (not a key that happens to be nested in a value).
-  if !cursor_is_in_value_not_key(node) {
+  if !is_in_value_position(node) {
     return None;
   }
 

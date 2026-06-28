@@ -3,21 +3,37 @@ use std::sync::mpsc;
 
 use lsp_server::Connection;
 use lsp_types::{
-  InitializeParams, ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+  CompletionOptions, HoverProviderCapability, InitializeParams, OneOf, SemanticTokenModifier,
+  SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+  SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
+  TextDocumentSyncKind, Uri,
 };
 use typedown_db::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
 use typedown_lsp::server::Server;
+use typedown_lsp::service::semantic_tokens;
 
 // The entrypoint
 fn main() -> anyhow::Result<()> {
   let (connection, io_thread) = Connection::stdio();
 
   // Capabilities of the server
-  // Curently only support syncing documents
   let capabilities = ServerCapabilities {
     text_document_sync: Some(TextDocumentSyncCapability::Kind(
       TextDocumentSyncKind::INCREMENTAL,
+    )),
+    hover_provider: Some(HoverProviderCapability::Simple(true)),
+    completion_provider: Some(CompletionOptions::default()),
+    definition_provider: Some(OneOf::Left(true)),
+    semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+      SemanticTokensOptions {
+        legend: SemanticTokensLegend {
+          token_types: semantic_tokens::TOKEN_TYPES.to_vec(),
+          token_modifiers: vec![SemanticTokenModifier::READONLY],
+        },
+        full: Some(SemanticTokensFullOptions::Bool(true)),
+        ..Default::default()
+      },
     )),
     ..Default::default()
   };
