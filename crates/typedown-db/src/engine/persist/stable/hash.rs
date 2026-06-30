@@ -1,7 +1,7 @@
 //! A trait for session-independent & architecture-independent hashing
 //! based on `rustc`: https://github.com/rust-lang/rust/blob/63f05e3635171e7ac3f9ca78bad6c71052cda5a3/compiler/rustc_data_structures/src/stable_hash.rs#L76-L78
 
-use siphasher::sip::SipHasher13;
+use rustc_stable_hash::StableSipHasher128;
 
 use crate::{DepId, DepPathHash, Span};
 
@@ -35,7 +35,7 @@ pub trait StableHash {
 }
 
 /// Hasher state to thread through multiple fields
-pub type StableHasher = SipHasher13; // Same as what rustc uses
+pub type StableHasher = StableSipHasher128; // Same as what rustc uses
 
 /// We need StableHashCtx to reliably hash the node/symbol id that correspond to a graph dep node
 /// As graph dep node's id is session-dependent and prone to shifting

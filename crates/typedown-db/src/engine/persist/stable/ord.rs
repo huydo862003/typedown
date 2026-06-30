@@ -67,6 +67,96 @@ impl<T: StableOrd> StableCompare for T {
   const CAN_USE_UNSTABLE_SORT: bool = T::CAN_USE_UNSTABLE_SORT;
 
   fn stable_cmp(&self, other: &Self) -> std::cmp::Ordering {
-      self.cmp(other)
+    self.cmp(other)
   }
+}
+
+impl StableOrd for i8 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for i16 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for i32 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for i64 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for i128 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for isize {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+
+impl StableOrd for u8 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for u16 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for u32 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for u64 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for u128 {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for usize {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+
+impl StableOrd for char {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for () {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for bool {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+
+impl<T: StableOrd> StableOrd for Option<T> {
+  const CAN_USE_UNSTABLE_SORT: bool = T::CAN_USE_UNSTABLE_SORT;
+}
+
+impl<T: StableOrd> StableOrd for (T,) {
+  const CAN_USE_UNSTABLE_SORT: bool = T::CAN_USE_UNSTABLE_SORT;
+}
+
+impl<T1: StableOrd, T2: StableOrd> StableOrd for (T1, T2) {
+  const CAN_USE_UNSTABLE_SORT: bool = T1::CAN_USE_UNSTABLE_SORT && T2::CAN_USE_UNSTABLE_SORT;
+}
+
+impl<T1: StableOrd, T2: StableOrd, T3: StableOrd> StableOrd for (T1, T2, T3) {
+  const CAN_USE_UNSTABLE_SORT: bool =
+    T1::CAN_USE_UNSTABLE_SORT && T2::CAN_USE_UNSTABLE_SORT && T3::CAN_USE_UNSTABLE_SORT;
+}
+
+impl<T1: StableOrd, T2: StableOrd, T3: StableOrd, T4: StableOrd> StableOrd for (T1, T2, T3, T4) {
+  const CAN_USE_UNSTABLE_SORT: bool = T1::CAN_USE_UNSTABLE_SORT
+    && T2::CAN_USE_UNSTABLE_SORT
+    && T3::CAN_USE_UNSTABLE_SORT
+    && T4::CAN_USE_UNSTABLE_SORT;
+}
+
+impl StableOrd for str {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+
+impl StableOrd for String {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+
+impl StableOrd for std::ffi::OsStr {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for std::path::Path {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
+}
+impl StableOrd for std::path::PathBuf {
+  const CAN_USE_UNSTABLE_SORT: bool = true;
 }
