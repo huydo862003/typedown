@@ -8,13 +8,13 @@ use std::{
   },
 };
 
-use dashmap::DashMap;
-
 use crate::{
   Cancelled,
   engine::storage::{ExecuteContext, QueryStackEntry},
 };
-use crate::{DerivedId, QueryDatabase};
+use crate::{DeserializeContext, DerivedId, QueryDatabase, SerializeContext};
+use crate::{Decodable, Encodable, Fingerprint, StableHash, StableHasher};
+use dashmap::DashMap;
 
 use super::Ingredient;
 
@@ -47,8 +47,8 @@ pub enum QueryState<K, V: DerivedId> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
-  name: &'static str,
   ingredient_index: usize,
+  stable_name: Fingerprint,
   next_arg_id: Arc<AtomicUsize>,
   query_fn: fn(&DB, K) -> V,
   intern_map: Arc<DashMap<K, usize>>, // key -> stable arg_id
@@ -58,19 +58,53 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: Eq + Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
-  pub fn new(name: &'static str, ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
+  pub fn new(ingredient_index: usize, stable_name: &str, query_fn: fn(&DB, K) -> V) -> Self {
     Self {
-      name,
       ingredient_index,
+      stable_name: Fingerprint::from_name(stable_name),
       next_arg_id: Arc::new(AtomicUsize::new(0)),
       query_fn,
       intern_map: Arc::new(DashMap::new()),
       data: Arc::new(DashMap::new()),
     }
+  }
+
+  pub fn key_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint>
+  where
+    K: StableHash,
+  {
+    let db = (db as &dyn Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in key_fingerprint");
+    if let Some(entry) = self.data.get(&arg_id) {
+      if let QueryState::Computed(memo) = &*entry {
+        let mut hasher: StableHasher = StableHasher::new();
+        memo.key.stable_hash(db, &mut hasher);
+        return Some(Fingerprint::from_hasher(hasher));
+      }
+    }
+    None
+  }
+
+  pub fn value_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint>
+  where
+    V: StableHash,
+  {
+    let db = (db as &dyn Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in value_fingerprint");
+    if let Some(entry) = self.data.get(&arg_id) {
+      if let QueryState::Computed(memo) = &*entry {
+        let mut hasher: StableHasher = StableHasher::new();
+        memo.value.stable_hash(db, &mut hasher);
+        return Some(Fingerprint::from_hasher(hasher));
+      }
+    }
+    None
   }
 
   /// Get or create a stable entry ID for a key
@@ -258,12 +292,12 @@ impl<
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: Eq + Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
-  fn name(&self) -> &'static str {
-    self.name
+  fn name(&self) -> Fingerprint {
+    self.stable_name
   }
 
   /// Check the red-green algo here: https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#improving-accuracy-the-red-green-algorithm
@@ -283,7 +317,7 @@ impl<
           drop(entry);
 
           for dep in &deps {
-            let ingredient = &storage.ingredients[dep.ingredient_index];
+            let ingredient = &storage.ingredients[dep.ingredient_index].ingredient;
             if !ingredient.green_check(db, dep.arg_id, dep.changed_at) {
               // Dep reports changed, force it to re-execute
               ingredient.re_execute(db, dep.arg_id);
@@ -292,7 +326,9 @@ impl<
 
           // Re-check whether are all deps green
           let all_green = deps.iter().all(|dep| {
-            storage.ingredients[dep.ingredient_index].green_check(db, dep.arg_id, dep.changed_at)
+            storage.ingredients[dep.ingredient_index]
+              .ingredient
+              .green_check(db, dep.arg_id, dep.changed_at)
           });
 
           if all_green {
@@ -325,6 +361,14 @@ impl<
       }
     }
   }
+
+  fn serialize(&self, _ctx: &mut dyn SerializeContext) {
+    // TODO: implement serialization
+  }
+
+  fn deserialize(&self, _ctx: &mut dyn DeserializeContext) {
+    // TODO: implement deserialization
+  }
 }
 
 /// A stamped field value for a derived struct
@@ -337,6 +381,8 @@ pub struct StampedDerivedField<T> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedFieldIngredient<T> {
+  ingredient_index: usize,
+  field_index: u8,
   name: &'static str,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, StampedDerivedField<T>>>,
@@ -347,17 +393,19 @@ impl<T> DerivedFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_DERIVED_FIELD_INGREDIENT: () = ();
 
-  pub fn new(name: &'static str) -> Self {
+  pub fn new(ingredient_index: usize, name: &'static str, field_index: u8) -> Self {
     Self {
+      ingredient_index,
+      field_index,
       name,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
-impl<T: Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
-  fn name(&self) -> &'static str {
-    self.name
+impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
+  fn name(&self) -> Fingerprint {
+    Fingerprint::from_name(self.name)
   }
 
   fn green_check(&self, _db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
@@ -370,5 +418,23 @@ impl<T: Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
 
   fn re_execute(&self, _db: &dyn QueryDatabase, _arg_id: usize) {
     // Derived fields are set by the query, nothing to recompute
+  }
+
+  fn serialize(&self, _ctx: &mut dyn SerializeContext) {
+    // TODO: implement serialization
+  }
+
+  fn deserialize(&self, _ctx: &mut dyn DeserializeContext) {
+    // TODO: implement deserialization
+  }
+}
+
+impl<T: StableHash + Send + Sync + 'static> DerivedFieldIngredient<T> {
+  pub fn value_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint> {
+    self.data.get(&arg_id).map(|entry| {
+      let mut hasher: StableHasher = StableHasher::new();
+      entry.value.stable_hash(db, &mut hasher);
+      Fingerprint::from_hasher(hasher)
+    })
   }
 }

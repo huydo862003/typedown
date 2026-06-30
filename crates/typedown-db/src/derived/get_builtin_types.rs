@@ -8,7 +8,8 @@ use crate::types::FuncSignature;
 use crate::types::{
   InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
   TdrDictType, TdrFuncType, TdrListType, TdrMathType, TdrNumType, TdrObjectType,
-  TdrSchemaPropertyType, TdrSchemaType, TdrStrType, TdrTimeType, TdrTypeLike, TdrTypeType,
+  TdrSchemaPropertyType, TdrSchemaType, TdrStrType, TdrTimeType, TdrTypeEnum, TdrTypeLike,
+  TdrTypeType,
 };
 use crate::{QueryDatabase, TypedownDatabase, types::BuiltinSchemaKind};
 
@@ -196,14 +197,14 @@ pub fn get_func_type(db: &TypedownDatabase, signature: FuncSignature) -> TdrFunc
 #[query_derived]
 pub fn instantiate_type(
   db: &TypedownDatabase,
-  constructor: Box<dyn TdrTypeLike>,
-  args: Vec<Box<dyn TdrTypeLike>>,
+  constructor: TdrTypeEnum,
+  args: Vec<TdrTypeEnum>,
 ) -> InstResult {
   let arity = constructor.arity(db);
   if arity != args.len() {
     return InstResult::new(
       db,
-      dyn_clone::clone_box(&*constructor),
+      constructor.clone(),
       vec![Diagnostic::WrongTypeArgCount {
         expected: arity,
         got: args.len(),
@@ -215,6 +216,7 @@ pub fn instantiate_type(
 
 #[cfg(test)]
 mod tests {
+  use crate::types::TdrTypeEnum;
   use typedown_types::diagnostic::Diagnostic;
 
   use crate::{
@@ -234,8 +236,8 @@ mod tests {
   #[test]
   fn instantiate_list_with_correct_arity() {
     let db = make_db();
-    let list = Box::new(get_list_type(&db)) as Box<dyn TdrTypeLike>;
-    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let list = TdrTypeEnum::from(get_list_type(&db));
+    let str_type = TdrTypeEnum::from(get_str_type(&db));
 
     let result = instantiate_type(&db, list, vec![str_type.clone()]);
 
@@ -243,7 +245,7 @@ mod tests {
       result.diagnostics(&db).is_empty(),
       "expected no diagnostics"
     );
-    let _expected = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let _expected = TdrTypeEnum::from(get_str_type(&db));
     let instantiated = result.typ(&db);
     // The result should be a TdrListType with elem = str
     assert!(
@@ -255,9 +257,9 @@ mod tests {
   #[test]
   fn instantiate_record_with_correct_arity() {
     let db = make_db();
-    let record = Box::new(get_dict_type(&db)) as Box<dyn TdrTypeLike>;
-    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
-    let num_type = Box::new(get_num_type(&db)) as Box<dyn TdrTypeLike>;
+    let record = TdrTypeEnum::from(get_dict_type(&db));
+    let str_type = TdrTypeEnum::from(get_str_type(&db));
+    let num_type = TdrTypeEnum::from(get_num_type(&db));
 
     let result = instantiate_type(&db, record, vec![str_type, num_type]);
 
@@ -274,7 +276,7 @@ mod tests {
   #[test]
   fn instantiate_list_wrong_arity_produces_diagnostic() {
     let db = make_db();
-    let list = Box::new(get_list_type(&db)) as Box<dyn TdrTypeLike>;
+    let list = TdrTypeEnum::from(get_list_type(&db));
 
     let result = instantiate_type(&db, list, vec![]);
 
@@ -295,8 +297,8 @@ mod tests {
   #[test]
   fn instantiate_record_wrong_arity_produces_diagnostic() {
     let db = make_db();
-    let record = Box::new(get_dict_type(&db)) as Box<dyn TdrTypeLike>;
-    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let record = TdrTypeEnum::from(get_dict_type(&db));
+    let str_type = TdrTypeEnum::from(get_str_type(&db));
 
     // Only 1 arg, record needs 2
     let result = instantiate_type(&db, record, vec![str_type]);
@@ -318,7 +320,7 @@ mod tests {
   #[test]
   fn instantiate_arity0_type_with_no_args() {
     let db = make_db();
-    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
+    let str_type = TdrTypeEnum::from(get_str_type(&db));
     let expected = str_type.clone();
 
     let result = instantiate_type(&db, str_type, vec![]);
@@ -336,8 +338,8 @@ mod tests {
   #[test]
   fn instantiate_arity0_type_with_extra_args_produces_diagnostic() {
     let db = make_db();
-    let str_type = Box::new(get_str_type(&db)) as Box<dyn TdrTypeLike>;
-    let num_type = Box::new(get_num_type(&db)) as Box<dyn TdrTypeLike>;
+    let str_type = TdrTypeEnum::from(get_str_type(&db));
+    let num_type = TdrTypeEnum::from(get_num_type(&db));
 
     let result = instantiate_type(&db, str_type, vec![num_type]);
 

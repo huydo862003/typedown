@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 
 use crate::TypedownDatabase;
@@ -11,9 +10,8 @@ use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::infer_node_type::infer_node_type;
 use crate::types::{
   BuiltinMacroKind, HirValue, HirValueKind, InterpolatedPart, MemberType, SymbolKind, TdrBoolObj,
-  TdrDictObj, TdrFuncObj, TdrListObj, TdrListType, TdrMathObj, TdrNumObj, TdrObjectLike,
-  TdrProductObj, TdrProductType, TdrSchemaType, TdrStrObj, TdrTypeLike, TypeMember,
-  TypeMemberDescriptors,
+  TdrDictObj, TdrListObj, TdrMathObj, TdrNumObj, TdrObjectEnum, TdrObjectLike, TdrProductObj,
+  TdrProductType, TdrStrObj, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors,
 };
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::either::Either;
@@ -22,7 +20,7 @@ pub(crate) fn construct_from_hir(
   db: &TypedownDatabase,
   hir: HirValue,
   diagnostics: &mut Vec<Diagnostic>,
-) -> Option<Box<dyn TdrObjectLike>> {
+) -> Option<TdrObjectEnum> {
   match hir.kind(db) {
     // self evaluates to the current file's resource object
     HirValueKind::Ident(name) if name == "self" => {
@@ -78,7 +76,7 @@ pub(crate) fn construct_from_hir(
           }
           // Plain function call: evaluate callee, check if it's a function, call it
           let callee_obj = evaluate_node(db, *callee).value(db)?;
-          if let Some(func_obj) = (callee_obj.as_ref() as &dyn Any).downcast_ref::<TdrFuncObj>() {
+          if let TdrObjectEnum::TdrFuncObj(func_obj) = &callee_obj {
             let func_obj = func_obj.clone();
             let arg_objs: Vec<_> = args
               .into_iter()
@@ -96,24 +94,21 @@ pub(crate) fn construct_from_hir(
   let type_result = infer_node_type(db, hir);
   let typ = type_result.typ(db)?;
   match hir.kind(db) {
-    HirValueKind::Str(val) => typ.construct(db, vec![Box::new(TdrStrObj::new(db, val))]),
+    HirValueKind::Str(val) => typ.construct(db, vec![TdrStrObj::new(db, val).into()]),
     HirValueKind::Num(val) => {
       let num: f64 = val.parse().unwrap_or(0.0);
-      typ.construct(db, vec![Box::new(TdrNumObj::new(db, num))])
+      typ.construct(db, vec![TdrNumObj::new(db, num).into()])
     }
-    HirValueKind::Bool(val) => typ.construct(db, vec![Box::new(TdrBoolObj::new(db, val))]),
-    HirValueKind::Math(val) => typ.construct(db, vec![Box::new(TdrMathObj::new(db, val))]),
+    HirValueKind::Bool(val) => typ.construct(db, vec![TdrBoolObj::new(db, val).into()]),
+    HirValueKind::Math(val) => typ.construct(db, vec![TdrMathObj::new(db, val).into()]),
     HirValueKind::Interpolated(parts) => {
       let obj = evaluate_interpolated(db, parts)?;
       typ.construct(db, vec![obj])
     }
     HirValueKind::Sequence(items) => {
-      if (typ.as_ref() as &dyn Any)
-        .downcast_ref::<TdrListType>()
-        .is_some()
-      {
+      if typ.is_tdr_list_type() {
         let hir_items = items.into_iter().map(Either::Left).collect();
-        return Some(Box::new(TdrListObj::new(db, hir_items)));
+        return Some(TdrListObj::new(db, hir_items).into());
       }
       let args: Vec<_> = items
         .into_iter()
@@ -121,7 +116,7 @@ pub(crate) fn construct_from_hir(
         .collect();
       typ.construct(db, args)
     }
-    HirValueKind::Mapping(entries) => evaluate_mapping(db, &*typ, entries),
+    HirValueKind::Mapping(entries) => evaluate_mapping(db, &typ, entries),
     HirValueKind::Markdown(parts) => {
       let obj = evaluate_interpolated(db, parts)?;
       typ.construct(db, vec![obj])
@@ -130,29 +125,25 @@ pub(crate) fn construct_from_hir(
   }
 }
 
-fn evaluate_unary(
-  db: &TypedownDatabase,
-  op: &str,
-  operand: HirValue,
-) -> Option<Box<dyn TdrObjectLike>> {
+fn evaluate_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Option<TdrObjectEnum> {
   let operand_obj = evaluate_node(db, operand).value(db)?;
   match op {
     "-" | "+" => {
-      let num = (operand_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
+      let num = operand_obj.as_tdr_num_obj()?;
       let val = num.value(db);
       let result = match op {
         "-" => -val,
         "+" => val,
         _ => unreachable!(),
       };
-      Some(Box::new(TdrNumObj::new(db, result)))
+      Some(TdrNumObj::new(db, result).into())
     }
     // Logical not: only null and false are falsy, everything else is truthy
     "~" => {
-      let is_falsy = (operand_obj.as_ref() as &dyn Any)
-        .downcast_ref::<TdrBoolObj>()
+      let is_falsy = operand_obj
+        .as_tdr_bool_obj()
         .map_or(false, |b| !b.value(db));
-      Some(Box::new(TdrBoolObj::new(db, is_falsy)))
+      Some(TdrBoolObj::new(db, is_falsy).into())
     }
     _ => None,
   }
@@ -163,13 +154,13 @@ fn evaluate_binary(
   op: &str,
   left: HirValue,
   right: HirValue,
-) -> Option<Box<dyn TdrObjectLike>> {
+) -> Option<TdrObjectEnum> {
   let left_obj = evaluate_node(db, left).value(db)?;
   let right_obj = evaluate_node(db, right).value(db)?;
   match op {
     "+" | "-" | "*" | "/" | "%" | "**" => {
-      let lnum = (left_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
-      let rnum = (right_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
+      let lnum = left_obj.as_tdr_num_obj()?;
+      let rnum = right_obj.as_tdr_num_obj()?;
       let lval = lnum.value(db);
       let rval = rnum.value(db);
       let result = match op {
@@ -181,21 +172,21 @@ fn evaluate_binary(
         "**" => lval.powf(rval),
         _ => unreachable!(),
       };
-      Some(Box::new(TdrNumObj::new(db, result)))
+      Some(TdrNumObj::new(db, result).into())
     }
     "==" | "!=" | "<" | ">" | "<=" | ">=" => {
-      let result = compare_objects(db, op, left_obj.as_ref(), right_obj.as_ref());
-      Some(Box::new(TdrBoolObj::new(db, result)))
+      let result = compare_objects(db, op, &left_obj, &right_obj);
+      Some(TdrBoolObj::new(db, result).into())
     }
     "&&" | "||" => {
-      let lbool = (left_obj.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>()?;
-      let rbool = (right_obj.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>()?;
+      let lbool = left_obj.as_tdr_bool_obj()?;
+      let rbool = right_obj.as_tdr_bool_obj()?;
       let result = match op {
         "&&" => lbool.value(db) && rbool.value(db),
         "||" => lbool.value(db) || rbool.value(db),
         _ => unreachable!(),
       };
-      Some(Box::new(TdrBoolObj::new(db, result)))
+      Some(TdrBoolObj::new(db, result).into())
     }
     _ => None,
   }
@@ -204,12 +195,12 @@ fn evaluate_binary(
 fn compare_objects(
   db: &TypedownDatabase,
   op: &str,
-  left: &dyn TdrObjectLike,
-  right: &dyn TdrObjectLike,
+  left: &TdrObjectEnum,
+  right: &TdrObjectEnum,
 ) -> bool {
   match op {
-    "==" => left.eq(db, right),
-    "!=" => !left.eq(db, right),
+    "==" => TdrObjectLike::eq(left, db, right),
+    "!=" => !TdrObjectLike::eq(left, db, right),
     "<" => left.lt(db, right),
     ">" => left.gt(db, right),
     "<=" => left.le(db, right),
@@ -223,7 +214,7 @@ fn evaluate_index(
   expr: HirValue,
   indices: Vec<HirValue>,
   diagnostics: &mut Vec<Diagnostic>,
-) -> Option<Box<dyn TdrObjectLike>> {
+) -> Option<TdrObjectEnum> {
   if indices.len() != 1 {
     return None;
   }
@@ -231,8 +222,8 @@ fn evaluate_index(
   let container = evaluate_node(db, expr).value(db)?;
   let index_obj = evaluate_node(db, index_hir).value(db)?;
 
-  if let Some(list) = (container.as_ref() as &dyn Any).downcast_ref::<TdrListObj>() {
-    let num = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
+  if let TdrObjectEnum::TdrListObj(list) = &container {
+    let num = index_obj.as_tdr_num_obj()?;
     let idx = num.value(db) as usize;
     let len = list.len(db);
     if idx >= len {
@@ -247,12 +238,12 @@ fn evaluate_index(
     }
     return list.get(db, idx);
   }
-  if let Some(dict) = (container.as_ref() as &dyn Any).downcast_ref::<TdrDictObj>() {
-    let key = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+  if let TdrObjectEnum::TdrDictObj(dict) = &container {
+    let key = index_obj.as_tdr_str_obj()?;
     return dict.get_owned_field(db, &key.value(db));
   }
-  if let Some(str_obj) = (container.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>() {
-    let num = (index_obj.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
+  if let TdrObjectEnum::TdrStrObj(str_obj) = &container {
+    let num = index_obj.as_tdr_num_obj()?;
     let idx = num.value(db) as usize;
     let chars: Vec<char> = str_obj.value(db).chars().collect();
     if idx >= chars.len() {
@@ -265,7 +256,7 @@ fn evaluate_index(
       });
       return None;
     }
-    return Some(Box::new(TdrStrObj::new(db, chars[idx].to_string())));
+    return Some(TdrStrObj::new(db, chars[idx].to_string().into()).into());
   }
   None
 }
@@ -274,7 +265,7 @@ fn construct_macro(
   db: &TypedownDatabase,
   kind: BuiltinMacroKind,
   args: Vec<HirValue>,
-) -> Option<Box<dyn TdrObjectLike>> {
+) -> Option<TdrObjectEnum> {
   match kind {
     BuiltinMacroKind::Fref => construct_fref(db, args),
   }
@@ -283,7 +274,7 @@ fn construct_macro(
 fn evaluate_interpolated(
   db: &TypedownDatabase,
   parts: Vec<InterpolatedPart>,
-) -> Option<Box<dyn TdrObjectLike>> {
+) -> Option<TdrObjectEnum> {
   let mut val = String::new();
   for part in parts {
     match part {
@@ -292,22 +283,22 @@ fn evaluate_interpolated(
         let obj = evaluate_node(db, expr).value(db)?;
         let to_string_fn = obj.lookup_method(db, "to_string")?;
         let str_obj = to_string_fn.call(db, obj, vec![])?;
-        let str_val = (str_obj.as_ref() as &dyn Any).downcast_ref::<TdrStrObj>()?;
+        let str_val = str_obj.as_tdr_str_obj()?;
         val.push_str(&str_val.value(db));
       }
     }
   }
-  Some(Box::new(TdrStrObj::new(db, val)))
+  Some(TdrStrObj::new(db, val).into())
 }
 
 // Evaluate mapping as an object of type `typ`
 fn evaluate_mapping(
   db: &TypedownDatabase,
-  typ: &dyn TdrTypeLike,
+  typ: &TdrTypeEnum,
   entries: Vec<(String, HirValue)>,
-) -> Option<Box<dyn TdrObjectLike>> {
+) -> Option<TdrObjectEnum> {
   // Schema type
-  if (typ as &dyn Any).downcast_ref::<TdrSchemaType>().is_some() {
+  if typ.is_tdr_schema_type() {
     let properties_entries = match entries.iter().find(|(key, _)| key == "properties") {
       Some((_, props_hir)) => match props_hir.kind(db) {
         HirValueKind::Mapping(entries) => entries,
@@ -334,16 +325,11 @@ fn evaluate_mapping(
         fields.insert(prop_name, TypeMember::new(db, member_type, descriptors));
       }
     }
-    return Some(Box::new(TdrProductType::new(
-      db,
-      None,
-      Box::new(get_schema_type(db)),
-      fields,
-    )));
+    return Some(TdrProductType::new(db, None, get_schema_type(db).into(), fields).into());
   }
 
   // Product type
-  if let Some(product_typ) = (typ as &dyn Any).downcast_ref::<TdrProductType>() {
+  if let TdrTypeEnum::TdrProductType(product_typ) = &typ {
     let mut fields = HashMap::new();
     for (key, val_hir) in entries {
       if key == "_type" {
@@ -351,22 +337,18 @@ fn evaluate_mapping(
       }
       fields.insert(key, Either::Left(val_hir));
     }
-    return Some(Box::new(TdrProductObj::new(
-      db,
-      Box::new(product_typ.clone()) as Box<dyn crate::types::TdrTypeLike>,
-      fields,
-    )));
+    return Some(TdrProductObj::new(db, product_typ.clone().into(), fields).into());
   }
 
   let dict_entries: HashMap<_, _> = entries
     .into_iter()
     .map(|(k, v)| (k, Either::Left(v)))
     .collect();
-  Some(Box::new(TdrDictObj::new(db, dict_entries)))
+  Some(TdrDictObj::new(db, dict_entries).into())
 }
 
 // fref("file.tdr") evaluates to the target resource's object
-fn construct_fref(db: &TypedownDatabase, args: Vec<HirValue>) -> Option<Box<dyn TdrObjectLike>> {
+fn construct_fref(db: &TypedownDatabase, args: Vec<HirValue>) -> Option<TdrObjectEnum> {
   if args.len() != 1 {
     return None;
   }

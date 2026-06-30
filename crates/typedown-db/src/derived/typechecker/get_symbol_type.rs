@@ -12,7 +12,7 @@ pub fn get_symbol_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
   match symbol.kind(db) {
     // Schema symbols are types
     SymbolKind::BuiltinSchema(_) | SymbolKind::UserDefinedSchema(_, _) => {
-      TypeResult::new(db, Some(Box::new(TdrTypeType::get(db))), vec![])
+      TypeResult::new(db, Some(TdrTypeType::get(db).into()), vec![])
     }
     // Resource symbols get their type from their frontmatter
     SymbolKind::UserDefinedResource(project, file) => {

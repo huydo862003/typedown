@@ -1,4 +1,5 @@
-use std::any::Any;
+use typedown_db::types::TdrTypeEnum;
+use typedown_db::types::TdrTypeLike;
 
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use typedown_db::TypedownDatabase;
@@ -10,7 +11,7 @@ use typedown_db::derived::parse_file::parse_file;
 use typedown_db::derived::typechecker::declared_node_type::declared_node_type;
 use typedown_db::derived::typechecker::get_symbol_type::get_symbol_type;
 use typedown_db::types::{
-  MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
+  File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
 };
 use typedown_syntax::ast::{AstNode, Expr};
 use typedown_syntax::red::RedNode;
@@ -99,7 +100,7 @@ fn is_fref_arg_position(node: &RedNode) -> bool {
 fn fref_completions(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Vec<CompletionItem> {
   // Resolve the expected type for the field containing this fref() call.
@@ -127,7 +128,7 @@ fn fref_completions(
         Some(typ) => typ,
         None => return false,
       };
-      expected.is_compatible_with(db, file_type.as_ref())
+      expected.is_compatible_with(db, &file_type)
     })
     .filter_map(|(path, _)| path.strip_prefix(&root).ok().map(|rel| rel.to_path_buf()))
     .map(|rel| CompletionItem {
@@ -143,7 +144,7 @@ fn fref_completions(
 fn enclosing_mapping_product(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Option<TdrProductType> {
   find_ancestor(node, SyntaxKind::YamlMappingEntryKey)?;
@@ -154,9 +155,7 @@ fn enclosing_mapping_product(
     let scope = Scope::project_scope(db, project);
     let symbol = *members(db, scope).members(db).get(&schema_name)?;
     let typ = evaluate_type(db, symbol).typ(db)?;
-    return (typ.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .cloned();
+    return typ.as_tdr_product_type().cloned();
   }
 
   // No explicit _type. Try resolving via the parent field's declared type.
@@ -167,9 +166,7 @@ fn enclosing_mapping_product(
     MemberType::Simple(typ) => typ,
     _ => return None,
   };
-  (typ.as_ref() as &dyn Any)
-    .downcast_ref::<TdrProductType>()
-    .cloned()
+  typ.as_tdr_product_type().cloned()
 }
 
 /// If the cursor is in a field value, return value completions.
@@ -178,7 +175,7 @@ fn enclosing_mapping_product(
 fn value_completions(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Option<Vec<CompletionItem>> {
   // Must be directly inside a value position (not a key that happens to be nested in a value).
@@ -206,7 +203,7 @@ fn value_completions(
 fn declared_field(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Option<typedown_db::types::TypeMember> {
   // Find the value expression node inside the enclosing YamlMappingEntryValue.
@@ -284,7 +281,7 @@ mod tests {
     TextDocumentPositionParams, Uri, WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_db::inputs::{File, FileHandle};
+  use typedown_db::types::{File, FileHandle};
   use typedown_db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;

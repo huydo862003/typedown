@@ -1,6 +1,6 @@
 //! Tracked query to get the type of a HIR value
 
-use std::any::Any;
+use crate::Id;
 use std::collections::HashMap;
 
 use crate::derived::evaluate::evaluate_type::evaluate_type;
@@ -11,13 +11,12 @@ use crate::derived::get_builtin_types::{
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
-use crate::types::derived::object_system::datetime::utils::{
+use crate::types::derived::object_system::{
   is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
 };
 use crate::types::{
-  BuiltinMacroKind, HirValue, HirValueKind, MemberType, SymbolKind, TdrDictType, TdrFuncType,
-  TdrListType, TdrProductType, TdrStrType, TdrTypeLike, TypeMember, TypeMemberDescriptors,
-  TypeResult,
+  BuiltinMacroKind, HirValue, HirValueKind, MemberType, SymbolKind, TdrProductType, TdrStrType,
+  TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
@@ -29,20 +28,20 @@ pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   match hir.kind(db) {
     HirValueKind::Str(ref val) => {
       // Deduce the most specific string subtype from the value's format
-      let typ: Box<dyn TdrTypeLike> = if is_valid_iso_datetime(val) {
-        Box::new(get_datetime_type(db))
+      let typ: TdrTypeEnum = if is_valid_iso_datetime(val) {
+        get_datetime_type(db).into()
       } else if is_valid_iso_date(val) {
-        Box::new(get_date_type(db))
+        get_date_type(db).into()
       } else if is_valid_iso_time(val) {
-        Box::new(get_time_type(db))
+        get_time_type(db).into()
       } else {
-        Box::new(get_str_type(db))
+        get_str_type(db).into()
       };
       TypeResult::new(db, Some(typ), vec![])
     }
-    HirValueKind::Interpolated(_) => TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![]),
-    HirValueKind::Num(_) => TypeResult::new(db, Some(Box::new(get_num_type(db))), vec![]),
-    HirValueKind::Bool(_) => TypeResult::new(db, Some(Box::new(get_bool_type(db))), vec![]),
+    HirValueKind::Interpolated(_) => TypeResult::new(db, Some(get_str_type(db).into()), vec![]),
+    HirValueKind::Num(_) => TypeResult::new(db, Some(get_num_type(db).into()), vec![]),
+    HirValueKind::Bool(_) => TypeResult::new(db, Some(get_bool_type(db).into()), vec![]),
     HirValueKind::Null => TypeResult::new(db, None, vec![]),
     HirValueKind::Ident(ref name) if name == "self" => get_self_type(db, hir),
     HirValueKind::Ident(_) => {
@@ -59,8 +58,8 @@ pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
     HirValueKind::Tag { tag, .. } => get_tag_type(db, *tag),
     HirValueKind::Unary { op, operand } => get_unary_type(db, &op, *operand),
     HirValueKind::Binary { op, left, right } => get_binary_type(db, &op, *left, *right),
-    HirValueKind::Math(_) => TypeResult::new(db, Some(Box::new(get_math_type(db))), vec![]),
-    HirValueKind::Markdown(_) => TypeResult::new(db, Some(Box::new(get_str_type(db))), vec![]),
+    HirValueKind::Math(_) => TypeResult::new(db, Some(get_math_type(db).into()), vec![]),
+    HirValueKind::Markdown(_) => TypeResult::new(db, Some(get_str_type(db).into()), vec![]),
   }
 }
 
@@ -107,12 +106,7 @@ fn get_mapping_type(
   }
   TypeResult::new(
     db,
-    Some(Box::new(TdrProductType::new(
-      db,
-      None,
-      Box::new(get_type_type(db)),
-      fields,
-    ))),
+    Some(TdrProductType::new(db, None, get_type_type(db).into(), fields).into()),
     diagnostics,
   )
 }
@@ -144,9 +138,9 @@ fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeRes
 
   match op {
     // Arithmetic negation and plus: returns number
-    "-" | "+" => TypeResult::new(db, Some(Box::new(get_num_type(db))), diagnostics),
+    "-" | "+" => TypeResult::new(db, Some(get_num_type(db).into()), diagnostics),
     // Logical not: accepts any type, returns boolean
-    "~" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
+    "~" => TypeResult::new(db, Some(get_bool_type(db).into()), diagnostics),
     _ => TypeResult::new(db, None, diagnostics),
   }
 }
@@ -188,14 +182,14 @@ fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirVa
   match op {
     // Arithmetic: returns number
     "+" | "-" | "*" | "/" | "%" | "**" => {
-      TypeResult::new(db, Some(Box::new(get_num_type(db))), diagnostics)
+      TypeResult::new(db, Some(get_num_type(db).into()), diagnostics)
     }
     // Comparison: returns boolean
     "==" | "!=" | "<" | ">" | "<=" | ">=" => {
-      TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics)
+      TypeResult::new(db, Some(get_bool_type(db).into()), diagnostics)
     }
     // Logical: returns boolean
-    "&&" | "||" => TypeResult::new(db, Some(Box::new(get_bool_type(db))), diagnostics),
+    "&&" | "||" => TypeResult::new(db, Some(get_bool_type(db).into()), diagnostics),
     _ => TypeResult::new(db, None, diagnostics),
   }
 }
@@ -204,7 +198,7 @@ fn get_binary_type(db: &TypedownDatabase, op: &str, left: HirValue, right: HirVa
 /// NOTE: This function infers element type as the most general type across all items, then instantiates list[elem]
 fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult {
   let mut diagnostics = vec![];
-  let mut elem_type: Option<Box<dyn TdrTypeLike>> = None;
+  let mut elem_type: Option<TdrTypeEnum> = None;
 
   for item in items {
     let item_result = infer_node_type(db, item);
@@ -220,11 +214,11 @@ fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult 
 
   let list_type = match elem_type {
     Some(typ) => {
-      let inst_result = instantiate_type(db, Box::new(get_list_type(db)), vec![typ]);
+      let inst_result = instantiate_type(db, get_list_type(db).into(), vec![typ]);
       diagnostics.extend(inst_result.diagnostics(db).iter().cloned());
       Some(inst_result.typ(db))
     }
-    None => Some(Box::new(get_list_type(db)) as Box<dyn crate::types::TdrTypeLike>),
+    None => Some(get_list_type(db).into()),
   };
   TypeResult::new(db, list_type, diagnostics)
 }
@@ -249,7 +243,7 @@ fn get_call_type(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -
     None => return TypeResult::new(db, None, diagnostics),
   };
 
-  if let Some(func) = (callee_type.as_ref() as &dyn Any).downcast_ref::<TdrFuncType>() {
+  if let TdrTypeEnum::TdrFuncType(func) = &callee_type {
     let sig = func.signature(db);
     return TypeResult::new(db, Some(sig.ret(db)), diagnostics);
   }
@@ -381,38 +375,31 @@ fn get_index_type(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>)
   }
 
   // Element access on instantiated list
-  if let Some(list) = (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrListType>() {
+  if let TdrTypeEnum::TdrListType(list) = &expr_type {
     return TypeResult::new(db, list.elem(db), diagnostics);
   }
 
   // Element access on instantiated dict
-  if let Some(dict) = (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrDictType>() {
+  if let TdrTypeEnum::TdrDictType(dict) = &expr_type {
     return TypeResult::new(db, dict.value(db), diagnostics);
   }
 
   // Element access on string (returns single-character string)
-  if (expr_type.as_ref() as &dyn Any)
-    .downcast_ref::<TdrStrType>()
-    .is_some()
-  {
-    return TypeResult::new(db, Some(Box::new(TdrStrType::get(db))), diagnostics);
+  if expr_type.is_tdr_str_type() {
+    return TypeResult::new(db, Some(TdrStrType::get(db).into()), diagnostics);
   }
 
   TypeResult::new(db, None, diagnostics)
 }
 
 /// Walk up the supertype chain from `a` until it is compatible with `b`
-fn find_common_supertype(
-  db: &TypedownDatabase,
-  a: Box<dyn TdrTypeLike>,
-  b: Box<dyn TdrTypeLike>,
-) -> Box<dyn TdrTypeLike> {
+fn find_common_supertype(db: &TypedownDatabase, a: TdrTypeEnum, b: TdrTypeEnum) -> TdrTypeEnum {
   // If a already accepts b, a is general enough
-  if a.is_compatible_with(db, b.as_ref()) {
+  if a.is_compatible_with(db, &b) {
     return a;
   }
   // If b already accepts a, b is general enough
-  if b.is_compatible_with(db, a.as_ref()) {
+  if b.is_compatible_with(db, &a) {
     return b;
   }
 
@@ -420,11 +407,11 @@ fn find_common_supertype(
   let mut current = a;
   loop {
     let super_type = current.get_supertype(db);
-    if super_type.type_id() == current.type_id() && super_type.as_id() == current.as_id() {
+    if super_type.as_id() == current.as_id() {
       // Reached and used ObjectType
       return super_type;
     }
-    if super_type.is_compatible_with(db, b.as_ref()) {
+    if super_type.is_compatible_with(db, &b) {
       return super_type;
     }
     current = super_type;
@@ -459,13 +446,13 @@ fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
 
 #[cfg(test)]
 mod tests {
+  use crate::types::TdrTypeEnum;
   use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 
   use crate::{
     QueryStorage, TypedownDatabase,
     derived::{get_builtin_types::get_schema_type, typechecker::infer_node_type::infer_node_type},
-    inputs::{File, FileHandle},
-    types::{Project, TdrTypeLike},
+    types::{File, FileHandle, Project},
     utils::lower_file,
   };
 
@@ -493,7 +480,7 @@ mod tests {
     let hir = hir.expect("schema file should have parseable frontmatter");
     let type_result = infer_node_type(&db, hir);
 
-    let expected = Some(Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>);
+    let expected = Some(TdrTypeEnum::from(get_schema_type(&db)));
     assert!(
       type_result.typ(&db) == expected,
       "top-level mapping of a schema file should have type TdrSchemaType"

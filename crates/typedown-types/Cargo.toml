@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 unescaper = "0.1"
 html-escape = "0.2"
+num_enum = "0.7"

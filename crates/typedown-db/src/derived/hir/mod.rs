@@ -1,6 +1,7 @@
 //! Tracked query to lower an expression node into a HIR value.
 
 use typedown_macros::query_derived;
+
 use typedown_syntax::ast::{
   AstNode, BinaryExpr, CallExpr, CodeBlock, CodeLit, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
   InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody, NumberLit,
@@ -283,13 +284,13 @@ fn lower_expr_kind(
           vec![],
         );
         return HirValueKind::Tag {
-          tag: Box::new(tag_hir),
-          inner: Box::new(operand),
+          tag: tag_hir.into(),
+          inner: operand.into(),
         };
       }
       return HirValueKind::Unary {
         op,
-        operand: Box::new(operand),
+        operand: operand.into(),
       };
     }
   }
@@ -306,8 +307,8 @@ fn lower_expr_kind(
       let right = lower_node(db, project, file, rhs.syntax().clone());
       return HirValueKind::Binary {
         op,
-        left: Box::new(left),
-        right: Box::new(right),
+        left: left.into(),
+        right: right.into(),
       };
     }
   }
@@ -322,7 +323,7 @@ fn lower_expr_kind(
         .map(|arg| lower_node(db, project, file, arg.syntax().clone()))
         .collect();
       return HirValueKind::Call {
-        callee: Box::new(callee),
+        callee: callee.into(),
         args,
       };
     }
@@ -338,7 +339,7 @@ fn lower_expr_kind(
         .map(|idx| lower_node(db, project, file, idx.syntax().clone()))
         .collect();
       return HirValueKind::Index {
-        expr: Box::new(expr),
+        expr: expr.into(),
         indices,
       };
     }

@@ -28,15 +28,13 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 
 #[cfg(test)]
 mod tests {
-  use std::any::Any;
+  use crate::types::{TdrObjectEnum, TdrObjectLike};
 
   use crate::{
-    derived::evaluate::evaluate_node::evaluate_node,
+    TypedownDatabase, derived::evaluate::evaluate_node::evaluate_node,
     derived::evaluate::evaluate_resource::evaluate_resource,
-    derived::name_resolver::file_symbol::file_symbol,
-    fixtures::load_vault_fixture,
-    types::{HirValueKind, TdrBoolObj, TdrMathObj, TdrNumObj, TdrProductType, TdrStrObj},
-    utils::lower_file,
+    derived::name_resolver::file_symbol::file_symbol, fixtures::load_vault_fixture,
+    types::HirValueKind, utils::lower_file,
   };
 
   // A valid resource with _type produces an object with the declared fields
@@ -55,9 +53,7 @@ mod tests {
     );
     let obj = result.value(&db).unwrap();
     let name_obj = obj.get_owned_field(&db, "name").expect("should have name");
-    let name_str = (name_obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("name should be TdrStrObj");
+    let name_str = name_obj.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(name_str.value(&db), "Alice");
   }
 
@@ -99,9 +95,7 @@ mod tests {
       result.diagnostics(&db)
     );
     let obj = result.value(&db).unwrap();
-    let product_type = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .expect("schema in content dir should produce TdrProductType");
+    let product_type = obj.as_tdr_product_type().expect("expected TdrProductType");
     assert!(
       product_type.fields(&db).contains_key("title"),
       "should have title field"
@@ -125,9 +119,7 @@ mod tests {
     // Access a non-fref field to verify the object works
     let obj = result.value(&db).unwrap();
     let name_obj = obj.get_owned_field(&db, "name").expect("should have name");
-    let name_str = (name_obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("name should be TdrStrObj");
+    let name_str = name_obj.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(name_str.value(&db), "Alice");
   }
 
@@ -149,9 +141,7 @@ mod tests {
     let friend_name = friend
       .get_owned_field(&db, "name")
       .expect("friend should have name");
-    let friend_name_str = (friend_name.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("friend name should be TdrStrObj");
+    let friend_name_str = friend_name.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(friend_name_str.value(&db), "Bob");
 
     // Bob -> friend -> Alice (circular, should not panic)
@@ -161,9 +151,7 @@ mod tests {
     let fof_name = friend_of_friend
       .get_owned_field(&db, "name")
       .expect("should have name");
-    let fof_name_str = (fof_name.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("should be TdrStrObj");
+    let fof_name_str = fof_name.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(fof_name_str.value(&db), "Alice");
   }
 
@@ -180,9 +168,7 @@ mod tests {
     let result_field = obj
       .get_owned_field(&db, "result")
       .expect("should have result field");
-    let str_obj = (result_field.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result_field.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "hello");
   }
 
@@ -199,9 +185,7 @@ mod tests {
     let result_field = obj
       .get_owned_field(&db, "result")
       .expect("should have result field");
-    let str_obj = (result_field.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result_field.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "42");
   }
 
@@ -218,9 +202,7 @@ mod tests {
     let result_field = obj
       .get_owned_field(&db, "result")
       .expect("should have result field");
-    let str_obj = (result_field.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result_field.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "true");
   }
 
@@ -236,9 +218,7 @@ mod tests {
     let result_field = obj
       .get_owned_field(&db, "result")
       .expect("should have result field");
-    let str_obj = (result_field.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result_field.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "Alice");
   }
 
@@ -254,9 +234,7 @@ mod tests {
     let result_field = obj
       .get_owned_field(&db, "result")
       .expect("should have result field");
-    let str_obj = (result_field.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result_field.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "Alice");
   }
 
@@ -272,34 +250,20 @@ mod tests {
     let result_field = obj
       .get_owned_field(&db, "result")
       .expect("should have result field");
-    let str_obj = (result_field.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result_field.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "hello 42");
   }
 
-  fn get_num_field(
-    db: &crate::TypedownDatabase,
-    obj: &Box<dyn crate::types::TdrObjectLike>,
-    field: &str,
-  ) -> f64 {
+  fn get_num_field(db: &TypedownDatabase, obj: &TdrObjectEnum, field: &str) -> f64 {
     let field_obj = obj.get_owned_field(db, field).expect("should have field");
-    (field_obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrNumObj>()
-      .unwrap_or_else(|| panic!("{field} should be TdrNumObj"))
-      .value(db)
+    let num = field_obj.as_tdr_num_obj().expect("should be TdrNumObj");
+    num.value(db)
   }
 
-  fn get_bool_field(
-    db: &crate::TypedownDatabase,
-    obj: &Box<dyn crate::types::TdrObjectLike>,
-    field: &str,
-  ) -> bool {
+  fn get_bool_field(db: &TypedownDatabase, obj: &TdrObjectEnum, field: &str) -> bool {
     let field_obj = obj.get_owned_field(db, field).expect("should have field");
-    (field_obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrBoolObj>()
-      .unwrap_or_else(|| panic!("{field} should be TdrBoolObj"))
-      .value(db)
+    let b = field_obj.as_tdr_bool_obj().expect("should be TdrBoolObj");
+    b.value(db)
   }
 
   // 1 + 2 evaluates to 3
@@ -446,9 +410,7 @@ mod tests {
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
     let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
     let result = obj.get_owned_field(&db, "result").unwrap();
-    let str_obj = (result.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("result should be TdrStrObj");
+    let str_obj = result.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "e");
   }
 
@@ -459,9 +421,7 @@ mod tests {
     let symbol = file_symbol(&db, project, file).value(&db).unwrap();
     let obj = evaluate_resource(&db, symbol).value(&db).unwrap();
     let name = obj.get_owned_field(&db, "name").unwrap();
-    let name_str = (name.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("name should be TdrStrObj");
+    let name_str = name.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(name_str.value(&db), "Alice");
     assert_eq!(get_num_field(&db, &obj, "age"), 30.0);
   }
@@ -476,9 +436,7 @@ mod tests {
     let formula = obj
       .get_owned_field(&db, "formula")
       .expect("should have formula field");
-    let math_obj = (formula.as_ref() as &dyn Any)
-      .downcast_ref::<TdrMathObj>()
-      .expect("formula should be TdrMathObj");
+    let math_obj = formula.as_tdr_math_obj().expect("expected TdrMathObj");
     assert_eq!(math_obj.value(&db), "E = mc^2");
   }
 
@@ -492,9 +450,7 @@ mod tests {
     let content = obj
       .get_owned_field(&db, "_content")
       .expect("should have _content field");
-    let str_obj = (content.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("_content should be TdrStrObj");
+    let str_obj = content.as_tdr_str_obj().expect("expected TdrStrObj");
     assert!(str_obj.value(&db).contains("Hello world"));
   }
 }

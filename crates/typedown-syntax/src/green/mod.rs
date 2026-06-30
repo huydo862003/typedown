@@ -70,6 +70,11 @@ impl GreenNode {
     }
   }
 
+  /// Raw tagged pointer value, usable as a dedup key.
+  pub fn as_ptr(&self) -> usize {
+    self.0
+  }
+
   pub fn text_len(&self) -> usize {
     if self.is_token() {
       self.as_token().unwrap().text_len()

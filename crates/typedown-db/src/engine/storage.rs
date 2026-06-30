@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, OnceLock};
 
-use super::ingredient::{Dependency, Ingredient, IngredientFactory, Inventory};
+use super::ingredient::{Dependency, IngredientEntry, IngredientFactory, Inventory};
 
 /// A registry of ingredient factories
 /// This is used in QueryStorage::default() to initialize the internal ingredient vector
@@ -30,7 +30,7 @@ pub struct QueryStorage {
   #[doc(hidden)]
   pub cancelled: Arc<AtomicBool>, // Set to true to cancel in-flight derived queries
   #[doc(hidden)]
-  pub ingredients: Arc<Vec<Box<dyn Ingredient>>>, // All ingredients
+  pub ingredients: Arc<Vec<IngredientEntry>>, // All ingredients
 }
 
 impl QueryStorage {

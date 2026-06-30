@@ -4,14 +4,16 @@
 /// We need this so macros can be used here and consumer crates
 extern crate self as typedown_db;
 
+pub mod codec;
 pub mod derived;
 pub mod engine;
 #[cfg(test)]
 pub(crate) mod fixtures;
-pub mod inputs;
+pub mod serde;
 pub mod types;
 pub mod utils;
 
+pub use codec::*;
 pub use engine::*;
 /// TIL: Macros that use 3rd-party crates would require that crate to be installed in the consumer crate
 /// To workaround this, we would re-export the 3rd-party crate and use a path that references the current crate

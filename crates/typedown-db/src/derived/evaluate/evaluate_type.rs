@@ -11,11 +11,9 @@ use crate::derived::get_builtin_types::{
 };
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::typecheck::typecheck;
-use crate::inputs::File;
-use crate::types::Project;
 use crate::types::{
-  BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Symbol, SymbolKind,
-  TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  BuiltinSchemaKind, File, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
+  SymbolKind, TdrProductType, TdrTypeEnum, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
@@ -24,18 +22,18 @@ use crate::{QueryDatabase, TypedownDatabase};
 pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
   match symbol.kind(db) {
     SymbolKind::BuiltinSchema(kind) => {
-      let typ: Box<dyn TdrTypeLike> = match kind {
-        BuiltinSchemaKind::Str => Box::new(get_str_type(db)),
-        BuiltinSchemaKind::Num => Box::new(get_num_type(db)),
-        BuiltinSchemaKind::Bool => Box::new(get_bool_type(db)),
-        BuiltinSchemaKind::Date => Box::new(get_date_type(db)),
-        BuiltinSchemaKind::DateTime => Box::new(get_datetime_type(db)),
-        BuiltinSchemaKind::Time => Box::new(get_time_type(db)),
-        BuiltinSchemaKind::List => Box::new(get_list_type(db)),
-        BuiltinSchemaKind::Dict => Box::new(get_dict_type(db)),
-        BuiltinSchemaKind::Math => Box::new(get_math_type(db)),
-        BuiltinSchemaKind::Schema => Box::new(get_schema_type(db)),
-        BuiltinSchemaKind::TypeType => Box::new(get_type_type(db)),
+      let typ: TdrTypeEnum = match kind {
+        BuiltinSchemaKind::Str => get_str_type(db).into(),
+        BuiltinSchemaKind::Num => get_num_type(db).into(),
+        BuiltinSchemaKind::Bool => get_bool_type(db).into(),
+        BuiltinSchemaKind::Date => get_date_type(db).into(),
+        BuiltinSchemaKind::DateTime => get_datetime_type(db).into(),
+        BuiltinSchemaKind::Time => get_time_type(db).into(),
+        BuiltinSchemaKind::List => get_list_type(db).into(),
+        BuiltinSchemaKind::Dict => get_dict_type(db).into(),
+        BuiltinSchemaKind::Math => get_math_type(db).into(),
+        BuiltinSchemaKind::Schema => get_schema_type(db).into(),
+        BuiltinSchemaKind::TypeType => get_type_type(db).into(),
       };
       TypeResult::new(db, Some(typ), vec![])
     }
@@ -92,12 +90,15 @@ fn evaluate_user_defined_schema(
       // Schema with no properties: empty product type
       return TypeResult::new(
         db,
-        Some(Box::new(TdrProductType::new(
-          db,
-          Some(schema_name.clone()),
-          Box::new(get_schema_type(db)),
-          HashMap::new(),
-        ))),
+        Some(
+          TdrProductType::new(
+            db,
+            Some(schema_name.clone()),
+            get_schema_type(db).into(),
+            HashMap::new(),
+          )
+          .into(),
+        ),
         diagnostics,
       );
     }
@@ -120,12 +121,7 @@ fn evaluate_user_defined_schema(
 
   TypeResult::new(
     db,
-    Some(Box::new(TdrProductType::new(
-      db,
-      Some(schema_name),
-      Box::new(get_schema_type(db)),
-      fields,
-    ))),
+    Some(TdrProductType::new(db, Some(schema_name), get_schema_type(db).into(), fields).into()),
     diagnostics,
   )
 }
@@ -234,12 +230,9 @@ fn resolve_type_member(
           fields.insert(key.clone(), TypeMember::new(db, member_type, descriptors));
         }
       }
-      Some(MemberType::Simple(Box::new(TdrProductType::new(
-        db,
-        None,
-        Box::new(get_type_type(db)),
-        fields,
-      ))))
+      Some(MemberType::Simple(
+        TdrProductType::new(db, None, get_type_type(db).into(), fields).into(),
+      ))
     }
     // Literal types
     HirValueKind::Str(val) => Some(MemberType::Literal(LiteralValue::Str(val))),
@@ -260,9 +253,9 @@ fn resolve_type_member(
 
 #[cfg(test)]
 mod tests {
-  use std::any::Any;
-
+  use crate::types::{TdrObjectEnum, TdrObjectLike, TdrTypeEnum};
   use std::collections::HashMap;
+
   use std::path::PathBuf;
 
   use crate::{
@@ -273,11 +266,10 @@ mod tests {
     derived::name_resolver::file_symbol::file_symbol,
     derived::typechecker::infer_node_type::infer_node_type,
     fixtures::load_vault_fixture,
-    inputs::{File, FileHandle},
     types::{
-      BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj, TdrTypeLike, TdrTypeType,
-      TypeMember, TypeMemberDescriptors,
+      BuiltinSchemaKind, File, FileHandle, HirValue, HirValueKind, LiteralValue, MemberType,
+      Project, Symbol, SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj, TdrTypeLike,
+      TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_file,
   };
@@ -299,7 +291,7 @@ mod tests {
 
     let result = evaluate_type(&db, symbol);
 
-    let expected = Some(Box::new(get_schema_type(&db)) as Box<dyn TdrTypeLike>);
+    let expected = Some(TdrTypeEnum::from(get_schema_type(&db)));
     assert!(
       result.typ(&db) == expected,
       "builtin Schema symbol should evaluate to TdrSchemaType"
@@ -319,9 +311,7 @@ mod tests {
 
     let typ = result.typ(&db).expect("should return a type");
     assert!(
-      (typ.as_ref() as &dyn Any)
-        .downcast_ref::<TdrProductType>()
-        .is_some(),
+      typ.is_tdr_product_type(),
       "user-defined schema should evaluate to TdrProductType"
     );
   }
@@ -333,9 +323,7 @@ mod tests {
 
     let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).unwrap();
-    let product = (typ.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .unwrap();
+    let product = typ.as_tdr_product_type().expect("expected TdrProductType");
     let fields = product.fields(&db);
     assert!(fields.contains_key("name"), "should have 'name' field");
     assert!(fields.contains_key("age"), "should have 'age' field");
@@ -355,9 +343,7 @@ mod tests {
       result.diagnostics(&db)
     );
     let typ = result.typ(&db).expect("should return a type");
-    let product = (typ.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .unwrap();
+    let product = typ.as_tdr_product_type().expect("expected TdrProductType");
     let fields = product.fields(&db);
     assert!(fields.contains_key("name"), "should have 'name' field");
     assert!(fields.contains_key("age"), "should have 'age' field");
@@ -370,9 +356,7 @@ mod tests {
 
     let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).expect("should return a type");
-    let product = (typ.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .unwrap();
+    let product = typ.as_tdr_product_type().expect("expected TdrProductType");
     assert!(
       product.fields(&db).is_empty(),
       "schema with no properties should have empty fields"
@@ -429,8 +413,8 @@ mod tests {
 
     let list_str = instantiate_type(
       &db,
-      Box::new(get_list_type(&db)),
-      vec![Box::new(get_str_type(&db))],
+      get_list_type(&db).into(),
+      vec![get_str_type(&db).into()],
     );
     assert_eq!(list_str.typ(&db).display_name(&db), "list[string]");
   }
@@ -441,8 +425,8 @@ mod tests {
 
     let dict_str_num = instantiate_type(
       &db,
-      Box::new(get_dict_type(&db)),
-      vec![Box::new(get_str_type(&db)), Box::new(get_num_type(&db))],
+      get_dict_type(&db).into(),
+      vec![get_str_type(&db).into(), get_num_type(&db).into()],
     );
     assert_eq!(
       dict_str_num.typ(&db).display_name(&db),
@@ -467,12 +451,12 @@ mod tests {
     let product = TdrProductType::new(
       &db,
       None,
-      Box::new(get_type_type(&db)),
+      get_type_type(&db).into(),
       HashMap::from([(
         "name".to_string(),
         TypeMember::new(
           &db,
-          MemberType::Simple(Box::new(get_str_type(&db))),
+          MemberType::Simple(get_str_type(&db).into()),
           TypeMemberDescriptors::empty(),
         ),
       )]),
@@ -501,14 +485,9 @@ mod tests {
     let db = make_db();
     let str_type = get_str_type(&db);
     let obj = str_type
-      .construct(
-        &db,
-        vec![Box::new(TdrStrObj::new(&db, "hello".to_string()))],
-      )
+      .construct(&db, vec![TdrStrObj::new(&db, "hello".to_string()).into()])
       .expect("should construct");
-    let str_obj = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("should be TdrStrObj");
+    let str_obj = obj.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "hello");
   }
 
@@ -517,11 +496,9 @@ mod tests {
     let db = make_db();
     let num_type = get_num_type(&db);
     let obj = num_type
-      .construct(&db, vec![Box::new(TdrNumObj::new(&db, 42.0))])
+      .construct(&db, vec![TdrNumObj::new(&db, 42.0).into()])
       .expect("should construct");
-    let num_obj = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrNumObj>()
-      .expect("should be TdrNumObj");
+    let num_obj = obj.as_tdr_num_obj().expect("expected TdrNumObj");
     assert_eq!(num_obj.value(&db), 42.0);
   }
 
@@ -530,11 +507,9 @@ mod tests {
     let db = make_db();
     let bool_type = get_bool_type(&db);
     let obj = bool_type
-      .construct(&db, vec![Box::new(TdrBoolObj::new(&db, true))])
+      .construct(&db, vec![TdrBoolObj::new(&db, true).into()])
       .expect("should construct");
-    let bool_obj = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrBoolObj>()
-      .expect("should be TdrBoolObj");
+    let bool_obj = obj.as_tdr_bool_obj().expect("expected TdrBoolObj");
     assert!(bool_obj.value(&db));
   }
 
@@ -544,7 +519,7 @@ mod tests {
     let str_type = get_str_type(&db);
     assert!(
       str_type
-        .construct(&db, vec![Box::new(TdrNumObj::new(&db, 42.0))])
+        .construct(&db, vec![TdrNumObj::new(&db, 42.0).into()])
         .is_none(),
       "str construct should reject TdrNumObj"
     );
@@ -561,9 +536,7 @@ mod tests {
     let name_obj = obj
       .get_owned_field(&db, "name")
       .expect("should have name field");
-    let name_str = (name_obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("name should be TdrStrObj");
+    let name_str = name_obj.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(name_str.value(&db), "Alice");
   }
 
@@ -573,13 +546,13 @@ mod tests {
     let db = make_db();
     let list_num = instantiate_type(
       &db,
-      Box::new(get_list_type(&db)),
-      vec![Box::new(get_num_type(&db))],
+      get_list_type(&db).into(),
+      vec![get_num_type(&db).into()],
     );
-    let items: Vec<Box<dyn crate::types::TdrObjectLike>> = vec![
-      Box::new(TdrNumObj::new(&db, 1.0)),
-      Box::new(TdrNumObj::new(&db, 2.0)),
-      Box::new(TdrNumObj::new(&db, 3.0)),
+    let items: Vec<TdrObjectEnum> = vec![
+      TdrNumObj::new(&db, 1.0).into(),
+      TdrNumObj::new(&db, 2.0).into(),
+      TdrNumObj::new(&db, 3.0).into(),
     ];
     assert!(list_num.typ(&db).construct(&db, items).is_some());
   }
@@ -593,9 +566,7 @@ mod tests {
     // evaluate_type uses resolve_property_descriptor and builds TdrProductType
     let result = evaluate_type(&db, symbol);
     let obj = result.typ(&db).expect("should construct schema");
-    let product_type = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .expect("schema construct should produce TdrProductType");
+    let product_type = obj.as_tdr_product_type().expect("expected TdrProductType");
     assert!(
       product_type.fields(&db).contains_key("name"),
       "should have name field"
@@ -622,9 +593,7 @@ age: 42
     // construct_from_hir evaluates str HIR to TdrStrObj
     let obj =
       construct_from_hir(&db, val_hir, &mut vec![]).expect("should construct via delegation");
-    let str_obj = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrStrObj>()
-      .expect("should produce TdrStrObj");
+    let str_obj = obj.as_tdr_str_obj().expect("expected TdrStrObj");
     assert_eq!(str_obj.value(&db), "Alice");
   }
 
@@ -636,9 +605,7 @@ age: 42
     let hir = hir.unwrap();
 
     let obj = construct_from_hir(&db, hir, &mut vec![]).expect("should construct type from schema");
-    let product_type = (obj.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .expect("should produce TdrProductType");
+    let product_type = obj.as_tdr_product_type().expect("expected TdrProductType");
     assert!(
       product_type.fields(&db).contains_key("name"),
       "should have name field"
@@ -692,9 +659,7 @@ age: 42
 
     let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).expect("should produce a type");
-    let product = (typ.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .expect("should be TdrProductType");
+    let product = typ.as_tdr_product_type().expect("expected TdrProductType");
     let fields = product.fields(&db);
     let status_field = fields.get("status").expect("should have status field");
 
@@ -712,9 +677,7 @@ age: 42
 
     let result = evaluate_type(&db, symbol);
     let typ = result.typ(&db).expect("should produce a type");
-    let product = (typ.as_ref() as &dyn Any)
-      .downcast_ref::<TdrProductType>()
-      .expect("should be TdrProductType");
+    let product = typ.as_tdr_product_type().expect("expected TdrProductType");
     let fields = product.fields(&db);
     let value_field = fields.get("value").expect("should have value field");
 

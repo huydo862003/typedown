@@ -1,20 +1,24 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+
+use ambassador::delegatable_trait;
 
 use super::func::TdrFuncObj;
-use super::str::{TdrStrObj, TdrStrType};
+use super::native_fn::NativeFnKind;
+use super::str::TdrStrType;
+use super::{TdrObjectEnum, TdrTypeEnum};
+use crate::Id;
 use crate::derived::get_builtin_types::{get_object_type, get_str_type, get_type_type};
 use crate::types::{FuncSignature, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
-use dyn_clone::{DynClone, clone_trait_object};
 use typedown_macros::query_derived;
 
 // Everything is an object
-pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync + StableHash<TypedownDatabase> {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
+// This need not be object-safe
+// We access via the enum, not via dyn trait
+#[delegatable_trait]
+pub trait TdrObjectLike: Id {
+  fn get_type(&self, db: &crate::TypedownDatabase) -> TdrTypeEnum;
 
-  fn lookup_method(&self, db: &TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
+  fn lookup_method(&self, db: &crate::TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
     let mut current = self.get_type(db);
     loop {
       if let Some(func_obj) = current.get_vtable(db).remove(key) {
@@ -28,103 +32,98 @@ pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync + StableHash<Typedown
     }
   }
 
-  fn lookup_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn lookup_field(&self, db: &crate::TypedownDatabase, key: &str) -> Option<TdrObjectEnum> {
     if let Some(field) = self.get_owned_field(db, key) {
       return Some(field);
     }
-    self
-      .lookup_method(db, key)
-      .map(|func_obj| Box::new(func_obj) as Box<dyn TdrObjectLike>)
+    self.lookup_method(db, key).map(TdrObjectEnum::from)
   }
 
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>>;
+  fn get_owned_field(&self, db: &crate::TypedownDatabase, key: &str) -> Option<TdrObjectEnum>;
 
-  /// Returns the stable source path for this object, used for session-independent hashing.
-  fn source_path(&self, db: &TypedownDatabase) -> String;
+  fn source_path(&self, db: &crate::TypedownDatabase) -> String;
 
-  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
-    None
-  }
-
-  fn eq(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+  fn eq(&self, _db: &crate::TypedownDatabase, other: &TdrObjectEnum) -> bool {
     self.as_id() == other.as_id()
   }
 
-  fn lt(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+  fn lt(&self, _db: &crate::TypedownDatabase, other: &TdrObjectEnum) -> bool {
     self.as_id() < other.as_id()
   }
 
-  fn gt(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+  fn gt(&self, _db: &crate::TypedownDatabase, other: &TdrObjectEnum) -> bool {
     self.as_id() > other.as_id()
   }
 
-  fn le(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+  fn le(&self, _db: &crate::TypedownDatabase, other: &TdrObjectEnum) -> bool {
     self.as_id() <= other.as_id()
   }
 
-  fn ge(&self, _db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
+  fn ge(&self, _db: &crate::TypedownDatabase, other: &TdrObjectEnum) -> bool {
     self.as_id() >= other.as_id()
   }
 }
 
-clone_trait_object!(TdrObjectLike);
-
-impl PartialEq for Box<dyn TdrObjectLike> {
-  fn eq(&self, other: &Self) -> bool {
-    (**self).as_id() == (**other).as_id()
-  }
-}
-impl Eq for Box<dyn TdrObjectLike> {}
-
-impl Hash for Box<dyn TdrObjectLike> {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    (**self).as_id().hash(state);
-  }
-}
-
-fn get_builtin_field(db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+fn get_builtin_field(db: &crate::TypedownDatabase, name: &str) -> Option<crate::types::TypeMember> {
   match name {
     "_type" => Some(TypeMember::new(
       db,
-      MemberType::Simple(Box::new(TdrTypeType::get(db))),
+      MemberType::Simple(TdrTypeType::get(db).into()),
       TypeMemberDescriptors::empty(),
     )),
     "_label" => Some(TypeMember::new(
       db,
-      MemberType::Simple(Box::new(get_str_type(db))),
+      MemberType::Simple(get_str_type(db).into()),
       TypeMemberDescriptors::OPTIONAL,
     )),
     "_content" => Some(TypeMember::new(
       db,
-      MemberType::Simple(Box::new(get_str_type(db))),
+      MemberType::Simple(get_str_type(db).into()),
       TypeMemberDescriptors::OPTIONAL,
     )),
     _ => None,
   }
 }
 
-pub trait TdrTypeLike: TdrObjectLike + DynClone {
-  fn arity(&self, db: &TypedownDatabase) -> usize;
-  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj>;
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember>;
+// This need not be object-safe
+// We access via the enum, not via dyn trait
+#[delegatable_trait]
+pub trait TdrTypeLike: TdrObjectLike {
+  fn arity(&self, db: &crate::TypedownDatabase) -> usize;
+  fn get_supertype(&self, db: &crate::TypedownDatabase) -> TdrTypeEnum;
+  fn get_vtable(
+    &self,
+    db: &crate::TypedownDatabase,
+  ) -> std::collections::HashMap<String, TdrFuncObj>;
+  fn get_owned_field_type(
+    &self,
+    db: &crate::TypedownDatabase,
+    name: &str,
+  ) -> Option<crate::types::TypeMember>;
 
-  // This function doesn't handle arity cecking
-  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult;
+  fn instantiate(
+    &self,
+    db: &crate::TypedownDatabase,
+    args: Vec<TdrTypeEnum>,
+  ) -> crate::types::InstResult;
 
-  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool;
+  fn is_compatible_with(&self, db: &crate::TypedownDatabase, actual: &TdrTypeEnum) -> bool;
 
-  fn get_type_args(&self, db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>>;
+  fn get_type_args(&self, db: &crate::TypedownDatabase) -> Vec<TdrTypeEnum>;
 
-  fn display_name(&self, db: &TypedownDatabase) -> String;
+  fn display_name(&self, db: &crate::TypedownDatabase) -> String;
 
   fn construct(
     &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrObjectLike>>,
-  ) -> Option<Box<dyn TdrObjectLike>>;
+    db: &crate::TypedownDatabase,
+    args: Vec<TdrObjectEnum>,
+  ) -> Option<TdrObjectEnum>;
 
-  fn get_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_field_type(
+    &self,
+    db: &crate::TypedownDatabase,
+    name: &str,
+  ) -> Option<crate::types::TypeMember> {
     if let Some(field) = get_builtin_field(db, name) {
       return Some(field);
     }
@@ -132,15 +131,13 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
       return Some(field);
     }
     let supertype = self.get_supertype(db);
-    // Stop when supertype is identical to self
     if supertype.as_id() == self.as_id() {
       return None;
     }
     supertype.get_field_type(db, name)
   }
 
-  // Walk this type's own vtable for an instance method
-  fn lookup_instance_method(&self, db: &TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
+  fn lookup_instance_method(&self, db: &crate::TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
     if let Some(func_obj) = self.get_vtable(db).remove(key) {
       return Some(func_obj);
     }
@@ -151,8 +148,7 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
     supertype.lookup_instance_method(db, key)
   }
 
-  // Look up a field or method type
-  fn lookup_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<Box<dyn TdrTypeLike>> {
+  fn lookup_field_type(&self, db: &crate::TypedownDatabase, name: &str) -> Option<TdrTypeEnum> {
     if let Some(member) = self.get_field_type(db, name) {
       if let MemberType::Simple(typ) = member.typ(db) {
         return Some(typ);
@@ -164,88 +160,71 @@ pub trait TdrTypeLike: TdrObjectLike + DynClone {
   }
 }
 
-clone_trait_object!(TdrTypeLike);
-
-impl PartialEq for Box<dyn TdrTypeLike> {
-  fn eq(&self, other: &Self) -> bool {
-    (**self).as_id() == (**other).as_id()
-  }
-}
-impl Eq for Box<dyn TdrTypeLike> {}
-
-impl Hash for Box<dyn TdrTypeLike> {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    (**self).as_id().hash(state);
-  }
-}
-
-/// The metatype is is the type of all types
-/// It's an instance of itself & the type of every type.
+/// The metatype is the type of all types.
+/// It's an instance of itself and the type of every type.
 #[query_derived]
 pub struct TdrTypeType {}
 
 impl TdrObjectLike for TdrTypeType {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrTypeType::get(db))
+  fn get_type(&self, db: &crate::TypedownDatabase) -> TdrTypeEnum {
+    TdrTypeType::get(db).into()
   }
-  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &crate::TypedownDatabase, _key: &str) -> Option<TdrObjectEnum> {
     None
   }
-  fn source_path(&self, _db: &TypedownDatabase) -> String {
+  fn source_path(&self, _db: &crate::TypedownDatabase) -> String {
     "@builtin::type".to_string()
-  }
-  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
-    Some(Box::new(self.clone()))
-  }
-}
-
-impl StableHash<TypedownDatabase> for TdrTypeType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
   }
 }
 
 impl TdrTypeLike for TdrTypeType {
-  fn arity(&self, _db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &crate::TypedownDatabase) -> usize {
     0
   }
-  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+  fn get_supertype(&self, db: &crate::TypedownDatabase) -> TdrTypeEnum {
+    TdrObjectType::get(db).into()
   }
-  fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
+  fn get_vtable(
+    &self,
+    _db: &crate::TypedownDatabase,
+  ) -> std::collections::HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(
+    &self,
+    _db: &crate::TypedownDatabase,
+    _name: &str,
+  ) -> Option<crate::types::TypeMember> {
     None
   }
-  fn instantiate(&self, db: &TypedownDatabase, _args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
-    InstResult::new(db, Box::new(self.clone()), vec![])
+  fn instantiate(
+    &self,
+    db: &crate::TypedownDatabase,
+    _args: Vec<TdrTypeEnum>,
+  ) -> crate::types::InstResult {
+    InstResult::new(db, self.clone().into(), vec![])
   }
-
-  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+  fn get_type_args(&self, _db: &crate::TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
   }
-
-  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+  fn is_compatible_with(&self, _db: &crate::TypedownDatabase, actual: &TdrTypeEnum) -> bool {
     self.as_id() == actual.as_id()
   }
-
   fn construct(
     &self,
-    _db: &TypedownDatabase,
-    _args: Vec<Box<dyn TdrObjectLike>>,
-  ) -> Option<Box<dyn TdrObjectLike>> {
+    _db: &crate::TypedownDatabase,
+    _args: Vec<TdrObjectEnum>,
+  ) -> Option<TdrObjectEnum> {
     // HIR-level construction (ident/mapping paths) lives in utils.rs
     None
   }
-
-  fn display_name(&self, _db: &TypedownDatabase) -> String {
+  fn display_name(&self, _db: &crate::TypedownDatabase) -> String {
     "type".to_string()
   }
 }
 
 impl TdrTypeType {
-  pub fn get(db: &TypedownDatabase) -> TdrTypeType {
+  pub fn get(db: &crate::TypedownDatabase) -> TdrTypeType {
     get_type_type(db)
   }
 }
@@ -255,85 +234,72 @@ impl TdrTypeType {
 pub struct TdrObjectType {}
 
 impl TdrObjectLike for TdrObjectType {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrTypeType::get(db))
+  fn get_type(&self, db: &crate::TypedownDatabase) -> TdrTypeEnum {
+    TdrTypeType::get(db).into()
   }
-  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &crate::TypedownDatabase, _key: &str) -> Option<TdrObjectEnum> {
     None
   }
-  fn source_path(&self, _db: &TypedownDatabase) -> String {
+  fn source_path(&self, _db: &crate::TypedownDatabase) -> String {
     "@builtin::object".to_string()
-  }
-  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
-    Some(Box::new(self.clone()))
-  }
-}
-
-impl StableHash<TypedownDatabase> for TdrObjectType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
   }
 }
 
 impl TdrTypeLike for TdrObjectType {
-  fn arity(&self, _db: &TypedownDatabase) -> usize {
+  fn arity(&self, _db: &crate::TypedownDatabase) -> usize {
     0
   }
-  // Supertype of ObjectType is itself
-  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+  fn get_supertype(&self, db: &crate::TypedownDatabase) -> TdrTypeEnum {
+    TdrObjectType::get(db).into()
   }
-  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
-    // Default to_string: returns the type's display name
-    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+  fn get_vtable(
+    &self,
+    db: &crate::TypedownDatabase,
+  ) -> std::collections::HashMap<String, TdrFuncObj> {
+    let sig = FuncSignature::new(db, vec![], TdrStrType::get(db).into());
     let func_obj = TdrFuncObj::new(
       db,
       "to_string".to_string(),
-      Box::new(TdrObjectType::get(db)),
+      get_object_type(db).into(),
       sig,
-      object_to_string,
+      NativeFnKind::ObjectToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
-  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type(
+    &self,
+    _db: &crate::TypedownDatabase,
+    _name: &str,
+  ) -> Option<crate::types::TypeMember> {
     None
   }
-  fn instantiate(&self, db: &TypedownDatabase, _args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
-    InstResult::new(db, Box::new(self.clone()), vec![])
+  fn instantiate(
+    &self,
+    db: &crate::TypedownDatabase,
+    _args: Vec<TdrTypeEnum>,
+  ) -> crate::types::InstResult {
+    InstResult::new(db, self.clone().into(), vec![])
   }
-
-  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+  fn get_type_args(&self, _db: &crate::TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
   }
-
-  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+  fn is_compatible_with(&self, _db: &crate::TypedownDatabase, actual: &TdrTypeEnum) -> bool {
     self.as_id() == actual.as_id()
   }
-
   fn construct(
     &self,
-    _db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrObjectLike>>,
-  ) -> Option<Box<dyn TdrObjectLike>> {
+    _db: &crate::TypedownDatabase,
+    args: Vec<TdrObjectEnum>,
+  ) -> Option<TdrObjectEnum> {
     args.into_iter().next()
   }
-
-  fn display_name(&self, _db: &TypedownDatabase) -> String {
+  fn display_name(&self, _db: &crate::TypedownDatabase) -> String {
     "object".to_string()
   }
 }
 
 impl TdrObjectType {
-  pub fn get(db: &TypedownDatabase) -> TdrObjectType {
+  pub fn get(db: &crate::TypedownDatabase) -> TdrObjectType {
     get_object_type(db)
   }
-}
-
-fn object_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let display = this.get_type(db).display_name(db);
-  Some(Box::new(TdrStrObj::new(db, display)))
 }

@@ -11,6 +11,10 @@ dashmap = "6.2.1"
 inventory = "0.3.24"
 yaml-rust2 = "0.11.0"
 bitflags = "2.13.0"
-dyn-clone = "1.0.20"
 regex = "1.12.4"
 rustc-stable-hash = "0.1"
+num_enum = "0.7"
+ambassador = "0.5.1"
+derive_more = { version = "2.1.1", features = ["from"] }
+enum-as-inner = "0.7.0"
+

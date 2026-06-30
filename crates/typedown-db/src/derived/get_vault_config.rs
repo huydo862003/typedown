@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use typedown_types::stream::Utf8Result;
 
 use typedown_macros::query_derived;
+
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::{

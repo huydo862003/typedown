@@ -15,8 +15,7 @@ use crate::utils::uri::uri_to_path;
 #[cfg(test)]
 use typedown_db::{
   QueryStorage, TypedownDatabase,
-  inputs::{File, FileHandle},
-  types::Project,
+  types::{File, FileHandle, Project},
 };
 
 pub fn token_types() -> Vec<SemanticTokenType> {

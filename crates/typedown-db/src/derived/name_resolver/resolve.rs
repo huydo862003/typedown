@@ -1,4 +1,5 @@
 use typedown_macros::query_derived;
+
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::derived::name_resolver::referee::referee;

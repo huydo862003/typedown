@@ -1,4 +1,5 @@
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
+use typedown_db::types::TdrTypeLike;
 
 use typedown_db::TypedownDatabase;
 use typedown_db::derived::hir::lower_node;
@@ -105,7 +106,7 @@ mod tests {
     WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_db::inputs::{File, FileHandle};
+  use typedown_db::types::{File, FileHandle};
   use typedown_db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;

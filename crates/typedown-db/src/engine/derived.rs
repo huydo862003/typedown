@@ -22,7 +22,7 @@ mod tests {
   };
   use typedown_types::{diagnostic::Diagnostic, string_stream::StringStream};
 
-  use crate::{QueryDatabase, QueryStorage};
+  use crate::{Encodable, Encoder, QueryDatabase, QueryStorage, StableHash};
 
   #[query_db]
   struct Database {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::QueryDatabase;
+use crate::{DeserializeContext, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher};
 
 use super::Ingredient;
 
@@ -16,6 +16,8 @@ pub struct StampedInputField<T> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct InputFieldIngredient<T> {
+  ingredient_index: usize,
+  field_index: u8,
   name: &'static str,
   // A map from id to field value
   // DashMap is used to better support parallel workload
@@ -29,17 +31,19 @@ impl<T> InputFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_INPUT_FIELD_INGREDIENT: () = ();
 
-  pub fn new(name: &'static str) -> Self {
+  pub fn new(ingredient_index: usize, name: &'static str, field_index: u8) -> Self {
     Self {
+      ingredient_index,
+      field_index,
       name,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
-impl<T: Send + Sync + 'static> Ingredient for InputFieldIngredient<T> {
-  fn name(&self) -> &'static str {
-    self.name
+impl<T: StableHash + Send + Sync + 'static> Ingredient for InputFieldIngredient<T> {
+  fn name(&self) -> Fingerprint {
+    Fingerprint::from_name(self.name)
   }
 
   fn green_check(&self, _db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
@@ -52,5 +56,23 @@ impl<T: Send + Sync + 'static> Ingredient for InputFieldIngredient<T> {
 
   fn re_execute(&self, _db: &dyn QueryDatabase, _arg_id: usize) {
     // Inputs are ground truth, nothing to recompute
+  }
+
+  fn serialize(&self, _ctx: &mut dyn SerializeContext) {
+    // TODO: implement serialization
+  }
+
+  fn deserialize(&self, _ctx: &mut dyn DeserializeContext) {
+    // TODO: implement deserialization
+  }
+}
+
+impl<T: StableHash + Send + Sync + 'static> InputFieldIngredient<T> {
+  pub fn value_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint> {
+    self.data.get(&arg_id).map(|entry| {
+      let mut hasher: StableHasher = StableHasher::new();
+      entry.value.stable_hash(db, &mut hasher);
+      Fingerprint::from_hasher(hasher)
+    })
   }
 }

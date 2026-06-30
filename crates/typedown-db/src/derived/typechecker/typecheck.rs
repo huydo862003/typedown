@@ -1,6 +1,5 @@
 //! Tracked query for typechecking
 
-use std::any::Any;
 use std::collections::HashSet;
 
 use typedown_macros::query_derived;
@@ -10,9 +9,8 @@ use crate::derived::get_builtin_types::get_num_type;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::infer_node_type::infer_node_type;
 use crate::types::{
-  HirValue, HirValueKind, InterpolatedPart, LiteralValue, MemberType, TdrDictType, TdrFuncType,
-  TdrListType, TdrProductType, TdrSchemaType, TdrStrType, TdrTypeLike, TypeMember,
-  TypeMemberDescriptors, TypecheckResult, member_type_display_name,
+  HirValue, HirValueKind, InterpolatedPart, LiteralValue, MemberType, TdrTypeEnum, TdrTypeLike,
+  TypeMember, TypeMemberDescriptors, TypecheckResult, member_type_display_name,
 };
 use crate::{QueryDatabase, TypedownDatabase};
 
@@ -32,16 +30,11 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
   match hir.kind(db) {
     // Check mapping fields against declared schema type
     HirValueKind::Mapping(entries) => {
-      diagnostics.extend(check_mapping_fields(
-        db,
-        hir,
-        &entries,
-        declared_type.as_ref(),
-      ));
+      diagnostics.extend(check_mapping_fields(db, hir, &entries, &declared_type));
     }
     // Check tag inner matches the tag's schema
     HirValueKind::Tag { inner, .. } => {
-      diagnostics.extend(check_tag(db, declared_type.as_ref(), *inner));
+      diagnostics.extend(check_tag(db, &declared_type, *inner));
     }
     // Check call arity and arg types against function signature
     HirValueKind::Call { callee, args } => {
@@ -49,7 +42,7 @@ pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
     }
     // Check each item against the list's element type
     HirValueKind::Sequence(items) => {
-      diagnostics.extend(check_sequence(db, declared_type.as_ref(), items));
+      diagnostics.extend(check_sequence(db, &declared_type, items));
     }
     // Typecheck each embedded expression in an interpolated string
     HirValueKind::Interpolated(parts) | HirValueKind::Markdown(parts) => {
@@ -82,7 +75,7 @@ fn check_mapping_fields(
   db: &TypedownDatabase,
   mapping_hir: HirValue,
   entries: &[(String, HirValue)],
-  expected_type: &dyn TdrTypeLike,
+  expected_type: &TdrTypeEnum,
 ) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
@@ -115,8 +108,7 @@ fn check_mapping_fields(
         .contains(TypeMemberDescriptors::OPTIONAL);
       match value_result.typ(db) {
         Some(actual_type) => {
-          let matches =
-            value_matches_member_type(db, &member.typ(db), actual_type.as_ref(), *value_hir);
+          let matches = value_matches_member_type(db, &member.typ(db), &actual_type, *value_hir);
           if !matches {
             let node = value_hir.node(db);
             diagnostics.push(Diagnostic::FieldTypeMismatch {
@@ -148,12 +140,9 @@ fn check_mapping_fields(
 
   // Enumerate declared fields to check required ones are present
   let declared_fields: Vec<(String, TypeMember)> =
-    if let Some(product) = (expected_type as &dyn Any).downcast_ref::<TdrProductType>() {
+    if let TdrTypeEnum::TdrProductType(product) = &expected_type {
       product.fields(db).into_iter().collect()
-    } else if (expected_type as &dyn Any)
-      .downcast_ref::<TdrSchemaType>()
-      .is_some()
-    {
+    } else if expected_type.is_tdr_schema_type() {
       // TdrSchemaType has a fixed set of fields
       vec!["properties"]
         .into_iter()
@@ -185,14 +174,14 @@ fn check_mapping_fields(
 
 fn check_tag(
   db: &TypedownDatabase,
-  expected_type: &dyn TdrTypeLike,
+  expected_type: &TdrTypeEnum,
   inner: HirValue,
 ) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
   let inner_result = infer_node_type(db, inner);
   diagnostics.extend(inner_result.diagnostics(db).iter().cloned());
   if let Some(actual_type) = inner_result.typ(db) {
-    if !expected_type.is_compatible_with(db, actual_type.as_ref()) {
+    if !expected_type.is_compatible_with(db, &actual_type) {
       let node = inner.node(db);
       diagnostics.push(Diagnostic::TagTypeMismatch {
         expected: expected_type.display_name(db),
@@ -215,16 +204,13 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
     None => return diagnostics,
   };
 
-  let func = match (callee_type.as_ref() as &dyn Any).downcast_ref::<TdrFuncType>() {
-    Some(func) => func,
-    None => {
-      let node = callee.node(db);
-      diagnostics.push(Diagnostic::NotCallable {
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
-      });
-      return diagnostics;
-    }
+  let Some(func) = callee_type.as_tdr_func_type() else {
+    let node = callee.node(db);
+    diagnostics.push(Diagnostic::NotCallable {
+      start_offset: node.offset(),
+      end_offset: node.offset() + node.text_len(),
+    });
+    return diagnostics;
   };
 
   let sig = func.signature(db);
@@ -245,7 +231,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
     let arg_result = infer_node_type(db, *arg_hir);
     diagnostics.extend(arg_result.diagnostics(db).iter().cloned());
     if let Some(arg_type) = arg_result.typ(db) {
-      if !param.is_compatible_with(db, arg_type.as_ref()) {
+      if !param.is_compatible_with(db, &arg_type) {
         let node = arg_hir.node(db);
         diagnostics.push(Diagnostic::ArgTypeMismatch {
           expected: param.display_name(db),
@@ -276,16 +262,13 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   }
 
   // List element access: index must be a number
-  if (expr_type.as_ref() as &dyn Any)
-    .downcast_ref::<TdrListType>()
-    .is_some()
-  {
+  if expr_type.is_tdr_list_type() {
     for idx_hir in &indices {
       let idx_result = infer_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
       if let Some(idx_type) = idx_result.typ(db) {
         let num_type = get_num_type(db);
-        if !num_type.is_compatible_with(db, idx_type.as_ref()) {
+        if !num_type.is_compatible_with(db, &idx_type) {
           let node = idx_hir.node(db);
           diagnostics.push(Diagnostic::IndexTypeMismatch {
             expected: "number".to_string(),
@@ -299,13 +282,13 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   }
 
   // Dict element access: index must match key type
-  if let Some(dict) = (expr_type.as_ref() as &dyn Any).downcast_ref::<TdrDictType>() {
+  if let TdrTypeEnum::TdrDictType(dict) = &expr_type {
     if let Some(key_type) = dict.key(db) {
       for idx_hir in &indices {
         let idx_result = infer_node_type(db, *idx_hir);
         diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
         if let Some(idx_type) = idx_result.typ(db) {
-          if !key_type.is_compatible_with(db, idx_type.as_ref()) {
+          if !key_type.is_compatible_with(db, &idx_type) {
             let node = idx_hir.node(db);
             diagnostics.push(Diagnostic::IndexTypeMismatch {
               expected: key_type.display_name(db),
@@ -320,16 +303,13 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   }
 
   // String indexing is valid: index must be a number
-  if (expr_type.as_ref() as &dyn Any)
-    .downcast_ref::<TdrStrType>()
-    .is_some()
-  {
+  if expr_type.is_tdr_str_type() {
     for idx_hir in &indices {
       let idx_result = infer_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
       if let Some(idx_type) = idx_result.typ(db) {
         let num_type = get_num_type(db);
-        if !num_type.is_compatible_with(db, idx_type.as_ref()) {
+        if !num_type.is_compatible_with(db, &idx_type) {
           let node = idx_hir.node(db);
           diagnostics.push(Diagnostic::IndexTypeMismatch {
             expected: "number".to_string(),
@@ -364,14 +344,14 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
     None => return diagnostics,
   };
 
-  let expected_type: Box<dyn TdrTypeLike> = match op {
-    "-" | "+" => Box::new(get_num_type(db)),
+  let expected_type: TdrTypeEnum = match op {
+    "-" | "+" => get_num_type(db).into(),
     // ~ is logical not: accepts any type (only null and false are falsy)
     "~" => return diagnostics,
     _ => return diagnostics,
   };
 
-  if !expected_type.is_compatible_with(db, operand_type.as_ref()) {
+  if !expected_type.is_compatible_with(db, &operand_type) {
     let node = operand.node(db);
     diagnostics.push(Diagnostic::OperandTypeMismatch {
       op: op.to_string(),
@@ -403,9 +383,9 @@ fn check_binary(
   match op {
     // Arithmetic: both operands must be number
     "+" | "-" | "*" | "/" | "%" | "**" => {
-      let num_type = Box::new(get_num_type(db));
+      let num_type: TdrTypeEnum = get_num_type(db).into();
       if let Some(lt) = &left_type {
-        if !num_type.is_compatible_with(db, lt.as_ref()) {
+        if !num_type.is_compatible_with(db, &lt) {
           let node = left.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -416,7 +396,7 @@ fn check_binary(
         }
       }
       if let Some(rt) = &right_type {
-        if !num_type.is_compatible_with(db, rt.as_ref()) {
+        if !num_type.is_compatible_with(db, &rt) {
           let node = right.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -430,9 +410,9 @@ fn check_binary(
     // Logical: both operands must be boolean
     // Consider allow truthy and falsy?
     "&&" | "||" => {
-      let bool_type = Box::new(crate::derived::get_builtin_types::get_bool_type(db));
+      let bool_type: TdrTypeEnum = crate::derived::get_builtin_types::get_bool_type(db).into();
       if let Some(lt) = &left_type {
-        if !bool_type.is_compatible_with(db, lt.as_ref()) {
+        if !bool_type.is_compatible_with(db, &lt) {
           let node = left.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -443,7 +423,7 @@ fn check_binary(
         }
       }
       if let Some(rt) = &right_type {
-        if !bool_type.is_compatible_with(db, rt.as_ref()) {
+        if !bool_type.is_compatible_with(db, &rt) {
           let node = right.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -465,18 +445,17 @@ fn check_binary(
 
 fn check_sequence(
   db: &TypedownDatabase,
-  declared_type: &dyn TdrTypeLike,
+  declared_type: &TdrTypeEnum,
   items: Vec<HirValue>,
 ) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
   // Get the element type from the list type
-  let elem_type = match (declared_type as &dyn Any).downcast_ref::<TdrListType>() {
-    Some(list) => list.elem(db),
-    None => return diagnostics,
+  let Some(list) = declared_type.as_tdr_list_type() else {
+    return diagnostics;
   };
 
-  let elem_type = match elem_type {
+  let elem_type = match list.elem(db) {
     Some(typ) => typ,
     // Uninstantiated list: no element type constraint
     None => return diagnostics,
@@ -490,7 +469,7 @@ fn check_sequence(
     // Check item type against element type
     let item_result = infer_node_type(db, item);
     if let Some(item_type) = item_result.typ(db) {
-      if !elem_type.is_compatible_with(db, item_type.as_ref()) {
+      if !elem_type.is_compatible_with(db, &item_type) {
         let node = item.node(db);
         diagnostics.push(Diagnostic::ElementTypeMismatch {
           expected: elem_type.display_name(db),
@@ -507,7 +486,7 @@ fn check_sequence(
 fn value_matches_member_type(
   db: &TypedownDatabase,
   expected: &MemberType,
-  actual: &dyn TdrTypeLike,
+  actual: &TdrTypeEnum,
   value_hir: HirValue,
 ) -> bool {
   match expected {

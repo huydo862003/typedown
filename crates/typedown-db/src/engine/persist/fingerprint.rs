@@ -1,13 +1,12 @@
 //! Dependency graph types for cache persistence.
 
-use rustc_stable_hash::{FromStableHash, SipHasher128Hash};
+use std::hash::Hasher;
+
+use rustc_stable_hash::{FromStableHash, SipHasher128Hash, StableSipHasher128};
 
 use super::StableHasher;
 
 /// A stable 128-bit hash value, used for both query identity and result change detection.
-///
-/// As query identity (inside `DepNode`): Hash of query name + key, stable across sessions.
-/// As result fingerprint: Hash of query output, used during green-checking to detect changes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Fingerprint(pub [u8; 16]);
 
@@ -26,5 +25,13 @@ impl FromStableHash for Fingerprint {
 impl Fingerprint {
   pub fn from_hasher(hasher: StableHasher) -> Self {
     hasher.finish()
+  }
+
+  /// Compute a fingerprint from a stable name string.
+  /// Used for ingredient identity across sessions.
+  pub fn from_name(name: &str) -> Self {
+    let mut hasher: StableHasher = StableSipHasher128::new();
+    hasher.write(name.as_bytes());
+    Self::from_hasher(hasher)
   }
 }

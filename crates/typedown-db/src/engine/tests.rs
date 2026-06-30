@@ -5,7 +5,7 @@ mod derived_query_tests {
 
   use typedown_macros::{query_db, query_derived, query_interned};
 
-  use crate::{QueryDatabase, QueryStorage};
+  use crate::{Encodable, Encoder, QueryDatabase, QueryStorage, StableHash};
 
   thread_local! {
     static FIB_LOG: RefCell<Vec<String>> = RefCell::new(Vec::new());

@@ -1,16 +1,13 @@
 //! Tracked query to get the declared (top-down) type of a HIR value.
 
-use std::any::Any;
-
+use crate::derived::evaluate::evaluate_type::evaluate_type;
+use crate::derived::name_resolver::members::members;
+use crate::types::{HirValue, Scope, TypeMemberResult};
+use crate::{QueryDatabase, TypedownDatabase};
 use typedown_macros::query_derived;
 use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
-
-use crate::derived::evaluate::evaluate_type::evaluate_type;
-use crate::derived::name_resolver::members::members;
-use crate::types::{HirValue, Scope, TdrProductType, TypeMemberResult};
-use crate::{QueryDatabase, TypedownDatabase};
-
+#[query_derived]
 #[query_derived]
 pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
   let project = hir.project(db);
@@ -54,9 +51,8 @@ pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberRes
   };
 
   // Downcast to a product type and look up the field
-  let product = match (schema_type.as_ref() as &dyn Any).downcast_ref::<TdrProductType>() {
-    Some(product) => product,
-    None => return TypeMemberResult::new(db, None, vec![]),
+  let Some(product) = schema_type.as_tdr_product_type() else {
+    return TypeMemberResult::new(db, None, vec![]);
   };
 
   // Return the full TypeMember (preserves descriptors like OPTIONAL)
@@ -70,17 +66,19 @@ pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberRes
 
 #[cfg(test)]
 mod tests {
+  use crate::types::TdrTypeLike;
   use crate::{
+    TypedownDatabase,
     derived::typechecker::declared_node_type::declared_node_type,
     fixtures::load_vault_fixture,
-    types::{HirValueKind, MemberType},
+    types::{File, HirValueKind, MemberType, Project},
     utils::lower_file,
   };
 
   fn get_field_hir(
-    db: &crate::TypedownDatabase,
-    project: crate::types::Project,
-    file: crate::inputs::File,
+    db: &TypedownDatabase,
+    project: Project,
+    file: File,
     field: &str,
   ) -> Option<crate::types::HirValue> {
     let (hir, _) = lower_file(db, project, file);

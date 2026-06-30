@@ -1,4 +1,5 @@
 use typedown_macros::query_derived;
+
 use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 

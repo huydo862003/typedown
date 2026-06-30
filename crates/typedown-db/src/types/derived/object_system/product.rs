@@ -1,12 +1,11 @@
-use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
-use super::dict::TdrDictObj;
 use super::func::TdrFuncObj;
+use super::{TdrObjectEnum, TdrTypeEnum};
 use crate::derived::evaluate::evaluate_node::evaluate_node;
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{Id, TypedownDatabase};
 use typedown_types::either::Either;
 
 use crate::types::{HirValue, InstResult, MemberType, TypeMember};
@@ -18,7 +17,7 @@ fn member_types_compatible(
 ) -> bool {
   match (expected, actual) {
     (MemberType::Simple(exp_type), MemberType::Simple(act_type)) => {
-      exp_type.is_compatible_with(db, act_type.as_ref())
+      exp_type.is_compatible_with(db, act_type)
     }
     (MemberType::Sum(exp_arms), MemberType::Sum(act_arms)) => {
       // Two union types must have the same number of arms
@@ -40,23 +39,19 @@ fn member_types_compatible(
 #[query_derived]
 pub struct TdrProductType {
   pub name: Option<String>,
-  pub metatype: Box<dyn TdrTypeLike>,
+  pub metatype: TdrTypeEnum,
   pub fields: HashMap<String, TypeMember>,
 }
 
 impl TdrObjectLike for TdrProductType {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+  fn get_type(&self, db: &TypedownDatabase) -> TdrTypeEnum {
     self.metatype(db)
   }
-  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<TdrObjectEnum> {
     None
   }
   fn source_path(&self, db: &TypedownDatabase) -> String {
     self.display_name(db)
-  }
-
-  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
-    Some(Box::new(self.clone()))
   }
 }
 
@@ -64,29 +59,23 @@ impl TdrTypeLike for TdrProductType {
   fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
-
-  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+  fn get_supertype(&self, db: &TypedownDatabase) -> TdrTypeEnum {
+    TdrObjectType::get(db).into()
   }
-
   fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-
   fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     self.fields(db).get(name).cloned()
   }
-
-  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
-    InstResult::new(db, Box::new(self.clone()), vec![])
+    InstResult::new(db, self.clone().into(), vec![])
   }
-
-  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
   }
-
-  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &TdrTypeEnum) -> bool {
     if self.as_id().0 != actual.as_id().0 {
       return false;
     }
@@ -108,22 +97,12 @@ impl TdrTypeLike for TdrProductType {
     }
     true
   }
-
-  fn construct(
-    &self,
-    db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrObjectLike>>,
-  ) -> Option<Box<dyn TdrObjectLike>> {
+  fn construct(&self, db: &TypedownDatabase, args: Vec<TdrObjectEnum>) -> Option<TdrObjectEnum> {
     let arg = args.into_iter().next()?;
-    let dict = (arg.as_ref() as &dyn Any).downcast_ref::<TdrDictObj>()?;
+    let dict = arg.as_tdr_dict_obj()?;
     let fields = dict.entries(db);
-    Some(Box::new(TdrProductObj::new(
-      db,
-      Box::new(self.clone()) as Box<dyn TdrTypeLike>,
-      fields,
-    )))
+    Some(TdrProductObj::new(db, self.clone().into(), fields).into())
   }
-
   fn display_name(&self, db: &TypedownDatabase) -> String {
     if let Some(name) = self.name(db) {
       return name;
@@ -160,15 +139,15 @@ pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberTyp
 
 #[query_derived]
 pub struct TdrProductObj {
-  pub schema: Box<dyn TdrTypeLike>,
-  pub fields: HashMap<String, Either<HirValue, Box<dyn TdrObjectLike>>>,
+  pub schema: TdrTypeEnum,
+  pub fields: HashMap<String, Either<HirValue, TdrObjectEnum>>,
 }
 
 impl TdrObjectLike for TdrProductObj {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
+  fn get_type(&self, db: &TypedownDatabase) -> TdrTypeEnum {
     self.schema(db)
   }
-  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<TdrObjectEnum> {
     match self.fields(db).get(key).cloned()? {
       Either::Left(hir) => evaluate_node(db, hir).value(db),
       Either::Right(obj) => Some(obj),
@@ -176,20 +155,5 @@ impl TdrObjectLike for TdrProductObj {
   }
   fn source_path(&self, db: &TypedownDatabase) -> String {
     self.get_type(db).source_path(db)
-  }
-}
-
-impl StableHash<TypedownDatabase> for TdrProductType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
-    self.metatype(db).stable_hash(db, hasher);
-    self.fields(db).stable_hash(db, hasher);
-  }
-}
-
-impl StableHash<TypedownDatabase> for TdrProductObj {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.schema(db).stable_hash(db, hasher);
-    self.fields(db).stable_hash(db, hasher);
   }
 }

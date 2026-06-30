@@ -1,30 +1,27 @@
-use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
-use super::str::{TdrStrObj, TdrStrType};
+use super::native_fn::NativeFnKind;
+use super::str::TdrStrType;
+use super::{TdrObjectEnum, TdrTypeEnum};
 use crate::derived::get_builtin_types::get_num_type;
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{Id, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrNumType {}
 
 impl TdrObjectLike for TdrNumType {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrTypeType::get(db))
+  fn get_type(&self, db: &TypedownDatabase) -> TdrTypeEnum {
+    TdrTypeType::get(db).into()
   }
-  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<TdrObjectEnum> {
     None
   }
   fn source_path(&self, _db: &TypedownDatabase) -> String {
     "@builtin::number".to_string()
-  }
-
-  fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
-    Some(Box::new(self.clone()))
   }
 }
 
@@ -32,47 +29,38 @@ impl TdrTypeLike for TdrNumType {
   fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
   }
-
-  fn get_supertype(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrObjectType::get(db))
+  fn get_supertype(&self, db: &TypedownDatabase) -> TdrTypeEnum {
+    TdrObjectType::get(db).into()
   }
   fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
-    let sig = FuncSignature::new(db, vec![], Box::new(TdrStrType::get(db)));
+    let sig = FuncSignature::new(db, vec![], TdrStrType::get(db).into());
     let func_obj = TdrFuncObj::new(
       db,
       "to_string".to_string(),
-      Box::new(TdrNumType::get(db)),
+      TdrNumType::get(db).into(),
       sig,
-      num_to_string,
+      NativeFnKind::NumToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
   fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
-  fn instantiate(&self, db: &TypedownDatabase, args: Vec<Box<dyn TdrTypeLike>>) -> InstResult {
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
-    InstResult::new(db, Box::new(self.clone()), vec![])
+    InstResult::new(db, self.clone().into(), vec![])
   }
-
-  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<Box<dyn TdrTypeLike>> {
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
   }
-
-  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &dyn TdrTypeLike) -> bool {
+  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &TdrTypeEnum) -> bool {
     self.as_id() == actual.as_id()
   }
-
-  fn construct(
-    &self,
-    _db: &TypedownDatabase,
-    args: Vec<Box<dyn TdrObjectLike>>,
-  ) -> Option<Box<dyn TdrObjectLike>> {
+  fn construct(&self, _db: &TypedownDatabase, args: Vec<TdrObjectEnum>) -> Option<TdrObjectEnum> {
     let arg = args.into_iter().next()?;
-    (arg.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
+    arg.as_tdr_num_obj()?;
     Some(arg)
   }
-
   fn display_name(&self, _db: &TypedownDatabase) -> String {
     "number".to_string()
   }
@@ -90,72 +78,48 @@ pub struct TdrNumObj {
 }
 
 impl TdrObjectLike for TdrNumObj {
-  fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike> {
-    Box::new(TdrNumType::get(db))
+  fn get_type(&self, db: &TypedownDatabase) -> TdrTypeEnum {
+    TdrNumType::get(db).into()
   }
-  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<TdrObjectEnum> {
     None
   }
-
   fn source_path(&self, db: &TypedownDatabase) -> String {
     self.get_type(db).source_path(db)
   }
-
-  fn eq(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
-    match (other as &dyn Any).downcast_ref::<TdrNumObj>() {
-      Some(other) => self.value(db) == other.value(db),
-      None => self.as_id() == other.as_id(),
+  fn eq(&self, db: &TypedownDatabase, other: &TdrObjectEnum) -> bool {
+    if let TdrObjectEnum::TdrNumObj(other) = other {
+      self.value(db) == other.value(db)
+    } else {
+      self.as_id() == other.as_id()
     }
   }
-  fn lt(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
-    match (other as &dyn Any).downcast_ref::<TdrNumObj>() {
-      Some(other) => self.value(db) < other.value(db),
-      None => self.as_id() < other.as_id(),
+  fn lt(&self, db: &TypedownDatabase, other: &TdrObjectEnum) -> bool {
+    if let TdrObjectEnum::TdrNumObj(other) = other {
+      self.value(db) < other.value(db)
+    } else {
+      self.as_id() < other.as_id()
     }
   }
-  fn gt(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
-    match (other as &dyn Any).downcast_ref::<TdrNumObj>() {
-      Some(other) => self.value(db) > other.value(db),
-      None => self.as_id() > other.as_id(),
+  fn gt(&self, db: &TypedownDatabase, other: &TdrObjectEnum) -> bool {
+    if let TdrObjectEnum::TdrNumObj(other) = other {
+      self.value(db) > other.value(db)
+    } else {
+      self.as_id() > other.as_id()
     }
   }
-  fn le(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
-    match (other as &dyn Any).downcast_ref::<TdrNumObj>() {
-      Some(other) => self.value(db) <= other.value(db),
-      None => self.as_id() <= other.as_id(),
+  fn le(&self, db: &TypedownDatabase, other: &TdrObjectEnum) -> bool {
+    if let TdrObjectEnum::TdrNumObj(other) = other {
+      self.value(db) <= other.value(db)
+    } else {
+      self.as_id() <= other.as_id()
     }
   }
-  fn ge(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
-    match (other as &dyn Any).downcast_ref::<TdrNumObj>() {
-      Some(other) => self.value(db) >= other.value(db),
-      None => self.as_id() >= other.as_id(),
+  fn ge(&self, db: &TypedownDatabase, other: &TdrObjectEnum) -> bool {
+    if let TdrObjectEnum::TdrNumObj(other) = other {
+      self.value(db) >= other.value(db)
+    } else {
+      self.as_id() >= other.as_id()
     }
-  }
-}
-
-fn num_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let num = (this.as_ref() as &dyn Any).downcast_ref::<TdrNumObj>()?;
-  let value = num.value(db);
-  let s = if value.fract() == 0.0 {
-    format!("{}", value as i64)
-  } else {
-    format!("{}", value)
-  };
-  Some(Box::new(TdrStrObj::new(db, s)))
-}
-
-impl StableHash<TypedownDatabase> for TdrNumType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
-  }
-}
-
-impl StableHash<TypedownDatabase> for TdrNumObj {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.value(db).stable_hash(db, hasher);
   }
 }

@@ -10,7 +10,7 @@ use lsp_types::Uri;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ropey::Rope;
 use typedown_db::TypedownDatabase;
-use typedown_db::inputs::{File, FileHandle, Project};
+use typedown_db::types::{File, FileHandle, Project};
 
 use crate::analysis::Analysis;
 use crate::utils::uri::{uri_scheme, uri_to_path};

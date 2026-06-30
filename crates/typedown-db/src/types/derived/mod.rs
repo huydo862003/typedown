@@ -51,7 +51,7 @@ pub struct ResolveResult {
 
 #[query_derived]
 pub struct TypeResult {
-  typ: Option<Box<dyn TdrTypeLike>>,
+  typ: Option<TdrTypeEnum>,
   diagnostics: Vec<Diagnostic>,
 }
 
@@ -63,12 +63,12 @@ pub struct TypeMemberResult {
 
 #[query_derived]
 pub struct InstResult {
-  pub typ: Box<dyn TdrTypeLike>,
+  pub typ: TdrTypeEnum,
   pub diagnostics: Vec<Diagnostic>,
 }
 
 #[query_derived]
 pub struct ResourceResult {
-  pub value: Option<Box<dyn TdrObjectLike>>,
+  pub value: Option<TdrObjectEnum>,
   pub diagnostics: Vec<Diagnostic>,
 }
