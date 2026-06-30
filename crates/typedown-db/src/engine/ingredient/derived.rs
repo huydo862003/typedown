@@ -47,6 +47,7 @@ pub enum QueryState<K, V: DerivedId> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
+  name: &'static str,
   ingredient_index: usize,
   next_arg_id: Arc<AtomicUsize>,
   query_fn: fn(&DB, K) -> V,
@@ -61,8 +62,9 @@ impl<
   V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
-  pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
+  pub fn new(name: &'static str, ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
     Self {
+      name,
       ingredient_index,
       next_arg_id: Arc::new(AtomicUsize::new(0)),
       query_fn,
@@ -260,6 +262,10 @@ impl<
   V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
+  fn name(&self) -> &'static str {
+    self.name
+  }
+
   /// Check the red-green algo here: https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#improving-accuracy-the-red-green-algorithm
   /// We're similar in idea
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
@@ -331,6 +337,7 @@ pub struct StampedDerivedField<T> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedFieldIngredient<T> {
+  name: &'static str,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, StampedDerivedField<T>>>,
 }
@@ -340,14 +347,19 @@ impl<T> DerivedFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_DERIVED_FIELD_INGREDIENT: () = ();
 
-  pub fn new() -> Self {
+  pub fn new(name: &'static str) -> Self {
     Self {
+      name,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
 impl<T: Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
+  fn name(&self) -> &'static str {
+    self.name
+  }
+
   fn green_check(&self, _db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
     self
       .data

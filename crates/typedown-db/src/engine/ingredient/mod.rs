@@ -13,6 +13,10 @@ pub use inventory::*;
 pub use untracked::*;
 
 pub trait Ingredient: Any + Send + Sync {
+  /// Stable name for this ingredient, used for cross-session dep graph serialization.
+  /// e.g. `"vault_config"`, `"File::handle"`, `"VaultConfigResult::version"`
+  fn name(&self) -> &'static str;
+
   /// Returns true if the entry at `arg_id` is still valid compared to `last_changed_at`
   fn green_check(
     &self,

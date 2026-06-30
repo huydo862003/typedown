@@ -16,6 +16,7 @@ pub struct StampedInputField<T> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct InputFieldIngredient<T> {
+  name: &'static str,
   // A map from id to field value
   // DashMap is used to better support parallel workload
   #[doc(hidden)]
@@ -28,14 +29,19 @@ impl<T> InputFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_INPUT_FIELD_INGREDIENT: () = ();
 
-  pub fn new() -> Self {
+  pub fn new(name: &'static str) -> Self {
     Self {
+      name,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
 impl<T: Send + Sync + 'static> Ingredient for InputFieldIngredient<T> {
+  fn name(&self) -> &'static str {
+    self.name
+  }
+
   fn green_check(&self, _db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
     self
       .data

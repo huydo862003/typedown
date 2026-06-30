@@ -11,6 +11,7 @@ use crate::{Ingredient, QueryDatabase};
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct UntrackedFieldIngredient<T> {
+  name: &'static str,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, T>>,
 }
@@ -20,14 +21,19 @@ impl<T> UntrackedFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_UNTRACKED_INGREDIENT: () = ();
 
-  pub fn new() -> Self {
+  pub fn new(name: &'static str) -> Self {
     Self {
+      name,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
 impl<T: Send + Sync + 'static> Ingredient for UntrackedFieldIngredient<T> {
+  fn name(&self) -> &'static str {
+    self.name
+  }
+
   fn green_check(&self, _db: &dyn QueryDatabase, _arg_id: usize, _last_changed_at: usize) -> bool {
     // Untracked values never change, always green
     true
