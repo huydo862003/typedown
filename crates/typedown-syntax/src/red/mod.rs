@@ -10,7 +10,7 @@ use std::{
 use crate::green::{GreenNode, node::SyntaxNode};
 use typedown_types::syntax_kind::SyntaxKind;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct RedNodeData {
   /// The start offset of this red node in the source code
   offset: usize,
@@ -20,10 +20,17 @@ pub struct RedNodeData {
   green: GreenNode,
 }
 
+impl PartialEq for RedNodeData {
+  fn eq(&self, other: &Self) -> bool {
+    self.offset == other.offset && self.green == other.green
+  }
+}
+
+impl Eq for RedNodeData {}
+
 impl Hash for RedNodeData {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.offset.hash(state);
-    self.parent.hash(state);
     self.green.hash(state);
   }
 }

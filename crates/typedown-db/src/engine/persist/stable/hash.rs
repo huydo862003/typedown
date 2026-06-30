@@ -8,6 +8,8 @@ use super::ord::StableOrd;
 
 use crate::types::FileHandle;
 use crate::{DepId, DepPathHash, QueryDatabase, Span};
+use typedown_syntax::green::{GreenNode, SyntaxNode, SyntaxToken};
+use typedown_syntax::red::RedNode;
 use typedown_types::{diagnostic::Diagnostic, syntax_kind::SyntaxKind};
 
 /// The following is the original rustc comment: '''
@@ -687,6 +689,41 @@ impl StableHash for FileHandle {
         content.stable_hash(hcx, hasher);
       }
     }
+  }
+}
+
+// Stable hash for green nodes
+impl StableHash for SyntaxToken {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    self.kind().stable_hash(hcx, hasher);
+    self.bytes().stable_hash(hcx, hasher);
+  }
+}
+
+impl StableHash for SyntaxNode {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    self.kind().stable_hash(hcx, hasher);
+    self.children().stable_hash(hcx, hasher);
+  }
+}
+
+impl StableHash for GreenNode {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    if self.is_node() {
+      hasher.write_u8(0);
+      self.as_node().unwrap().stable_hash(hcx, hasher);
+    } else {
+      hasher.write_u8(1);
+      self.as_token().unwrap().stable_hash(hcx, hasher);
+    }
+  }
+}
+
+impl StableHash for RedNode {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    self.offset().stable_hash(hcx, hasher);
+    // Deref gives &GreenNode via the Deref impl on RedNode
+    (**self).stable_hash(hcx, hasher);
   }
 }
 
