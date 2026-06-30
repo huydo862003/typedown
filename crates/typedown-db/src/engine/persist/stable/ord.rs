@@ -1,3 +1,4 @@
+/// https://github.com/rust-lang/rust/blob/63f05e3635171e7ac3f9ca78bad6c71052cda5a3/compiler/rustc_data_structures/src/stable_hash.rs#L117-L132
 /// Their original comment:
 /// '''
 /// Trait for marking a type as having a sort order that is
@@ -30,4 +31,42 @@
 /// unstable sorting can be used for this type. Set to true if and
 /// only if `a == b` implies `a` and `b` are fully indistinguishable.
 /// '''
-pub trait StableOrd: Ord {}
+pub trait StableOrd: Ord {
+  const CAN_USE_UNSTABLE_SORT: bool;
+}
+
+/// TIL: Ordering of a reference is exactly that of the referent
+/// This is not the case for raw pointers though
+impl<T: StableOrd> StableOrd for &T {
+  const CAN_USE_UNSTABLE_SORT: bool = T::CAN_USE_UNSTABLE_SORT;
+}
+
+// https://github.com/rust-lang/rust/blob/63f05e3635171e7ac3f9ca78bad6c71052cda5a3/compiler/rustc_data_structures/src/stable_hash.rs#L144-L148
+/// Their original comment:
+/// '''
+/// This is a companion trait to `StableOrd`. Some types like `Symbol` can be
+/// compared in a cross-session stable way, but their `Ord` implementation is
+/// not stable. In such cases, a `StableOrd` implementation can be provided
+/// to offer a lightweight way for stable sorting. (The more heavyweight option
+/// is to sort via `ToStableHashKey`, but then sorting needs to have access to
+/// a stable hashing context and `ToStableHashKey` can also be expensive as in
+/// the case of `Symbol` where it has to allocate a `String`.)
+///
+/// See the documentation of [StableOrd] for how stable sort order is defined.
+/// The same definition applies here. Be careful when implementing this trait.
+/// '''
+/// SO, the one we will consume is StableCompare,
+/// and the one we will used to mark is StableOrder
+pub trait StableCompare {
+  const CAN_USE_UNSTABLE_SORT: bool;
+
+  fn stable_cmp(&self, other: &Self) -> std::cmp::Ordering;
+}
+
+impl<T: StableOrd> StableCompare for T {
+  const CAN_USE_UNSTABLE_SORT: bool = T::CAN_USE_UNSTABLE_SORT;
+
+  fn stable_cmp(&self, other: &Self) -> std::cmp::Ordering {
+      self.cmp(other)
+  }
+}
