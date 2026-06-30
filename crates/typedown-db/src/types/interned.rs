@@ -1,4 +1,8 @@
+use std::hash::Hasher;
+
 use typedown_macros::query_interned;
+
+use crate::{StableHash, StableHashCtx, StableHasher};
 
 use super::TdrTypeLike;
 
@@ -12,6 +16,12 @@ bitflags::bitflags! {
   #[derive(Clone, Copy, PartialEq, Eq, Hash)]
   pub struct TypeMemberDescriptors: u8 {
     const OPTIONAL = 0b0000_0001;
+  }
+}
+
+impl StableHash for TypeMemberDescriptors {
+  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+    hasher.write_u8(self.bits());
   }
 }
 
@@ -35,6 +45,17 @@ pub enum LiteralValue {
   Bool(bool),
   // f64 cannot be hashed so we store in string
   Num(String),
+}
+
+impl StableHash for LiteralValue {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(hcx, hasher);
+    match self {
+      LiteralValue::Str(value) => value.stable_hash(hcx, hasher),
+      LiteralValue::Bool(value) => value.stable_hash(hcx, hasher),
+      LiteralValue::Num(value) => value.stable_hash(hcx, hasher),
+    }
+  }
 }
 
 #[query_interned]

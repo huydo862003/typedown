@@ -6,7 +6,9 @@ use std::hash::{Hash, Hasher};
 
 use super::ord::StableOrd;
 
+use crate::types::FileHandle;
 use crate::{DepId, DepPathHash, QueryDatabase, Span};
+use typedown_types::{diagnostic::Diagnostic, syntax_kind::SyntaxKind};
 
 /// The following is the original rustc comment: '''
 /// Note that `StableHash` imposes rather more strict requirements than usual
@@ -284,6 +286,407 @@ impl<T1: StableHash, T2: StableHash, T3: StableHash, T4: StableHash> StableHash
     self.1.stable_hash(hcx, hasher);
     self.2.stable_hash(hcx, hasher);
     self.3.stable_hash(hcx, hasher);
+  }
+}
+
+/// Stable hash for types from typedown-syntax
+impl StableHash for SyntaxKind {
+  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+    hasher.write_u16(*self as u16);
+  }
+}
+
+impl StableHash for Diagnostic {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(hcx, hasher);
+    match self {
+      Diagnostic::UnexpectedEof {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::UnexpectedChar {
+        expected,
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        encountered.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::InvalidChar {
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        encountered.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::InconsistentIndentation {
+        expected,
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        encountered.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::UnmatchedDedent {
+        indent,
+        start_offset,
+        end_offset,
+      } => {
+        indent.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::MissingFrontmatterMarker { offset } => {
+        offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::MissingSyntaxNode {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::MissingExpectMdPrefix {
+        expected_prefix,
+        start_offset,
+        end_offset,
+      } => {
+        expected_prefix.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::TableColumnCountMismatch {
+        expected,
+        found,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        found.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::InsufficientBlockIndent {
+        expected_more_than,
+        found,
+        start_offset,
+        end_offset,
+      } => {
+        expected_more_than.stable_hash(hcx, hasher);
+        found.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::MissingVaultConfig { root_dir } => {
+        root_dir.stable_hash(hcx, hasher);
+      }
+      Diagnostic::VaultConfigReadError { path, message } => {
+        path.stable_hash(hcx, hasher);
+        message.stable_hash(hcx, hasher);
+      }
+      Diagnostic::VaultConfigParseError {
+        path,
+        message,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(hcx, hasher);
+        message.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::VaultConfigEmpty { path } => {
+        path.stable_hash(hcx, hasher);
+      }
+      Diagnostic::VaultConfigMissingField {
+        path,
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(hcx, hasher);
+        field.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::VaultConfigUnknownField {
+        path,
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(hcx, hasher);
+        field.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::UnresolvedSchema {
+        name,
+        start_offset,
+        end_offset,
+      } => {
+        name.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::WrongTypeArgCount { expected, got } => {
+        expected.stable_hash(hcx, hasher);
+        got.stable_hash(hcx, hasher);
+      }
+      Diagnostic::WrongArgCount {
+        expected,
+        got,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        got.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::ArgTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::FieldTypeMismatch {
+        field,
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        field.stable_hash(hcx, hasher);
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::IndexTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::TagTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::OperandTypeMismatch {
+        op,
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        op.stable_hash(hcx, hasher);
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::MissingRequiredField {
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        field.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::ElementTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::DuplicateKey {
+        key,
+        start_offset,
+        end_offset,
+      } => {
+        key.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::UnresolvedFileRef {
+        path,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::UnknownField {
+        field,
+        on_type,
+        start_offset,
+        end_offset,
+      } => {
+        field.stable_hash(hcx, hasher);
+        on_type.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      Diagnostic::IndexOutOfBounds {
+        index,
+        length,
+        start_offset,
+        end_offset,
+      } => {
+        index.stable_hash(hcx, hasher);
+        length.stable_hash(hcx, hasher);
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+      // Variants with only start_offset and end_offset: discriminant already distinguishes them
+      Diagnostic::UnterminatedString {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInterpolation {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedCodeBlock {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInlineCode {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedMathBlock {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInlineMath {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingCodeBlockNewline {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingMathBlockNewline {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::InvalidUtf8 {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MixedIndentation {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingExponentDigits {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingMarkdownHeadingHash {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedLink {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedBold {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedItalic {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedStrikethrough {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedBoldItalic {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MismatchedItalicDelimiter {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingTableSeparatorRow {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingSchemaField {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::NotCallable {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::NotIndexable {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.stable_hash(hcx, hasher);
+        end_offset.stable_hash(hcx, hasher);
+      }
+    }
+  }
+}
+
+impl StableHash for FileHandle {
+  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(hcx, hasher);
+    match self {
+      FileHandle::Path(path, mtime) => {
+        path.stable_hash(hcx, hasher);
+        // Convert mtime to (secs, nanos) since UNIX_EPOCH for a stable byte representation
+        let duration = mtime
+          .duration_since(std::time::UNIX_EPOCH)
+          .unwrap_or_default();
+        duration.as_secs().stable_hash(hcx, hasher);
+        duration.subsec_nanos().stable_hash(hcx, hasher);
+      }
+      FileHandle::Content(content) => {
+        content.stable_hash(hcx, hasher);
+      }
+    }
   }
 }
 
