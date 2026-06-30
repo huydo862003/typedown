@@ -2,7 +2,7 @@ use std::hash::Hasher;
 
 use typedown_macros::query_interned;
 
-use crate::{StableHash, StableHashCtx, StableHasher};
+use crate::{QueryDatabase, StableHash, StableHasher, TypedownDatabase};
 
 use super::TdrTypeLike;
 
@@ -12,6 +12,13 @@ pub struct FuncSignature {
   pub ret: Box<dyn TdrTypeLike>,
 }
 
+impl StableHash<TypedownDatabase> for FuncSignature {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.params(db).stable_hash(db, hasher);
+    self.ret(db).stable_hash(db, hasher);
+  }
+}
+
 bitflags::bitflags! {
   #[derive(Clone, Copy, PartialEq, Eq, Hash)]
   pub struct TypeMemberDescriptors: u8 {
@@ -19,8 +26,8 @@ bitflags::bitflags! {
   }
 }
 
-impl StableHash for TypeMemberDescriptors {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for TypeMemberDescriptors {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u8(self.bits());
   }
 }
@@ -47,13 +54,25 @@ pub enum LiteralValue {
   Num(String),
 }
 
-impl StableHash for LiteralValue {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    std::mem::discriminant(self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for LiteralValue {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
-      LiteralValue::Str(value) => value.stable_hash(hcx, hasher),
-      LiteralValue::Bool(value) => value.stable_hash(hcx, hasher),
-      LiteralValue::Num(value) => value.stable_hash(hcx, hasher),
+      LiteralValue::Str(value) => value.stable_hash(db, hasher),
+      LiteralValue::Bool(value) => value.stable_hash(db, hasher),
+      LiteralValue::Num(value) => value.stable_hash(db, hasher),
+    }
+  }
+}
+
+impl StableHash<TypedownDatabase> for MemberType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
+    match self {
+      MemberType::Simple(typ) => typ.stable_hash(db, hasher),
+      MemberType::Sum(members) => members.stable_hash(db, hasher),
+      MemberType::Literal(value) => value.stable_hash(db, hasher),
+      MemberType::Never => {}
     }
   }
 }
@@ -62,4 +81,11 @@ impl StableHash for LiteralValue {
 pub struct TypeMember {
   pub typ: MemberType,
   pub descriptors: TypeMemberDescriptors,
+}
+
+impl StableHash<TypedownDatabase> for TypeMember {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.typ(db).stable_hash(db, hasher);
+    self.descriptors(db).stable_hash(db, hasher);
+  }
 }

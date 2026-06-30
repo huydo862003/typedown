@@ -6,7 +6,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::dict::TdrDictObj;
 use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 use typedown_types::either::Either;
 
 use crate::types::{HirValue, InstResult, MemberType, TypeMember};
@@ -51,6 +51,10 @@ impl TdrObjectLike for TdrProductType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.display_name(db)
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -169,5 +173,23 @@ impl TdrObjectLike for TdrProductObj {
       Either::Left(hir) => evaluate_node(db, hir).value(db),
       Either::Right(obj) => Some(obj),
     }
+  }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrProductType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+    self.metatype(db).stable_hash(db, hasher);
+    self.fields(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrProductObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.schema(db).stable_hash(db, hasher);
+    self.fields(db).stable_hash(db, hasher);
   }
 }

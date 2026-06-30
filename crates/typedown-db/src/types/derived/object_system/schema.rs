@@ -8,7 +8,7 @@ use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::{get_schema_property_type, get_schema_type, get_str_type};
 use crate::types::{InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 use typedown_types::either::Either;
 
 // Schema type is actually a kind
@@ -23,6 +23,10 @@ impl TdrObjectLike for TdrSchemaType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::schema".to_string()
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -106,5 +110,11 @@ impl TdrTypeLike for TdrSchemaType {
 impl TdrSchemaType {
   pub fn get(db: &TypedownDatabase) -> TdrSchemaType {
     get_schema_type(db)
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrSchemaType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
   }
 }

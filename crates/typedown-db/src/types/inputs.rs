@@ -5,6 +5,8 @@ use std::{collections::HashMap, fs, io, path::PathBuf, time::SystemTime};
 use typedown_macros::query_input;
 use typedown_types::{file_stream::FileStream, stream::Utf8Stream};
 
+use crate::{StableHash, StableHasher, TypedownDatabase};
+
 /// Types of file-handle: path-based (with mtime for invalidation) or editor-managed content.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum FileHandle {
@@ -43,6 +45,12 @@ pub struct File {
   handle: FileHandle,
 }
 
+impl StableHash<TypedownDatabase> for File {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.handle(db).stable_hash(db, hasher);
+  }
+}
+
 /// A project input struct representing files in a project.
 /// `files` maps each tracked path to its stable `File` ID.
 /// It only changes when files are added or removed, not when their content changes.
@@ -50,4 +58,11 @@ pub struct File {
 pub struct Project {
   root_dir: PathBuf,
   files: HashMap<PathBuf, File>,
+}
+
+impl StableHash<TypedownDatabase> for Project {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.root_dir(db).stable_hash(db, hasher);
+    self.files(db).stable_hash(db, hasher);
+  }
 }

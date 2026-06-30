@@ -7,7 +7,7 @@ use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::get_num_type;
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrNumType {}
@@ -19,6 +19,10 @@ impl TdrObjectLike for TdrNumType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::number".to_string()
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -93,6 +97,10 @@ impl TdrObjectLike for TdrNumObj {
     None
   }
 
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+
   fn eq(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
     match (other as &dyn Any).downcast_ref::<TdrNumObj>() {
       Some(other) => self.value(db) == other.value(db),
@@ -138,4 +146,16 @@ fn num_to_string(
     format!("{}", value)
   };
   Some(Box::new(TdrStrObj::new(db, s)))
+}
+
+impl StableHash<TypedownDatabase> for TdrNumType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrNumObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.value(db).stable_hash(db, hasher);
+  }
 }

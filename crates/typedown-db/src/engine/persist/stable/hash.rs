@@ -10,6 +10,7 @@ use crate::QueryDatabase;
 use crate::types::FileHandle;
 use typedown_syntax::green::{GreenNode, SyntaxNode, SyntaxToken};
 use typedown_syntax::red::RedNode;
+use typedown_types::either::Either;
 use typedown_types::{diagnostic::Diagnostic, syntax_kind::SyntaxKind};
 
 /// The following is the original rustc comment: '''
@@ -37,279 +38,290 @@ use typedown_types::{diagnostic::Diagnostic, syntax_kind::SyntaxKind};
 ///   `StableHasher` takes care of endianness and `isize`/`usize` platform
 ///   differences.
 /// '''
-pub trait StableHash {
-  fn stable_hash<H: StableHashCtx>(&self, hcx: &mut H, hasher: &mut StableHasher);
+pub trait StableHash<DB: QueryDatabase> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher);
 }
 
 /// Hasher state to thread through multiple fields
 pub type StableHasher = StableSipHasher128; // Same as what rustc uses
 
-impl StableHash for i8 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for i8 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_i8(*self);
   }
 }
-impl StableHash for i16 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for i16 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_i16(*self);
   }
 }
-impl StableHash for i32 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for i32 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_i32(*self);
   }
 }
-impl StableHash for i64 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for i64 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_i64(*self);
   }
 }
-impl StableHash for i128 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for i128 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_i128(*self);
   }
 }
-impl StableHash for isize {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for isize {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_isize(*self);
   }
 }
 
-impl StableHash for u8 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for u8 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u8(*self);
   }
 }
-impl StableHash for u16 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for u16 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u16(*self);
   }
 }
-impl StableHash for u32 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for u32 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u32(*self);
   }
 }
-impl StableHash for u64 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for u64 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u64(*self);
   }
 }
-impl StableHash for u128 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for u128 {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u128(*self);
   }
 }
-impl StableHash for usize {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for usize {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_usize(*self);
   }
 }
 
-impl StableHash for bool {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for bool {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u8(*self as u8);
   }
 }
-impl StableHash for char {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for char {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u32(*self as u32);
   }
 }
-impl StableHash for () {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, _hasher: &mut StableHasher) {}
+impl<DB: QueryDatabase> StableHash<DB> for () {
+  fn stable_hash(&self, _db: &DB, _hasher: &mut StableHasher) {}
 }
 
-impl<T: StableHash> StableHash for [T] {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.len().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, T: StableHash<DB>> StableHash<DB> for [T] {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.len().stable_hash(db, hasher);
     for item in self {
-      item.stable_hash(hcx, hasher);
+      item.stable_hash(db, hasher);
     }
   }
 }
-impl<T: StableHash> StableHash for &[T] {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (*self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, T: StableHash<DB>> StableHash<DB> for &[T] {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (*self).stable_hash(db, hasher);
   }
 }
-impl<T: StableHash> StableHash for Vec<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self[..].stable_hash(hcx, hasher);
-  }
-}
-
-impl StableHash for str {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.as_bytes().stable_hash(hcx, hasher);
-  }
-}
-impl StableHash for &str {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (*self).stable_hash(hcx, hasher);
-  }
-}
-impl StableHash for String {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self[..].stable_hash(hcx, hasher);
-  }
-}
-impl StableHash for std::ffi::OsStr {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.as_encoded_bytes().stable_hash(hcx, hasher);
-  }
-}
-impl StableHash for std::path::Path {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.as_os_str().stable_hash(hcx, hasher);
-  }
-}
-impl StableHash for std::path::PathBuf {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.as_path().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, T: StableHash<DB>> StableHash<DB> for Vec<T> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self[..].stable_hash(db, hasher);
   }
 }
 
-impl StableHash for &std::path::Path {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (*self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for str {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.as_bytes().stable_hash(db, hasher);
   }
 }
-impl StableHash for f32 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.to_bits().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for &str {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (*self).stable_hash(db, hasher);
   }
 }
-impl StableHash for f64 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.to_bits().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for String {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self[..].stable_hash(db, hasher);
   }
 }
-
-impl StableHash for std::cmp::Ordering {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (*self as i8).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for std::ffi::OsStr {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.as_encoded_bytes().stable_hash(db, hasher);
   }
 }
-
-impl<T> StableHash for std::marker::PhantomData<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, _hasher: &mut StableHasher) {}
-}
-
-impl<T: StableHash> StableHash for Box<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (**self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for std::path::Path {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.as_os_str().stable_hash(db, hasher);
   }
 }
-impl<T: StableHash + ?Sized> StableHash for std::rc::Rc<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (**self).stable_hash(hcx, hasher);
-  }
-}
-impl<T: StableHash + ?Sized> StableHash for std::sync::Arc<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (**self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for std::path::PathBuf {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.as_path().stable_hash(db, hasher);
   }
 }
 
-impl<T1: StableHash, T2: StableHash> StableHash for Result<T1, T2> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for &std::path::Path {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (*self).stable_hash(db, hasher);
+  }
+}
+impl<DB: QueryDatabase> StableHash<DB> for f32 {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.to_bits().stable_hash(db, hasher);
+  }
+}
+impl<DB: QueryDatabase> StableHash<DB> for f64 {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.to_bits().stable_hash(db, hasher);
+  }
+}
+
+impl<DB: QueryDatabase> StableHash<DB> for std::cmp::Ordering {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (*self as i8).stable_hash(db, hasher);
+  }
+}
+
+impl<DB: QueryDatabase, T> StableHash<DB> for std::marker::PhantomData<T> {
+  fn stable_hash(&self, _db: &DB, _hasher: &mut StableHasher) {}
+}
+
+impl<DB: QueryDatabase, T: StableHash<DB> + ?Sized> StableHash<DB> for Box<T> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (**self).stable_hash(db, hasher);
+  }
+}
+impl<DB: QueryDatabase, T: StableHash<DB> + ?Sized> StableHash<DB> for std::rc::Rc<T> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (**self).stable_hash(db, hasher);
+  }
+}
+impl<DB: QueryDatabase, T: StableHash<DB> + ?Sized> StableHash<DB> for std::sync::Arc<T> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (**self).stable_hash(db, hasher);
+  }
+}
+
+impl<DB: QueryDatabase, T1: StableHash<DB>, T2: StableHash<DB>> StableHash<DB> for Result<T1, T2> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
     // TIL: You can access the discriminant of an enum this way
-    std::mem::discriminant(self).stable_hash(hcx, hasher);
+    std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
-      Ok(val) => val.stable_hash(hcx, hasher),
-      Err(val) => val.stable_hash(hcx, hasher),
+      Ok(val) => val.stable_hash(db, hasher),
+      Err(val) => val.stable_hash(db, hasher),
     }
   }
 }
-impl<T> StableHash for std::mem::Discriminant<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase, T> StableHash<DB> for std::mem::Discriminant<T> {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     Hash::hash(self, hasher);
   }
 }
 
-impl<K: StableHash + StableOrd, V: StableHash> StableHash for std::collections::BTreeMap<K, V> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.len().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, K: StableHash<DB> + StableOrd, V: StableHash<DB>> StableHash<DB>
+  for std::collections::BTreeMap<K, V>
+{
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.len().stable_hash(db, hasher);
     for entry in self.iter() {
-      entry.stable_hash(hcx, hasher);
+      entry.stable_hash(db, hasher);
     }
   }
 }
-impl<K: StableHash + StableOrd> StableHash for std::collections::BTreeSet<K> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.len().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, K: StableHash<DB> + StableOrd> StableHash<DB>
+  for std::collections::BTreeSet<K>
+{
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.len().stable_hash(db, hasher);
     for entry in self.iter() {
-      entry.stable_hash(hcx, hasher);
+      entry.stable_hash(db, hasher);
     }
   }
 }
 
-impl<T: StableHash> StableHash for Option<T> {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase, T: StableHash<DB>> StableHash<DB> for Option<T> {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
     match self {
       None => hasher.write_u8(0),
       Some(value) => {
         hasher.write_u8(1);
-        value.stable_hash(hcx, hasher);
+        value.stable_hash(db, hasher);
       }
     }
   }
 }
-impl<T: StableHash> StableHash for &T {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    (*self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, T: StableHash<DB>> StableHash<DB> for &T {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (*self).stable_hash(db, hasher);
   }
 }
 
-impl<T: StableHash> StableHash for (T,) {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.0.stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, T: StableHash<DB>> StableHash<DB> for (T,) {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.0.stable_hash(db, hasher);
   }
 }
-impl<T1: StableHash, T2: StableHash> StableHash for (T1, T2) {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.0.stable_hash(hcx, hasher);
-    self.1.stable_hash(hcx, hasher);
+impl<DB: QueryDatabase, T1: StableHash<DB>, T2: StableHash<DB>> StableHash<DB> for (T1, T2) {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.0.stable_hash(db, hasher);
+    self.1.stable_hash(db, hasher);
   }
 }
-impl<T1: StableHash, T2: StableHash, T3: StableHash> StableHash for (T1, T2, T3) {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.0.stable_hash(hcx, hasher);
-    self.1.stable_hash(hcx, hasher);
-    self.2.stable_hash(hcx, hasher);
-  }
-}
-impl<T1: StableHash, T2: StableHash, T3: StableHash, T4: StableHash> StableHash
-  for (T1, T2, T3, T4)
+impl<DB: QueryDatabase, T1: StableHash<DB>, T2: StableHash<DB>, T3: StableHash<DB>> StableHash<DB>
+  for (T1, T2, T3)
 {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.0.stable_hash(hcx, hasher);
-    self.1.stable_hash(hcx, hasher);
-    self.2.stable_hash(hcx, hasher);
-    self.3.stable_hash(hcx, hasher);
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.0.stable_hash(db, hasher);
+    self.1.stable_hash(db, hasher);
+    self.2.stable_hash(db, hasher);
+  }
+}
+impl<
+  DB: QueryDatabase,
+  T1: StableHash<DB>,
+  T2: StableHash<DB>,
+  T3: StableHash<DB>,
+  T4: StableHash<DB>,
+> StableHash<DB> for (T1, T2, T3, T4)
+{
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.0.stable_hash(db, hasher);
+    self.1.stable_hash(db, hasher);
+    self.2.stable_hash(db, hasher);
+    self.3.stable_hash(db, hasher);
   }
 }
 
 /// Stable hash for types from typedown-syntax
-impl StableHash for SyntaxKind {
-  fn stable_hash<Hcx: StableHashCtx>(&self, _hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for SyntaxKind {
+  fn stable_hash(&self, _db: &DB, hasher: &mut StableHasher) {
     hasher.write_u16(*self as u16);
   }
 }
 
-impl StableHash for Diagnostic {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    std::mem::discriminant(self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for Diagnostic {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       Diagnostic::UnexpectedEof {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::UnexpectedChar {
         expected,
@@ -317,19 +329,19 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        encountered.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        encountered.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::InvalidChar {
         encountered,
         start_offset,
         end_offset,
       } => {
-        encountered.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        encountered.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::InconsistentIndentation {
         expected,
@@ -337,40 +349,40 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        encountered.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        encountered.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::UnmatchedDedent {
         indent,
         start_offset,
         end_offset,
       } => {
-        indent.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        indent.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::MissingFrontmatterMarker { offset } => {
-        offset.stable_hash(hcx, hasher);
+        offset.stable_hash(db, hasher);
       }
       Diagnostic::MissingSyntaxNode {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::MissingExpectMdPrefix {
         expected_prefix,
         start_offset,
         end_offset,
       } => {
-        expected_prefix.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected_prefix.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::TableColumnCountMismatch {
         expected,
@@ -378,10 +390,10 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        found.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        found.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::InsufficientBlockIndent {
         expected_more_than,
@@ -389,17 +401,17 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected_more_than.stable_hash(hcx, hasher);
-        found.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected_more_than.stable_hash(db, hasher);
+        found.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::MissingVaultConfig { root_dir } => {
-        root_dir.stable_hash(hcx, hasher);
+        root_dir.stable_hash(db, hasher);
       }
       Diagnostic::VaultConfigReadError { path, message } => {
-        path.stable_hash(hcx, hasher);
-        message.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
+        message.stable_hash(db, hasher);
       }
       Diagnostic::VaultConfigParseError {
         path,
@@ -407,13 +419,13 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        path.stable_hash(hcx, hasher);
-        message.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
+        message.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::VaultConfigEmpty { path } => {
-        path.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
       }
       Diagnostic::VaultConfigMissingField {
         path,
@@ -421,10 +433,10 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        path.stable_hash(hcx, hasher);
-        field.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
+        field.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::VaultConfigUnknownField {
         path,
@@ -432,23 +444,23 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        path.stable_hash(hcx, hasher);
-        field.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
+        field.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::UnresolvedSchema {
         name,
         start_offset,
         end_offset,
       } => {
-        name.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        name.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::WrongTypeArgCount { expected, got } => {
-        expected.stable_hash(hcx, hasher);
-        got.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        got.stable_hash(db, hasher);
       }
       Diagnostic::WrongArgCount {
         expected,
@@ -456,19 +468,19 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        got.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        got.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::ArgTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::FieldTypeMismatch {
         field,
@@ -476,28 +488,28 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        field.stable_hash(hcx, hasher);
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        field.stable_hash(db, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::IndexTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::TagTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::OperandTypeMismatch {
         op,
@@ -505,46 +517,46 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        op.stable_hash(hcx, hasher);
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        op.stable_hash(db, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::MissingRequiredField {
         field,
         start_offset,
         end_offset,
       } => {
-        field.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        field.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::ElementTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::DuplicateKey {
         key,
         start_offset,
         end_offset,
       } => {
-        key.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        key.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::UnresolvedFileRef {
         path,
         start_offset,
         end_offset,
       } => {
-        path.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::UnknownField {
         field,
@@ -552,10 +564,10 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        field.stable_hash(hcx, hasher);
-        on_type.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        field.stable_hash(db, hasher);
+        on_type.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       Diagnostic::IndexOutOfBounds {
         index,
@@ -563,10 +575,10 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        index.stable_hash(hcx, hasher);
-        length.stable_hash(hcx, hasher);
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        index.stable_hash(db, hasher);
+        length.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
       // Variants with only start_offset and end_offset: discriminant already distinguishes them
       Diagnostic::UnterminatedString {
@@ -665,71 +677,103 @@ impl StableHash for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        start_offset.stable_hash(hcx, hasher);
-        end_offset.stable_hash(hcx, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
     }
   }
 }
 
-impl StableHash for FileHandle {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    std::mem::discriminant(self).stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for FileHandle {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       FileHandle::Path(path, mtime) => {
-        path.stable_hash(hcx, hasher);
+        path.stable_hash(db, hasher);
         // Convert mtime to (secs, nanos) since UNIX_EPOCH for a stable byte representation
         let duration = mtime
           .duration_since(std::time::UNIX_EPOCH)
           .unwrap_or_default();
-        duration.as_secs().stable_hash(hcx, hasher);
-        duration.subsec_nanos().stable_hash(hcx, hasher);
+        duration.as_secs().stable_hash(db, hasher);
+        duration.subsec_nanos().stable_hash(db, hasher);
       }
       FileHandle::Content(content) => {
-        content.stable_hash(hcx, hasher);
+        content.stable_hash(db, hasher);
       }
     }
   }
 }
 
 // Stable hash for green nodes
-impl StableHash for SyntaxToken {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.kind().stable_hash(hcx, hasher);
-    self.bytes().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for SyntaxToken {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.kind().stable_hash(db, hasher);
+    self.bytes().stable_hash(db, hasher);
   }
 }
 
-impl StableHash for SyntaxNode {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.kind().stable_hash(hcx, hasher);
-    self.children().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for SyntaxNode {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.kind().stable_hash(db, hasher);
+    self.children().stable_hash(db, hasher);
   }
 }
 
-impl StableHash for GreenNode {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+impl<DB: QueryDatabase> StableHash<DB> for GreenNode {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
     if self.is_node() {
       hasher.write_u8(0);
-      self.as_node().unwrap().stable_hash(hcx, hasher);
+      self.as_node().unwrap().stable_hash(db, hasher);
     } else {
       hasher.write_u8(1);
-      self.as_token().unwrap().stable_hash(hcx, hasher);
+      self.as_token().unwrap().stable_hash(db, hasher);
     }
   }
 }
 
-impl StableHash for RedNode {
-  fn stable_hash<Hcx: StableHashCtx>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
-    self.offset().stable_hash(hcx, hasher);
+impl<DB: QueryDatabase> StableHash<DB> for RedNode {
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    (self.offset() as u64).stable_hash(db, hasher);
     // Deref gives &GreenNode via the Deref impl on RedNode
-    (**self).stable_hash(hcx, hasher);
+    (**self).stable_hash(db, hasher);
   }
 }
 
-/// We need StableHashCtx to reliably hash the node/symbol id that correspond to a graph dep node
-/// As graph dep node's id is session-dependent and prone to shifting
-pub trait StableHashCtx {
-  /// Access the database
-  fn db(&self) -> &dyn QueryDatabase;
+impl<DB: QueryDatabase, K: StableHash<DB> + StableOrd, V: StableHash<DB>> StableHash<DB>
+  for std::collections::HashMap<K, V>
+{
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.len().stable_hash(db, hasher);
+    let mut entries: Vec<(&K, &V)> = self.iter().collect();
+    entries.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+    for (key, value) in entries {
+      key.stable_hash(db, hasher);
+      value.stable_hash(db, hasher);
+    }
+  }
+}
+
+impl<DB: QueryDatabase, K: StableHash<DB> + StableOrd> StableHash<DB>
+  for std::collections::HashSet<K>
+{
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    self.len().stable_hash(db, hasher);
+    let mut entries: Vec<&K> = self.iter().collect();
+    entries.sort_by(|k1, k2| k1.cmp(k2));
+    for key in entries {
+      key.stable_hash(db, hasher);
+    }
+  }
+}
+
+impl<DB: QueryDatabase, L: StableHash<DB>, R: StableHash<DB>> StableHash<DB>
+  for Either<L, R>
+{
+  fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
+    match self {
+      Either::Left(val) => val.stable_hash(db, hasher),
+      Either::Right(val) => val.stable_hash(db, hasher),
+    }
+  }
 }

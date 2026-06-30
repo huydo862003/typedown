@@ -7,7 +7,7 @@ use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_bool_type, get_false, get_true};
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrBoolType {}
@@ -19,6 +19,10 @@ impl TdrObjectLike for TdrBoolType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::boolean".to_string()
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -93,6 +97,10 @@ impl TdrObjectLike for TdrBoolObj {
     None
   }
 
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+
   fn eq(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
     match (other as &dyn std::any::Any).downcast_ref::<TdrBoolObj>() {
       Some(other) => self.value(db) == other.value(db),
@@ -143,4 +151,16 @@ fn bool_to_string(
   let b = (this.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>()?;
   let s = if b.value(db) { "true" } else { "false" };
   Some(Box::new(TdrStrObj::new(db, s.to_string())))
+}
+
+impl StableHash<TypedownDatabase> for TdrBoolType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrBoolObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.value(db).stable_hash(db, hasher);
+  }
 }

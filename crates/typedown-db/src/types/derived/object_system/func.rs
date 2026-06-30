@@ -6,7 +6,7 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::get_func_type;
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 
 pub type NativeFn = fn(
   &TypedownDatabase,
@@ -27,6 +27,13 @@ impl TdrObjectLike for TdrFuncType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    let sig = self.signature(db);
+    let params: Vec<String> = sig.params(db).iter().map(|param| param.source_path(db)).collect();
+    let ret = sig.ret(db).source_path(db);
+    format!("@builtin::function[({}) -> {}]", params.join(", "), ret)
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -120,6 +127,9 @@ impl TdrObjectLike for TdrFuncObj {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
 }
 
 fn func_to_string(
@@ -129,4 +139,18 @@ fn func_to_string(
 ) -> Option<Box<dyn TdrObjectLike>> {
   let func = (this.as_ref() as &dyn Any).downcast_ref::<TdrFuncObj>()?;
   Some(Box::new(TdrStrObj::new(db, func.name(db))))
+}
+
+impl StableHash<TypedownDatabase> for TdrFuncType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+    self.signature(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrFuncObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.name(db).stable_hash(db, hasher);
+    self.typ(db).stable_hash(db, hasher);
+  }
 }

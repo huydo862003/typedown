@@ -6,12 +6,12 @@ use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_object_type, get_str_type, get_type_type};
 use crate::types::{FuncSignature, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 use dyn_clone::{DynClone, clone_trait_object};
 use typedown_macros::query_derived;
 
 // Everything is an object
-pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
+pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync + StableHash<TypedownDatabase> {
   fn get_type(&self, db: &TypedownDatabase) -> Box<dyn TdrTypeLike>;
 
   fn lookup_method(&self, db: &TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
@@ -38,6 +38,9 @@ pub trait TdrObjectLike: Id + Any + DynClone + Send + Sync {
   }
 
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<Box<dyn TdrObjectLike>>;
+
+  /// Returns the stable source path for this object, used for session-independent hashing.
+  fn source_path(&self, db: &TypedownDatabase) -> String;
 
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     None
@@ -188,8 +191,17 @@ impl TdrObjectLike for TdrTypeType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::type".to_string()
+  }
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrTypeType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
   }
 }
 
@@ -249,8 +261,17 @@ impl TdrObjectLike for TdrObjectType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::object".to_string()
+  }
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrObjectType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
   }
 }
 

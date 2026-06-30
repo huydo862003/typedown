@@ -10,7 +10,7 @@ use super::str::TdrStrObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::get_dict_type;
 use crate::types::{HirValue, InstResult, TdrProductType, TypeMember};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 
 #[query_derived]
 pub struct TdrDictType {
@@ -25,6 +25,13 @@ impl TdrObjectLike for TdrDictType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    match (self.key(db), self.value(db)) {
+      (Some(key), Some(value)) => format!("@builtin::dict[{}, {}]", key.source_path(db), value.source_path(db)),
+      _ => "@builtin::dict".to_string(),
+    }
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -153,5 +160,22 @@ impl TdrObjectLike for TdrDictObj {
       Either::Left(hir) => evaluate_node(db, hir).value(db),
       Either::Right(obj) => Some(obj),
     }
+  }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrDictType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+    self.key(db).stable_hash(db, hasher);
+    self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrDictObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.entries(db).stable_hash(db, hasher);
   }
 }

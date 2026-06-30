@@ -9,7 +9,7 @@ use super::func::TdrFuncObj;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, TypedownDatabase};
+use crate::{Id, StableHash, StableHasher, TypedownDatabase};
 use utils::{is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time};
 
 #[query_derived]
@@ -22,6 +22,10 @@ impl TdrObjectLike for TdrDateTimeType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::datetime".to_string()
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -130,6 +134,10 @@ impl TdrObjectLike for TdrDateTimeObj {
       None => self.as_id() >= other.as_id(),
     }
   }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+
 }
 
 pub trait TdrDateLike: TdrObjectLike {}
@@ -144,6 +152,10 @@ impl TdrObjectLike for TdrDateType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::date".to_string()
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -252,6 +264,10 @@ impl TdrObjectLike for TdrDateObj {
       None => self.as_id() >= other.as_id(),
     }
   }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+
 }
 
 impl TdrDateLike for TdrDateObj {}
@@ -268,6 +284,10 @@ impl TdrObjectLike for TdrTimeType {
   fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<Box<dyn TdrObjectLike>> {
     None
   }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::time".to_string()
+  }
+
   fn as_type(&self) -> Option<Box<dyn TdrTypeLike>> {
     Some(Box::new(self.clone()))
   }
@@ -346,6 +366,10 @@ impl TdrObjectLike for TdrTimeObj {
     None
   }
 
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+
   fn eq(&self, db: &TypedownDatabase, other: &dyn TdrObjectLike) -> bool {
     match (other as &dyn std::any::Any).downcast_ref::<TdrTimeObj>() {
       Some(other) => self.value(db) == other.value(db),
@@ -403,4 +427,40 @@ fn time_to_string(
 ) -> Option<Box<dyn TdrObjectLike>> {
   let t = (this.as_ref() as &dyn Any).downcast_ref::<TdrTimeObj>()?;
   Some(Box::new(TdrStrObj::new(db, t.value(db))))
+}
+
+impl StableHash<TypedownDatabase> for TdrDateTimeType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrDateTimeObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrDateType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrDateObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrTimeType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl StableHash<TypedownDatabase> for TdrTimeObj {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.value(db).stable_hash(db, hasher);
+  }
 }
