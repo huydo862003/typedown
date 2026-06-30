@@ -10,7 +10,7 @@ use typedown_db::derived::parse_file::parse_file;
 use typedown_db::derived::typechecker::declared_node_type::declared_node_type;
 use typedown_db::derived::typechecker::get_symbol_type::get_symbol_type;
 use typedown_db::types::{
-  MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
+  File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
 };
 use typedown_syntax::ast::{AstNode, Expr};
 use typedown_syntax::red::RedNode;
@@ -99,7 +99,7 @@ fn is_fref_arg_position(node: &RedNode) -> bool {
 fn fref_completions(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Vec<CompletionItem> {
   // Resolve the expected type for the field containing this fref() call.
@@ -143,7 +143,7 @@ fn fref_completions(
 fn enclosing_mapping_product(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Option<TdrProductType> {
   find_ancestor(node, SyntaxKind::YamlMappingEntryKey)?;
@@ -178,7 +178,7 @@ fn enclosing_mapping_product(
 fn value_completions(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Option<Vec<CompletionItem>> {
   // Must be directly inside a value position (not a key that happens to be nested in a value).
@@ -206,7 +206,7 @@ fn value_completions(
 fn declared_field(
   db: &TypedownDatabase,
   project: Project,
-  file: typedown_db::inputs::File,
+  file: File,
   node: &RedNode,
 ) -> Option<typedown_db::types::TypeMember> {
   // Find the value expression node inside the enclosing YamlMappingEntryValue.
@@ -284,7 +284,7 @@ mod tests {
     TextDocumentPositionParams, Uri, WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_db::inputs::{File, FileHandle};
+  use typedown_db::types::{File, FileHandle};
   use typedown_db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;

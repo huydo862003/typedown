@@ -3,8 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use crate::inputs::{File, FileHandle};
-use crate::types::Project;
+use crate::types::{File, FileHandle, Project};
 use crate::{QueryStorage, TypedownDatabase};
 
 pub struct Fixture {

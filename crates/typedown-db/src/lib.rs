@@ -5,10 +5,11 @@
 extern crate self as typedown_db;
 
 pub mod derived;
+mod dump;
 pub mod engine;
 #[cfg(test)]
 pub(crate) mod fixtures;
-pub mod inputs;
+mod load;
 pub mod types;
 pub mod utils;
 
@@ -16,10 +17,21 @@ pub use engine::*;
 /// TIL: Macros that use 3rd-party crates would require that crate to be installed in the consumer crate
 /// To workaround this, we would re-export the 3rd-party crate and use a path that references the current crate
 pub use inventory;
+use std::path::Path;
 use typedown_macros::query_db;
 
 #[query_db]
 #[derive(Clone)]
 pub struct TypedownDatabase {
   pub storage: QueryStorage,
+}
+
+impl TypedownDatabase {
+  pub fn dump(&self, dir: &Path) {
+    dump::dump(self, dir);
+  }
+
+  pub fn load(&mut self, dir: &Path) {
+    load::load(self, dir);
+  }
 }

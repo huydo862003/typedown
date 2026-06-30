@@ -7,7 +7,9 @@ use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::get_list_type;
 use crate::types::{HirValue, InstResult, TypeMember};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 
 #[query_derived]
 pub struct TdrListType {
@@ -105,6 +107,26 @@ impl TdrListType {
   }
 }
 
+impl StableHash<TypedownDatabase> for TdrListType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+    self.elem(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrListType {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.elem(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrListType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let elem = Option::decode(decoder);
+    TdrListType::new(decoder.db, elem)
+  }
+}
+
 #[query_derived]
 pub struct TdrListObj {
   pub items: Vec<Either<HirValue, Box<dyn TdrObjectLike>>>,
@@ -136,15 +158,21 @@ impl TdrListObj {
   }
 }
 
-impl StableHash<TypedownDatabase> for TdrListType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
-    self.elem(db).stable_hash(db, hasher);
-  }
-}
-
 impl StableHash<TypedownDatabase> for TdrListObj {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.items(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrListObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.items(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrListObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let items = Vec::decode(decoder);
+    TdrListObj::new(decoder.db, items)
   }
 }

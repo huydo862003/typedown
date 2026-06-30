@@ -105,7 +105,7 @@ mod tests {
     WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_db::inputs::{File, FileHandle};
+  use typedown_db::types::{File, FileHandle};
   use typedown_db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;

@@ -3,10 +3,13 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use super::func::TdrFuncObj;
-use super::str::{TdrStrObj, TdrStrType};
+use super::native_fn::NativeFnKind;
+use super::str::TdrStrType;
 use crate::derived::get_builtin_types::{get_object_type, get_str_type, get_type_type};
 use crate::types::{FuncSignature, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 use dyn_clone::{DynClone, clone_trait_object};
 use typedown_macros::query_derived;
 
@@ -205,6 +208,16 @@ impl StableHash<TypedownDatabase> for TdrTypeType {
   }
 }
 
+impl Encodable<TypedownDatabase> for TdrTypeType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrTypeType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrTypeType::get(decoder.db)
+  }
+}
+
 impl TdrTypeLike for TdrTypeType {
   fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
@@ -275,6 +288,16 @@ impl StableHash<TypedownDatabase> for TdrObjectType {
   }
 }
 
+impl Encodable<TypedownDatabase> for TdrObjectType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrObjectType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrObjectType::get(decoder.db)
+  }
+}
+
 impl TdrTypeLike for TdrObjectType {
   fn arity(&self, _db: &TypedownDatabase) -> usize {
     0
@@ -291,7 +314,7 @@ impl TdrTypeLike for TdrObjectType {
       "to_string".to_string(),
       Box::new(TdrObjectType::get(db)),
       sig,
-      object_to_string,
+      NativeFnKind::ObjectToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -327,13 +350,4 @@ impl TdrObjectType {
   pub fn get(db: &TypedownDatabase) -> TdrObjectType {
     get_object_type(db)
   }
-}
-
-fn object_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let display = this.get_type(db).display_name(db);
-  Some(Box::new(TdrStrObj::new(db, display)))
 }

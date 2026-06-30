@@ -4,10 +4,13 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
-use super::str::{TdrStrObj, TdrStrType};
+use super::native_fn::NativeFnKind;
+use super::str::TdrStrType;
 use crate::derived::get_builtin_types::{get_bool_type, get_false, get_true};
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 
 #[query_derived]
 pub struct TdrBoolType {}
@@ -43,7 +46,7 @@ impl TdrTypeLike for TdrBoolType {
       "to_string".to_string(),
       Box::new(TdrBoolType::get(db)),
       sig,
-      bool_to_string,
+      NativeFnKind::BoolToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -81,6 +84,16 @@ impl TdrTypeLike for TdrBoolType {
 impl TdrBoolType {
   pub fn get(db: &TypedownDatabase) -> TdrBoolType {
     get_bool_type(db)
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrBoolType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrBoolType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrBoolType::get(decoder.db)
   }
 }
 
@@ -143,16 +156,6 @@ impl TdrBoolObj {
   }
 }
 
-fn bool_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let b = (this.as_ref() as &dyn Any).downcast_ref::<TdrBoolObj>()?;
-  let s = if b.value(db) { "true" } else { "false" };
-  Some(Box::new(TdrStrObj::new(db, s.to_string())))
-}
-
 impl StableHash<TypedownDatabase> for TdrBoolType {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.source_path(db).stable_hash(db, hasher);
@@ -162,5 +165,17 @@ impl StableHash<TypedownDatabase> for TdrBoolType {
 impl StableHash<TypedownDatabase> for TdrBoolObj {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrBoolObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.value(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrBoolObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrBoolObj::new(decoder.db, bool::decode(decoder))
   }
 }

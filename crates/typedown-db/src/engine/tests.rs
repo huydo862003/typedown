@@ -5,7 +5,7 @@ mod derived_query_tests {
 
   use typedown_macros::{query_db, query_derived, query_interned};
 
-  use crate::{QueryDatabase, QueryStorage};
+  use crate::{QueryDatabase, QueryStorage, StableHash, StableHasher};
 
   thread_local! {
     static FIB_LOG: RefCell<Vec<String>> = RefCell::new(Vec::new());
@@ -29,11 +29,24 @@ mod derived_query_tests {
     n: usize,
   }
 
+  impl StableHash<Database> for FibInput {
+    fn stable_hash(&self, db: &Database, hasher: &mut StableHasher) {
+      self.n(db).stable_hash(db, hasher);
+    }
+  }
+
   #[query_derived]
   struct FibResult {
     #[id]
     n: usize,
     value: usize,
+  }
+
+  impl StableHash<Database> for FibResult {
+    fn stable_hash(&self, db: &Database, hasher: &mut StableHasher) {
+      self.n(db).stable_hash(db, hasher);
+      self.value(db).stable_hash(db, hasher);
+    }
   }
 
   #[query_derived]

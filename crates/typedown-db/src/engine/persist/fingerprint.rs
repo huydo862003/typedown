@@ -5,9 +5,6 @@ use rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 use super::StableHasher;
 
 /// A stable 128-bit hash value, used for both query identity and result change detection.
-///
-/// As query identity (inside `DepNode`): Hash of query name + key, stable across sessions.
-/// As result fingerprint: Hash of query output, used during green-checking to detect changes.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Fingerprint(pub [u8; 16]);
 

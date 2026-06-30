@@ -11,7 +11,7 @@ use crate::derived::get_builtin_types::{
 use crate::derived::name_resolver::file_symbol::file_symbol;
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::get_symbol_type::get_symbol_type;
-use crate::types::derived::object_system::datetime::utils::{
+use crate::types::derived::object_system::{
   is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
 };
 use crate::types::{
@@ -464,8 +464,7 @@ mod tests {
   use crate::{
     QueryStorage, TypedownDatabase,
     derived::{get_builtin_types::get_schema_type, typechecker::infer_node_type::infer_node_type},
-    inputs::{File, FileHandle},
-    types::{Project, TdrTypeLike},
+    types::{File, FileHandle, Project, TdrTypeLike},
     utils::lower_file,
   };
 

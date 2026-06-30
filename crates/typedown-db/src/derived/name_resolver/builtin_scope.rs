@@ -8,11 +8,32 @@ use crate::derived::get_builtin_types::{
   get_type_type_symbol,
 };
 use crate::types::{BuiltinMacroKind, Symbol, SymbolKind};
-use crate::{QueryDatabase, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher, TypedownDatabase,
+};
 
 #[query_derived]
 pub struct BuiltinScopeMembers {
   pub members: HashMap<String, Symbol>,
+}
+
+impl StableHash<TypedownDatabase> for BuiltinScopeMembers {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.members(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for BuiltinScopeMembers {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.members(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for BuiltinScopeMembers {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let members = HashMap::decode(decoder);
+    BuiltinScopeMembers::new(decoder.db, members)
+  }
 }
 
 #[query_derived]

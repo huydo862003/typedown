@@ -3,14 +3,21 @@
 //! Equal pointers -> Equal node/token.
 //! Different pointers -> Not sure.
 
+use std::cell::RefCell;
+use std::hash::{BuildHasher, Hash, Hasher};
+use std::rc::Rc;
+
 use hashbrown::HashMap;
 use hashbrown::hash_map::RawEntryMut;
-use std::hash::{BuildHasher, Hash, Hasher};
 
 use super::GreenNode;
 use super::node::SyntaxNode;
 use super::token::SyntaxToken;
 use typedown_types::syntax_kind::SyntaxKind;
+
+thread_local! {
+  static CACHE: Rc<RefCell<Cache>> = Rc::new(RefCell::new(Cache::new()));
+}
 
 /// A non-thread safe interner for node/token deduplication.
 #[derive(Default)]
@@ -19,6 +26,19 @@ pub struct Cache {
   // which avoids allocating just to check if an entry exists.
   tokens: HashMap<SyntaxToken, ()>,
   nodes: HashMap<SyntaxNode, ()>,
+}
+
+/// Access the thread-local green cache.
+pub fn with_green_cache<F, R>(f: F) -> R
+where
+  F: FnOnce(&mut Cache) -> R,
+{
+  CACHE.with(|cache| f(&mut cache.borrow_mut()))
+}
+
+/// Get a clone of the thread-local green cache handle.
+pub fn green_cache() -> Rc<RefCell<Cache>> {
+  CACHE.with(|cache| cache.clone())
 }
 
 impl Cache {

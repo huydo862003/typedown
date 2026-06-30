@@ -1,15 +1,17 @@
 mod base;
 mod bool;
-pub(crate) mod datetime;
+mod datetime;
 mod dict;
 mod func;
 mod list;
 mod math;
+mod native_fn;
 mod num;
 mod product;
 mod schema;
 mod schema_property;
 mod str;
+mod type_kind;
 
 pub use base::*;
 pub use bool::*;
@@ -18,6 +20,7 @@ pub use dict::*;
 pub use func::*;
 pub use list::*;
 pub use math::*;
+pub use native_fn::*;
 pub use num::*;
 pub use product::*;
 pub use schema::*;

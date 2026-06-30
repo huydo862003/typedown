@@ -1,18 +1,14 @@
-use std::any::Any;
 use std::collections::HashMap;
 use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
-use super::str::{TdrStrObj, TdrStrType};
+use super::native_fn::NativeFnKind;
+use super::str::TdrStrType;
 use crate::derived::get_builtin_types::get_func_type;
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
-
-pub type NativeFn = fn(
-  &TypedownDatabase,
-  Box<dyn TdrObjectLike>,
-  Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>>;
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 
 #[query_derived]
 pub struct TdrFuncType {
@@ -29,7 +25,11 @@ impl TdrObjectLike for TdrFuncType {
   }
   fn source_path(&self, db: &TypedownDatabase) -> String {
     let sig = self.signature(db);
-    let params: Vec<String> = sig.params(db).iter().map(|param| param.source_path(db)).collect();
+    let params: Vec<String> = sig
+      .params(db)
+      .iter()
+      .map(|param| param.source_path(db))
+      .collect();
     let ret = sig.ret(db).source_path(db);
     format!("@builtin::function[({}) -> {}]", params.join(", "), ret)
   }
@@ -54,7 +54,7 @@ impl TdrTypeLike for TdrFuncType {
       "to_string".to_string(),
       Box::new(self.clone()),
       sig,
-      func_to_string,
+      NativeFnKind::FuncToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -97,6 +97,26 @@ impl TdrFuncType {
   }
 }
 
+impl StableHash<TypedownDatabase> for TdrFuncType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+    self.signature(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrFuncType {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.signature(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrFuncType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let signature = FuncSignature::decode(decoder);
+    TdrFuncType::new(decoder.db, signature)
+  }
+}
+
 #[query_derived]
 pub struct TdrFuncObj {
   #[id]
@@ -105,8 +125,7 @@ pub struct TdrFuncObj {
   pub typ: Box<dyn TdrTypeLike>,
   #[id]
   pub signature: FuncSignature,
-  #[skip]
-  pub func: NativeFn,
+  pub func: NativeFnKind,
 }
 
 impl TdrFuncObj {
@@ -116,7 +135,7 @@ impl TdrFuncObj {
     this: Box<dyn TdrObjectLike>,
     args: Vec<Box<dyn TdrObjectLike>>,
   ) -> Option<Box<dyn TdrObjectLike>> {
-    (self.func(db))(db, this, args)
+    (self.func(db).resolve())(db, this, args)
   }
 }
 
@@ -132,25 +151,30 @@ impl TdrObjectLike for TdrFuncObj {
   }
 }
 
-fn func_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let func = (this.as_ref() as &dyn Any).downcast_ref::<TdrFuncObj>()?;
-  Some(Box::new(TdrStrObj::new(db, func.name(db))))
-}
-
-impl StableHash<TypedownDatabase> for TdrFuncType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
-    self.signature(db).stable_hash(db, hasher);
-  }
-}
-
 impl StableHash<TypedownDatabase> for TdrFuncObj {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.name(db).stable_hash(db, hasher);
     self.typ(db).stable_hash(db, hasher);
+    self.signature(db).stable_hash(db, hasher);
+    self.func(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrFuncObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.name(encoder.db).encode(encoder);
+    self.typ(encoder.db).encode(encoder);
+    self.signature(encoder.db).encode(encoder);
+    self.func(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrFuncObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let name = String::decode(decoder);
+    let typ = Box::<dyn TdrTypeLike>::decode(decoder);
+    let signature = FuncSignature::decode(decoder);
+    let func = NativeFnKind::decode(decoder);
+    TdrFuncObj::new(decoder.db, name, typ, signature, func)
   }
 }

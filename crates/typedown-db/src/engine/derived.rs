@@ -22,7 +22,7 @@ mod tests {
   };
   use typedown_types::{diagnostic::Diagnostic, string_stream::StringStream};
 
-  use crate::{QueryDatabase, QueryStorage};
+  use crate::{QueryDatabase, QueryStorage, StableHash, StableHasher};
 
   #[query_db]
   struct Database {
@@ -35,12 +35,27 @@ mod tests {
     source: String,
   }
 
+  impl StableHash<Database> for ProgramFile {
+    fn stable_hash(&self, db: &Database, hasher: &mut StableHasher) {
+      self.path(db).stable_hash(db, hasher);
+      self.source(db).stable_hash(db, hasher);
+    }
+  }
+
   #[query_derived]
   struct ParseResult {
     #[id]
     path: PathBuf,
     ast: GreenNode,
     diagnostics: Vec<Diagnostic>,
+  }
+
+  impl StableHash<Database> for ParseResult {
+    fn stable_hash(&self, db: &Database, hasher: &mut StableHasher) {
+      self.path(db).stable_hash(db, hasher);
+      self.ast(db).stable_hash(db, hasher);
+      self.diagnostics(db).stable_hash(db, hasher);
+    }
   }
 
   thread_local! {

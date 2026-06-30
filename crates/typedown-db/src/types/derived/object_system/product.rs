@@ -6,7 +6,9 @@ use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike};
 use super::dict::TdrDictObj;
 use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 use typedown_types::either::Either;
 
 use crate::types::{HirValue, InstResult, MemberType, TypeMember};
@@ -158,6 +160,31 @@ pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberTyp
   }
 }
 
+impl StableHash<TypedownDatabase> for TdrProductType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+    self.metatype(db).stable_hash(db, hasher);
+    self.fields(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrProductType {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.name(encoder.db).encode(encoder);
+    self.metatype(encoder.db).encode(encoder);
+    self.fields(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrProductType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let name = Option::decode(decoder);
+    let metatype = Box::decode(decoder);
+    let fields = HashMap::decode(decoder);
+    TdrProductType::new(decoder.db, name, metatype, fields)
+  }
+}
+
 #[query_derived]
 pub struct TdrProductObj {
   pub schema: Box<dyn TdrTypeLike>,
@@ -179,17 +206,24 @@ impl TdrObjectLike for TdrProductObj {
   }
 }
 
-impl StableHash<TypedownDatabase> for TdrProductType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
-    self.metatype(db).stable_hash(db, hasher);
-    self.fields(db).stable_hash(db, hasher);
-  }
-}
-
 impl StableHash<TypedownDatabase> for TdrProductObj {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.schema(db).stable_hash(db, hasher);
     self.fields(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrProductObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.schema(encoder.db).encode(encoder);
+    self.fields(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrProductObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let schema = Box::decode(decoder);
+    let fields = HashMap::decode(decoder);
+    TdrProductObj::new(decoder.db, schema, fields)
   }
 }

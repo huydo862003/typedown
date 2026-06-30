@@ -1,5 +1,9 @@
-mod dep;
+mod codec;
+mod fingerprint;
+mod serialized;
 mod stable;
 
-pub use dep::*;
+pub use codec::*;
+pub use fingerprint::*;
+pub use serialized::*;
 pub use stable::*;

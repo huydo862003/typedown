@@ -71,16 +71,17 @@ pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberRes
 #[cfg(test)]
 mod tests {
   use crate::{
+    TypedownDatabase,
     derived::typechecker::declared_node_type::declared_node_type,
     fixtures::load_vault_fixture,
-    types::{HirValueKind, MemberType},
+    types::{File, HirValueKind, MemberType, Project},
     utils::lower_file,
   };
 
   fn get_field_hir(
-    db: &crate::TypedownDatabase,
-    project: crate::types::Project,
-    file: crate::inputs::File,
+    db: &TypedownDatabase,
+    project: Project,
+    file: File,
     field: &str,
   ) -> Option<crate::types::HirValue> {
     let (hir, _) = lower_file(db, project, file);

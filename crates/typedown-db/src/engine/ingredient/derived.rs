@@ -9,7 +9,10 @@ use std::{
 };
 
 use dashmap::DashMap;
+use rustc_stable_hash::StableSipHasher128;
 
+use crate::TypedownDatabase;
+use crate::engine::persist::{Fingerprint, StableHash, StableHasher};
 use crate::{
   Cancelled,
   engine::storage::{ExecuteContext, QueryStackEntry},
@@ -47,7 +50,6 @@ pub enum QueryState<K, V: DerivedId> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
-  name: &'static str,
   ingredient_index: usize,
   next_arg_id: Arc<AtomicUsize>,
   query_fn: fn(&DB, K) -> V,
@@ -58,19 +60,52 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: Eq + Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash<DB> + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash<DB> + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
-  pub fn new(name: &'static str, ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
+  pub fn new(ingredient_index: usize, query_fn: fn(&DB, K) -> V) -> Self {
     Self {
-      name,
       ingredient_index,
       next_arg_id: Arc::new(AtomicUsize::new(0)),
       query_fn,
       intern_map: Arc::new(DashMap::new()),
       data: Arc::new(DashMap::new()),
     }
+  }
+
+  pub fn key_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint>
+  where
+    K: StableHash<DB>,
+  {
+    let db = (db as &dyn Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in key_fingerprint");
+    if let Some(entry) = self.data.get(&arg_id) {
+      if let QueryState::Computed(memo) = &*entry {
+        let mut hasher: StableHasher = StableSipHasher128::new();
+        memo.key.stable_hash(db, &mut hasher);
+        return Some(Fingerprint::from_hasher(hasher));
+      }
+    }
+    None
+  }
+
+  pub fn value_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint>
+  where
+    V: StableHash<DB>,
+  {
+    let db = (db as &dyn Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in value_fingerprint");
+    if let Some(entry) = self.data.get(&arg_id) {
+      if let QueryState::Computed(memo) = &*entry {
+        let mut hasher: StableHasher = StableSipHasher128::new();
+        memo.value.stable_hash(db, &mut hasher);
+        return Some(Fingerprint::from_hasher(hasher));
+      }
+    }
+    None
   }
 
   /// Get or create a stable entry ID for a key
@@ -258,14 +293,10 @@ impl<
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: Eq + Hash + Clone + Send + Sync + 'static,
-  V: DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash<DB> + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash<DB> + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
-  fn name(&self) -> &'static str {
-    self.name
-  }
-
   /// Check the red-green algo here: https://rustc-dev-guide.rust-lang.org/queries/incremental-compilation-in-detail.html#improving-accuracy-the-red-green-algorithm
   /// We're similar in idea
   fn green_check(&self, db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
@@ -325,6 +356,34 @@ impl<
       }
     }
   }
+
+  fn key_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint> {
+    let db = (db as &dyn Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in key_fingerprint");
+    if let Some(entry) = self.data.get(&arg_id) {
+      if let QueryState::Computed(memo) = &*entry {
+        let mut hasher: StableHasher = StableSipHasher128::new();
+        memo.key.stable_hash(db, &mut hasher);
+        return Some(Fingerprint::from_hasher(hasher));
+      }
+    }
+    None
+  }
+
+  fn value_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint> {
+    let db = (db as &dyn Any)
+      .downcast_ref::<DB>()
+      .expect("database type mismatch in value_fingerprint");
+    if let Some(entry) = self.data.get(&arg_id) {
+      if let QueryState::Computed(memo) = &*entry {
+        let mut hasher: StableHasher = StableSipHasher128::new();
+        memo.value.stable_hash(db, &mut hasher);
+        return Some(Fingerprint::from_hasher(hasher));
+      }
+    }
+    None
+  }
 }
 
 /// A stamped field value for a derived struct
@@ -337,7 +396,8 @@ pub struct StampedDerivedField<T> {
 #[derive(Clone)]
 #[doc(hidden)]
 pub struct DerivedFieldIngredient<T> {
-  name: &'static str,
+  // The index of this input field in the whole struct
+  field_index: u8,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, StampedDerivedField<T>>>,
 }
@@ -347,19 +407,21 @@ impl<T> DerivedFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_DERIVED_FIELD_INGREDIENT: () = ();
 
-  pub fn new(name: &'static str) -> Self {
+  pub fn new(field_index: u8) -> Self {
     Self {
-      name,
+      field_index,
       data: Arc::new(DashMap::new()),
     }
   }
+
+  pub fn field_index(&self) -> u8 {
+    self.field_index
+  }
 }
 
-impl<T: Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
-  fn name(&self) -> &'static str {
-    self.name
-  }
-
+impl<T: StableHash<TypedownDatabase> + Send + Sync + 'static> Ingredient
+  for DerivedFieldIngredient<T>
+{
   fn green_check(&self, _db: &dyn QueryDatabase, arg_id: usize, last_changed_at: usize) -> bool {
     self
       .data
@@ -370,5 +432,16 @@ impl<T: Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
 
   fn re_execute(&self, _db: &dyn QueryDatabase, _arg_id: usize) {
     // Derived fields are set by the query, nothing to recompute
+  }
+
+  fn value_fingerprint(&self, db: &dyn QueryDatabase, arg_id: usize) -> Option<Fingerprint> {
+    let db = (db as &dyn Any)
+      .downcast_ref::<TypedownDatabase>()
+      .expect("database type mismatch in value_fingerprint");
+    self.data.get(&arg_id).map(|entry| {
+      let mut hasher: StableHasher = StableSipHasher128::new();
+      entry.value.stable_hash(db, &mut hasher);
+      Fingerprint::from_hasher(hasher)
+    })
   }
 }

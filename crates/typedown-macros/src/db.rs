@@ -44,6 +44,7 @@ pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       unsafe fn storage_mut(&mut self) -> &mut typedown_db::QueryStorage {
         &mut self.storage
       }
+
     }
   }
   .into()
@@ -111,7 +112,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let start_index = factories.len();
             #(
               factories.push(|_| Box::new(typedown_db::InputFieldIngredient::<#field_types>::new(
-                concat!(stringify!(#struct_name), "::", stringify!(#field_names))
+                #field_indices as u8,
               )));
             )*
             #struct_name::set_ingredient_start_index(start_index);
@@ -369,7 +370,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
           register: |factories| {
             let index = factories.len();
             factories.push(|index| Box::new(
-              typedown_db::DerivedQueryIngredient::<#db_type, #key_tuple_ty, #return_type>::new(stringify!(#fn_name), index, #fn_name::#fn_name)
+              typedown_db::DerivedQueryIngredient::<#db_type, #key_tuple_ty, #return_type>::new(index, #fn_name::#fn_name)
             ));
             #fn_name::set_ingredient_index(index);
           },
@@ -441,22 +442,19 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
   // Register per-field ingredients via inventory
   let mut register_tokens = quote! {};
-  for field in &fields {
+  for (idx, field) in fields.iter().enumerate() {
     let field_ty = &field.ty;
-    let field_name = field.ident.as_ref().unwrap();
     let is_skip = field.attrs.iter().any(|a| a.path().is_ident("skip"));
     if is_skip {
       // If the field is skipped, register untracked field ingredient
       register_tokens.extend(quote! {
-        factories.push(|_| Box::new(typedown_db::UntrackedFieldIngredient::<#field_ty>::new(
-          concat!(stringify!(#struct_name), "::", stringify!(#field_name))
-        )));
+        factories.push(|_| Box::new(typedown_db::UntrackedFieldIngredient::<#field_ty>::new()));
       });
     } else {
       // If the field is not skipped, register derived field ingredient
       register_tokens.extend(quote! {
         factories.push(|_| Box::new(typedown_db::DerivedFieldIngredient::<#field_ty>::new(
-          concat!(stringify!(#struct_name), "::", stringify!(#field_name))
+          #idx as u8,
         )));
       });
     }
@@ -729,7 +727,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
         typedown_db::Inventory {
           register: |factories| {
             let index = factories.len();
-            factories.push(|_| Box::new(typedown_db::InternedIngredient::<#intern_key_ty>::new(stringify!(#struct_name))));
+            factories.push(|_| Box::new(typedown_db::InternedIngredient::<#intern_key_ty>::new()));
             #struct_name::set_ingredient_index(index);
           },
         }

@@ -14,3 +14,5 @@ bitflags = "2.13.0"
 dyn-clone = "1.0.20"
 regex = "1.12.4"
 rustc-stable-hash = "0.1"
+num_enum = "0.7"
+

@@ -2,11 +2,32 @@ use typedown_macros::query_derived;
 
 use crate::derived::get_vault_config::get_vault_config;
 use crate::types::{File, FileHandle, Project, Symbol, SymbolKind};
-use crate::{QueryDatabase, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher, TypedownDatabase,
+};
 
 #[query_derived]
 pub struct MaybeSymbol {
   pub value: Option<Symbol>,
+}
+
+impl StableHash<TypedownDatabase> for MaybeSymbol {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for MaybeSymbol {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.value(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for MaybeSymbol {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    let value = Option::decode(decoder);
+    MaybeSymbol::new(decoder.db, value)
+  }
 }
 
 #[query_derived]

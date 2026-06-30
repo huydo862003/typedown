@@ -31,6 +31,7 @@ mod tests {
   use std::any::Any;
 
   use crate::{
+    TypedownDatabase,
     derived::evaluate::evaluate_node::evaluate_node,
     derived::evaluate::evaluate_resource::evaluate_resource,
     derived::name_resolver::file_symbol::file_symbol,
@@ -279,7 +280,7 @@ mod tests {
   }
 
   fn get_num_field(
-    db: &crate::TypedownDatabase,
+    db: &TypedownDatabase,
     obj: &Box<dyn crate::types::TdrObjectLike>,
     field: &str,
   ) -> f64 {
@@ -291,7 +292,7 @@ mod tests {
   }
 
   fn get_bool_field(
-    db: &crate::TypedownDatabase,
+    db: &TypedownDatabase,
     obj: &Box<dyn crate::types::TdrObjectLike>,
     field: &str,
   ) -> bool {

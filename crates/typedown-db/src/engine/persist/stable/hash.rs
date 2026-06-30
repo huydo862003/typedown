@@ -766,9 +766,7 @@ impl<DB: QueryDatabase, K: StableHash<DB> + StableOrd> StableHash<DB>
   }
 }
 
-impl<DB: QueryDatabase, L: StableHash<DB>, R: StableHash<DB>> StableHash<DB>
-  for Either<L, R>
-{
+impl<DB: QueryDatabase, L: StableHash<DB>, R: StableHash<DB>> StableHash<DB> for Either<L, R> {
   fn stable_hash(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {

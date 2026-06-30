@@ -1,10 +1,8 @@
 //! Tracked query to parse a file into an AST
 
-use std::{cell::RefCell, rc::Rc};
-
 use typedown_macros::query_derived;
 use typedown_syntax::{
-  green::cache::Cache,
+  green::cache::green_cache,
   parse::ctx::{ParseCtx, ParseResult},
   red::RedNode,
 };
@@ -19,7 +17,7 @@ pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAs
   let handle = file.handle(db);
   let stream = handle.open().expect("failed to open file");
 
-  let cache = Rc::new(RefCell::new(Cache::new()));
+  let cache = green_cache();
   let mut ctx = ParseCtx::new(stream, cache);
   let ParseResult { diagnostics, ast } = ctx.parse();
 
@@ -42,8 +40,7 @@ mod tests {
 
   use crate::{
     QueryStorage, TypedownDatabase,
-    inputs::{File, FileHandle},
-    types::Project,
+    types::{File, FileHandle, Project},
   };
 
   use super::parse_file;

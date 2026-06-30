@@ -8,7 +8,9 @@ use super::func::TdrFuncObj;
 use crate::derived::evaluate::evaluate_node::evaluate_node;
 use crate::derived::get_builtin_types::{get_schema_property_type, get_schema_type, get_str_type};
 use crate::types::{InstResult, MemberType, TdrProductType, TypeMember, TypeMemberDescriptors};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 use typedown_types::either::Either;
 
 // Schema type is actually a kind
@@ -116,5 +118,15 @@ impl TdrSchemaType {
 impl StableHash<TypedownDatabase> for TdrSchemaType {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrSchemaType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrSchemaType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrSchemaType::get(decoder.db)
   }
 }

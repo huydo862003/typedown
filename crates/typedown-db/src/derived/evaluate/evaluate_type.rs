@@ -11,11 +11,9 @@ use crate::derived::get_builtin_types::{
 };
 use crate::derived::name_resolver::referee::referee;
 use crate::derived::typechecker::typecheck::typecheck;
-use crate::inputs::File;
-use crate::types::Project;
 use crate::types::{
-  BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Symbol, SymbolKind,
-  TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  BuiltinSchemaKind, File, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
+  SymbolKind, TdrProductType, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::utils::lower_file;
 use crate::{QueryDatabase, TypedownDatabase};
@@ -273,11 +271,10 @@ mod tests {
     derived::name_resolver::file_symbol::file_symbol,
     derived::typechecker::infer_node_type::infer_node_type,
     fixtures::load_vault_fixture,
-    inputs::{File, FileHandle},
     types::{
-      BuiltinSchemaKind, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-      SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj, TdrTypeLike, TdrTypeType,
-      TypeMember, TypeMemberDescriptors,
+      BuiltinSchemaKind, File, FileHandle, HirValue, HirValueKind, LiteralValue, MemberType,
+      Project, Symbol, SymbolKind, TdrBoolObj, TdrNumObj, TdrProductType, TdrStrObj, TdrTypeLike,
+      TdrTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_file,
   };

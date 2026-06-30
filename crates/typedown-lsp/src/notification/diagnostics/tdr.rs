@@ -68,8 +68,7 @@ mod tests {
   use std::path::PathBuf;
   use std::sync::{Arc, Condvar, Mutex};
 
-  use typedown_db::inputs::{File, FileHandle};
-  use typedown_db::types::Project;
+  use typedown_db::types::{File, FileHandle, Project};
   use typedown_db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;

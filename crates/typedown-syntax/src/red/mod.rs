@@ -53,6 +53,37 @@ impl RedNode {
     })
   }
 
+  pub fn from_green(offset: usize, green: GreenNode) -> RedNode {
+    RedNode(RedNodeData {
+      offset,
+      parent: None,
+      green,
+    })
+  }
+
+  /// Walk up the parent chain to find the root node.
+  pub fn root(&self) -> RedNode {
+    let mut current = self.clone();
+    while let Some(parent) = current.parent() {
+      current = parent;
+    }
+    current
+  }
+
+  /// Find a descendant node at the given offset. Walks depth-first.
+  /// Returns the deepest node whose offset matches.
+  pub fn find_at_offset(&self, target_offset: usize) -> Option<RedNode> {
+    if self.offset() == target_offset {
+      return Some(self.clone());
+    }
+    for child in self.children() {
+      if target_offset >= child.offset() && target_offset < child.offset() + child.text_len() {
+        return child.find_at_offset(target_offset);
+      }
+    }
+    None
+  }
+
   pub fn kind(&self) -> SyntaxKind {
     self.0.green.kind()
   }

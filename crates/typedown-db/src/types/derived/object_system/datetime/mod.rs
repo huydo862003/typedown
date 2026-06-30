@@ -1,4 +1,4 @@
-pub(crate) mod utils;
+mod utils;
 
 use std::any::Any;
 use std::collections::HashMap;
@@ -6,11 +6,14 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
+use super::native_fn::NativeFnKind;
 use super::str::{TdrStrObj, TdrStrType};
 use crate::derived::get_builtin_types::{get_date_type, get_datetime_type, get_time_type};
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
-use utils::{is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
+pub(crate) use utils::{is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time};
 
 #[query_derived]
 pub struct TdrDateTimeType {}
@@ -46,7 +49,7 @@ impl TdrTypeLike for TdrDateTimeType {
       "to_string".to_string(),
       Box::new(TdrDateTimeType::get(db)),
       sig,
-      datetime_to_string,
+      NativeFnKind::DateTimeToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -137,7 +140,6 @@ impl TdrObjectLike for TdrDateTimeObj {
   fn source_path(&self, db: &TypedownDatabase) -> String {
     self.get_type(db).source_path(db)
   }
-
 }
 
 pub trait TdrDateLike: TdrObjectLike {}
@@ -176,7 +178,7 @@ impl TdrTypeLike for TdrDateType {
       "to_string".to_string(),
       Box::new(TdrDateType::get(db)),
       sig,
-      date_to_string,
+      NativeFnKind::DateToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -267,7 +269,6 @@ impl TdrObjectLike for TdrDateObj {
   fn source_path(&self, db: &TypedownDatabase) -> String {
     self.get_type(db).source_path(db)
   }
-
 }
 
 impl TdrDateLike for TdrDateObj {}
@@ -308,7 +309,7 @@ impl TdrTypeLike for TdrTimeType {
       "to_string".to_string(),
       Box::new(TdrTimeType::get(db)),
       sig,
-      time_to_string,
+      NativeFnKind::TimeToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -402,33 +403,6 @@ impl TdrObjectLike for TdrTimeObj {
   }
 }
 
-fn datetime_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let dt = (this.as_ref() as &dyn Any).downcast_ref::<TdrDateTimeObj>()?;
-  Some(Box::new(TdrStrObj::new(db, dt.value(db))))
-}
-
-fn date_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let d = (this.as_ref() as &dyn Any).downcast_ref::<TdrDateObj>()?;
-  Some(Box::new(TdrStrObj::new(db, d.value(db))))
-}
-
-fn time_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let t = (this.as_ref() as &dyn Any).downcast_ref::<TdrTimeObj>()?;
-  Some(Box::new(TdrStrObj::new(db, t.value(db))))
-}
-
 impl StableHash<TypedownDatabase> for TdrDateTimeType {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.source_path(db).stable_hash(db, hasher);
@@ -462,5 +436,71 @@ impl StableHash<TypedownDatabase> for TdrTimeType {
 impl StableHash<TypedownDatabase> for TdrTimeObj {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrDateTimeType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrDateTimeType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrDateTimeType::get(decoder.db)
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrDateType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrDateType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrDateType::get(decoder.db)
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrTimeType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrTimeType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrTimeType::get(decoder.db)
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrDateTimeObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.value(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrDateTimeObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrDateTimeObj::new(decoder.db, String::decode(decoder))
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrDateObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.value(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrDateObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrDateObj::new(decoder.db, String::decode(decoder))
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrTimeObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.value(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrTimeObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrTimeObj::new(decoder.db, String::decode(decoder))
   }
 }

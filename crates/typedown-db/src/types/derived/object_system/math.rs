@@ -4,10 +4,13 @@ use typedown_macros::query_derived;
 
 use super::base::{TdrObjectLike, TdrObjectType, TdrTypeLike, TdrTypeType};
 use super::func::TdrFuncObj;
-use super::str::{TdrStrObj, TdrStrType};
+use super::native_fn::NativeFnKind;
+use super::str::TdrStrType;
 use crate::derived::get_builtin_types::get_math_type;
 use crate::types::{FuncSignature, InstResult, TypeMember};
-use crate::{Id, StableHash, StableHasher, TypedownDatabase};
+use crate::{
+  Decodable, Decoder, Encodable, Encoder, Id, StableHash, StableHasher, TypedownDatabase,
+};
 
 #[query_derived]
 pub struct TdrMathType {}
@@ -44,7 +47,7 @@ impl TdrTypeLike for TdrMathType {
       "to_string".to_string(),
       Box::new(TdrMathType::get(db)),
       sig,
-      math_to_string,
+      NativeFnKind::MathToString,
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
@@ -87,6 +90,22 @@ impl TdrMathType {
   }
 }
 
+impl StableHash<TypedownDatabase> for TdrMathType {
+  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
+    self.source_path(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrMathType {
+  fn encode(&self, _encoder: &mut Encoder<TypedownDatabase>) {}
+}
+
+impl Decodable<TypedownDatabase> for TdrMathType {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrMathType::get(decoder.db)
+  }
+}
+
 #[query_derived]
 pub struct TdrMathObj {
   pub value: String,
@@ -104,23 +123,20 @@ impl TdrObjectLike for TdrMathObj {
   }
 }
 
-fn math_to_string(
-  db: &TypedownDatabase,
-  this: Box<dyn TdrObjectLike>,
-  _args: Vec<Box<dyn TdrObjectLike>>,
-) -> Option<Box<dyn TdrObjectLike>> {
-  let math = (this.as_ref() as &dyn Any).downcast_ref::<TdrMathObj>()?;
-  Some(Box::new(TdrStrObj::new(db, math.value(db))))
-}
-
-impl StableHash<TypedownDatabase> for TdrMathType {
-  fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
-    self.source_path(db).stable_hash(db, hasher);
-  }
-}
-
 impl StableHash<TypedownDatabase> for TdrMathObj {
   fn stable_hash(&self, db: &TypedownDatabase, hasher: &mut StableHasher) {
     self.value(db).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable<TypedownDatabase> for TdrMathObj {
+  fn encode(&self, encoder: &mut Encoder<TypedownDatabase>) {
+    self.value(encoder.db).encode(encoder);
+  }
+}
+
+impl Decodable<TypedownDatabase> for TdrMathObj {
+  fn decode(decoder: &mut Decoder<TypedownDatabase>) -> Self {
+    TdrMathObj::new(decoder.db, String::decode(decoder))
   }
 }

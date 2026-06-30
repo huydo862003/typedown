@@ -29,7 +29,7 @@ pub(super) fn to_lsp_diagnostic(diag: &TdrDiagnostic, rope: &Rope) -> Option<Dia
   Some(Diagnostic {
     range,
     severity: Some(DiagnosticSeverity::ERROR),
-    code: Some(NumberOrString::String(diag.code().into())),
+    code: Some(NumberOrString::String(diag.code().as_str().into())),
     source: Some("typedown".into()),
     message: diag.message(),
     ..Default::default()
