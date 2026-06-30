@@ -35,10 +35,7 @@ pub trait StableHash {
 }
 
 /// Hasher state to thread through multiple fields
-#[derive(Default)]
-pub struct StableHasher {
-  hasher: SipHasher13, // Same as what rustc uses
-}
+pub type StableHasher = SipHasher13; // Same as what rustc uses
 
 /// We need StableHashCtx to reliably hash the node/symbol id that correspond to a graph dep node
 /// As graph dep node's id is session-dependent and prone to shifting
