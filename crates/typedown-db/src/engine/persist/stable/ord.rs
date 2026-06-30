@@ -55,8 +55,7 @@ impl<T: StableOrd> StableOrd for &T {
 /// See the documentation of [StableOrd] for how stable sort order is defined.
 /// The same definition applies here. Be careful when implementing this trait.
 /// '''
-/// SO, the one we will consume is StableCompare,
-/// and the one we will used to mark is StableOrder
+/// So StableCompare is weaker
 pub trait StableCompare {
   const CAN_USE_UNSTABLE_SORT: bool;
 
