@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 
 use super::ord::StableOrd;
 
-use crate::{DepId, DepPathHash, Span};
+use crate::{DepId, DepPathHash, QueryDatabase, Span};
 
 /// The following is the original rustc comment: '''
 /// Note that `StableHash` imposes rather more strict requirements than usual
@@ -297,4 +297,7 @@ pub trait StableHashCtx {
   /// Compute a stable hash for a graph dep node id
   /// That is a symbol/node id
   fn dep_path_hash(&self, dep_id: DepId) -> DepPathHash;
+
+  /// Access the database
+  fn db(&self) -> &dyn QueryDatabase;
 }
