@@ -6,8 +6,8 @@ use std::hash::{Hash, Hasher};
 
 use super::ord::StableOrd;
 
+use crate::QueryDatabase;
 use crate::types::FileHandle;
-use crate::{DepId, DepPathHash, QueryDatabase, Span};
 use typedown_syntax::green::{GreenNode, SyntaxNode, SyntaxToken};
 use typedown_syntax::red::RedNode;
 use typedown_types::{diagnostic::Diagnostic, syntax_kind::SyntaxKind};
@@ -730,14 +730,6 @@ impl StableHash for RedNode {
 /// We need StableHashCtx to reliably hash the node/symbol id that correspond to a graph dep node
 /// As graph dep node's id is session-dependent and prone to shifting
 pub trait StableHashCtx {
-  /// Allow hashing a graph dep node's span
-  /// As span is prone to shifting
-  fn stable_hash_span(&mut self, span: Span, hasher: &mut StableHasher);
-
-  /// Compute a stable hash for a graph dep node id
-  /// That is a symbol/node id
-  fn dep_path_hash(&self, dep_id: DepId) -> DepPathHash;
-
   /// Access the database
   fn db(&self) -> &dyn QueryDatabase;
 }
