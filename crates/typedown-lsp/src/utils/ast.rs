@@ -1,5 +1,5 @@
-use typedown_syntax::ast::{AstNode, Expr};
-use typedown_syntax::red::RedNode;
+use typedown_lang::ast::{AstNode, Expr};
+use typedown_lang::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 /// Find the innermost red node whose source span contains `offset`.

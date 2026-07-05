@@ -773,7 +773,18 @@ name = "typedown-cli"
 version = "0.1.0"
 
 [[package]]
-name = "typedown-db"
+name = "typedown-incremental"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "inventory",
+ "rustc-stable-hash",
+ "typedown-macros",
+ "typedown-types",
+]
+
+[[package]]
+name = "typedown-lang"
 version = "0.1.0"
 dependencies = [
  "ambassador",
@@ -781,12 +792,13 @@ dependencies = [
  "dashmap",
  "derive_more",
  "enum-as-inner",
+ "expect-test",
+ "hashbrown 0.17.1",
  "inventory",
  "num_enum",
  "regex",
- "rustc-stable-hash",
+ "typedown-incremental",
  "typedown-macros",
- "typedown-syntax",
  "typedown-types",
  "yaml-rust2",
 ]
@@ -803,8 +815,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "typedown-db",
- "typedown-syntax",
+ "typedown-lang",
  "typedown-types",
 ]
 
@@ -814,16 +825,6 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
-]
-
-[[package]]
-name = "typedown-syntax"
-version = "0.1.0"
-dependencies = [
- "expect-test",
- "hashbrown 0.17.1",
- "typedown-macros",
- "typedown-types",
 ]
 
 [[package]]

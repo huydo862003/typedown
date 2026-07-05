@@ -4,7 +4,7 @@ use crate::analysis::Analysis;
 use crate::utils::ast::node_at_offset;
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
-use typedown_syntax::red::RedNode;
+use typedown_lang::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 pub fn completion(analysis: &Analysis, params: CompletionParams) -> Option<CompletionResponse> {
@@ -16,7 +16,7 @@ pub fn completion(analysis: &Analysis, params: CompletionParams) -> Option<Compl
   let project = analysis.project;
   let file = *project.files(db).get(&path)?;
 
-  let root = typedown_db::derived::parse_file::parse_file(db, project, file).ast(db);
+  let root = typedown_lang::derived::parse_file::parse_file(db, project, file).ast(db);
   let lookup = offset.saturating_sub(1);
   let node = node_at_offset(root, lookup)?;
 

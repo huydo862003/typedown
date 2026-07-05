@@ -1,9 +1,9 @@
 use lsp_server::Notification;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
 use lsp_types::{Diagnostic, PublishDiagnosticsParams};
-use typedown_db::derived::evaluate::evaluate_resource::evaluate_resource;
-use typedown_db::derived::name_resolver::file_symbol::file_symbol;
-use typedown_db::derived::parse_file::parse_file;
+use typedown_lang::derived::evaluate::evaluate_resource::evaluate_resource;
+use typedown_lang::derived::name_resolver::file_symbol::file_symbol;
+use typedown_lang::derived::parse_file::parse_file;
 use typedown_types::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
@@ -68,8 +68,8 @@ mod tests {
   use std::path::PathBuf;
   use std::sync::{Arc, Condvar, Mutex};
 
-  use typedown_db::types::{File, FileHandle, Project};
-  use typedown_db::{QueryStorage, TypedownDatabase};
+  use typedown_lang::types::{File, FileHandle, Project};
+  use typedown_lang::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
 

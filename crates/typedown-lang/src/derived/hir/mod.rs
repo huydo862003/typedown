@@ -1,0 +1,550 @@
+//! Tracked query to lower an expression node into a HIR value.
+
+use typedown_macros::query_derived;
+
+use crate::ast::{
+  AstNode, BinaryExpr, CallExpr, CodeBlock, CodeLit, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
+  InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody, NumberLit,
+  ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
+};
+use crate::red::RedNode;
+use typedown_types::diagnostic::Diagnostic;
+use typedown_types::either::Either;
+use typedown_types::syntax_kind::SyntaxKind;
+
+use crate::{
+  TypedownDatabase,
+  types::{File, HirValue, HirValueKind, InterpolatedPart, Project},
+};
+use typedown_incremental::QueryDatabase;
+
+// Normalize expressions to a hir form
+#[query_derived]
+pub fn lower_node(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
+  if SourceFile::cast(node.clone()).is_some() {
+    return lower_source_file(db, project, file, node);
+  }
+  if YamlFrontmatter::cast(node.clone()).is_some() {
+    return lower_frontmatter(db, project, file, node);
+  }
+  if MdBody::cast(node.clone()).is_some() {
+    return lower_markdown(db, project, file, node);
+  }
+  let expr =
+    Expr::cast(node.clone()).expect("node must be an Expr, MdBody, YamlFrontmatter, or SourceFile");
+  let mut diagnostics = vec![];
+  let kind = lower_expr_kind(db, project, file, &expr, &mut diagnostics);
+  HirValue::new(db, project, file, node, kind, diagnostics)
+}
+
+fn lower_markdown(db: &TypedownDatabase, project: Project, file: File, node: RedNode) -> HirValue {
+  fn collect_interpolated_parts(
+    db: &TypedownDatabase,
+    project: Project,
+    file: File,
+    node: RedNode,
+    parts: &mut Vec<InterpolatedPart>,
+  ) {
+    // If node is an interp fragment, lower the expression inside it
+    if node.kind() == SyntaxKind::InterpFragment {
+      if let Some(expr) = InterpFragment::cast(node.clone()).and_then(|f| f.expr()) {
+        let hir = lower_node(db, project, file, expr.syntax().clone());
+        parts.push(InterpolatedPart::Expr(hir));
+        return;
+      }
+    }
+    // Math block: $$...$$
+    if let Some(math) = MathBlock::cast(node.clone()) {
+      let value = math.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Math(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
+    }
+    // Code block: ```...```
+    if let Some(code) = CodeBlock::cast(node.clone()) {
+      let value = code.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Str(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
+    }
+    // Inline math: $...$
+    if let Some(math) = InlineMath::cast(node.clone()) {
+      let value = math.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Math(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
+    }
+    // Inline code: `...`
+    if let Some(code) = InlineCode::cast(node.clone()) {
+      let value = code.value().unwrap_or_default();
+      let hir = HirValue::new(db, project, file, node, HirValueKind::Str(value), vec![]);
+      parts.push(InterpolatedPart::Expr(hir));
+      return;
+    }
+    // If node is a token, it must be a string token
+    if node.is_token() {
+      let text = node.text();
+      if !text.is_empty() {
+        match parts.last_mut() {
+          Some(InterpolatedPart::Literal(existing)) => existing.push_str(&text),
+          _ => parts.push(InterpolatedPart::Literal(text)),
+        }
+      }
+      return;
+    }
+    for child in node.children() {
+      collect_interpolated_parts(db, project, file, child, parts);
+    }
+  }
+
+  let mut parts: Vec<InterpolatedPart> = vec![];
+  collect_interpolated_parts(db, project, file, node.clone(), &mut parts);
+  HirValue::new(
+    db,
+    project,
+    file,
+    node,
+    HirValueKind::Markdown(parts),
+    vec![],
+  )
+}
+
+fn lower_expr_kind(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  expr: &Expr,
+  diagnostics: &mut Vec<Diagnostic>,
+) -> HirValueKind {
+  let inner = unwrap_parens(expr.clone());
+
+  // Handle block mapping
+  if let Some(mapping) = YamlMapping::cast(inner.syntax().clone()) {
+    let entries = mapping.entries().collect::<Vec<_>>();
+    let mut seen_keys = std::collections::HashSet::new();
+    let hir_entries = entries
+      .into_iter()
+      .map(|(key, val_expr)| {
+        if !seen_keys.insert(key.clone()) {
+          let node = val_expr.syntax();
+          diagnostics.push(Diagnostic::DuplicateKey {
+            key: key.clone(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+        let child = lower_node(db, project, file, val_expr.syntax().clone());
+        (key, child)
+      })
+      .collect();
+    return HirValueKind::Mapping(hir_entries);
+  }
+
+  // Handle flow mapping
+  if let Some(dict) = DictLit::cast(inner.syntax().clone()) {
+    let entries = dict
+      .entries()
+      .filter_map(|entry: DictEntry| entry.entry())
+      .collect::<Vec<_>>();
+    let mut seen_keys = std::collections::HashSet::new();
+    let hir_entries = entries
+      .into_iter()
+      .map(|(key, val_expr)| {
+        if !seen_keys.insert(key.clone()) {
+          let node = val_expr.syntax();
+          diagnostics.push(Diagnostic::DuplicateKey {
+            key: key.clone(),
+            start_offset: node.offset(),
+            end_offset: node.offset() + node.text_len(),
+          });
+        }
+        let child = lower_node(db, project, file, val_expr.syntax().clone());
+        (key, child)
+      })
+      .collect();
+    return HirValueKind::Mapping(hir_entries);
+  }
+
+  // Handle block sequence
+  if let Some(seq) = YamlSequence::cast(inner.syntax().clone()) {
+    let items = seq.values().collect::<Vec<_>>();
+    let hir_items = items
+      .into_iter()
+      .map(|item_expr| lower_node(db, project, file, item_expr.syntax().clone()))
+      .collect();
+    return HirValueKind::Sequence(hir_items);
+  }
+
+  // Handle flow sequence
+  if let Some(list) = ListLit::cast(inner.syntax().clone()) {
+    let items = list
+      .items()
+      .filter_map(|item: ListItem| item.value())
+      .collect::<Vec<_>>();
+    let hir_items = items
+      .into_iter()
+      .map(|item_expr| lower_node(db, project, file, item_expr.syntax().clone()))
+      .collect();
+    return HirValueKind::Sequence(hir_items);
+  }
+
+  // Handle various kinds of string literal
+  if let Some(lit) = StrLit::cast(inner.syntax().clone()) {
+    // A string containing only a math literal lowers to Math
+    if let Some(math) = inner.syntax().children().find_map(MathLit::cast) {
+      if let Some(val) = math.value() {
+        return HirValueKind::Math(val);
+      }
+    }
+    // A string containing only a code literal lowers to Str with code content
+    if let Some(code) = inner.syntax().children().find_map(CodeLit::cast) {
+      if let Some(val) = code.value() {
+        return HirValueKind::Str(val);
+      }
+    }
+    return if lit.is_interpolated() {
+      let hir_parts = lit
+        .fragments()
+        .map(|part| match part {
+          Either::Left(s) => InterpolatedPart::Literal(s),
+          Either::Right(frag) => {
+            let child_expr = frag
+              .expr()
+              .expect("interpolated fragment must have an expr");
+            let child = lower_node(db, project, file, child_expr.syntax().clone());
+            InterpolatedPart::Expr(child)
+          }
+        })
+        .collect();
+      HirValueKind::Interpolated(hir_parts)
+    } else {
+      let text = lit
+        .fragments()
+        .filter_map(|frag| match frag {
+          Either::Left(s) => Some(s),
+          Either::Right(_) => None,
+        })
+        .collect::<Vec<_>>()
+        .join("");
+      HirValueKind::Str(text)
+    };
+  }
+
+  // Handle number lit
+  if let Some(lit) = NumberLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return HirValueKind::Num(val.to_string());
+    }
+  }
+
+  // Handle math lit
+  if let Some(lit) = MathLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return HirValueKind::Math(val);
+    }
+  }
+
+  // Handle code lit
+  if let Some(lit) = CodeLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return HirValueKind::Str(val);
+    }
+  }
+
+  // Handle identifier
+  if let Some(lit) = IdentLit::cast(inner.syntax().clone()) {
+    if let Some(val) = lit.value() {
+      return match val.as_str() {
+        "null" => HirValueKind::Null,
+        "true" => HirValueKind::Bool(true),
+        "false" => HirValueKind::Bool(false),
+        _ => HirValueKind::Ident(val),
+      };
+    }
+  }
+
+  // Handle unary
+  if let Some(unary) = UnaryExpr::cast(inner.syntax().clone()) {
+    if let Some(operand) = unary.expr() {
+      let op = unary
+        .op()
+        .and_then(|o| o.syntax().as_token())
+        .and_then(|t| t.text().map(|s| s.to_string()))
+        .unwrap_or_default();
+      let operand = lower_node(db, project, file, operand.syntax().clone());
+      // This is a tag expression
+      if op.starts_with('!') && op.len() > 1 {
+        let tag_name = op[1..].to_string();
+        let op_node = unary.op().unwrap().syntax().clone();
+        let tag_hir = HirValue::new(
+          db,
+          project,
+          file,
+          op_node,
+          HirValueKind::Ident(tag_name),
+          vec![],
+        );
+        return HirValueKind::Tag {
+          tag: tag_hir.into(),
+          inner: operand.into(),
+        };
+      }
+      return HirValueKind::Unary {
+        op,
+        operand: operand.into(),
+      };
+    }
+  }
+
+  // Handle binary
+  if let Some(binary) = BinaryExpr::cast(inner.syntax().clone()) {
+    if let (Some(lhs), Some(rhs)) = (binary.left(), binary.right()) {
+      let op = binary
+        .op()
+        .and_then(|o| o.syntax().as_token())
+        .and_then(|t| t.text().map(|s| s.to_string()))
+        .unwrap_or_default();
+      let left = lower_node(db, project, file, lhs.syntax().clone());
+      let right = lower_node(db, project, file, rhs.syntax().clone());
+      return HirValueKind::Binary {
+        op,
+        left: left.into(),
+        right: right.into(),
+      };
+    }
+  }
+
+  // Handle call expression
+  if let Some(call) = CallExpr::cast(inner.syntax().clone()) {
+    if let Some(callee) = call.callee() {
+      let callee = lower_node(db, project, file, callee.syntax().clone());
+      let args = call
+        .args()
+        .into_iter()
+        .map(|arg| lower_node(db, project, file, arg.syntax().clone()))
+        .collect();
+      return HirValueKind::Call {
+        callee: callee.into(),
+        args,
+      };
+    }
+  }
+
+  // Handle index expression
+  if let Some(index) = IndexExpr::cast(inner.syntax().clone()) {
+    if let Some(expr) = index.expr() {
+      let expr = lower_node(db, project, file, expr.syntax().clone());
+      let indices = index
+        .indices()
+        .into_iter()
+        .map(|idx| lower_node(db, project, file, idx.syntax().clone()))
+        .collect();
+      return HirValueKind::Index {
+        expr: expr.into(),
+        indices,
+      };
+    }
+  }
+
+  HirValueKind::Str(inner.syntax().text().trim().to_string())
+}
+
+// Remove unnecessary parens
+fn unwrap_parens(expr: Expr) -> Expr {
+  if let Some(paren) = ParenExpr::cast(expr.syntax().clone()) {
+    if let Some(inner) = paren.expr() {
+      return unwrap_parens(inner);
+    }
+  }
+  expr
+}
+
+fn lower_frontmatter(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  node: RedNode,
+) -> HirValue {
+  let fm = YamlFrontmatter::cast(node.clone()).expect("node must be a YamlFrontmatter");
+  match fm.mapping() {
+    Some(mapping) => lower_node(db, project, file, mapping.syntax().clone()),
+    None => HirValue::new(db, project, file, node, HirValueKind::Null, vec![]),
+  }
+}
+
+fn lower_source_file(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  node: RedNode,
+) -> HirValue {
+  let source_file = SourceFile::cast(node.clone()).expect("node must be a SourceFile");
+  let fm_node = match source_file.frontmatter() {
+    Some(fm) => fm,
+    None => return HirValue::new(db, project, file, node, HirValueKind::Null, vec![]),
+  };
+  let mapping_hir = lower_node(db, project, file, fm_node.syntax().clone());
+  let Some(body) = source_file.body() else {
+    return mapping_hir;
+  };
+  let content_hir = lower_node(db, project, file, body.syntax().clone());
+  let mut entries = match mapping_hir.kind(db) {
+    HirValueKind::Mapping(entries) => entries,
+    _ => vec![],
+  };
+  entries.push(("_content".to_string(), content_hir));
+  let mapping_diagnostics = mapping_hir.diagnostics(db);
+  HirValue::new(
+    db,
+    project,
+    file,
+    node,
+    HirValueKind::Mapping(entries),
+    mapping_diagnostics,
+  )
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::fixtures::load_vault_fixture;
+  use crate::types::{HirValueKind, InterpolatedPart};
+  use crate::utils::lower_file;
+
+  #[test]
+  fn markdown_body_plain_text() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_plain.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
+    match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => {
+        assert!(
+          parts
+            .iter()
+            .all(|p| matches!(p, InterpolatedPart::Literal(_)))
+        );
+      }
+      _ => panic!("expected Markdown kind"),
+    }
+  }
+
+  #[test]
+  fn markdown_body_inline_math() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_inline_math.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_math = parts.iter().any(|p| {
+      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Math(_)))
+    });
+    assert!(has_math, "expected inline math part");
+  }
+
+  #[test]
+  fn markdown_body_inline_code() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_inline_code.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_code = parts.iter().any(
+      |p| matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_))),
+    );
+    assert!(has_code, "expected inline code part as Str");
+  }
+
+  #[test]
+  fn markdown_body_interpolation() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_interp.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_expr = parts.iter().any(|p| matches!(p, InterpolatedPart::Expr(_)));
+    assert!(has_expr, "expected interpolated expr part");
+  }
+
+  #[test]
+  fn markdown_body_math_block() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_math_block.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_math = parts.iter().any(|p| {
+      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Math(_)))
+    });
+    assert!(has_math, "expected math block part");
+  }
+
+  #[test]
+  fn markdown_body_code_block() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_code_block.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should have HIR");
+    let entries = match hir.kind(&db) {
+      HirValueKind::Mapping(e) => e,
+      _ => panic!("expected mapping"),
+    };
+    let content = entries
+      .iter()
+      .find(|(k, _)| k == "_content")
+      .expect("_content missing");
+    let parts = match content.1.kind(&db) {
+      HirValueKind::Markdown(parts) => parts,
+      _ => panic!("expected Markdown kind"),
+    };
+    let has_code = parts.iter().any(
+      |p| matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_))),
+    );
+    assert!(has_code, "expected code block part as Str");
+  }
+}

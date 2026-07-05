@@ -23,7 +23,7 @@ use lsp_types::{
 use serde::Serialize;
 use serde_json::Value;
 use tempfile::TempDir;
-use typedown_db::{QueryStorage, TypedownDatabase};
+use typedown_lang::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
 use typedown_lsp::server::Server as LspServer;
 

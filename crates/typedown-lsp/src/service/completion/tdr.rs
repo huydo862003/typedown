@@ -1,20 +1,19 @@
-use typedown_db::types::TdrTypeEnum;
-use typedown_db::types::TdrTypeLike;
+use typedown_lang::types::TdrTypeLike;
 
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
-use typedown_db::TypedownDatabase;
-use typedown_db::derived::evaluate::evaluate_type::evaluate_type;
-use typedown_db::derived::hir::lower_node;
-use typedown_db::derived::name_resolver::file_symbol::file_symbol;
-use typedown_db::derived::name_resolver::members::members;
-use typedown_db::derived::parse_file::parse_file;
-use typedown_db::derived::typechecker::declared_node_type::declared_node_type;
-use typedown_db::derived::typechecker::get_symbol_type::get_symbol_type;
-use typedown_db::types::{
+use typedown_lang::TypedownDatabase;
+use typedown_lang::ast::{AstNode, Expr};
+use typedown_lang::derived::evaluate::evaluate_type::evaluate_type;
+use typedown_lang::derived::hir::lower_node;
+use typedown_lang::derived::name_resolver::file_symbol::file_symbol;
+use typedown_lang::derived::name_resolver::members::members;
+use typedown_lang::derived::parse_file::parse_file;
+use typedown_lang::derived::typechecker::declared_node_type::declared_node_type;
+use typedown_lang::derived::typechecker::get_symbol_type::get_symbol_type;
+use typedown_lang::red::RedNode;
+use typedown_lang::types::{
   File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
 };
-use typedown_syntax::ast::{AstNode, Expr};
-use typedown_syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
@@ -205,7 +204,7 @@ fn declared_field(
   project: Project,
   file: File,
   node: &RedNode,
-) -> Option<typedown_db::types::TypeMember> {
+) -> Option<typedown_lang::types::TypeMember> {
   // Find the value expression node inside the enclosing YamlMappingEntryValue.
   let entry_value = find_ancestor(node, SyntaxKind::YamlMappingEntryValue)?;
   let value_expr = entry_value.children().find_map(Expr::cast)?;
@@ -281,8 +280,8 @@ mod tests {
     TextDocumentPositionParams, Uri, WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_db::types::{File, FileHandle};
-  use typedown_db::{QueryStorage, TypedownDatabase};
+  use typedown_lang::types::{File, FileHandle};
+  use typedown_lang::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
 
@@ -389,7 +388,7 @@ properties:
       (content_path, content_file),
     ]);
 
-    let project = typedown_db::types::Project::new(&db, root, files);
+    let project = typedown_lang::types::Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,
@@ -632,7 +631,7 @@ date: 2024-01-01
       (content_path, editing_file),
     ]);
 
-    let project = typedown_db::types::Project::new(&db, root, files);
+    let project = typedown_lang::types::Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,

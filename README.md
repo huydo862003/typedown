@@ -25,14 +25,11 @@ cargo build --release
 - `typedown-macros` and `typedown-types` contain common utils, which are the lowest common denominator that everyone depends upon.
   - They can be depended upon by other crates.
   - They must not depend on any other crates.
-- `typedown-syntax` contain the AST structure & parser for typedown.
-  - `typedown-syntax` can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types`.
-  - `typedown-syntax` must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
 - `typedown-incremental` contains the incremental engine.
   - It must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
-  - It can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types` and `typedown-syntax`.
-  - `typedown-incremental` must not depend on anything else
-- `typedown-db` contains the typechecking and evaluation logic for typedown.
+  - It can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types`.
+- `typedown-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
+  - It depends on `typedown-incremental`, `typedown-macros`, and `typedown-types`.
   - It must not depend on `typedown-lsp`.
   - It can only be depended upon by `typedown-lsp`.
 - `typedown-lsp` contains the LSP server for typedown.
