@@ -4,11 +4,11 @@ use std::{cell::RefCell, rc::Rc};
 
 use typedown_types::syntax_kind::SyntaxKind;
 
-use crate::green::{SyntaxToken, cache::Cache};
+use crate::syntax::green::{SyntaxToken, cache::Cache};
 
 /// Expression context stack entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::parse) enum ExprCtx {
+pub(in crate::syntax::parse) enum ExprCtx {
   /// Top-level YAML frontmatter context.
   YamlFrontmatter,
   /// Inside `${...}` interpolation, closed by `}`
@@ -85,7 +85,7 @@ struct ExprStackEntry {
 }
 
 /// Stack of expression contexts for error recovery in expressions.
-pub(in crate::parse) struct ExprCtxStack {
+pub(in crate::syntax::parse) struct ExprCtxStack {
   stack: Vec<ExprStackEntry>,
   cache: Rc<RefCell<Cache>>,
   /// Accumulated MD line prefix as a sequence of expected tokens.
@@ -93,7 +93,7 @@ pub(in crate::parse) struct ExprCtxStack {
 }
 
 impl ExprCtxStack {
-  pub(in crate::parse) fn new(cache: Rc<RefCell<Cache>>) -> Self {
+  pub(in crate::syntax::parse) fn new(cache: Rc<RefCell<Cache>>) -> Self {
     Self {
       stack: Vec::new(),
       cache,
@@ -102,7 +102,7 @@ impl ExprCtxStack {
   }
 
   /// Push a context onto the stack.
-  pub(in crate::parse) fn enter(&mut self, ctx: ExprCtx) {
+  pub(in crate::syntax::parse) fn enter(&mut self, ctx: ExprCtx) {
     let before = self.md_prefix_tokens.len();
     self.push_md_prefix_tokens(ctx);
     let prefix_token_count = (self.md_prefix_tokens.len() - before) as u16;
@@ -113,7 +113,7 @@ impl ExprCtxStack {
   }
 
   /// Pop the current context.
-  pub(in crate::parse) fn exit(&mut self, expected: ExprCtx) {
+  pub(in crate::syntax::parse) fn exit(&mut self, expected: ExprCtx) {
     let entry = self.stack.pop();
     debug_assert!(
       entry.as_ref().unwrap().ctx == expected,
@@ -127,22 +127,22 @@ impl ExprCtxStack {
     }
   }
 
-  pub(in crate::parse) fn current(&self) -> Option<ExprCtx> {
+  pub(in crate::syntax::parse) fn current(&self) -> Option<ExprCtx> {
     self.stack.last().map(|e| e.ctx)
   }
 
   /// The accumulated expected MD prefix tokens.
-  pub(in crate::parse) fn md_prefix_tokens(&self) -> &[SyntaxToken] {
+  pub(in crate::syntax::parse) fn md_prefix_tokens(&self) -> &[SyntaxToken] {
     &self.md_prefix_tokens
   }
 
   /// Whether expressions should skip indent/dedent tokens.
-  pub(in crate::parse) fn should_expr_skip_indent(&self) -> bool {
+  pub(in crate::syntax::parse) fn should_expr_skip_indent(&self) -> bool {
     self.stack.iter().any(|e| e.ctx.should_expr_skip_indent())
   }
 
   /// Whether expressions can span across newlines.
-  pub(in crate::parse) fn should_expr_span_newline(&self) -> bool {
+  pub(in crate::syntax::parse) fn should_expr_span_newline(&self) -> bool {
     self.stack.iter().any(|e| e.ctx.should_expr_span_newline())
   }
 
@@ -186,7 +186,7 @@ impl ExprCtxStack {
 
   /// Find the innermost context that can handle the given token.
   /// Falls back to the current (innermost) context if none matches.
-  pub(in crate::parse) fn find_handler(&self, token: &SyntaxToken) -> Option<ExprCtx> {
+  pub(in crate::syntax::parse) fn find_handler(&self, token: &SyntaxToken) -> Option<ExprCtx> {
     self
       .stack
       .iter()
@@ -198,12 +198,12 @@ impl ExprCtxStack {
 }
 
 impl ExprCtx {
-  pub(in crate::parse) fn is_md_callout_block(self) -> bool {
+  pub(in crate::syntax::parse) fn is_md_callout_block(self) -> bool {
     matches!(self, ExprCtx::MdCalloutBlock(_))
   }
 
   /// Whether expressions in this context should skip indent/dedent tokens.
-  pub(in crate::parse) fn should_expr_skip_indent(self) -> bool {
+  pub(in crate::syntax::parse) fn should_expr_skip_indent(self) -> bool {
     matches!(
       self,
       ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call | ExprCtx::Index
@@ -211,7 +211,7 @@ impl ExprCtx {
   }
 
   /// Whether expressions in this context can span across newlines.
-  pub(in crate::parse) fn should_expr_span_newline(self) -> bool {
+  pub(in crate::syntax::parse) fn should_expr_span_newline(self) -> bool {
     matches!(
       self,
       ExprCtx::List | ExprCtx::Dict | ExprCtx::Paren | ExprCtx::Call | ExprCtx::Index
@@ -219,7 +219,7 @@ impl ExprCtx {
   }
 
   /// Whether this context can handle the given token.
-  pub(in crate::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
+  pub(in crate::syntax::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
     if matches!(token.kind(), SyntaxKind::YamlOp | SyntaxKind::MdSymbol) {
       let text: String = token.chars().collect();
       return match (self, text.as_str()) {

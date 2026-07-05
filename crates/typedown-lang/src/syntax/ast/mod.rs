@@ -9,7 +9,7 @@ use typedown_types::either::Either;
 use typedown_types::syntax_kind::SyntaxKind;
 use typedown_types::unescape::{unescape, unescape_html_entity};
 
-use crate::red::RedNode;
+use crate::syntax::red::RedNode;
 
 /// All AST nodes implement this trait.
 pub trait AstNode: Sized + Clone + Eq + Hash + Send + Sync {

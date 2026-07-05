@@ -4,7 +4,7 @@ use crate::analysis::Analysis;
 use crate::utils::ast::node_at_offset;
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
-use typedown_lang::red::RedNode;
+use typedown_lang::syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 pub fn completion(analysis: &Analysis, params: CompletionParams) -> Option<CompletionResponse> {

@@ -5,15 +5,15 @@ use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
 use super::constants::*;
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
-use crate::green::{GreenNode, SyntaxToken};
-use crate::lex::ctx::LexMode;
+use crate::syntax::green::{GreenNode, SyntaxToken};
+use crate::syntax::lex::ctx::LexMode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 // Top-level YAML frontmatter parsing
 impl<S: Utf8Stream> ParseCtx<S> {
   /* Top-level YAML frontmatter */
 
-  pub(in crate::parse) fn parse_yaml_frontmatter(&mut self) -> GreenNode {
+  pub(in crate::syntax::parse) fn parse_yaml_frontmatter(&mut self) -> GreenNode {
     debug_assert!(
       self.lex_ctx.mode() == LexMode::YamlFrontmatter,
       "[ParseCtx::parse_yaml_frontmatter] Lex mode must be YamlFrontmatter"
@@ -107,7 +107,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /* YAML frontmatter body */
-  pub(in crate::parse) fn parse_yaml_body(
+  pub(in crate::syntax::parse) fn parse_yaml_body(
     &mut self,
     children: &mut Vec<GreenNode>,
   ) -> Option<ExprCtx> {
@@ -128,7 +128,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
 impl<S: Utf8Stream> ParseCtx<S> {
   /// Whether the token is EOF or a YamlIndent with less than the current block indent.
-  pub(in crate::parse) fn is_block_dedent(&self, token: &SyntaxToken, block_indent: usize) -> bool {
+  pub(in crate::syntax::parse) fn is_block_dedent(
+    &self,
+    token: &SyntaxToken,
+    block_indent: usize,
+  ) -> bool {
     match token.kind() {
       SyntaxKind::Eof => true,
       SyntaxKind::YamlIndent => token.chars().count() < block_indent,

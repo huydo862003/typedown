@@ -4,7 +4,7 @@ use lsp_types::{
 };
 use ropey::Rope;
 use typedown_lang::db::derived::parse_file::parse_file;
-use typedown_lang::red::RedNode;
+use typedown_lang::syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;

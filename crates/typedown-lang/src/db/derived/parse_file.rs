@@ -2,7 +2,7 @@
 
 use typedown_macros::query_derived;
 
-use crate::{
+use crate::syntax::{
   green::cache::green_cache,
   parse::ctx::{ParseCtx, ParseResult},
   red::RedNode,
@@ -36,7 +36,7 @@ pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAs
 mod tests {
   use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 
-  use crate::ast::{AstNode, SourceFile};
+  use crate::syntax::ast::{AstNode, SourceFile};
 
   use crate::db::{
     QueryStorage, TypedownDatabase,

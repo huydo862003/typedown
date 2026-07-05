@@ -1,4 +1,4 @@
-use crate::red::RedNode;
+use crate::syntax::red::RedNode;
 use num_enum::TryFromPrimitive;
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;

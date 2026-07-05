@@ -1,7 +1,6 @@
 use typedown_lang::db::types::TdrTypeLike;
 
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
-use typedown_lang::ast::{AstNode, Expr};
 use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::derived::evaluate::evaluate_type::evaluate_type;
 use typedown_lang::db::derived::hir::lower_node;
@@ -13,7 +12,8 @@ use typedown_lang::db::derived::typechecker::get_symbol_type::get_symbol_type;
 use typedown_lang::db::types::{
   File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
 };
-use typedown_lang::red::RedNode;
+use typedown_lang::syntax::ast::{AstNode, Expr};
+use typedown_lang::syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;

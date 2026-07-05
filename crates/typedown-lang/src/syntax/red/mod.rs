@@ -7,7 +7,7 @@ use std::{
   ops::Deref,
 };
 
-use crate::green::{GreenNode, node::SyntaxNode};
+use crate::syntax::green::{GreenNode, node::SyntaxNode};
 use typedown_types::syntax_kind::SyntaxKind;
 
 #[derive(Clone)]

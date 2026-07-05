@@ -5,7 +5,7 @@ use std::{
 
 use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
 
-use crate::{
+use crate::syntax::{
   lex::ctx::{LexCtx, LexMode, LexResult},
   parse::constants::{SKIP_COMMENT, SKIP_INDENT, SKIP_NEWLINE, SKIP_WS},
 };
@@ -19,7 +19,11 @@ pub struct YamlLexResult {
 }
 
 impl YamlLexResult {
-  pub(in crate::parse) fn new(result: LexResult, token_indent: usize, block_indent: usize) -> Self {
+  pub(in crate::syntax::parse) fn new(
+    result: LexResult,
+    token_indent: usize,
+    block_indent: usize,
+  ) -> Self {
     Self {
       result,
       token_indent,
@@ -47,7 +51,7 @@ pub struct MdLexResult {
 }
 
 impl MdLexResult {
-  pub(in crate::parse) fn new(result: LexResult) -> Self {
+  pub(in crate::syntax::parse) fn new(result: LexResult) -> Self {
     Self { result }
   }
 }
@@ -70,7 +74,7 @@ impl From<MdLexResult> for LexResult {
 /// WARNING: By rewinding, it means that the extracted token can be pushed back to the token stream
 /// You CANNOT push back the token's characters, switch mode, re-lex then return a new token
 pub struct PeekableLexCtx<S: Utf8Stream> {
-  pub(in crate::parse) lex_ctx: LexCtx<S>,
+  pub(in crate::syntax::parse) lex_ctx: LexCtx<S>,
   token_buffer: VecDeque<LexResult>,
   /// Whether the last non-whitespace token was a Newline (or we're at start of input).
   after_newline: bool,

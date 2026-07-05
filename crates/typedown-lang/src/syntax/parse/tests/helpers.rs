@@ -4,8 +4,8 @@ use std::rc::Rc;
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::string_stream::StringStream;
 
-use crate::green::{GreenNode, cache::Cache};
-use crate::parse::ctx::{ParseCtx, ParseResult};
+use crate::syntax::green::{GreenNode, cache::Cache};
+use crate::syntax::parse::ctx::{ParseCtx, ParseResult};
 
 pub(crate) fn parse(input: &str) -> (GreenNode, Vec<Diagnostic>) {
   let stream = StringStream::new(input);

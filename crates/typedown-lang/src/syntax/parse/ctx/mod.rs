@@ -1,14 +1,14 @@
 //! A recursive descent parser
 
-pub(in crate::parse) mod expr_ctx;
-pub(in crate::parse) mod peekable_lex_ctx;
+pub(in crate::syntax::parse) mod expr_ctx;
+pub(in crate::syntax::parse) mod peekable_lex_ctx;
 
 use std::{cell::RefCell, rc::Rc};
 
 use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
 
 use super::constants::SKIP_NONE;
-use crate::{
+use crate::syntax::{
   green::{GreenNode, SyntaxToken, cache::Cache},
   lex::ctx::{LexCtx, LexMode, LexResult},
 };
@@ -16,10 +16,10 @@ use expr_ctx::ExprCtxStack;
 use peekable_lex_ctx::{MdLexResult, PeekableLexCtx, YamlLexResult};
 
 pub struct ParseCtx<S: Utf8Stream> {
-  pub(in crate::parse) cache: Rc<RefCell<Cache>>,
-  pub(in crate::parse) lex_ctx: PeekableLexCtx<S>,
-  pub(in crate::parse) diagnostics: Vec<Diagnostic>,
-  pub(in crate::parse) expr_ctx_stack: ExprCtxStack,
+  pub(in crate::syntax::parse) cache: Rc<RefCell<Cache>>,
+  pub(in crate::syntax::parse) lex_ctx: PeekableLexCtx<S>,
+  pub(in crate::syntax::parse) diagnostics: Vec<Diagnostic>,
+  pub(in crate::syntax::parse) expr_ctx_stack: ExprCtxStack,
   ast: Option<GreenNode>,
 }
 
@@ -56,7 +56,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
   }
 
-  pub(in crate::parse) fn parse_source_file(&mut self) -> GreenNode {
+  pub(in crate::syntax::parse) fn parse_source_file(&mut self) -> GreenNode {
     let yaml_frontmatter = self.parse_yaml_frontmatter();
     self.lex_ctx.set_mode(LexMode::MarkdownBody);
     let markdown_body = self.parse_markdown_body();
@@ -69,7 +69,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
 impl<S: Utf8Stream> ParseCtx<S> {
   /// Consume the next non-skipped YAML token, pushing skipped trivia and result into children.
-  pub(in crate::parse) fn advance_yaml(
+  pub(in crate::syntax::parse) fn advance_yaml(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -91,7 +91,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Consume the next non-skipped Markdown token, pushing skipped trivia and result into children.
-  pub(in crate::parse) fn advance_md(
+  pub(in crate::syntax::parse) fn advance_md(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -122,7 +122,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_yaml(), but expects the token to match `expected`.
-  pub(in crate::parse) fn consume_yaml(
+  pub(in crate::syntax::parse) fn consume_yaml(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -141,7 +141,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_md(), but expects the token to match `expected`.
-  pub(in crate::parse) fn consume_md(
+  pub(in crate::syntax::parse) fn consume_md(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -178,7 +178,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_yaml(), but expects the token to satisfy a predicate.
-  pub(in crate::parse) fn consume_yaml_if(
+  pub(in crate::syntax::parse) fn consume_yaml_if(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -197,7 +197,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Like advance_md(), but expects the token to satisfy a predicate.
-  pub(in crate::parse) fn consume_md_if(
+  pub(in crate::syntax::parse) fn consume_md_if(
     &mut self,
     children: &mut Vec<GreenNode>,
     skip: u16,
@@ -234,7 +234,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Consume everything until newline or EOF.
-  pub(in crate::parse) fn expect_end_of_line(
+  pub(in crate::syntax::parse) fn expect_end_of_line(
     &mut self,
     children: &mut Vec<GreenNode>,
     diagnostic: Diagnostic,
@@ -266,17 +266,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
   }
 
   /// Current byte offset in the source stream.
-  pub(in crate::parse) fn offset(&self) -> usize {
+  pub(in crate::syntax::parse) fn offset(&self) -> usize {
     self.lex_ctx.offset()
   }
 
   /// Push a diagnostic.
-  pub(in crate::parse) fn emit_diagnostic(&mut self, diagnostic: Diagnostic) {
+  pub(in crate::syntax::parse) fn emit_diagnostic(&mut self, diagnostic: Diagnostic) {
     self.diagnostics.push(diagnostic);
   }
 
   /// Emit a GreenNode
-  pub(in crate::parse) fn emit(&mut self, kind: SyntaxKind, children: &[GreenNode]) -> GreenNode {
+  pub(in crate::syntax::parse) fn emit(
+    &mut self,
+    kind: SyntaxKind,
+    children: &[GreenNode],
+  ) -> GreenNode {
     GreenNode::from_node(self.cache.borrow_mut().node(kind, children))
   }
 }

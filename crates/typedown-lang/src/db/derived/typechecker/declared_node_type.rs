@@ -4,7 +4,7 @@ use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_type::evaluate_type;
 use crate::db::derived::name_resolver::members::members;
 use crate::db::types::{HirValue, Scope, TypeMemberResult};
-use crate::red::RedNode;
+use crate::syntax::red::RedNode;
 use typedown_incremental::QueryDatabase;
 use typedown_macros::query_derived;
 use typedown_types::syntax_kind::SyntaxKind;

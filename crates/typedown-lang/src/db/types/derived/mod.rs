@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use typedown_macros::query_derived;
 use typedown_types::diagnostic::Diagnostic;
 
-use crate::red::RedNode;
+use crate::syntax::red::RedNode;
 
 use super::inputs::{File, FileHandle, Project};
 

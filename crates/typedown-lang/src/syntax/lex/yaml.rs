@@ -8,7 +8,7 @@ use typedown_types::syntax_kind::SyntaxKind;
 
 // YAML frontmatter lexing
 impl<S: Utf8Stream> LexCtx<S> {
-  pub(in crate::lex) fn lex_yaml_frontmatter(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_frontmatter(&mut self) -> LexResult {
     // If inside an interpolation context, dispatch accordingly
     match self.yaml_lex_ctx.interp_stack.last() {
       Some(InterpContext::Interpolation) | Some(InterpContext::Brace) => {
@@ -35,7 +35,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     self.lex_yaml_token()
   }
 
-  pub(in crate::lex) fn lex_yaml_token(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_token(&mut self) -> LexResult {
     let char = match self.peek() {
       Utf8Result::Char(char) => char,
       _ => panic!(
@@ -130,7 +130,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Indentation */
 
-  pub(in crate::lex) fn lex_yaml_indent(&mut self) -> Option<LexResult> {
+  pub(in crate::syntax::lex) fn lex_yaml_indent(&mut self) -> Option<LexResult> {
     self.yaml_lex_ctx.at_line_start = false;
 
     // Count leading whitespace and track tab/space usage
@@ -221,14 +221,14 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Whitespace */
 
-  pub(in crate::lex) fn lex_yaml_whitespaces(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_whitespaces(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8();
     self.emit(SyntaxKind::Whitespace)
   }
 
   /* Comments */
 
-  pub(in crate::lex) fn lex_yaml_comment(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_comment(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8(); // consume #
     loop {
       match self.peek() {
@@ -243,7 +243,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Operators */
 
-  pub(in crate::lex) fn lex_yaml_op(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_op(&mut self) -> LexResult {
     // Check for `!` tag before consuming op chars:
     if let Utf8Result::Char('!') = self.peek() {
       self.advance_avoid_invalid_utf8();
@@ -277,7 +277,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     self.emit(SyntaxKind::YamlOp)
   }
 
-  pub(in crate::lex) fn consume_op_chars(&mut self) {
+  pub(in crate::syntax::lex) fn consume_op_chars(&mut self) {
     loop {
       match self.peek() {
         Utf8Result::Char(char) if is_op_char(char) => {
@@ -290,19 +290,19 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Strings */
 
-  pub(in crate::lex) fn lex_yaml_dq_string(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_dq_string(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8();
     self.yaml_lex_ctx.interp_stack.push(InterpContext::DqString);
     self.emit(SyntaxKind::DqStrStart)
   }
 
-  pub(in crate::lex) fn lex_yaml_sq_string(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_sq_string(&mut self) -> LexResult {
     self.advance_avoid_invalid_utf8();
     self.yaml_lex_ctx.interp_stack.push(InterpContext::SqString);
     self.emit(SyntaxKind::SqStrStart)
   }
 
-  pub(in crate::lex) fn lex_yaml_resume_string(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_resume_string(&mut self) -> LexResult {
     match self.yaml_lex_ctx.interp_stack.last() {
       Some(InterpContext::DqString) => {
         self.lex_yaml_string_content('"', SyntaxKind::DqStrContent, SyntaxKind::DqStrEnd)
@@ -316,7 +316,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  pub(in crate::lex) fn lex_yaml_string_content(
+  pub(in crate::syntax::lex) fn lex_yaml_string_content(
     &mut self,
     closing: char,
     content_kind: SyntaxKind,
@@ -438,7 +438,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Interpolation */
 
-  pub(in crate::lex) fn lex_yaml_interpolation(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_interpolation(&mut self) -> LexResult {
     if let Utf8Result::Eof = self.peek() {
       self.yaml_lex_ctx.interp_stack.pop();
       let offset = self.stream.offset();
@@ -455,13 +455,13 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Numbers */
 
-  pub(in crate::lex) fn lex_yaml_number(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_number(&mut self) -> LexResult {
     self.lex_number()
   }
 
   /* Identifiers */
 
-  pub(in crate::lex) fn lex_yaml_ident(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_yaml_ident(&mut self) -> LexResult {
     loop {
       match self.peek() {
         Utf8Result::Char(char) if char.is_alphanumeric() || char == '_' => {
@@ -474,7 +474,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   }
 }
 
-pub(in crate::lex) fn is_op_char(char: char) -> bool {
+pub(in crate::syntax::lex) fn is_op_char(char: char) -> bool {
   matches!(
     char,
     '!' | '+' | '-' | '*' | '/' | '\\' | '.' | '~' | '^' | '|' | '>' | '<' | '=' | '%' | '&' | '@'

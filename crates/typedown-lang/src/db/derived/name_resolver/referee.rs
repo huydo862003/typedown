@@ -1,6 +1,6 @@
 use typedown_macros::query_derived;
 
-use crate::red::RedNode;
+use crate::syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;

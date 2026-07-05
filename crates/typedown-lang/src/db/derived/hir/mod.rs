@@ -2,12 +2,12 @@
 
 use typedown_macros::query_derived;
 
-use crate::ast::{
+use crate::syntax::ast::{
   AstNode, BinaryExpr, CallExpr, CodeBlock, CodeLit, DictEntry, DictLit, Expr, IdentLit, IndexExpr,
   InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody, NumberLit,
   ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
-use crate::red::RedNode;
+use crate::syntax::red::RedNode;
 use typedown_types::diagnostic::Diagnostic;
 use typedown_types::either::Either;
 use typedown_types::syntax_kind::SyntaxKind;

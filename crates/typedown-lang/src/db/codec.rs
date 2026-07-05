@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use crate::green::GreenNode;
-use crate::green::cache::with_green_cache;
-use crate::green::node::SyntaxNode;
-use crate::green::token::SyntaxToken;
-use crate::red::RedNode;
+use crate::syntax::green::GreenNode;
+use crate::syntax::green::cache::with_green_cache;
+use crate::syntax::green::node::SyntaxNode;
+use crate::syntax::green::token::SyntaxToken;
+use crate::syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;

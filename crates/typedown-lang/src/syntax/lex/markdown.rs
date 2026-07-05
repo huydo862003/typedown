@@ -3,12 +3,12 @@ use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{InterpContext, LexCtx, LexResult};
 use super::yaml::is_op_char;
-use crate::green::token::SyntaxToken;
+use crate::syntax::green::token::SyntaxToken;
 use typedown_types::syntax_kind::SyntaxKind;
 
 // Markdown body lexing
 impl<S: Utf8Stream> LexCtx<S> {
-  pub(in crate::lex) fn lex_markdown_body(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_body(&mut self) -> LexResult {
     // If inside a formula/string context, dispatch accordingly
     match self.markdown_lex_ctx.interp_stack.last() {
       Some(InterpContext::Interpolation) | Some(InterpContext::Brace) => {
@@ -118,7 +118,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Dollar */
 
-  pub(in crate::lex) fn lex_markdown_dollar(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_dollar(&mut self) -> LexResult {
     // Count opening $ delimiters
     let mut fence_count = 0;
     while let Utf8Result::Char('$') = self.peek() {
@@ -196,7 +196,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* HTML entities */
 
-  pub(in crate::lex) fn lex_markdown_html_entity(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_html_entity(&mut self) -> LexResult {
     // Consume `&`
     self.advance_avoid_invalid_utf8();
 
@@ -286,7 +286,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Text */
 
-  pub(in crate::lex) fn lex_markdown_text(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_text(&mut self) -> LexResult {
     loop {
       match self.peek() {
         Utf8Result::Char(char)
@@ -312,7 +312,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Symbols */
 
-  pub(in crate::lex) fn lex_markdown_symbol(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_symbol(&mut self) -> LexResult {
     let first = match self.peek() {
       Utf8Result::Char(char) => char,
       _ => unreachable!(),
@@ -331,7 +331,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Code spans */
 
-  pub(in crate::lex) fn lex_markdown_code(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_code(&mut self) -> LexResult {
     // Count opening backticks
     let mut fence_count = 0;
     while let Utf8Result::Char('`') = self.peek() {
@@ -403,7 +403,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Numbers */
 
-  pub(in crate::lex) fn lex_markdown_number(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_number(&mut self) -> LexResult {
     loop {
       match self.peek() {
         Utf8Result::Char(char) if char.is_ascii_digit() => {
@@ -417,7 +417,7 @@ impl<S: Utf8Stream> LexCtx<S> {
 
   /* Formula mode (inside ${...} in markdown) */
 
-  pub(in crate::lex) fn lex_markdown_formula(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_formula(&mut self) -> LexResult {
     if let Utf8Result::Eof = self.peek() {
       self.markdown_lex_ctx.interp_stack.pop();
       let offset = self.stream.offset();
@@ -520,7 +520,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  pub(in crate::lex) fn lex_markdown_resume_string(&mut self) -> LexResult {
+  pub(in crate::syntax::lex) fn lex_markdown_resume_string(&mut self) -> LexResult {
     match self.markdown_lex_ctx.interp_stack.last() {
       Some(InterpContext::DqString) => {
         self.lex_markdown_string_content('"', SyntaxKind::DqStrContent, SyntaxKind::DqStrEnd)
@@ -534,7 +534,7 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
   }
 
-  pub(in crate::lex) fn lex_markdown_string_content(
+  pub(in crate::syntax::lex) fn lex_markdown_string_content(
     &mut self,
     closing: char,
     content_kind: SyntaxKind,

@@ -1,11 +1,11 @@
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location, Range};
 
-use typedown_lang::ast::{AstNode, Expr};
 use typedown_lang::db::derived::hir::lower_node;
 use typedown_lang::db::derived::name_resolver::referee::referee;
 use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::db::types::{FileHandle, HirValueKind, SymbolKind};
-use typedown_lang::red::RedNode;
+use typedown_lang::syntax::ast::{AstNode, Expr};
+use typedown_lang::syntax::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;

@@ -1,6 +1,6 @@
 //! Shared utilities for derived queries
 
-use crate::ast::{AstNode, SourceFile};
+use crate::syntax::ast::{AstNode, SourceFile};
 use typedown_types::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
