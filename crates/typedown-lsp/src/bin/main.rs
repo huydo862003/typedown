@@ -8,7 +8,7 @@ use lsp_types::{
   ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
   Uri,
 };
-use typedown_lang::{QueryStorage, TypedownDatabase};
+use typedown_lang::db::{QueryStorage, TypedownDatabase};
 use typedown_lsp::analysis_host::AnalysisHost;
 use typedown_lsp::server::Server;
 use typedown_lsp::service::semantic_tokens;

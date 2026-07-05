@@ -9,8 +9,8 @@ use std::{fs, io};
 use lsp_types::Uri;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ropey::Rope;
-use typedown_lang::TypedownDatabase;
-use typedown_lang::types::{File, FileHandle, Project};
+use typedown_lang::db::TypedownDatabase;
+use typedown_lang::db::types::{File, FileHandle, Project};
 
 use crate::analysis::Analysis;
 use crate::utils::uri::{uri_scheme, uri_to_path};

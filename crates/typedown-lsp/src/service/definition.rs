@@ -1,11 +1,11 @@
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location, Range};
 
 use typedown_lang::ast::{AstNode, Expr};
-use typedown_lang::derived::hir::lower_node;
-use typedown_lang::derived::name_resolver::referee::referee;
-use typedown_lang::derived::parse_file::parse_file;
+use typedown_lang::db::derived::hir::lower_node;
+use typedown_lang::db::derived::name_resolver::referee::referee;
+use typedown_lang::db::derived::parse_file::parse_file;
+use typedown_lang::db::types::{FileHandle, HirValueKind, SymbolKind};
 use typedown_lang::red::RedNode;
-use typedown_lang::types::{FileHandle, HirValueKind, SymbolKind};
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
@@ -80,8 +80,8 @@ pub fn definition(
 
 /// If the cursor is inside a fref() string argument, return the resolved target path.
 fn fref_target(
-  db: &typedown_lang::TypedownDatabase,
-  project: typedown_lang::types::Project,
+  db: &typedown_lang::db::TypedownDatabase,
+  project: typedown_lang::db::types::Project,
   node: &RedNode,
 ) -> Option<std::path::PathBuf> {
   let str_lit = find_ancestor(node, SyntaxKind::StrLit);
@@ -119,8 +119,8 @@ mod tests {
     TextDocumentIdentifier, TextDocumentPositionParams, Uri, WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_lang::types::{File, FileHandle};
-  use typedown_lang::{QueryStorage, TypedownDatabase};
+  use typedown_lang::db::types::{File, FileHandle};
+  use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
 
@@ -192,7 +192,7 @@ age: 30
       (content_path, editing_file),
     ]);
 
-    let project = typedown_lang::types::Project::new(&db, root, files);
+    let project = typedown_lang::db::types::Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,

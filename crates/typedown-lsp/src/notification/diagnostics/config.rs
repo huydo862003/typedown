@@ -2,7 +2,7 @@ use lsp_server::Notification;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, PublishDiagnosticsParams};
 use ropey::Rope;
-use typedown_lang::derived::get_vault_config::get_vault_config;
+use typedown_lang::db::derived::get_vault_config::get_vault_config;
 use typedown_types::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;

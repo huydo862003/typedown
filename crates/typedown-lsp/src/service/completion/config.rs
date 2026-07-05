@@ -16,7 +16,7 @@ pub fn completion(analysis: &Analysis, params: CompletionParams) -> Option<Compl
   let project = analysis.project;
   let file = *project.files(db).get(&path)?;
 
-  let root = typedown_lang::derived::parse_file::parse_file(db, project, file).ast(db);
+  let root = typedown_lang::db::derived::parse_file::parse_file(db, project, file).ast(db);
   let lookup = offset.saturating_sub(1);
   let node = node_at_offset(root, lookup)?;
 

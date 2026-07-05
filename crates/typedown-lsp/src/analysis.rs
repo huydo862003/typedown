@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
 
 use ropey::Rope;
-use typedown_lang::TypedownDatabase;
-use typedown_lang::types::Project;
+use typedown_lang::db::TypedownDatabase;
+use typedown_lang::db::types::Project;
 
 pub struct Analysis {
   pub(crate) db: TypedownDatabase,

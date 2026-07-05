@@ -3,7 +3,7 @@ use lsp_types::{
   SemanticTokensResult,
 };
 use ropey::Rope;
-use typedown_lang::derived::parse_file::parse_file;
+use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::red::RedNode;
 use typedown_types::syntax_kind::SyntaxKind;
 
@@ -13,7 +13,7 @@ use crate::utils::position::text_offset_to_lsp_position;
 use crate::utils::uri::uri_to_path;
 
 #[cfg(test)]
-use typedown_lang::{
+use typedown_lang::db::{
   QueryStorage, TypedownDatabase,
   types::{File, FileHandle, Project},
 };

@@ -1,13 +1,13 @@
 use lsp_types::{Hover, HoverContents, HoverParams, MarkupContent, MarkupKind};
-use typedown_lang::types::TdrTypeLike;
+use typedown_lang::db::types::TdrTypeLike;
 
-use typedown_lang::TypedownDatabase;
 use typedown_lang::ast::{AstNode, Expr};
-use typedown_lang::derived::hir::lower_node;
-use typedown_lang::derived::parse_file::parse_file;
-use typedown_lang::derived::typechecker::declared_node_type::declared_node_type;
-use typedown_lang::derived::typechecker::resolved_node_type::resolved_node_type;
-use typedown_lang::types::{LiteralValue, MemberType, TypeMember, TypeMemberDescriptors};
+use typedown_lang::db::TypedownDatabase;
+use typedown_lang::db::derived::hir::lower_node;
+use typedown_lang::db::derived::parse_file::parse_file;
+use typedown_lang::db::derived::typechecker::declared_node_type::declared_node_type;
+use typedown_lang::db::derived::typechecker::resolved_node_type::resolved_node_type;
+use typedown_lang::db::types::{LiteralValue, MemberType, TypeMember, TypeMemberDescriptors};
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
@@ -106,8 +106,8 @@ mod tests {
     WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_lang::types::{File, FileHandle};
-  use typedown_lang::{QueryStorage, TypedownDatabase};
+  use typedown_lang::db::types::{File, FileHandle};
+  use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
 
@@ -173,7 +173,7 @@ properties:
       (content_path, editing_file),
     ]);
 
-    let project = typedown_lang::types::Project::new(&db, root, files);
+    let project = typedown_lang::db::types::Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,
