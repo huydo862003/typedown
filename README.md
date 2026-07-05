@@ -20,6 +20,25 @@ Then run `:LspInfo` inside Neovim to verify the server attached. Make sure `type
 cargo build --release
 ```
 
+## Dependency Graph
+
+- `typedown-macros` and `typedown-types` contain common utils, which are the lowest common denominator that everyone depends upon.
+  - They can be depended upon by other crates.
+  - They must not depend on any other crates.
+- `typedown-syntax` contain the AST structure & parser for typedown.
+  - `typedown-syntax` can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types`.
+  - `typedown-syntax` must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
+- `typedown-incremental` contains the incremental engine.
+  - It must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
+  - It can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types` and `typedown-syntax`.
+  - `typedown-incremental` must not depend on anything else
+- `typedown-db` contains the typechecking and evaluation logic for typedown.
+  - It must not depend on `typedown-lsp`.
+  - It can only be depended upon by `typedown-lsp`.
+- `typedown-lsp` contains the LSP server for typedown.
+  - It can depend on any other crates.
+  - It can not be depended upon by others.
+
 ## Common Pitfalls (and Painful Lessons)
 
 These are some lessons learnt during the development of the project. Some comments in the code are also marked with `TIL`.
