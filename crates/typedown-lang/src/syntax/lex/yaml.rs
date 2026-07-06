@@ -1,10 +1,8 @@
-use typedown_types::{
-  diagnostic::Diagnostic,
-  stream::{Utf8Result, Utf8Stream},
-};
+use crate::syntax::diagnostic::Diagnostic;
+use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use super::ctx::{InterpContext, LexCtx, LexResult};
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 // YAML frontmatter lexing
 impl<S: Utf8Stream> LexCtx<S> {

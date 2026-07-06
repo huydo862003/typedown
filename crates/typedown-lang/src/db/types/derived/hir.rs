@@ -1,10 +1,12 @@
+use crate::syntax::diagnostic::Diagnostic;
 use crate::syntax::red::RedNode;
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
 use typedown_macros::query_derived;
-use typedown_types::diagnostic::Diagnostic;
 
 use crate::db::types::{File, Project};
-use typedown_incremental::{Decodable, Decoder, Encodable, Encoder, StableHash, StableHasher};
+use typedown_incremental::{
+  Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher,
+};
 
 /// A lowered YAML value, source-tracked via its originating project, file, and red node.
 #[query_derived]
@@ -55,11 +57,7 @@ pub enum HirValueKind {
 }
 
 impl StableHash for HirValueKind {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       HirValueKind::Str(v)
@@ -99,11 +97,7 @@ impl StableHash for HirValueKind {
 }
 
 impl StableHash for InterpolatedPart {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       InterpolatedPart::Literal(s) => s.stable_hash(db, hasher),
@@ -112,7 +106,7 @@ impl StableHash for InterpolatedPart {
   }
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum HirValueKindTag {
   Str = 0,
@@ -132,7 +126,7 @@ enum HirValueKindTag {
   Index = 14,
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum InterpolatedPartTag {
   Literal = 0,
@@ -214,8 +208,8 @@ impl Encodable for HirValueKind {
 impl Decodable for HirValueKind {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match HirValueKindTag::try_from(tag)
-      .unwrap_or_else(|_| panic!("unknown HirValueKind tag {tag}"))
+    match HirValueKindTag::from_repr(tag)
+      .unwrap_or_else(|| panic!("unknown HirValueKind tag {tag}"))
     {
       HirValueKindTag::Str => HirValueKind::Str(String::decode(decoder)),
       HirValueKindTag::Num => HirValueKind::Num(String::decode(decoder)),
@@ -276,8 +270,8 @@ impl Encodable for InterpolatedPart {
 impl Decodable for InterpolatedPart {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match InterpolatedPartTag::try_from(tag)
-      .unwrap_or_else(|_| panic!("unknown InterpolatedPart tag {tag}"))
+    match InterpolatedPartTag::from_repr(tag)
+      .unwrap_or_else(|| panic!("unknown InterpolatedPart tag {tag}"))
     {
       InterpolatedPartTag::Literal => InterpolatedPart::Literal(String::decode(decoder)),
       InterpolatedPartTag::Expr => InterpolatedPart::Expr(HirValue::decode(decoder)),

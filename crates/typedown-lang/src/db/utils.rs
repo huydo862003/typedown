@@ -1,7 +1,7 @@
 //! Shared utilities for derived queries
 
 use crate::syntax::ast::{AstNode, SourceFile};
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::hir::lower_node;

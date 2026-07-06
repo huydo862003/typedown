@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
 use typedown_macros::query_derived;
 
 use crate::db::types::{File, Project};
-use typedown_incremental::{Decodable, Decoder, Encodable, Encoder, StableHash, StableHasher};
+use typedown_incremental::{
+  Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SymbolKind {
@@ -14,7 +16,7 @@ pub enum SymbolKind {
   BuiltinMacro(BuiltinMacroKind),
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum SymbolKindTag {
   UserDefinedSchema = 0,
@@ -48,11 +50,7 @@ impl SymbolKind {
 }
 
 impl StableHash for SymbolKind {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       SymbolKind::UserDefinedSchema(project, file)
@@ -94,7 +92,7 @@ impl Encodable for SymbolKind {
 impl Decodable for SymbolKind {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match SymbolKindTag::try_from(tag).unwrap_or_else(|_| panic!("unknown SymbolKind tag {tag}")) {
+    match SymbolKindTag::from_repr(tag).unwrap_or_else(|| panic!("unknown SymbolKind tag {tag}")) {
       SymbolKindTag::UserDefinedSchema => {
         SymbolKind::UserDefinedSchema(Project::decode(decoder), File::decode(decoder))
       }
@@ -107,18 +105,14 @@ impl Decodable for SymbolKind {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromRepr)]
 #[repr(u8)]
 pub enum BuiltinMacroKind {
   Fref = 0,
 }
 
 impl StableHash for BuiltinMacroKind {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
   }
 }
@@ -132,11 +126,11 @@ impl Encodable for BuiltinMacroKind {
 impl Decodable for BuiltinMacroKind {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    BuiltinMacroKind::try_from(tag).unwrap_or_else(|_| panic!("unknown BuiltinMacroKind tag {tag}"))
+    BuiltinMacroKind::from_repr(tag).unwrap_or_else(|| panic!("unknown BuiltinMacroKind tag {tag}"))
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromRepr)]
 #[repr(u8)]
 pub enum BuiltinSchemaKind {
   TypeType = 0,
@@ -153,11 +147,7 @@ pub enum BuiltinSchemaKind {
 }
 
 impl StableHash for BuiltinSchemaKind {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
   }
 }
@@ -171,8 +161,8 @@ impl Encodable for BuiltinSchemaKind {
 impl Decodable for BuiltinSchemaKind {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    BuiltinSchemaKind::try_from(tag)
-      .unwrap_or_else(|_| panic!("unknown BuiltinSchemaKind tag {tag}"))
+    BuiltinSchemaKind::from_repr(tag)
+      .unwrap_or_else(|| panic!("unknown BuiltinSchemaKind tag {tag}"))
   }
 }
 
@@ -183,7 +173,7 @@ pub enum ScopeKind {
   File(Project, File),
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum ScopeKindTag {
   Builtin = 0,
@@ -192,11 +182,7 @@ enum ScopeKindTag {
 }
 
 impl StableHash for ScopeKind {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       ScopeKind::Builtin => {}
@@ -229,7 +215,7 @@ impl Encodable for ScopeKind {
 impl Decodable for ScopeKind {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match ScopeKindTag::try_from(tag).unwrap_or_else(|_| panic!("unknown ScopeKind tag {tag}")) {
+    match ScopeKindTag::from_repr(tag).unwrap_or_else(|| panic!("unknown ScopeKind tag {tag}")) {
       ScopeKindTag::Builtin => ScopeKind::Builtin,
       ScopeKindTag::Project => ScopeKind::Project(Project::decode(decoder)),
       ScopeKindTag::File => ScopeKind::File(Project::decode(decoder), File::decode(decoder)),

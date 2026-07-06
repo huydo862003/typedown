@@ -4,8 +4,11 @@ pub mod cache;
 pub mod node;
 pub mod token;
 
+use std::fmt::{self, Debug};
 use std::hash::{Hash, Hasher};
 use typedown_types::either::Either;
+
+use crate::syntax::syntax_kind::SyntaxKind;
 
 pub use node::SyntaxNode;
 pub use token::SyntaxToken;
@@ -62,7 +65,7 @@ impl GreenNode {
     Some(cloned)
   }
 
-  pub fn kind(&self) -> typedown_types::syntax_kind::SyntaxKind {
+  pub fn kind(&self) -> SyntaxKind {
     if self.is_token() {
       self.as_token().unwrap().kind()
     } else {
@@ -142,6 +145,16 @@ impl PartialEq for GreenNode {
 }
 
 impl Eq for GreenNode {}
+
+impl Debug for GreenNode {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    if self.is_node() {
+      self.as_node().unwrap().fmt(f)
+    } else {
+      self.as_token().unwrap().fmt(f)
+    }
+  }
+}
 
 impl Hash for GreenNode {
   fn hash<H: Hasher>(&self, state: &mut H) {

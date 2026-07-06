@@ -13,7 +13,7 @@ use hashbrown::hash_map::RawEntryMut;
 use super::GreenNode;
 use super::node::SyntaxNode;
 use super::token::SyntaxToken;
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 thread_local! {
   static CACHE: Rc<RefCell<Cache>> = Rc::new(RefCell::new(Cache::new()));

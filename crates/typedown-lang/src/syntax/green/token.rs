@@ -4,7 +4,7 @@
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 pub(super) struct TokenBody {
   pub(super) ref_count: AtomicUsize,
@@ -20,7 +20,7 @@ impl SyntaxToken {
     cache.token(kind, text)
   }
 
-  pub(super) fn from_raw_parts(kind: SyntaxKind, bytes: Vec<u8>) -> Self {
+  pub(crate) fn from_raw_parts(kind: SyntaxKind, bytes: Vec<u8>) -> Self {
     let body = Box::new(TokenBody {
       ref_count: AtomicUsize::new(1),
       kind,

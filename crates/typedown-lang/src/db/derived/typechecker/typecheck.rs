@@ -2,11 +2,11 @@
 
 use std::collections::HashSet;
 
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_macros::query_derived;
-use typedown_types::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
-use crate::db::derived::get_builtin_types::get_num_type;
+use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type};
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::infer_node_type::infer_node_type;
 use crate::db::types::{
@@ -411,7 +411,7 @@ fn check_binary(
     // Logical: both operands must be boolean
     // Consider allow truthy and falsy?
     "&&" | "||" => {
-      let bool_type: TdrTypeEnum = crate::db::derived::get_builtin_types::get_bool_type(db).into();
+      let bool_type: TdrTypeEnum = get_bool_type(db).into();
       if let Some(lt) = &left_type {
         if !bool_type.is_compatible_with(db, &lt) {
           let node = left.node(db);
@@ -516,6 +516,7 @@ mod tests {
   use crate::db::{
     derived::typechecker::typecheck::typecheck, fixtures::load_vault_fixture, utils::lower_file,
   };
+  use crate::syntax::diagnostic::Diagnostic;
 
   // Mapping without _type: infers product type, no validation errors
   #[test]
@@ -567,7 +568,9 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
-      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::MissingRequiredField { field, .. } if field == "properties")),
+      diags.iter().any(
+        |d| matches!(d, Diagnostic::MissingRequiredField { field, .. } if field == "properties")
+      ),
       "expected MissingRequiredField for 'properties', got: {:?}",
       diags
     );
@@ -595,7 +598,7 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
-      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, expected, .. } if field == "name" && expected == "string")),
+      diags.iter().any(|d| matches!(d, Diagnostic::FieldTypeMismatch { field, expected, .. } if field == "name" && expected == "string")),
       "expected FieldTypeMismatch for 'name' with expected 'string', got: {:?}",
       diags
     );
@@ -623,7 +626,9 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
-      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, .. } if field == "address")),
+      diags
+        .iter()
+        .any(|d| matches!(d, Diagnostic::FieldTypeMismatch { field, .. } if field == "address")),
       "expected FieldTypeMismatch for 'address', got: {:?}",
       diags
     );
@@ -651,10 +656,9 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
-      diags.iter().any(|d| matches!(
-        d,
-        typedown_types::diagnostic::Diagnostic::OperandTypeMismatch { .. }
-      )),
+      diags
+        .iter()
+        .any(|d| matches!(d, Diagnostic::OperandTypeMismatch { .. })),
       "expected OperandTypeMismatch for unary minus on boolean, got: {:?}",
       diags
     );
@@ -682,10 +686,9 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
-      diags.iter().any(|d| matches!(
-        d,
-        typedown_types::diagnostic::Diagnostic::OperandTypeMismatch { .. }
-      )),
+      diags
+        .iter()
+        .any(|d| matches!(d, Diagnostic::OperandTypeMismatch { .. })),
       "expected OperandTypeMismatch for binary addition with boolean, got: {:?}",
       diags
     );
@@ -738,7 +741,9 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     let diags = result.diagnostics(&db);
     assert!(
-      diags.iter().any(|d| matches!(d, typedown_types::diagnostic::Diagnostic::FieldTypeMismatch { field, .. } if field == "state")),
+      diags
+        .iter()
+        .any(|d| matches!(d, Diagnostic::FieldTypeMismatch { field, .. } if field == "state")),
       "state: \"published\" should fail literal type \"draft\": {:?}",
       diags
     );

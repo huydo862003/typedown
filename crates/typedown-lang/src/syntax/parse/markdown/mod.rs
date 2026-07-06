@@ -1,7 +1,8 @@
 //! Markdown body parsing
 
-use typedown_types::diagnostic::Diagnostic;
-use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
+use crate::syntax::diagnostic::Diagnostic;
+use crate::syntax::syntax_kind::SyntaxKind;
+use typedown_types::stream::Utf8Stream;
 
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;

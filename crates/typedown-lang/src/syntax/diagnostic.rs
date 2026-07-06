@@ -1,7 +1,9 @@
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
+
+use crate::syntax::syntax_kind::SyntaxKind;
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromRepr)]
 pub enum DiagnosticCode {
   UnexpectedEof = 0,
   UnexpectedChar = 1,
@@ -254,7 +256,7 @@ pub enum Diagnostic {
 
   /// Expected a specific syntax node or token but it was missing.
   MissingSyntaxNode {
-    expected: crate::syntax_kind::SyntaxKind,
+    expected: SyntaxKind,
     start_offset: usize,
     end_offset: usize,
   },

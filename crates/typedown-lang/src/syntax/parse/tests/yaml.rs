@@ -1,5 +1,5 @@
 use super::helpers::*;
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 
 fn parse_frontmatter(input: &str) -> String {
   let full = format!("---\n{}\n---\n", input);

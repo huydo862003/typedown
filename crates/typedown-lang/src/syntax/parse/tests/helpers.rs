@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_types::string_stream::StringStream;
 
 use crate::syntax::green::{GreenNode, cache::Cache};

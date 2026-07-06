@@ -1,6 +1,6 @@
 use super::helpers::*;
-use typedown_types::diagnostic::Diagnostic;
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::diagnostic::Diagnostic;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 fn parse_expr(input: &str) -> String {
   let program = format!("---\nkey: {}\n---\n", input);
@@ -15,10 +15,7 @@ fn parse_expr(input: &str) -> String {
   let mapping = frontmatter
     .children()
     .iter()
-    .find(|c| {
-      c.is_node()
-        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::YamlMapping
-    })
+    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::YamlMapping)
     .expect("Expected BlockMapping in frontmatter");
 
   // Find the `key: ...` entry
@@ -43,9 +40,7 @@ fn parse_expr(input: &str) -> String {
   render_tree(value)
 }
 
-fn parse_expr_with_diagnostics(
-  input: &str,
-) -> (String, Vec<typedown_types::diagnostic::Diagnostic>) {
+fn parse_expr_with_diagnostics(input: &str) -> (String, Vec<Diagnostic>) {
   let full = format!("---\nkey: {}\n---\n", input);
   let (ast, diagnostics) = parse(&full);
   let root = ast.as_node().unwrap();
@@ -53,10 +48,7 @@ fn parse_expr_with_diagnostics(
   let mapping = frontmatter
     .children()
     .iter()
-    .find(|c| {
-      c.is_node()
-        && c.as_node().unwrap().kind() == typedown_types::syntax_kind::SyntaxKind::YamlMapping
-    })
+    .find(|c| c.is_node() && c.as_node().unwrap().kind() == SyntaxKind::YamlMapping)
     .expect("Expected BlockMapping in frontmatter");
   let entry = mapping
     .as_node()

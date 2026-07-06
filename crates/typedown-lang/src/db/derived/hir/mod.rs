@@ -7,10 +7,10 @@ use crate::syntax::ast::{
   InlineCode, InlineMath, InterpFragment, ListItem, ListLit, MathBlock, MathLit, MdBody, NumberLit,
   ParenExpr, SourceFile, StrLit, UnaryExpr, YamlFrontmatter, YamlMapping, YamlSequence,
 };
+use crate::syntax::diagnostic::Diagnostic;
 use crate::syntax::red::RedNode;
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::syntax_kind::SyntaxKind;
 use typedown_types::either::Either;
-use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;
 use crate::db::types::{File, HirValue, HirValueKind, InterpolatedPart, Project};

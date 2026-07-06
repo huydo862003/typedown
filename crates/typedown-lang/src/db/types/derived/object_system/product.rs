@@ -9,7 +9,7 @@ use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use typedown_incremental::Id;
 use typedown_types::either::Either;
 
-use crate::db::types::{HirValue, InstResult, MemberType, TypeMember};
+use crate::db::types::{HirValue, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
 
 fn member_types_compatible(
   db: &TypedownDatabase,
@@ -84,7 +84,7 @@ impl TdrTypeLike for TdrProductType {
     for (field_name, expected_member) in &self_fields {
       let is_required = !expected_member
         .descriptors(db)
-        .contains(crate::db::types::TypeMemberDescriptors::OPTIONAL);
+        .contains(TypeMemberDescriptors::OPTIONAL);
       if !is_required {
         continue;
       }

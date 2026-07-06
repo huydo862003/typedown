@@ -5,10 +5,9 @@ use crate::db::derived::evaluate::evaluate_type::evaluate_type;
 use crate::db::derived::name_resolver::members::members;
 use crate::db::types::{HirValue, Scope, TypeMemberResult};
 use crate::syntax::red::RedNode;
+use crate::syntax::syntax_kind::SyntaxKind;
 use typedown_incremental::QueryDatabase;
 use typedown_macros::query_derived;
-use typedown_types::syntax_kind::SyntaxKind;
-#[query_derived]
 #[query_derived]
 pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
   let project = hir.project(db);
@@ -72,7 +71,7 @@ mod tests {
     TypedownDatabase,
     derived::typechecker::declared_node_type::declared_node_type,
     fixtures::load_vault_fixture,
-    types::{File, HirValueKind, MemberType, Project},
+    types::{File, HirValue, HirValueKind, MemberType, Project},
     utils::lower_file,
   };
 
@@ -81,7 +80,7 @@ mod tests {
     project: Project,
     file: File,
     field: &str,
-  ) -> Option<crate::db::types::HirValue> {
+  ) -> Option<HirValue> {
     let (hir, _) = lower_file(db, project, file);
     let hir = hir?;
     if let HirValueKind::Mapping(entries) = hir.kind(db) {

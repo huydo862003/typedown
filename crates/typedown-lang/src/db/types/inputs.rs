@@ -6,7 +6,7 @@ use typedown_macros::query_input;
 
 use typedown_types::{file_stream::FileStream, stream::Utf8Stream};
 
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
 
 use typedown_incremental::{Decodable, Decoder, Encodable, Encoder};
 
@@ -48,7 +48,7 @@ pub struct File {
   handle: FileHandle,
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum FileHandleTag {
   Path = 0,
@@ -78,7 +78,7 @@ impl Encodable for FileHandle {
 impl Decodable for FileHandle {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match FileHandleTag::try_from(tag).unwrap_or_else(|_| panic!("unknown FileHandle tag {tag}")) {
+    match FileHandleTag::from_repr(tag).unwrap_or_else(|| panic!("unknown FileHandle tag {tag}")) {
       FileHandleTag::Path => {
         let path = PathBuf::decode(decoder);
         let secs = u64::decode(decoder);

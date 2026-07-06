@@ -2,7 +2,7 @@
 
 use typedown_macros::query_derived;
 
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
 use crate::db::types::BuiltinSchemaKind;
@@ -219,7 +219,7 @@ pub fn instantiate_type(
 #[cfg(test)]
 mod tests {
   use crate::db::types::TdrTypeEnum;
-  use typedown_types::diagnostic::Diagnostic;
+  use crate::syntax::diagnostic::Diagnostic;
 
   use crate::db::{
     QueryStorage, TypedownDatabase,

@@ -8,12 +8,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_types::stream::{Utf8Result, Utf8Stream};
 
 use crate::syntax::green::cache::Cache;
 use crate::syntax::green::token::SyntaxToken;
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 pub struct LexResult {
   pub token: SyntaxToken,

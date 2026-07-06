@@ -1,7 +1,7 @@
 use typedown_macros::query_derived;
 
 use crate::syntax::red::RedNode;
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::name_resolver::file_symbol::MaybeSymbol;

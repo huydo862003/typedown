@@ -4,7 +4,7 @@ pub mod tdr;
 use lsp_server::Notification;
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString};
 use ropey::Rope;
-use typedown_types::diagnostic::Diagnostic as TdrDiagnostic;
+use typedown_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
 use crate::utils::position::text_offset_to_lsp_position;

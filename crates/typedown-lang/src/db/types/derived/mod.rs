@@ -9,8 +9,8 @@ pub use object_system::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_macros::query_derived;
-use typedown_types::diagnostic::Diagnostic;
 
 use crate::syntax::red::RedNode;
 

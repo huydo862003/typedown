@@ -1,4 +1,4 @@
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
 
 use super::TdrObjectEnum;
 use super::base::TdrObjectLike;
@@ -10,7 +10,7 @@ use typedown_incremental::{
 
 type NativeFn = fn(&TypedownDatabase, TdrObjectEnum, Vec<TdrObjectEnum>) -> Option<TdrObjectEnum>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TryFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromRepr)]
 #[repr(u8)]
 pub enum NativeFnKind {
   StrToString = 0,
@@ -39,7 +39,7 @@ impl Encodable for NativeFnKind {
 impl Decodable for NativeFnKind {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    NativeFnKind::try_from(tag).unwrap_or_else(|_| panic!("unknown NativeFnKind tag {tag}"))
+    NativeFnKind::from_repr(tag).unwrap_or_else(|| panic!("unknown NativeFnKind tag {tag}"))
   }
 }
 

@@ -5,7 +5,7 @@ use lsp_types::{
 use ropey::Rope;
 use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::syntax::red::RedNode;
-use typedown_types::syntax_kind::SyntaxKind;
+use typedown_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
 use crate::utils::ast::{ident_is_mapping_key, ident_is_type_ref};

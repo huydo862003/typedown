@@ -1,6 +1,8 @@
 //! Parser method for parsing many kinds of expressions
 
-use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
+use crate::syntax::diagnostic::Diagnostic;
+use crate::syntax::syntax_kind::SyntaxKind;
+use typedown_types::stream::Utf8Stream;
 
 use super::constants::*;
 use crate::syntax::{

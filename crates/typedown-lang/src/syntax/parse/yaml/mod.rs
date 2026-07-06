@@ -1,13 +1,14 @@
 //! YAML frontmatter parsing
 
-use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream};
+use crate::syntax::diagnostic::Diagnostic;
+use typedown_types::stream::Utf8Stream;
 
 use super::constants::*;
 use super::ctx::ParseCtx;
 use super::ctx::expr_ctx::ExprCtx;
 use crate::syntax::green::{GreenNode, SyntaxToken};
 use crate::syntax::lex::ctx::LexMode;
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 // Top-level YAML frontmatter parsing
 impl<S: Utf8Stream> ParseCtx<S> {

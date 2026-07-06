@@ -1,9 +1,10 @@
 use std::alloc::{Layout, alloc, dealloc};
+use std::fmt::{self, Debug};
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::GreenNode;
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 pub(super) struct NodeHeader {
   pub(super) ref_count: AtomicUsize,
@@ -109,6 +110,15 @@ impl PartialEq for SyntaxNode {
 }
 
 impl Eq for SyntaxNode {}
+
+impl Debug for SyntaxNode {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("SyntaxNode")
+      .field("kind", &self.kind())
+      .field("children", &self.children())
+      .finish()
+  }
+}
 
 impl Hash for SyntaxNode {
   fn hash<H: Hasher>(&self, state: &mut H) {

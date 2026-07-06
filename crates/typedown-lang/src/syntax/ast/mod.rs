@@ -4,9 +4,9 @@
 
 use std::hash::Hash;
 
+use crate::syntax::syntax_kind::SyntaxKind;
 use typedown_macros::{AstNode, wrapper_ast_node};
 use typedown_types::either::Either;
-use typedown_types::syntax_kind::SyntaxKind;
 use typedown_types::unescape::{unescape, unescape_html_entity};
 
 use crate::syntax::red::RedNode;

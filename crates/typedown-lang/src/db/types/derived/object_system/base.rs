@@ -64,10 +64,7 @@ pub trait TdrObjectLike: Id {
   }
 }
 
-fn get_builtin_field(
-  db: &crate::db::TypedownDatabase,
-  name: &str,
-) -> Option<crate::db::types::TypeMember> {
+fn get_builtin_field(db: &crate::db::TypedownDatabase, name: &str) -> Option<TypeMember> {
   match name {
     "_type" => Some(TypeMember::new(
       db,
@@ -205,14 +202,10 @@ impl TdrTypeLike for TdrTypeType {
     &self,
     _db: &crate::db::TypedownDatabase,
     _name: &str,
-  ) -> Option<crate::db::types::TypeMember> {
+  ) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &crate::db::TypedownDatabase,
-    _args: Vec<TdrTypeEnum>,
-  ) -> crate::db::types::InstResult {
+  fn instantiate(&self, db: &crate::db::TypedownDatabase, _args: Vec<TdrTypeEnum>) -> InstResult {
     InstResult::new(db, self.clone().into(), vec![])
   }
   fn get_type_args(&self, _db: &crate::db::TypedownDatabase) -> Vec<TdrTypeEnum> {
@@ -285,14 +278,10 @@ impl TdrTypeLike for TdrObjectType {
     &self,
     _db: &crate::db::TypedownDatabase,
     _name: &str,
-  ) -> Option<crate::db::types::TypeMember> {
+  ) -> Option<TypeMember> {
     None
   }
-  fn instantiate(
-    &self,
-    db: &crate::db::TypedownDatabase,
-    _args: Vec<TdrTypeEnum>,
-  ) -> crate::db::types::InstResult {
+  fn instantiate(&self, db: &crate::db::TypedownDatabase, _args: Vec<TdrTypeEnum>) -> InstResult {
     InstResult::new(db, self.clone().into(), vec![])
   }
   fn get_type_args(&self, _db: &crate::db::TypedownDatabase) -> Vec<TdrTypeEnum> {

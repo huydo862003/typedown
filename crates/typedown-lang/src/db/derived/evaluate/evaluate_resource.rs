@@ -30,6 +30,7 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 #[cfg(test)]
 mod tests {
   use crate::db::types::{TdrObjectEnum, TdrObjectLike};
+  use crate::syntax::diagnostic::Diagnostic;
 
   use crate::db::{
     TypedownDatabase, derived::evaluate::evaluate_node::evaluate_node,
@@ -375,7 +376,7 @@ mod tests {
     assert!(
       list_result.diagnostics(&db).iter().any(|d| matches!(
         d,
-        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds {
+        Diagnostic::IndexOutOfBounds {
           index: 99,
           length: 3,
           ..
@@ -393,7 +394,7 @@ mod tests {
     assert!(
       str_result.diagnostics(&db).iter().any(|d| matches!(
         d,
-        typedown_types::diagnostic::Diagnostic::IndexOutOfBounds {
+        Diagnostic::IndexOutOfBounds {
           index: 99,
           length: 5,
           ..

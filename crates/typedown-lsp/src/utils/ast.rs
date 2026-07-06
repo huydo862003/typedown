@@ -1,6 +1,6 @@
 use typedown_lang::syntax::ast::{AstNode, Expr};
 use typedown_lang::syntax::red::RedNode;
-use typedown_types::syntax_kind::SyntaxKind;
+use typedown_lang::syntax::syntax_kind::SyntaxKind;
 
 /// Find the innermost red node whose source span contains `offset`.
 pub fn node_at_offset(root: RedNode, offset: usize) -> Option<RedNode> {

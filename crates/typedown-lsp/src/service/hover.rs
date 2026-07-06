@@ -8,7 +8,7 @@ use typedown_lang::db::derived::typechecker::declared_node_type::declared_node_t
 use typedown_lang::db::derived::typechecker::resolved_node_type::resolved_node_type;
 use typedown_lang::db::types::{LiteralValue, MemberType, TypeMember, TypeMemberDescriptors};
 use typedown_lang::syntax::ast::{AstNode, Expr};
-use typedown_types::syntax_kind::SyntaxKind;
+use typedown_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
 use crate::utils::ast::{
@@ -106,7 +106,7 @@ mod tests {
     WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_lang::db::types::{File, FileHandle};
+  use typedown_lang::db::types::{File, FileHandle, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
@@ -173,7 +173,7 @@ properties:
       (content_path, editing_file),
     ]);
 
-    let project = typedown_lang::db::types::Project::new(&db, root, files);
+    let project = Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,

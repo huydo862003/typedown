@@ -1,6 +1,6 @@
 use typedown_macros::query_derived;
 
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::name_resolver::referee::referee;
@@ -81,7 +81,7 @@ fn collect_unresolved(db: &TypedownDatabase, hir: HirValue, diagnostics: &mut Ve
     | HirValueKind::Null => {}
     HirValueKind::Markdown(parts) => {
       for part in parts {
-        if let crate::db::types::InterpolatedPart::Expr(expr) = part {
+        if let InterpolatedPart::Expr(expr) = part {
           collect_unresolved(db, expr, diagnostics);
         }
       }

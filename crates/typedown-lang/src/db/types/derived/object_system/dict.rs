@@ -8,7 +8,7 @@ use super::{TdrObjectEnum, TdrTypeEnum};
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use crate::db::derived::get_builtin_types::get_dict_type;
-use crate::db::types::{HirValue, InstResult, TypeMember};
+use crate::db::types::{HirValue, InstResult, MemberType, TypeMember};
 use typedown_incremental::Id;
 
 #[query_derived]
@@ -73,9 +73,7 @@ impl TdrTypeLike for TdrDictType {
         .fields(db)
         .values()
         .all(|member| match member.typ(db) {
-          crate::db::types::MemberType::Simple(field_type) => {
-            value_type.is_compatible_with(db, &field_type)
-          }
+          MemberType::Simple(field_type) => value_type.is_compatible_with(db, &field_type),
           _ => false,
         });
     }

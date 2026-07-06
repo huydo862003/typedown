@@ -6,7 +6,7 @@ use typedown_types::stream::Utf8Result;
 
 use typedown_macros::query_derived;
 
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
 use crate::db::types::{Project, VaultConfigResult};

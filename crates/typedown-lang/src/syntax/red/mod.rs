@@ -3,12 +3,13 @@
 //! parents
 
 use std::{
+  fmt::{self, Debug},
   hash::{Hash, Hasher},
   ops::Deref,
 };
 
 use crate::syntax::green::{GreenNode, node::SyntaxNode};
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 #[derive(Clone)]
 pub struct RedNodeData {
@@ -41,6 +42,15 @@ pub struct RedNode(RedNodeData);
 impl Hash for RedNode {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.0.hash(state);
+  }
+}
+
+impl Debug for RedNode {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("RedNode")
+      .field("offset", &self.0.offset)
+      .field("green", &self.0.green)
+      .finish()
   }
 }
 

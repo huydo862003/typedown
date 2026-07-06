@@ -40,6 +40,7 @@ mod tests {
 
   use crate::db::{
     QueryStorage, TypedownDatabase,
+    fixtures::load_fixtures,
     types::{File, FileHandle, Project},
   };
 
@@ -47,7 +48,7 @@ mod tests {
 
   #[test]
   fn parse_file_with_content_handle() {
-    let fixtures = crate::db::fixtures::load_fixtures("parse_file");
+    let fixtures = load_fixtures("parse_file");
     let fixture = fixtures
       .get("valid.tdr")
       .expect("missing valid.tdr fixture");
@@ -76,7 +77,7 @@ mod tests {
 
   #[test]
   fn parse_file_with_path_handle() {
-    let fixtures = crate::db::fixtures::load_fixtures("parse_file");
+    let fixtures = load_fixtures("parse_file");
     let fixture = fixtures
       .get("valid.tdr")
       .expect("missing valid.tdr fixture");
@@ -107,7 +108,7 @@ mod tests {
 
   #[test]
   fn parse_invalid_file_with_content_handle() {
-    let fixtures = crate::db::fixtures::load_fixtures("parse_file");
+    let fixtures = load_fixtures("parse_file");
     let fixture = fixtures
       .get("invalid.tdr")
       .expect("missing invalid.tdr fixture");
@@ -134,7 +135,7 @@ mod tests {
 
   #[test]
   fn parse_invalid_file_with_path_handle() {
-    let fixtures = crate::db::fixtures::load_fixtures("parse_file");
+    let fixtures = load_fixtures("parse_file");
     let fixture = fixtures
       .get("invalid.tdr")
       .expect("missing invalid.tdr fixture");

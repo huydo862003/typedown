@@ -20,9 +20,9 @@ use crate::db::types::{
   TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::db::utils::lower_file;
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_incremental::QueryDatabase;
 use typedown_macros::query_derived;
-use typedown_types::diagnostic::Diagnostic;
 
 #[query_derived]
 pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {

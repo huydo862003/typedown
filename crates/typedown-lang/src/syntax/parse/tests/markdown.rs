@@ -1,4 +1,5 @@
 use super::helpers::*;
+use crate::syntax::diagnostic::Diagnostic;
 
 fn parse_body(input: &str) -> String {
   let full_input = format!("---\n---\n{}", input);
@@ -6,7 +7,7 @@ fn parse_body(input: &str) -> String {
   render_tree(&ast)
 }
 
-fn parse_body_with_diags(input: &str) -> (String, Vec<typedown_types::diagnostic::Diagnostic>) {
+fn parse_body_with_diags(input: &str) -> (String, Vec<Diagnostic>) {
   let full_input = format!("---\n---\n{}", input);
   let (ast, diags) = parse(&full_input);
   (render_tree(&ast), diags)
@@ -1966,7 +1967,7 @@ fn recover_unclosed_link() {
   );
   assert_eq!(
     diags,
-    vec![typedown_types::diagnostic::Diagnostic::UnclosedLink {
+    vec![Diagnostic::UnclosedLink {
       start_offset: 13,
       end_offset: 30,
     },]
@@ -2002,7 +2003,7 @@ fn recover_unclosed_bold() {
   );
   assert_eq!(
     diags,
-    vec![typedown_types::diagnostic::Diagnostic::UnclosedBold {
+    vec![Diagnostic::UnclosedBold {
       start_offset: 10,
       end_offset: 24
     },]
@@ -2047,15 +2048,15 @@ fn recover_mismatched_inline_formatting() {
   assert_eq!(
     diags,
     vec![
-      typedown_types::diagnostic::Diagnostic::UnclosedItalic {
+      Diagnostic::UnclosedItalic {
         start_offset: 27,
         end_offset: 28
       },
-      typedown_types::diagnostic::Diagnostic::UnclosedBold {
+      Diagnostic::UnclosedBold {
         start_offset: 18,
         end_offset: 28
       },
-      typedown_types::diagnostic::Diagnostic::UnclosedItalic {
+      Diagnostic::UnclosedItalic {
         start_offset: 15,
         end_offset: 28
       },

@@ -1,6 +1,6 @@
 use std::hash::Hasher;
 
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
 use typedown_macros::query_interned;
 
 use typedown_incremental::{
@@ -50,7 +50,7 @@ pub enum LiteralValue {
   Num(String),
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum LiteralValueTag {
   Str = 0,
@@ -80,8 +80,8 @@ impl Encodable for LiteralValue {
 impl Decodable for LiteralValue {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match LiteralValueTag::try_from(tag)
-      .unwrap_or_else(|_| panic!("unknown LiteralValue tag {tag}"))
+    match LiteralValueTag::from_repr(tag)
+      .unwrap_or_else(|| panic!("unknown LiteralValue tag {tag}"))
     {
       LiteralValueTag::Str => LiteralValue::Str(String::decode(decoder)),
       LiteralValueTag::Bool => LiteralValue::Bool(bool::decode(decoder)),
@@ -101,7 +101,7 @@ impl StableHash for LiteralValue {
   }
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 enum MemberTypeTag {
   Simple = 0,
@@ -135,7 +135,7 @@ impl Encodable for MemberType {
 impl Decodable for MemberType {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match MemberTypeTag::try_from(tag).unwrap_or_else(|_| panic!("unknown MemberType tag {tag}")) {
+    match MemberTypeTag::from_repr(tag).unwrap_or_else(|| panic!("unknown MemberType tag {tag}")) {
       MemberTypeTag::Simple => MemberType::Simple(TdrTypeEnum::decode(decoder)),
       MemberTypeTag::Sum => MemberType::Sum(Vec::decode(decoder)),
       MemberTypeTag::Literal => MemberType::Literal(LiteralValue::decode(decoder)),
@@ -145,11 +145,7 @@ impl Decodable for MemberType {
 }
 
 impl StableHash for MemberType {
-  fn stable_hash<DB: ::typedown_incremental::QueryDatabase + ?Sized>(
-    &self,
-    db: &DB,
-    hasher: &mut StableHasher,
-  ) {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
       MemberType::Simple(typ) => typ.stable_hash(db, hasher),

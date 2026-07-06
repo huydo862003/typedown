@@ -294,11 +294,11 @@ impl typedown_incremental::StableHash for TdrObjectEnum {
   }
 }
 
-use num_enum::TryFromPrimitive;
+use strum::FromRepr;
 
 use typedown_incremental::{Decodable, Decoder, Encodable, Encoder};
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 pub enum TdrTypeKind {
   Type = 0,
@@ -318,7 +318,7 @@ pub enum TdrTypeKind {
   Time = 14,
 }
 
-#[derive(TryFromPrimitive)]
+#[derive(FromRepr)]
 #[repr(u8)]
 pub enum TdrObjectKind {
   // Types (also objects)
@@ -422,7 +422,7 @@ impl Encodable for TdrTypeEnum {
 impl Decodable for TdrTypeEnum {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match TdrTypeKind::try_from(tag).unwrap_or_else(|_| panic!("unknown TdrTypeKind tag {tag}")) {
+    match TdrTypeKind::from_repr(tag).unwrap_or_else(|| panic!("unknown TdrTypeKind tag {tag}")) {
       TdrTypeKind::Type => TdrTypeType::decode(decoder).into(),
       TdrTypeKind::Object => TdrObjectType::decode(decoder).into(),
       TdrTypeKind::Str => TdrStrType::decode(decoder).into(),
@@ -559,7 +559,7 @@ impl Encodable for TdrObjectEnum {
 impl Decodable for TdrObjectEnum {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     let tag = decoder.read_u8();
-    match TdrObjectKind::try_from(tag).unwrap_or_else(|_| panic!("unknown TdrObjectKind tag {tag}"))
+    match TdrObjectKind::from_repr(tag).unwrap_or_else(|| panic!("unknown TdrObjectKind tag {tag}"))
     {
       // Types
       TdrObjectKind::Type => TdrTypeType::decode(decoder).into(),

@@ -13,7 +13,7 @@ use crate::db::types::{
   TdrDictObj, TdrListObj, TdrMathObj, TdrNumObj, TdrObjectEnum, TdrObjectLike, TdrProductObj,
   TdrProductType, TdrStrObj, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors,
 };
-use typedown_types::diagnostic::Diagnostic;
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_types::either::Either;
 
 pub(crate) fn construct_from_hir(

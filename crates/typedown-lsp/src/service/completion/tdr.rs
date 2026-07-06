@@ -10,11 +10,11 @@ use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::db::derived::typechecker::declared_node_type::declared_node_type;
 use typedown_lang::db::derived::typechecker::get_symbol_type::get_symbol_type;
 use typedown_lang::db::types::{
-  File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMemberDescriptors,
+  File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMember, TypeMemberDescriptors,
 };
 use typedown_lang::syntax::ast::{AstNode, Expr};
 use typedown_lang::syntax::red::RedNode;
-use typedown_types::syntax_kind::SyntaxKind;
+use typedown_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
 use crate::utils::ast::{find_ancestor, is_in_value_position, node_at_offset};
@@ -204,7 +204,7 @@ fn declared_field(
   project: Project,
   file: File,
   node: &RedNode,
-) -> Option<typedown_lang::db::types::TypeMember> {
+) -> Option<TypeMember> {
   // Find the value expression node inside the enclosing YamlMappingEntryValue.
   let entry_value = find_ancestor(node, SyntaxKind::YamlMappingEntryValue)?;
   let value_expr = entry_value.children().find_map(Expr::cast)?;
@@ -280,7 +280,7 @@ mod tests {
     TextDocumentPositionParams, Uri, WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_lang::db::types::{File, FileHandle};
+  use typedown_lang::db::types::{File, FileHandle, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
@@ -388,7 +388,7 @@ properties:
       (content_path, content_file),
     ]);
 
-    let project = typedown_lang::db::types::Project::new(&db, root, files);
+    let project = Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,
@@ -631,7 +631,7 @@ date: 2024-01-01
       (content_path, editing_file),
     ]);
 
-    let project = typedown_lang::db::types::Project::new(&db, root, files);
+    let project = Project::new(&db, root, files);
     let analysis = Analysis::new(
       db,
       project,

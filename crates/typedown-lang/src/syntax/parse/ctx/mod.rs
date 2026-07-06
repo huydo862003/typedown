@@ -5,7 +5,9 @@ pub(in crate::syntax::parse) mod peekable_lex_ctx;
 
 use std::{cell::RefCell, rc::Rc};
 
-use typedown_types::{diagnostic::Diagnostic, stream::Utf8Stream, syntax_kind::SyntaxKind};
+use crate::syntax::diagnostic::Diagnostic;
+use crate::syntax::syntax_kind::SyntaxKind;
+use typedown_types::stream::Utf8Stream;
 
 use super::constants::SKIP_NONE;
 use crate::syntax::{

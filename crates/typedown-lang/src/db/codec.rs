@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
+use crate::syntax::diagnostic::{Diagnostic, DiagnosticCode};
 use crate::syntax::green::cache::with_green_cache;
 use crate::syntax::green::node::SyntaxNode;
 use crate::syntax::green::token::SyntaxToken;
 use crate::syntax::red::RedNode;
+use crate::syntax::syntax_kind::SyntaxKind;
 use crate::{db::types::FileHandle, syntax::green::GreenNode};
-use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;
 use typedown_incremental::{
@@ -168,7 +169,8 @@ fn decode_green_blob<D: Decoder + ?Sized>(index: usize, decoder: &D) -> GreenNod
   let tag = blob[0];
   let kind_val = u16::from_le_bytes(blob[1..3].try_into().unwrap());
 
-  let kind = unsafe { std::mem::transmute::<u16, SyntaxKind>(kind_val) };
+  let kind =
+    SyntaxKind::from_repr(kind_val).unwrap_or_else(|| panic!("unknown SyntaxKind {kind_val}"));
 
   match tag {
     0 => {
@@ -264,6 +266,1342 @@ impl StableHash for FileHandle {
       }
       FileHandle::Content(content) => {
         content.stable_hash(db, hasher);
+      }
+    }
+  }
+}
+
+// SyntaxKind
+
+impl Encodable for SyntaxKind {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_u16(*self as u16);
+  }
+}
+
+impl Decodable for SyntaxKind {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    let val = decoder.read_u16();
+    SyntaxKind::from_repr(val).unwrap_or_else(|| panic!("unknown SyntaxKind {val}"))
+  }
+}
+
+impl StableHash for SyntaxKind {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, _db: &DB, hasher: &mut StableHasher) {
+    std::hash::Hasher::write_u16(hasher, *self as u16);
+  }
+}
+
+// Diagnostic
+
+impl Encodable for Diagnostic {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_u8(self.code() as u8);
+    match self {
+      Diagnostic::UnexpectedEof {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnexpectedChar {
+        expected,
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        encountered.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnterminatedString {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnterminatedInterpolation {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnterminatedCodeBlock {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnterminatedInlineCode {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnterminatedMathBlock {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnterminatedInlineMath {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingCodeBlockNewline {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingMathBlockNewline {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::InvalidChar {
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        encountered.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::InvalidUtf8 {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MixedIndentation {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::InconsistentIndentation {
+        expected,
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        encountered.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnmatchedDedent {
+        indent,
+        start_offset,
+        end_offset,
+      } => {
+        indent.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingExponentDigits {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingFrontmatterMarker { offset } => {
+        offset.encode(encoder);
+      }
+      Diagnostic::MissingMarkdownHeadingHash {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingSyntaxNode {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnclosedLink {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnclosedBold {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnclosedItalic {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnclosedStrikethrough {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnclosedBoldItalic {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MismatchedItalicDelimiter {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingExpectMdPrefix {
+        expected_prefix,
+        start_offset,
+        end_offset,
+      } => {
+        expected_prefix.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingTableSeparatorRow {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::TableColumnCountMismatch {
+        expected,
+        found,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        found.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::InsufficientBlockIndent {
+        expected_more_than,
+        found,
+        start_offset,
+        end_offset,
+      } => {
+        expected_more_than.encode(encoder);
+        found.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingVaultConfig { root_dir } => {
+        root_dir.encode(encoder);
+      }
+      Diagnostic::VaultConfigReadError { path, message } => {
+        path.encode(encoder);
+        message.encode(encoder);
+      }
+      Diagnostic::VaultConfigParseError {
+        path,
+        message,
+        start_offset,
+        end_offset,
+      } => {
+        path.encode(encoder);
+        message.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::VaultConfigEmpty { path } => {
+        path.encode(encoder);
+      }
+      Diagnostic::VaultConfigMissingField {
+        path,
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        path.encode(encoder);
+        field.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::VaultConfigUnknownField {
+        path,
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        path.encode(encoder);
+        field.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingSchemaField {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnresolvedSchema {
+        name,
+        start_offset,
+        end_offset,
+      } => {
+        name.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::WrongTypeArgCount { expected, got } => {
+        expected.encode(encoder);
+        got.encode(encoder);
+      }
+      Diagnostic::NotCallable {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::WrongArgCount {
+        expected,
+        got,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        got.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::ArgTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::FieldTypeMismatch {
+        field,
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        field.encode(encoder);
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::NotIndexable {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::IndexTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::TagTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::OperandTypeMismatch {
+        op,
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        op.encode(encoder);
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::MissingRequiredField {
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        field.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::ElementTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::DuplicateKey {
+        key,
+        start_offset,
+        end_offset,
+      } => {
+        key.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnresolvedFileRef {
+        path,
+        start_offset,
+        end_offset,
+      } => {
+        path.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::UnknownField {
+        field,
+        on_type,
+        start_offset,
+        end_offset,
+      } => {
+        field.encode(encoder);
+        on_type.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+      Diagnostic::IndexOutOfBounds {
+        index,
+        length,
+        start_offset,
+        end_offset,
+      } => {
+        index.encode(encoder);
+        length.encode(encoder);
+        start_offset.encode(encoder);
+        end_offset.encode(encoder);
+      }
+    }
+  }
+}
+
+impl Decodable for Diagnostic {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    let tag = decoder.read_u8();
+    let code =
+      DiagnosticCode::from_repr(tag).unwrap_or_else(|| panic!("unknown DiagnosticCode tag {tag}"));
+    match code {
+      DiagnosticCode::UnexpectedEof => {
+        let expected = char::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnexpectedEof {
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnexpectedChar => {
+        let expected = char::decode(decoder);
+        let encountered = char::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnexpectedChar {
+          expected,
+          encountered,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnterminatedString => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnterminatedString {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnterminatedInterpolation => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnterminatedInterpolation {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnterminatedCodeBlock => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnterminatedCodeBlock {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnterminatedInlineCode => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnterminatedInlineCode {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnterminatedMathBlock => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnterminatedMathBlock {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnterminatedInlineMath => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnterminatedInlineMath {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingCodeBlockNewline => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingCodeBlockNewline {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingMathBlockNewline => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingMathBlockNewline {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::InvalidChar => {
+        let encountered = char::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::InvalidChar {
+          encountered,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::InvalidUtf8 => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::InvalidUtf8 {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MixedIndentation => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MixedIndentation {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::InconsistentIndentation => {
+        let expected = char::decode(decoder);
+        let encountered = char::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::InconsistentIndentation {
+          expected,
+          encountered,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnmatchedDedent => {
+        let indent = usize::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnmatchedDedent {
+          indent,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingExponentDigits => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingExponentDigits {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnexpectedTokensOnFrontmatterMarkerLine => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingFrontmatterMarker => {
+        let offset = usize::decode(decoder);
+        Diagnostic::MissingFrontmatterMarker { offset }
+      }
+      DiagnosticCode::MissingMarkdownHeadingHash => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingMarkdownHeadingHash {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingRequiredSpacesBetweenHashAndHeading => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingSyntaxNode => {
+        let expected = SyntaxKind::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingSyntaxNode {
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnclosedLink => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnclosedLink {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnclosedBold => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnclosedBold {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnclosedItalic => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnclosedItalic {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnclosedStrikethrough => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnclosedStrikethrough {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnclosedBoldItalic => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnclosedBoldItalic {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MismatchedItalicDelimiter => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MismatchedItalicDelimiter {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingExpectMdPrefix => {
+        let expected_prefix = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingExpectMdPrefix {
+          expected_prefix,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingTableSeparatorRow => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingTableSeparatorRow {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::TableColumnCountMismatch => {
+        let expected = usize::decode(decoder);
+        let found = usize::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::TableColumnCountMismatch {
+          expected,
+          found,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::InsufficientBlockIndent => {
+        let expected_more_than = usize::decode(decoder);
+        let found = usize::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::InsufficientBlockIndent {
+          expected_more_than,
+          found,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingVaultConfig => {
+        let root_dir = String::decode(decoder);
+        Diagnostic::MissingVaultConfig { root_dir }
+      }
+      DiagnosticCode::VaultConfigReadError => {
+        let path = String::decode(decoder);
+        let message = String::decode(decoder);
+        Diagnostic::VaultConfigReadError { path, message }
+      }
+      DiagnosticCode::VaultConfigParseError => {
+        let path = String::decode(decoder);
+        let message = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::VaultConfigParseError {
+          path,
+          message,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::VaultConfigEmpty => {
+        let path = String::decode(decoder);
+        Diagnostic::VaultConfigEmpty { path }
+      }
+      DiagnosticCode::VaultConfigMissingField => {
+        let path = String::decode(decoder);
+        let field = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::VaultConfigMissingField {
+          path,
+          field,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::VaultConfigUnknownField => {
+        let path = String::decode(decoder);
+        let field = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::VaultConfigUnknownField {
+          path,
+          field,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingSchemaField => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingSchemaField {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnresolvedSchema => {
+        let name = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnresolvedSchema {
+          name,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::WrongTypeArgCount => {
+        let expected = usize::decode(decoder);
+        let got = usize::decode(decoder);
+        Diagnostic::WrongTypeArgCount { expected, got }
+      }
+      DiagnosticCode::NotCallable => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::NotCallable {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::WrongArgCount => {
+        let expected = usize::decode(decoder);
+        let got = usize::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::WrongArgCount {
+          expected,
+          got,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::ArgTypeMismatch => {
+        let expected = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::ArgTypeMismatch {
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::FieldTypeMismatch => {
+        let field = String::decode(decoder);
+        let expected = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::FieldTypeMismatch {
+          field,
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::NotIndexable => {
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::NotIndexable {
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::IndexTypeMismatch => {
+        let expected = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::IndexTypeMismatch {
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::TagTypeMismatch => {
+        let expected = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::TagTypeMismatch {
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::OperandTypeMismatch => {
+        let op = String::decode(decoder);
+        let expected = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::OperandTypeMismatch {
+          op,
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::MissingRequiredField => {
+        let field = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::MissingRequiredField {
+          field,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::ElementTypeMismatch => {
+        let expected = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::ElementTypeMismatch {
+          expected,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::DuplicateKey => {
+        let key = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::DuplicateKey {
+          key,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnresolvedFileRef => {
+        let path = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnresolvedFileRef {
+          path,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::UnknownField => {
+        let field = String::decode(decoder);
+        let on_type = String::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::UnknownField {
+          field,
+          on_type,
+          start_offset,
+          end_offset,
+        }
+      }
+      DiagnosticCode::IndexOutOfBounds => {
+        let index = usize::decode(decoder);
+        let length = usize::decode(decoder);
+        let start_offset = usize::decode(decoder);
+        let end_offset = usize::decode(decoder);
+        Diagnostic::IndexOutOfBounds {
+          index,
+          length,
+          start_offset,
+          end_offset,
+        }
+      }
+    }
+  }
+}
+
+impl StableHash for Diagnostic {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
+    match self {
+      Diagnostic::UnexpectedEof {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::UnexpectedChar {
+        expected,
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        encountered.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::InvalidChar {
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        encountered.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::InconsistentIndentation {
+        expected,
+        encountered,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        encountered.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::UnmatchedDedent {
+        indent,
+        start_offset,
+        end_offset,
+      } => {
+        indent.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::MissingFrontmatterMarker { offset } => {
+        offset.stable_hash(db, hasher);
+      }
+      Diagnostic::MissingSyntaxNode {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::MissingExpectMdPrefix {
+        expected_prefix,
+        start_offset,
+        end_offset,
+      } => {
+        expected_prefix.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::TableColumnCountMismatch {
+        expected,
+        found,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        found.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::InsufficientBlockIndent {
+        expected_more_than,
+        found,
+        start_offset,
+        end_offset,
+      } => {
+        expected_more_than.stable_hash(db, hasher);
+        found.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::MissingVaultConfig { root_dir } => {
+        root_dir.stable_hash(db, hasher);
+      }
+      Diagnostic::VaultConfigReadError { path, message } => {
+        path.stable_hash(db, hasher);
+        message.stable_hash(db, hasher);
+      }
+      Diagnostic::VaultConfigParseError {
+        path,
+        message,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(db, hasher);
+        message.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::VaultConfigEmpty { path } => {
+        path.stable_hash(db, hasher);
+      }
+      Diagnostic::VaultConfigMissingField {
+        path,
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(db, hasher);
+        field.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::VaultConfigUnknownField {
+        path,
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(db, hasher);
+        field.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::UnresolvedSchema {
+        name,
+        start_offset,
+        end_offset,
+      } => {
+        name.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::WrongTypeArgCount { expected, got } => {
+        expected.stable_hash(db, hasher);
+        got.stable_hash(db, hasher);
+      }
+      Diagnostic::WrongArgCount {
+        expected,
+        got,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        got.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::ArgTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::FieldTypeMismatch {
+        field,
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        field.stable_hash(db, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::IndexTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::TagTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::OperandTypeMismatch {
+        op,
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        op.stable_hash(db, hasher);
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::MissingRequiredField {
+        field,
+        start_offset,
+        end_offset,
+      } => {
+        field.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::ElementTypeMismatch {
+        expected,
+        start_offset,
+        end_offset,
+      } => {
+        expected.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::DuplicateKey {
+        key,
+        start_offset,
+        end_offset,
+      } => {
+        key.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::UnresolvedFileRef {
+        path,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::UnknownField {
+        field,
+        on_type,
+        start_offset,
+        end_offset,
+      } => {
+        field.stable_hash(db, hasher);
+        on_type.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::IndexOutOfBounds {
+        index,
+        length,
+        start_offset,
+        end_offset,
+      } => {
+        index.stable_hash(db, hasher);
+        length.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::UnterminatedString {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInterpolation {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedCodeBlock {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInlineCode {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedMathBlock {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnterminatedInlineMath {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingCodeBlockNewline {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingMathBlockNewline {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::InvalidUtf8 {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MixedIndentation {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingExponentDigits {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingMarkdownHeadingHash {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedLink {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedBold {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedItalic {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedStrikethrough {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::UnclosedBoldItalic {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MismatchedItalicDelimiter {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingTableSeparatorRow {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::MissingSchemaField {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::NotCallable {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::NotIndexable {
+        start_offset,
+        end_offset,
+      } => {
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
     }
   }

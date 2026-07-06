@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+use strum::{EnumIter, FromRepr};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, EnumIter, FromRepr)]
 #[repr(u16)]
 pub enum SyntaxKind {
   // Top-level

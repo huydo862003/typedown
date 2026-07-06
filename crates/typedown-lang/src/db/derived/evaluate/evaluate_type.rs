@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::syntax::diagnostic::Diagnostic;
 use typedown_macros::query_derived;
-use typedown_types::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::{

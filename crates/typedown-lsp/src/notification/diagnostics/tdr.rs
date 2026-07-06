@@ -4,7 +4,7 @@ use lsp_types::{Diagnostic, PublishDiagnosticsParams};
 use typedown_lang::db::derived::evaluate::evaluate_resource::evaluate_resource;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::derived::parse_file::parse_file;
-use typedown_types::diagnostic::Diagnostic as TdrDiagnostic;
+use typedown_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
 use crate::utils::uri::path_to_uri;

@@ -3,7 +3,8 @@ use std::{
   ops::{Deref, DerefMut},
 };
 
-use typedown_types::{stream::Utf8Stream, syntax_kind::SyntaxKind};
+use crate::syntax::syntax_kind::SyntaxKind;
+use typedown_types::stream::Utf8Stream;
 
 use crate::syntax::{
   lex::ctx::{LexCtx, LexMode, LexResult},

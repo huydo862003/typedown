@@ -2,7 +2,7 @@
 
 use std::{cell::RefCell, rc::Rc};
 
-use typedown_types::syntax_kind::SyntaxKind;
+use crate::syntax::syntax_kind::SyntaxKind;
 
 use crate::syntax::green::{SyntaxToken, cache::Cache};
 

@@ -16,7 +16,7 @@ pub fn ast_node_derive_impl(item: TokenStream) -> TokenStream {
     impl AstNode for #name {
       fn cast(syntax: RedNode) -> Option<Self> {
           match syntax.kind() {
-            typedown_types::syntax_kind::SyntaxKind::#name => Some(Self(syntax)),
+            crate::syntax::syntax_kind::SyntaxKind::#name => Some(Self(syntax)),
             _ => None,
           }
         }
@@ -84,7 +84,7 @@ pub fn wrapper_ast_node_impl(attr: TokenStream, item: TokenStream) -> TokenStrea
     impl AstNode for #name {
       fn cast(syntax: RedNode) -> Option<Self> {
         match syntax.kind() {
-          #(typedown_types::syntax_kind::SyntaxKind::#kinds)|* => Some(Self(syntax)),
+          #(crate::syntax::syntax_kind::SyntaxKind::#kinds)|* => Some(Self(syntax)),
           _ => None,
         }
       }
