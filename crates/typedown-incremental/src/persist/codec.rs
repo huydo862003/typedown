@@ -9,47 +9,147 @@ use crate::QueryDatabase;
 // Object-safe encoder trait
 pub trait Encoder {
   fn db(&self) -> &dyn QueryDatabase;
-  fn emit_u8(&mut self, v: u8);
-  fn emit_u16(&mut self, v: u16);
-  fn emit_u32(&mut self, v: u32);
-  fn emit_u64(&mut self, v: u64);
-  fn emit_u128(&mut self, v: u128);
-  fn emit_usize(&mut self, v: usize);
-  fn emit_isize(&mut self, v: isize);
-  fn emit_i8(&mut self, v: i8);
-  fn emit_i16(&mut self, v: i16);
-  fn emit_i32(&mut self, v: i32);
-  fn emit_i64(&mut self, v: i64);
-  fn emit_i128(&mut self, v: i128);
-  fn emit_f64(&mut self, v: f64);
-  fn emit_bool(&mut self, v: bool);
-  fn emit_char(&mut self, v: char);
-  fn emit_str(&mut self, v: &str);
-  fn emit_bytes(&mut self, v: &[u8]);
+  fn emit_raw(&mut self, bytes: &[u8]);
   fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32;
+
+  fn emit_u8(&mut self, v: u8) {
+    self.emit_raw(&[v]);
+  }
+  fn emit_u16(&mut self, v: u16) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_u32(&mut self, v: u32) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_u64(&mut self, v: u64) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_u128(&mut self, v: u128) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_usize(&mut self, v: usize) {
+    self.emit_u64(v as u64);
+  }
+  fn emit_isize(&mut self, v: isize) {
+    self.emit_i64(v as i64);
+  }
+  fn emit_i8(&mut self, v: i8) {
+    self.emit_raw(&[v as u8]);
+  }
+  fn emit_i16(&mut self, v: i16) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_i32(&mut self, v: i32) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_i64(&mut self, v: i64) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_i128(&mut self, v: i128) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_f64(&mut self, v: f64) {
+    self.emit_raw(&v.to_le_bytes());
+  }
+  fn emit_bool(&mut self, v: bool) {
+    self.emit_u8(v as u8);
+  }
+  fn emit_char(&mut self, v: char) {
+    self.emit_u32(v as u32);
+  }
+  fn emit_str(&mut self, v: &str) {
+    self.emit_u32(v.len() as u32);
+    self.emit_raw(v.as_bytes());
+  }
+  fn emit_bytes(&mut self, v: &[u8]) {
+    self.emit_u32(v.len() as u32);
+    self.emit_raw(v);
+  }
 }
 
 // Object-safe decoder trait
 pub trait Decoder {
   fn db(&self) -> &dyn QueryDatabase;
-  fn read_u8(&mut self) -> u8;
-  fn read_u16(&mut self) -> u16;
-  fn read_u32(&mut self) -> u32;
-  fn read_u64(&mut self) -> u64;
-  fn read_u128(&mut self) -> u128;
-  fn read_usize(&mut self) -> usize;
-  fn read_isize(&mut self) -> isize;
-  fn read_i8(&mut self) -> i8;
-  fn read_i16(&mut self) -> i16;
-  fn read_i32(&mut self) -> i32;
-  fn read_i64(&mut self) -> i64;
-  fn read_i128(&mut self) -> i128;
-  fn read_f64(&mut self) -> f64;
-  fn read_bool(&mut self) -> bool;
-  fn read_char(&mut self) -> char;
-  fn read_str(&mut self) -> String;
-  fn read_bytes_owned(&mut self) -> Vec<u8>;
+  fn read_raw(&mut self, buf: &mut [u8]);
   fn get_intern_blob(&self, index: u32) -> &[u8];
+
+  fn read_u8(&mut self) -> u8 {
+    let mut buf = [0u8; 1];
+    self.read_raw(&mut buf);
+    buf[0]
+  }
+  fn read_u16(&mut self) -> u16 {
+    let mut buf = [0u8; 2];
+    self.read_raw(&mut buf);
+    u16::from_le_bytes(buf)
+  }
+  fn read_u32(&mut self) -> u32 {
+    let mut buf = [0u8; 4];
+    self.read_raw(&mut buf);
+    u32::from_le_bytes(buf)
+  }
+  fn read_u64(&mut self) -> u64 {
+    let mut buf = [0u8; 8];
+    self.read_raw(&mut buf);
+    u64::from_le_bytes(buf)
+  }
+  fn read_u128(&mut self) -> u128 {
+    let mut buf = [0u8; 16];
+    self.read_raw(&mut buf);
+    u128::from_le_bytes(buf)
+  }
+  fn read_usize(&mut self) -> usize {
+    self.read_u64() as usize
+  }
+  fn read_isize(&mut self) -> isize {
+    self.read_i64() as isize
+  }
+  fn read_i8(&mut self) -> i8 {
+    self.read_u8() as i8
+  }
+  fn read_i16(&mut self) -> i16 {
+    let mut buf = [0u8; 2];
+    self.read_raw(&mut buf);
+    i16::from_le_bytes(buf)
+  }
+  fn read_i32(&mut self) -> i32 {
+    let mut buf = [0u8; 4];
+    self.read_raw(&mut buf);
+    i32::from_le_bytes(buf)
+  }
+  fn read_i64(&mut self) -> i64 {
+    let mut buf = [0u8; 8];
+    self.read_raw(&mut buf);
+    i64::from_le_bytes(buf)
+  }
+  fn read_i128(&mut self) -> i128 {
+    let mut buf = [0u8; 16];
+    self.read_raw(&mut buf);
+    i128::from_le_bytes(buf)
+  }
+  fn read_f64(&mut self) -> f64 {
+    let mut buf = [0u8; 8];
+    self.read_raw(&mut buf);
+    f64::from_le_bytes(buf)
+  }
+  fn read_bool(&mut self) -> bool {
+    self.read_u8() != 0
+  }
+  fn read_char(&mut self) -> char {
+    char::from_u32(self.read_u32()).unwrap()
+  }
+  fn read_str(&mut self) -> String {
+    let len = self.read_u32() as usize;
+    let mut buf = vec![0u8; len];
+    self.read_raw(&mut buf);
+    String::from_utf8(buf).unwrap()
+  }
+  fn read_bytes_owned(&mut self) -> Vec<u8> {
+    let len = self.read_u32() as usize;
+    let mut buf = vec![0u8; len];
+    self.read_raw(&mut buf);
+    buf
+  }
 }
 
 // Encodable / Decodable traits

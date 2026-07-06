@@ -48,74 +48,8 @@ impl Encoder for TypedownEncoder<'_> {
     self.db
   }
 
-  fn emit_u8(&mut self, v: u8) {
-    self.buf.push(v);
-  }
-
-  fn emit_u16(&mut self, v: u16) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_u32(&mut self, v: u32) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_u64(&mut self, v: u64) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_u128(&mut self, v: u128) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_usize(&mut self, v: usize) {
-    self.emit_u64(v as u64);
-  }
-
-  fn emit_isize(&mut self, v: isize) {
-    self.emit_i64(v as i64);
-  }
-
-  fn emit_i8(&mut self, v: i8) {
-    self.buf.push(v as u8);
-  }
-
-  fn emit_i16(&mut self, v: i16) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_i32(&mut self, v: i32) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_i64(&mut self, v: i64) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_i128(&mut self, v: i128) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_f64(&mut self, v: f64) {
-    self.buf.extend_from_slice(&v.to_le_bytes());
-  }
-
-  fn emit_bool(&mut self, v: bool) {
-    self.buf.push(v as u8);
-  }
-
-  fn emit_char(&mut self, v: char) {
-    self.emit_u32(v as u32);
-  }
-
-  fn emit_str(&mut self, v: &str) {
-    self.emit_u32(v.len() as u32);
-    self.buf.extend_from_slice(v.as_bytes());
-  }
-
-  fn emit_bytes(&mut self, v: &[u8]) {
-    self.emit_u32(v.len() as u32);
-    self.buf.extend_from_slice(v);
+  fn emit_raw(&mut self, bytes: &[u8]) {
+    self.buf.extend_from_slice(bytes);
   }
 
   fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
@@ -175,12 +109,6 @@ impl<'a> TypedownDecoder<'a> {
   pub fn position(&self) -> usize {
     self.pos
   }
-
-  fn read_bytes(&mut self, n: usize) -> &'a [u8] {
-    let bytes = &self.data[self.pos..self.pos + n];
-    self.pos += n;
-    bytes
-  }
 }
 
 impl Decoder for TypedownDecoder<'_> {
@@ -188,77 +116,9 @@ impl Decoder for TypedownDecoder<'_> {
     self.db
   }
 
-  fn read_u8(&mut self) -> u8 {
-    let v = self.data[self.pos];
-    self.pos += 1;
-    v
-  }
-
-  fn read_u16(&mut self) -> u16 {
-    u16::from_le_bytes(self.read_bytes(2).try_into().unwrap())
-  }
-
-  fn read_u32(&mut self) -> u32 {
-    u32::from_le_bytes(self.read_bytes(4).try_into().unwrap())
-  }
-
-  fn read_u64(&mut self) -> u64 {
-    u64::from_le_bytes(self.read_bytes(8).try_into().unwrap())
-  }
-
-  fn read_u128(&mut self) -> u128 {
-    u128::from_le_bytes(self.read_bytes(16).try_into().unwrap())
-  }
-
-  fn read_usize(&mut self) -> usize {
-    self.read_u64() as usize
-  }
-
-  fn read_isize(&mut self) -> isize {
-    self.read_i64() as isize
-  }
-
-  fn read_i8(&mut self) -> i8 {
-    self.read_u8() as i8
-  }
-
-  fn read_i16(&mut self) -> i16 {
-    i16::from_le_bytes(self.read_bytes(2).try_into().unwrap())
-  }
-
-  fn read_i32(&mut self) -> i32 {
-    i32::from_le_bytes(self.read_bytes(4).try_into().unwrap())
-  }
-
-  fn read_i64(&mut self) -> i64 {
-    i64::from_le_bytes(self.read_bytes(8).try_into().unwrap())
-  }
-
-  fn read_i128(&mut self) -> i128 {
-    i128::from_le_bytes(self.read_bytes(16).try_into().unwrap())
-  }
-
-  fn read_f64(&mut self) -> f64 {
-    f64::from_le_bytes(self.read_bytes(8).try_into().unwrap())
-  }
-
-  fn read_bool(&mut self) -> bool {
-    self.read_u8() != 0
-  }
-
-  fn read_char(&mut self) -> char {
-    char::from_u32(self.read_u32()).unwrap()
-  }
-
-  fn read_str(&mut self) -> String {
-    let len = self.read_u32() as usize;
-    let bytes = self.read_bytes(len);
-    String::from_utf8(bytes.to_vec()).unwrap()
-  }
-
-  fn read_bytes_owned(&mut self) -> Vec<u8> {
-    let len = self.read_u32() as usize;
-    self.read_bytes(len).to_vec()
+  fn read_raw(&mut self, buf: &mut [u8]) {
+    buf.copy_from_slice(&self.data[self.pos..self.pos + buf.len()]);
+    self.pos += buf.len();
   }
 
   fn get_intern_blob(&self, index: u32) -> &[u8] {
