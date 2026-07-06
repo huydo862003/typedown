@@ -272,6 +272,7 @@ impl StableHash for FileHandle {
 #[cfg(test)]
 mod tests {
   use std::fmt::Debug;
+  use std::path::PathBuf;
 
   use proptest::prelude::*;
 
@@ -423,6 +424,50 @@ mod tests {
 
     #[test]
     fn f64_roundtrip(v in any::<f64>()) {
+      encode_decode_roundtrip(&v);
+    }
+  }
+
+  // String and collection encode/decode
+
+  proptest! {
+    #[test]
+    fn string_roundtrip(v in any::<String>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn pathbuf_roundtrip(v in any::<PathBuf>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn vec_u8_roundtrip(v in proptest::collection::vec(any::<u8>(), 0..100)) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn vec_i32_roundtrip(v in proptest::collection::vec(any::<i32>(), 0..100)) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn vec_string_roundtrip(v in proptest::collection::vec(any::<String>(), 0..20)) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn option_u32_roundtrip(v in any::<Option<u32>>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn option_string_roundtrip(v in any::<Option<String>>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn vec_option_i64_roundtrip(v in proptest::collection::vec(any::<Option<i64>>(), 0..50)) {
       encode_decode_roundtrip(&v);
     }
   }

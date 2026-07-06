@@ -343,6 +343,13 @@ impl Decodable for char {
   }
 }
 
+// str
+impl Encodable for str {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_str(self);
+  }
+}
+
 // String
 impl Encodable for String {
   fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
@@ -385,6 +392,23 @@ impl<T: Decodable> Decodable for Option<T> {
       0 => None,
       _ => Some(T::decode(decoder)),
     }
+  }
+}
+
+// [T]
+impl<T: Encodable> Encodable for [T] {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_u32(self.len() as u32);
+    for item in self {
+      item.encode(encoder);
+    }
+  }
+}
+
+// &T
+impl<T: Encodable + ?Sized> Encodable for &T {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    (**self).encode(encoder);
   }
 }
 
