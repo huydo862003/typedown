@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use crate::syntax::green::GreenNode;
 use crate::syntax::green::cache::with_green_cache;
 use crate::syntax::green::node::SyntaxNode;
 use crate::syntax::green::token::SyntaxToken;
 use crate::syntax::red::RedNode;
+use crate::{db::types::FileHandle, syntax::green::GreenNode};
 use typedown_types::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;
@@ -16,9 +16,15 @@ use typedown_incremental::{
 pub struct TypedownEncoder<'a> {
   pub db: &'a TypedownDatabase,
   pub buf: Vec<u8>,
+
+  /// Map from an interned hint to an index in the interned blob table
+  /// An interned hint is like a tag for the interned value
   pub intern_hints: HashMap<usize, u32>,
-  pub intern_table: HashMap<Vec<u8>, u32>,
+  /// A simple list of blobs
+  /// The index in this list is used in interned hint
   pub intern_blobs: Vec<Vec<u8>>,
+  /// Reverse map from a blob to its index
+  pub intern_table: HashMap<Vec<u8>, u32>,
 }
 
 impl<'a> TypedownEncoder<'a> {
@@ -356,7 +362,7 @@ impl StableHash for RedNode {
   }
 }
 
-impl StableHash for crate::db::types::FileHandle {
+impl StableHash for FileHandle {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
