@@ -258,11 +258,11 @@ impl StableHash for FileHandle {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
-      crate::db::types::FileHandle::Path(path, content) => {
+      FileHandle::Path(path, content) => {
         path.stable_hash(db, hasher);
         content.stable_hash(db, hasher);
       }
-      crate::db::types::FileHandle::Content(content) => {
+      FileHandle::Content(content) => {
         content.stable_hash(db, hasher);
       }
     }
