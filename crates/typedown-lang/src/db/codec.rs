@@ -376,3 +376,63 @@ impl StableHash for FileHandle {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use typedown_incremental::{Decoder, Encoder, QueryStorage};
+
+  use crate::db::{TypedownDatabase, TypedownDecoder, TypedownEncoder};
+
+  /// Boolean encode/decode
+  #[test]
+  fn encode_bool_false_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let mut encoder = TypedownEncoder::new(&db);
+    encoder.emit_bool(false);
+    let bytes = encoder.finish();
+
+    assert_eq!(bytes, vec![0]);
+  }
+
+  #[test]
+  fn encode_bool_true_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let mut encoder = TypedownEncoder::new(&db);
+    encoder.emit_bool(true);
+    let bytes = encoder.finish();
+
+    assert_eq!(bytes, vec![1]);
+  }
+
+  #[test]
+  fn decode_bool_false_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let data = vec![0];
+    let mut decoder = TypedownDecoder::new(&db, &data);
+
+    let decoded_value = decoder.read_bool();
+    assert_eq!(decoded_value, false);
+  }
+
+  #[test]
+  fn decode_bool_true_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let data = vec![1];
+    let mut decoder = TypedownDecoder::new(&db, &data);
+
+    let decoded_value = decoder.read_bool();
+    assert_eq!(decoded_value, true);
+  }
+}
