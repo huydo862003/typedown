@@ -379,9 +379,27 @@ impl StableHash for FileHandle {
 
 #[cfg(test)]
 mod tests {
+  use std::fmt::Debug;
+
+  use proptest::prelude::*;
+
+  use typedown_incremental::{Decodable, Encodable};
   use typedown_incremental::{Decoder, Encoder, QueryStorage};
 
   use crate::db::{TypedownDatabase, TypedownDecoder, TypedownEncoder};
+
+  /// Check that encode and decode return the original value
+  fn encode_decode_roundtrip<T: Encodable + Decodable + PartialEq + Debug>(v: &T) {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let mut enc = TypedownEncoder::new(&db);
+    v.encode(&mut enc);
+    let bytes = enc.finish();
+    let mut dec = TypedownDecoder::new(&db, &bytes);
+    let decoded = T::decode(&mut dec);
+    assert_eq!(*v, decoded);
+  }
 
   /// Boolean encode/decode
   #[test]
@@ -434,5 +452,12 @@ mod tests {
 
     let decoded_value = decoder.read_bool();
     assert_eq!(decoded_value, true);
+  }
+
+  proptest! {
+    #[test]
+    fn bool_roundtrip(v in any::<bool>()) {
+      encode_decode_roundtrip(&v);
+    }
   }
 }
