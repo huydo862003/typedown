@@ -64,12 +64,24 @@ impl Encoder for TypedownEncoder<'_> {
     self.buf.extend_from_slice(&v.to_le_bytes());
   }
 
+  fn emit_u128(&mut self, v: u128) {
+    self.buf.extend_from_slice(&v.to_le_bytes());
+  }
+
   fn emit_usize(&mut self, v: usize) {
     self.emit_u64(v as u64);
   }
 
+  fn emit_isize(&mut self, v: isize) {
+    self.emit_i64(v as i64);
+  }
+
   fn emit_i8(&mut self, v: i8) {
     self.buf.push(v as u8);
+  }
+
+  fn emit_i16(&mut self, v: i16) {
+    self.buf.extend_from_slice(&v.to_le_bytes());
   }
 
   fn emit_i32(&mut self, v: i32) {
@@ -77,6 +89,10 @@ impl Encoder for TypedownEncoder<'_> {
   }
 
   fn emit_i64(&mut self, v: i64) {
+    self.buf.extend_from_slice(&v.to_le_bytes());
+  }
+
+  fn emit_i128(&mut self, v: i128) {
     self.buf.extend_from_slice(&v.to_le_bytes());
   }
 
@@ -190,12 +206,24 @@ impl Decoder for TypedownDecoder<'_> {
     u64::from_le_bytes(self.read_bytes(8).try_into().unwrap())
   }
 
+  fn read_u128(&mut self) -> u128 {
+    u128::from_le_bytes(self.read_bytes(16).try_into().unwrap())
+  }
+
   fn read_usize(&mut self) -> usize {
     self.read_u64() as usize
   }
 
+  fn read_isize(&mut self) -> isize {
+    self.read_i64() as isize
+  }
+
   fn read_i8(&mut self) -> i8 {
     self.read_u8() as i8
+  }
+
+  fn read_i16(&mut self) -> i16 {
+    i16::from_le_bytes(self.read_bytes(2).try_into().unwrap())
   }
 
   fn read_i32(&mut self) -> i32 {
@@ -204,6 +232,10 @@ impl Decoder for TypedownDecoder<'_> {
 
   fn read_i64(&mut self) -> i64 {
     i64::from_le_bytes(self.read_bytes(8).try_into().unwrap())
+  }
+
+  fn read_i128(&mut self) -> i128 {
+    i128::from_le_bytes(self.read_bytes(16).try_into().unwrap())
   }
 
   fn read_f64(&mut self) -> f64 {
@@ -401,7 +433,7 @@ mod tests {
     assert_eq!(*v, decoded);
   }
 
-  /// Boolean encode/decode
+  // Boolean encode/decode
   #[test]
   fn encode_bool_false_correctly() {
     let db = TypedownDatabase {
@@ -457,6 +489,80 @@ mod tests {
   proptest! {
     #[test]
     fn bool_roundtrip(v in any::<bool>()) {
+      encode_decode_roundtrip(&v);
+    }
+  }
+
+  // Number encode/decode
+
+  proptest! {
+    #[test]
+    fn char_rountrip(v in any::<char>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn u8_roundtrip(v in any::<u8>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn i8_roundtrip(v in any::<i8>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn i16_roundtrip(v in any::<i16>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn u16_roundtrip(v in any::<u16>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn i32_roundtrip(v in any::<i32>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn u32_roundtrip(v in any::<u32>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn i64_roundtrip(v in any::<i64>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn u64_roundtrip(v in any::<u64>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn i128_roundtrip(v in any::<i128>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn u128_roundtrip(v in any::<u128>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn usize_roundtrip(v in any::<usize>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn isize_roundtrip(v in any::<isize>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn f64_roundtrip(v in any::<f64>()) {
       encode_decode_roundtrip(&v);
     }
   }

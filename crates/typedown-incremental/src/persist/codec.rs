@@ -13,10 +13,14 @@ pub trait Encoder {
   fn emit_u16(&mut self, v: u16);
   fn emit_u32(&mut self, v: u32);
   fn emit_u64(&mut self, v: u64);
+  fn emit_u128(&mut self, v: u128);
   fn emit_usize(&mut self, v: usize);
+  fn emit_isize(&mut self, v: isize);
   fn emit_i8(&mut self, v: i8);
+  fn emit_i16(&mut self, v: i16);
   fn emit_i32(&mut self, v: i32);
   fn emit_i64(&mut self, v: i64);
+  fn emit_i128(&mut self, v: i128);
   fn emit_f64(&mut self, v: f64);
   fn emit_bool(&mut self, v: bool);
   fn emit_char(&mut self, v: char);
@@ -32,10 +36,14 @@ pub trait Decoder {
   fn read_u16(&mut self) -> u16;
   fn read_u32(&mut self) -> u32;
   fn read_u64(&mut self) -> u64;
+  fn read_u128(&mut self) -> u128;
   fn read_usize(&mut self) -> usize;
+  fn read_isize(&mut self) -> isize;
   fn read_i8(&mut self) -> i8;
+  fn read_i16(&mut self) -> i16;
   fn read_i32(&mut self) -> i32;
   fn read_i64(&mut self) -> i64;
+  fn read_i128(&mut self) -> i128;
   fn read_f64(&mut self) -> f64;
   fn read_bool(&mut self) -> bool;
   fn read_char(&mut self) -> char;
@@ -112,6 +120,90 @@ impl Encodable for usize {
 impl Decodable for usize {
   fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
     decoder.read_usize()
+  }
+}
+
+// u128
+impl Encodable for u128 {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_u128(*self);
+  }
+}
+impl Decodable for u128 {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_u128()
+  }
+}
+
+// isize
+impl Encodable for isize {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_isize(*self);
+  }
+}
+impl Decodable for isize {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_isize()
+  }
+}
+
+// i8
+impl Encodable for i8 {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_i8(*self);
+  }
+}
+impl Decodable for i8 {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_i8()
+  }
+}
+
+// i16
+impl Encodable for i16 {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_i16(*self);
+  }
+}
+impl Decodable for i16 {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_i16()
+  }
+}
+
+// i32
+impl Encodable for i32 {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_i32(*self);
+  }
+}
+impl Decodable for i32 {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_i32()
+  }
+}
+
+// i64
+impl Encodable for i64 {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_i64(*self);
+  }
+}
+impl Decodable for i64 {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_i64()
+  }
+}
+
+// i128
+impl Encodable for i128 {
+  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+    encoder.emit_i128(*self);
+  }
+}
+impl Decodable for i128 {
+  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
+    decoder.read_i128()
   }
 }
 
