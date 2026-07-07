@@ -56,11 +56,15 @@ impl<T: Send + Sync + 'static> Ingredient for InternedIngredient<T> {
     // Interned values never change, nothing to recompute
   }
 
-  fn serialize(&self, _ctx: &mut SerializeContext) {
+  fn entry_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    Box::new(self.data.iter().map(|entry| *entry.key()))
+  }
+
+  fn serialize(&self, _ctx: &mut SerializeContext, _entry_id: usize) {
     // TODO: implement serialization
   }
 
-  fn deserialize(&self, _ctx: &mut DeserializeContext) {
+  fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {
     // TODO: implement deserialization
   }
 }

@@ -59,33 +59,33 @@ enum LiteralValueTag {
 }
 
 impl Encodable for LiteralValue {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       LiteralValue::Str(val) => {
-        encoder.emit_u8(LiteralValueTag::Str as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, LiteralValueTag::Str as u8);
+        val.encode(buf, encoder);
       }
       LiteralValue::Bool(val) => {
-        encoder.emit_u8(LiteralValueTag::Bool as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, LiteralValueTag::Bool as u8);
+        val.encode(buf, encoder);
       }
       LiteralValue::Num(val) => {
-        encoder.emit_u8(LiteralValueTag::Num as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, LiteralValueTag::Num as u8);
+        val.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for LiteralValue {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match LiteralValueTag::from_repr(tag)
       .unwrap_or_else(|| panic!("unknown LiteralValue tag {tag}"))
     {
-      LiteralValueTag::Str => LiteralValue::Str(String::decode(decoder)),
-      LiteralValueTag::Bool => LiteralValue::Bool(bool::decode(decoder)),
-      LiteralValueTag::Num => LiteralValue::Num(String::decode(decoder)),
+      LiteralValueTag::Str => LiteralValue::Str(String::decode(data, decoder)),
+      LiteralValueTag::Bool => LiteralValue::Bool(bool::decode(data, decoder)),
+      LiteralValueTag::Num => LiteralValue::Num(String::decode(data, decoder)),
     }
   }
 }
@@ -111,34 +111,34 @@ enum MemberTypeTag {
 }
 
 impl Encodable for MemberType {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       MemberType::Simple(typ) => {
-        encoder.emit_u8(MemberTypeTag::Simple as u8);
-        typ.encode(encoder);
+        Encoder::emit_u8(buf, MemberTypeTag::Simple as u8);
+        typ.encode(buf, encoder);
       }
       MemberType::Sum(members) => {
-        encoder.emit_u8(MemberTypeTag::Sum as u8);
-        members.encode(encoder);
+        Encoder::emit_u8(buf, MemberTypeTag::Sum as u8);
+        members.encode(buf, encoder);
       }
       MemberType::Literal(value) => {
-        encoder.emit_u8(MemberTypeTag::Literal as u8);
-        value.encode(encoder);
+        Encoder::emit_u8(buf, MemberTypeTag::Literal as u8);
+        value.encode(buf, encoder);
       }
       MemberType::Never => {
-        encoder.emit_u8(MemberTypeTag::Never as u8);
+        Encoder::emit_u8(buf, MemberTypeTag::Never as u8);
       }
     }
   }
 }
 
 impl Decodable for MemberType {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match MemberTypeTag::from_repr(tag).unwrap_or_else(|| panic!("unknown MemberType tag {tag}")) {
-      MemberTypeTag::Simple => MemberType::Simple(TdrTypeEnum::decode(decoder)),
-      MemberTypeTag::Sum => MemberType::Sum(Vec::decode(decoder)),
-      MemberTypeTag::Literal => MemberType::Literal(LiteralValue::decode(decoder)),
+      MemberTypeTag::Simple => MemberType::Simple(TdrTypeEnum::decode(data, decoder)),
+      MemberTypeTag::Sum => MemberType::Sum(Vec::decode(data, decoder)),
+      MemberTypeTag::Literal => MemberType::Literal(LiteralValue::decode(data, decoder)),
       MemberTypeTag::Never => MemberType::Never,
     }
   }
@@ -163,13 +163,13 @@ pub struct TypeMember {
 }
 
 impl Encodable for TypeMemberDescriptors {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
-    encoder.emit_u8(self.bits());
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
+    Encoder::emit_u8(buf, self.bits());
   }
 }
 
 impl Decodable for TypeMemberDescriptors {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    TypeMemberDescriptors::from_bits_truncate(decoder.read_u8())
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    TypeMemberDescriptors::from_bits_truncate(Decoder::read_u8(data))
   }
 }

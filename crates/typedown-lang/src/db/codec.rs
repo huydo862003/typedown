@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::syntax::diagnostic::{Diagnostic, DiagnosticCode};
 use crate::syntax::green::cache::with_green_cache;
 use crate::syntax::green::node::SyntaxNode;
@@ -8,114 +6,12 @@ use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
 use crate::{db::types::FileHandle, syntax::green::GreenNode};
 
-use crate::db::TypedownDatabase;
 use typedown_incremental::{
   Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher,
 };
 
-// TypedownEncoder
-pub struct TypedownEncoder<'a> {
-  pub db: &'a TypedownDatabase,
-  pub buf: Vec<u8>,
-
-  /// Map from an interned hint to an index in the interned blob table
-  /// An interned hint is like a tag for the interned value
-  pub intern_hints: HashMap<usize, u32>,
-  /// A simple list of blobs
-  /// The index in this list is used in interned hint
-  pub intern_blobs: Vec<Vec<u8>>,
-  /// Reverse map from a blob to its index
-  pub intern_table: HashMap<Vec<u8>, u32>,
-}
-
-impl<'a> TypedownEncoder<'a> {
-  pub fn new(db: &'a TypedownDatabase) -> Self {
-    TypedownEncoder {
-      db,
-      buf: Vec::new(),
-      intern_hints: HashMap::new(),
-      intern_table: HashMap::new(),
-      intern_blobs: Vec::new(),
-    }
-  }
-
-  pub fn finish(self) -> (Vec<u8>, Vec<Vec<u8>>) {
-    (self.buf, self.intern_blobs)
-  }
-}
-
-impl Encoder for TypedownEncoder<'_> {
-  fn db(&self) -> &dyn QueryDatabase {
-    self.db
-  }
-
-  fn emit_raw(&mut self, bytes: &[u8]) {
-    self.buf.extend_from_slice(bytes);
-  }
-
-  fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
-    if let Some(key) = hint {
-      if let Some(&index) = self.intern_hints.get(&key) {
-        return index;
-      }
-    }
-    if let Some(&index) = self.intern_table.get(&blob) {
-      if let Some(key) = hint {
-        self.intern_hints.insert(key, index);
-      }
-      return index;
-    }
-    let index = self.intern_blobs.len() as u32;
-    self.intern_table.insert(blob.clone(), index);
-    self.intern_blobs.push(blob);
-    if let Some(key) = hint {
-      self.intern_hints.insert(key, index);
-    }
-    index
-  }
-}
-
-// TypedownDecoder
-pub struct TypedownDecoder<'a> {
-  pub db: &'a TypedownDatabase,
-  data: &'a [u8],
-  pos: usize,
-  // Interned blobs loaded from disk.
-  pub intern_blobs: &'a [Vec<u8>],
-}
-
-impl<'a> TypedownDecoder<'a> {
-  pub fn new(db: &'a TypedownDatabase, data: &'a [u8], intern_blobs: &'a [Vec<u8>]) -> Self {
-    TypedownDecoder {
-      db,
-      data,
-      pos: 0,
-      intern_blobs,
-    }
-  }
-
-  pub fn position(&self) -> usize {
-    self.pos
-  }
-}
-
-impl Decoder for TypedownDecoder<'_> {
-  fn db(&self) -> &dyn QueryDatabase {
-    self.db
-  }
-
-  fn read_raw(&mut self, buf: &mut [u8]) {
-    buf.copy_from_slice(&self.data[self.pos..self.pos + buf.len()]);
-    self.pos += buf.len();
-  }
-
-  fn get_intern_blob(&self, index: u32) -> &[u8] {
-    &self.intern_blobs[index as usize]
-  }
-}
-
 // GreenNode (interned)
-fn encode_green_node<E: Encoder + ?Sized>(node: &GreenNode, encoder: &mut E) -> u32 {
+fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
   let hint = Some(node.as_ptr());
   if node.is_node() {
     let syntax_node = node.as_node().unwrap();
@@ -145,13 +41,13 @@ fn encode_green_node<E: Encoder + ?Sized>(node: &GreenNode, encoder: &mut E) -> 
 }
 
 impl Encodable for GreenNode {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     let index = encode_green_node(self, encoder);
-    encoder.emit_u32(index);
+    Encoder::emit_u32(buf, index);
   }
 }
 
-fn decode_green_blob<D: Decoder + ?Sized>(index: usize, decoder: &D) -> GreenNode {
+fn decode_green_blob(index: usize, decoder: &Decoder) -> GreenNode {
   let blob = decoder.get_intern_blob(index as u32);
   let tag = blob[0];
   let kind_val = u16::from_le_bytes(blob[1..3].try_into().unwrap());
@@ -183,25 +79,25 @@ fn decode_green_blob<D: Decoder + ?Sized>(index: usize, decoder: &D) -> GreenNod
 }
 
 impl Decodable for GreenNode {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let index = decoder.read_u32() as usize;
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let index = Decoder::read_u32(data) as usize;
     decode_green_blob(index, decoder)
   }
 }
 
 // RedNode
 impl Encodable for RedNode {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
-    self.offset().encode(encoder);
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
+    self.offset().encode(buf, encoder);
     let root = self.root();
-    (*root).encode(encoder);
+    (*root).encode(buf, encoder);
   }
 }
 
 impl Decodable for RedNode {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let offset = usize::decode(decoder);
-    let green = GreenNode::decode(decoder);
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let offset = usize::decode(data, decoder);
+    let green = GreenNode::decode(data, decoder);
     let root_node = green.as_node().expect("RedNode root must be a node");
     let root = RedNode::new_root(root_node.clone());
     root.find_at_offset(offset).unwrap_or(root)
@@ -261,14 +157,14 @@ impl StableHash for FileHandle {
 // SyntaxKind
 
 impl Encodable for SyntaxKind {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
-    encoder.emit_u16(*self as u16);
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
+    Encoder::emit_u16(buf, *self as u16);
   }
 }
 
 impl Decodable for SyntaxKind {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let val = decoder.read_u16();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let val = Decoder::read_u16(data);
     SyntaxKind::from_repr(val).unwrap_or_else(|| panic!("unknown SyntaxKind {val}"))
   }
 }
@@ -282,17 +178,17 @@ impl StableHash for SyntaxKind {
 // Diagnostic
 
 impl Encodable for Diagnostic {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
-    encoder.emit_u8(self.code() as u8);
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
+    Encoder::emit_u8(buf, self.code() as u8);
     match self {
       Diagnostic::UnexpectedEof {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnexpectedChar {
         expected,
@@ -300,89 +196,89 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        encountered.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        encountered.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnterminatedString {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnterminatedInterpolation {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnterminatedCodeBlock {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnterminatedInlineCode {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnterminatedMathBlock {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnterminatedInlineMath {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingCodeBlockNewline {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingMathBlockNewline {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::InvalidChar {
         encountered,
         start_offset,
         end_offset,
       } => {
-        encountered.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        encountered.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::InvalidUtf8 {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MixedIndentation {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::InconsistentIndentation {
         expected,
@@ -390,117 +286,117 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        encountered.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        encountered.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnmatchedDedent {
         indent,
         start_offset,
         end_offset,
       } => {
-        indent.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        indent.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingExponentDigits {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingFrontmatterMarker { offset } => {
-        offset.encode(encoder);
+        offset.encode(buf, encoder);
       }
       Diagnostic::MissingMarkdownHeadingHash {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingSyntaxNode {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnclosedLink {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnclosedBold {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnclosedItalic {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnclosedStrikethrough {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnclosedBoldItalic {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MismatchedItalicDelimiter {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingExpectMdPrefix {
         expected_prefix,
         start_offset,
         end_offset,
       } => {
-        expected_prefix.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected_prefix.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingTableSeparatorRow {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::TableColumnCountMismatch {
         expected,
@@ -508,10 +404,10 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        found.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        found.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::InsufficientBlockIndent {
         expected_more_than,
@@ -519,17 +415,17 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected_more_than.encode(encoder);
-        found.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected_more_than.encode(buf, encoder);
+        found.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingVaultConfig { root_dir } => {
-        root_dir.encode(encoder);
+        root_dir.encode(buf, encoder);
       }
       Diagnostic::VaultConfigReadError { path, message } => {
-        path.encode(encoder);
-        message.encode(encoder);
+        path.encode(buf, encoder);
+        message.encode(buf, encoder);
       }
       Diagnostic::VaultConfigParseError {
         path,
@@ -537,13 +433,13 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        path.encode(encoder);
-        message.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        path.encode(buf, encoder);
+        message.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::VaultConfigEmpty { path } => {
-        path.encode(encoder);
+        path.encode(buf, encoder);
       }
       Diagnostic::VaultConfigMissingField {
         path,
@@ -551,10 +447,10 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        path.encode(encoder);
-        field.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        path.encode(buf, encoder);
+        field.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::VaultConfigUnknownField {
         path,
@@ -562,37 +458,37 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        path.encode(encoder);
-        field.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        path.encode(buf, encoder);
+        field.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingSchemaField {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnresolvedSchema {
         name,
         start_offset,
         end_offset,
       } => {
-        name.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        name.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::WrongTypeArgCount { expected, got } => {
-        expected.encode(encoder);
-        got.encode(encoder);
+        expected.encode(buf, encoder);
+        got.encode(buf, encoder);
       }
       Diagnostic::NotCallable {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::WrongArgCount {
         expected,
@@ -600,19 +496,19 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        got.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        got.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::ArgTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::FieldTypeMismatch {
         field,
@@ -620,35 +516,35 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        field.encode(encoder);
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        field.encode(buf, encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::NotIndexable {
         start_offset,
         end_offset,
       } => {
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::IndexTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::TagTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::OperandTypeMismatch {
         op,
@@ -656,46 +552,46 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        op.encode(encoder);
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        op.encode(buf, encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::MissingRequiredField {
         field,
         start_offset,
         end_offset,
       } => {
-        field.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        field.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::ElementTypeMismatch {
         expected,
         start_offset,
         end_offset,
       } => {
-        expected.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        expected.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::DuplicateKey {
         key,
         start_offset,
         end_offset,
       } => {
-        key.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        key.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnresolvedFileRef {
         path,
         start_offset,
         end_offset,
       } => {
-        path.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        path.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::UnknownField {
         field,
@@ -703,10 +599,10 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        field.encode(encoder);
-        on_type.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        field.encode(buf, encoder);
+        on_type.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
       Diagnostic::IndexOutOfBounds {
         index,
@@ -714,25 +610,25 @@ impl Encodable for Diagnostic {
         start_offset,
         end_offset,
       } => {
-        index.encode(encoder);
-        length.encode(encoder);
-        start_offset.encode(encoder);
-        end_offset.encode(encoder);
+        index.encode(buf, encoder);
+        length.encode(buf, encoder);
+        start_offset.encode(buf, encoder);
+        end_offset.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for Diagnostic {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     let code =
       DiagnosticCode::from_repr(tag).unwrap_or_else(|| panic!("unknown DiagnosticCode tag {tag}"));
     match code {
       DiagnosticCode::UnexpectedEof => {
-        let expected = char::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = char::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnexpectedEof {
           expected,
           start_offset,
@@ -740,10 +636,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::UnexpectedChar => {
-        let expected = char::decode(decoder);
-        let encountered = char::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = char::decode(data, decoder);
+        let encountered = char::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnexpectedChar {
           expected,
           encountered,
@@ -752,73 +648,73 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::UnterminatedString => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnterminatedString {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnterminatedInterpolation => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnterminatedInterpolation {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnterminatedCodeBlock => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnterminatedCodeBlock {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnterminatedInlineCode => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnterminatedInlineCode {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnterminatedMathBlock => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnterminatedMathBlock {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnterminatedInlineMath => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnterminatedInlineMath {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MissingCodeBlockNewline => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingCodeBlockNewline {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MissingMathBlockNewline => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingMathBlockNewline {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::InvalidChar => {
-        let encountered = char::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let encountered = char::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::InvalidChar {
           encountered,
           start_offset,
@@ -826,26 +722,26 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::InvalidUtf8 => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::InvalidUtf8 {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MixedIndentation => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MixedIndentation {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::InconsistentIndentation => {
-        let expected = char::decode(decoder);
-        let encountered = char::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = char::decode(data, decoder);
+        let encountered = char::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::InconsistentIndentation {
           expected,
           encountered,
@@ -854,9 +750,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::UnmatchedDedent => {
-        let indent = usize::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let indent = usize::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnmatchedDedent {
           indent,
           start_offset,
@@ -864,45 +760,45 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::MissingExponentDigits => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingExponentDigits {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnexpectedTokensOnFrontmatterMarkerLine => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MissingFrontmatterMarker => {
-        let offset = usize::decode(decoder);
+        let offset = usize::decode(data, decoder);
         Diagnostic::MissingFrontmatterMarker { offset }
       }
       DiagnosticCode::MissingMarkdownHeadingHash => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingMarkdownHeadingHash {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MissingRequiredSpacesBetweenHashAndHeading => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingRequiredSpacesBetweenHashAndHeading {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MissingSyntaxNode => {
-        let expected = SyntaxKind::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = SyntaxKind::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingSyntaxNode {
           expected,
           start_offset,
@@ -910,57 +806,57 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::UnclosedLink => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnclosedLink {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnclosedBold => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnclosedBold {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnclosedItalic => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnclosedItalic {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnclosedStrikethrough => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnclosedStrikethrough {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnclosedBoldItalic => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnclosedBoldItalic {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MismatchedItalicDelimiter => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MismatchedItalicDelimiter {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::MissingExpectMdPrefix => {
-        let expected_prefix = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected_prefix = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingExpectMdPrefix {
           expected_prefix,
           start_offset,
@@ -968,18 +864,18 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::MissingTableSeparatorRow => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingTableSeparatorRow {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::TableColumnCountMismatch => {
-        let expected = usize::decode(decoder);
-        let found = usize::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = usize::decode(data, decoder);
+        let found = usize::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::TableColumnCountMismatch {
           expected,
           found,
@@ -988,10 +884,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::InsufficientBlockIndent => {
-        let expected_more_than = usize::decode(decoder);
-        let found = usize::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected_more_than = usize::decode(data, decoder);
+        let found = usize::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::InsufficientBlockIndent {
           expected_more_than,
           found,
@@ -1000,19 +896,19 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::MissingVaultConfig => {
-        let root_dir = String::decode(decoder);
+        let root_dir = String::decode(data, decoder);
         Diagnostic::MissingVaultConfig { root_dir }
       }
       DiagnosticCode::VaultConfigReadError => {
-        let path = String::decode(decoder);
-        let message = String::decode(decoder);
+        let path = String::decode(data, decoder);
+        let message = String::decode(data, decoder);
         Diagnostic::VaultConfigReadError { path, message }
       }
       DiagnosticCode::VaultConfigParseError => {
-        let path = String::decode(decoder);
-        let message = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let path = String::decode(data, decoder);
+        let message = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::VaultConfigParseError {
           path,
           message,
@@ -1021,14 +917,14 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::VaultConfigEmpty => {
-        let path = String::decode(decoder);
+        let path = String::decode(data, decoder);
         Diagnostic::VaultConfigEmpty { path }
       }
       DiagnosticCode::VaultConfigMissingField => {
-        let path = String::decode(decoder);
-        let field = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let path = String::decode(data, decoder);
+        let field = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::VaultConfigMissingField {
           path,
           field,
@@ -1037,10 +933,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::VaultConfigUnknownField => {
-        let path = String::decode(decoder);
-        let field = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let path = String::decode(data, decoder);
+        let field = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::VaultConfigUnknownField {
           path,
           field,
@@ -1049,17 +945,17 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::MissingSchemaField => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingSchemaField {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::UnresolvedSchema => {
-        let name = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let name = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnresolvedSchema {
           name,
           start_offset,
@@ -1067,23 +963,23 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::WrongTypeArgCount => {
-        let expected = usize::decode(decoder);
-        let got = usize::decode(decoder);
+        let expected = usize::decode(data, decoder);
+        let got = usize::decode(data, decoder);
         Diagnostic::WrongTypeArgCount { expected, got }
       }
       DiagnosticCode::NotCallable => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::NotCallable {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::WrongArgCount => {
-        let expected = usize::decode(decoder);
-        let got = usize::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = usize::decode(data, decoder);
+        let got = usize::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::WrongArgCount {
           expected,
           got,
@@ -1092,9 +988,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::ArgTypeMismatch => {
-        let expected = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::ArgTypeMismatch {
           expected,
           start_offset,
@@ -1102,10 +998,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::FieldTypeMismatch => {
-        let field = String::decode(decoder);
-        let expected = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let field = String::decode(data, decoder);
+        let expected = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::FieldTypeMismatch {
           field,
           expected,
@@ -1114,17 +1010,17 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::NotIndexable => {
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::NotIndexable {
           start_offset,
           end_offset,
         }
       }
       DiagnosticCode::IndexTypeMismatch => {
-        let expected = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::IndexTypeMismatch {
           expected,
           start_offset,
@@ -1132,9 +1028,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::TagTypeMismatch => {
-        let expected = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::TagTypeMismatch {
           expected,
           start_offset,
@@ -1142,10 +1038,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::OperandTypeMismatch => {
-        let op = String::decode(decoder);
-        let expected = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let op = String::decode(data, decoder);
+        let expected = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::OperandTypeMismatch {
           op,
           expected,
@@ -1154,9 +1050,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::MissingRequiredField => {
-        let field = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let field = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::MissingRequiredField {
           field,
           start_offset,
@@ -1164,9 +1060,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::ElementTypeMismatch => {
-        let expected = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let expected = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::ElementTypeMismatch {
           expected,
           start_offset,
@@ -1174,9 +1070,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::DuplicateKey => {
-        let key = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let key = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::DuplicateKey {
           key,
           start_offset,
@@ -1184,9 +1080,9 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::UnresolvedFileRef => {
-        let path = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let path = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnresolvedFileRef {
           path,
           start_offset,
@@ -1194,10 +1090,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::UnknownField => {
-        let field = String::decode(decoder);
-        let on_type = String::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let field = String::decode(data, decoder);
+        let on_type = String::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::UnknownField {
           field,
           on_type,
@@ -1206,10 +1102,10 @@ impl Decodable for Diagnostic {
         }
       }
       DiagnosticCode::IndexOutOfBounds => {
-        let index = usize::decode(decoder);
-        let length = usize::decode(decoder);
-        let start_offset = usize::decode(decoder);
-        let end_offset = usize::decode(decoder);
+        let index = usize::decode(data, decoder);
+        let length = usize::decode(data, decoder);
+        let start_offset = usize::decode(data, decoder);
+        let end_offset = usize::decode(data, decoder);
         Diagnostic::IndexOutOfBounds {
           index,
           length,
@@ -1604,7 +1500,7 @@ mod tests {
   use typedown_incremental::{Decodable, Encodable};
   use typedown_incremental::{Decoder, Encoder, QueryStorage};
 
-  use crate::db::{TypedownDatabase, TypedownDecoder, TypedownEncoder};
+  use crate::db::TypedownDatabase;
   use crate::syntax::diagnostic::Diagnostic;
   use crate::syntax::green::{GreenNode, SyntaxToken};
   use crate::syntax::red::RedNode;
@@ -1615,65 +1511,43 @@ mod tests {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
-    let mut enc = TypedownEncoder::new(&db);
-    v.encode(&mut enc);
-    let (bytes, intern_blobs) = enc.finish();
-    let mut dec = TypedownDecoder::new(&db, &bytes, &intern_blobs);
-    let decoded = T::decode(&mut dec);
+    let mut buf = Vec::new();
+    let mut enc = Encoder::new(&db);
+    v.encode(&mut buf, &mut enc);
+    let intern_blobs = enc.finish();
+    let decoder = Decoder::new(&db, &intern_blobs);
+    let mut data: &[u8] = &buf;
+    let decoded = T::decode(&mut data, &decoder);
     assert_eq!(*v, decoded);
   }
 
   // Boolean encode/decode
   #[test]
   fn encode_bool_false_correctly() {
-    let db = TypedownDatabase {
-      storage: QueryStorage::default(),
-    };
-
-    let mut encoder = TypedownEncoder::new(&db);
-    encoder.emit_bool(false);
-    let (bytes, _) = encoder.finish();
-
-    assert_eq!(bytes, vec![0]);
+    let mut buf = Vec::new();
+    Encoder::emit_bool(&mut buf, false);
+    assert_eq!(buf, vec![0]);
   }
 
   #[test]
   fn encode_bool_true_correctly() {
-    let db = TypedownDatabase {
-      storage: QueryStorage::default(),
-    };
-
-    let mut encoder = TypedownEncoder::new(&db);
-    encoder.emit_bool(true);
-    let (bytes, _) = encoder.finish();
-
-    assert_eq!(bytes, vec![1]);
+    let mut buf = Vec::new();
+    Encoder::emit_bool(&mut buf, true);
+    assert_eq!(buf, vec![1]);
   }
 
   #[test]
   fn decode_bool_false_correctly() {
-    let db = TypedownDatabase {
-      storage: QueryStorage::default(),
-    };
-
-    let data = vec![0];
-    let mut decoder = TypedownDecoder::new(&db, &data, &[]);
-
-    let decoded_value = decoder.read_bool();
-    assert_eq!(decoded_value, false);
+    let data: &[u8] = &[0];
+    let mut data = data;
+    assert_eq!(Decoder::read_bool(&mut data), false);
   }
 
   #[test]
   fn decode_bool_true_correctly() {
-    let db = TypedownDatabase {
-      storage: QueryStorage::default(),
-    };
-
-    let data = vec![1];
-    let mut decoder = TypedownDecoder::new(&db, &data, &[]);
-
-    let decoded_value = decoder.read_bool();
-    assert_eq!(decoded_value, true);
+    let data: &[u8] = &[1];
+    let mut data = data;
+    assert_eq!(Decoder::read_bool(&mut data), true);
   }
 
   proptest! {

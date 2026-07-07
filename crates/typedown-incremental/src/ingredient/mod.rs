@@ -27,7 +27,10 @@ pub trait Ingredient: Any + Send + Sync {
   /// Force re-execution of the entry at `arg_id`
   fn re_execute(&self, db: &dyn crate::QueryDatabase, arg_id: usize);
 
-  fn serialize(&self, ctx: &mut SerializeContext);
+  /// Returns all entry ids currently stored in this ingredient.
+  fn entry_ids(&self) -> Box<dyn Iterator<Item = usize> + '_>;
 
-  fn deserialize(&self, ctx: &mut DeserializeContext);
+  fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize);
+
+  fn deserialize(&self, ctx: &mut DeserializeContext, entry_id: usize);
 }

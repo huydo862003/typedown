@@ -353,242 +353,242 @@ pub enum TdrObjectKind {
 
 // TdrTypeEnum
 impl Encodable for TdrTypeEnum {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       TdrTypeEnum::TdrTypeType(v) => {
-        encoder.emit_u8(TdrTypeKind::Type as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Type as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrObjectType(v) => {
-        encoder.emit_u8(TdrTypeKind::Object as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Object as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrStrType(v) => {
-        encoder.emit_u8(TdrTypeKind::Str as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Str as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrBoolType(v) => {
-        encoder.emit_u8(TdrTypeKind::Bool as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Bool as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrNumType(v) => {
-        encoder.emit_u8(TdrTypeKind::Num as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Num as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrMathType(v) => {
-        encoder.emit_u8(TdrTypeKind::Math as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Math as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrListType(v) => {
-        encoder.emit_u8(TdrTypeKind::List as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::List as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrDictType(v) => {
-        encoder.emit_u8(TdrTypeKind::Dict as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Dict as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrFuncType(v) => {
-        encoder.emit_u8(TdrTypeKind::Func as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Func as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrProductType(v) => {
-        encoder.emit_u8(TdrTypeKind::Product as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Product as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrSchemaType(v) => {
-        encoder.emit_u8(TdrTypeKind::Schema as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Schema as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrSchemaPropertyType(v) => {
-        encoder.emit_u8(TdrTypeKind::SchemaProperty as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::SchemaProperty as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrDateTimeType(v) => {
-        encoder.emit_u8(TdrTypeKind::DateTime as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::DateTime as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrDateType(v) => {
-        encoder.emit_u8(TdrTypeKind::Date as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Date as u8);
+        v.encode(buf, encoder);
       }
       TdrTypeEnum::TdrTimeType(v) => {
-        encoder.emit_u8(TdrTypeKind::Time as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrTypeKind::Time as u8);
+        v.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for TdrTypeEnum {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match TdrTypeKind::from_repr(tag).unwrap_or_else(|| panic!("unknown TdrTypeKind tag {tag}")) {
-      TdrTypeKind::Type => TdrTypeType::decode(decoder).into(),
-      TdrTypeKind::Object => TdrObjectType::decode(decoder).into(),
-      TdrTypeKind::Str => TdrStrType::decode(decoder).into(),
-      TdrTypeKind::Bool => TdrBoolType::decode(decoder).into(),
-      TdrTypeKind::Num => TdrNumType::decode(decoder).into(),
-      TdrTypeKind::Math => TdrMathType::decode(decoder).into(),
-      TdrTypeKind::List => TdrListType::decode(decoder).into(),
-      TdrTypeKind::Dict => TdrDictType::decode(decoder).into(),
-      TdrTypeKind::Func => TdrFuncType::decode(decoder).into(),
-      TdrTypeKind::Product => TdrProductType::decode(decoder).into(),
-      TdrTypeKind::Schema => TdrSchemaType::decode(decoder).into(),
-      TdrTypeKind::SchemaProperty => TdrSchemaPropertyType::decode(decoder).into(),
-      TdrTypeKind::DateTime => TdrDateTimeType::decode(decoder).into(),
-      TdrTypeKind::Date => TdrDateType::decode(decoder).into(),
-      TdrTypeKind::Time => TdrTimeType::decode(decoder).into(),
+      TdrTypeKind::Type => TdrTypeType::decode(data, decoder).into(),
+      TdrTypeKind::Object => TdrObjectType::decode(data, decoder).into(),
+      TdrTypeKind::Str => TdrStrType::decode(data, decoder).into(),
+      TdrTypeKind::Bool => TdrBoolType::decode(data, decoder).into(),
+      TdrTypeKind::Num => TdrNumType::decode(data, decoder).into(),
+      TdrTypeKind::Math => TdrMathType::decode(data, decoder).into(),
+      TdrTypeKind::List => TdrListType::decode(data, decoder).into(),
+      TdrTypeKind::Dict => TdrDictType::decode(data, decoder).into(),
+      TdrTypeKind::Func => TdrFuncType::decode(data, decoder).into(),
+      TdrTypeKind::Product => TdrProductType::decode(data, decoder).into(),
+      TdrTypeKind::Schema => TdrSchemaType::decode(data, decoder).into(),
+      TdrTypeKind::SchemaProperty => TdrSchemaPropertyType::decode(data, decoder).into(),
+      TdrTypeKind::DateTime => TdrDateTimeType::decode(data, decoder).into(),
+      TdrTypeKind::Date => TdrDateType::decode(data, decoder).into(),
+      TdrTypeKind::Time => TdrTimeType::decode(data, decoder).into(),
     }
   }
 }
 
 // TdrObjectEnum
 impl Encodable for TdrObjectEnum {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       // Types
       TdrObjectEnum::TdrTypeType(v) => {
-        encoder.emit_u8(TdrObjectKind::Type as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Type as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrObjectType(v) => {
-        encoder.emit_u8(TdrObjectKind::Object as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Object as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrStrType(v) => {
-        encoder.emit_u8(TdrObjectKind::Str as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Str as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrBoolType(v) => {
-        encoder.emit_u8(TdrObjectKind::Bool as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Bool as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrNumType(v) => {
-        encoder.emit_u8(TdrObjectKind::Num as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Num as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrMathType(v) => {
-        encoder.emit_u8(TdrObjectKind::Math as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Math as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrListType(v) => {
-        encoder.emit_u8(TdrObjectKind::List as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::List as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrDictType(v) => {
-        encoder.emit_u8(TdrObjectKind::Dict as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Dict as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrFuncType(v) => {
-        encoder.emit_u8(TdrObjectKind::Func as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Func as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrProductType(v) => {
-        encoder.emit_u8(TdrObjectKind::Product as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Product as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrSchemaType(v) => {
-        encoder.emit_u8(TdrObjectKind::Schema as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Schema as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrSchemaPropertyType(v) => {
-        encoder.emit_u8(TdrObjectKind::SchemaProperty as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::SchemaProperty as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrDateTimeType(v) => {
-        encoder.emit_u8(TdrObjectKind::DateTime as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::DateTime as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrDateType(v) => {
-        encoder.emit_u8(TdrObjectKind::Date as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Date as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrTimeType(v) => {
-        encoder.emit_u8(TdrObjectKind::Time as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::Time as u8);
+        v.encode(buf, encoder);
       }
       // Objects
       TdrObjectEnum::TdrStrObj(v) => {
-        encoder.emit_u8(TdrObjectKind::StrObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::StrObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrBoolObj(v) => {
-        encoder.emit_u8(TdrObjectKind::BoolObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::BoolObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrNumObj(v) => {
-        encoder.emit_u8(TdrObjectKind::NumObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::NumObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrMathObj(v) => {
-        encoder.emit_u8(TdrObjectKind::MathObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::MathObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrListObj(v) => {
-        encoder.emit_u8(TdrObjectKind::ListObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::ListObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrDictObj(v) => {
-        encoder.emit_u8(TdrObjectKind::DictObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::DictObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrFuncObj(v) => {
-        encoder.emit_u8(TdrObjectKind::FuncObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::FuncObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrProductObj(v) => {
-        encoder.emit_u8(TdrObjectKind::ProductObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::ProductObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrDateTimeObj(v) => {
-        encoder.emit_u8(TdrObjectKind::DateTimeObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::DateTimeObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrDateObj(v) => {
-        encoder.emit_u8(TdrObjectKind::DateObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::DateObj as u8);
+        v.encode(buf, encoder);
       }
       TdrObjectEnum::TdrTimeObj(v) => {
-        encoder.emit_u8(TdrObjectKind::TimeObj as u8);
-        v.encode(encoder);
+        Encoder::emit_u8(buf, TdrObjectKind::TimeObj as u8);
+        v.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for TdrObjectEnum {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match TdrObjectKind::from_repr(tag).unwrap_or_else(|| panic!("unknown TdrObjectKind tag {tag}"))
     {
       // Types
-      TdrObjectKind::Type => TdrTypeType::decode(decoder).into(),
-      TdrObjectKind::Object => TdrObjectType::decode(decoder).into(),
-      TdrObjectKind::Str => TdrStrType::decode(decoder).into(),
-      TdrObjectKind::Bool => TdrBoolType::decode(decoder).into(),
-      TdrObjectKind::Num => TdrNumType::decode(decoder).into(),
-      TdrObjectKind::Math => TdrMathType::decode(decoder).into(),
-      TdrObjectKind::List => TdrListType::decode(decoder).into(),
-      TdrObjectKind::Dict => TdrDictType::decode(decoder).into(),
-      TdrObjectKind::Func => TdrFuncType::decode(decoder).into(),
-      TdrObjectKind::Product => TdrProductType::decode(decoder).into(),
-      TdrObjectKind::Schema => TdrSchemaType::decode(decoder).into(),
-      TdrObjectKind::SchemaProperty => TdrSchemaPropertyType::decode(decoder).into(),
-      TdrObjectKind::DateTime => TdrDateTimeType::decode(decoder).into(),
-      TdrObjectKind::Date => TdrDateType::decode(decoder).into(),
-      TdrObjectKind::Time => TdrTimeType::decode(decoder).into(),
+      TdrObjectKind::Type => TdrTypeType::decode(data, decoder).into(),
+      TdrObjectKind::Object => TdrObjectType::decode(data, decoder).into(),
+      TdrObjectKind::Str => TdrStrType::decode(data, decoder).into(),
+      TdrObjectKind::Bool => TdrBoolType::decode(data, decoder).into(),
+      TdrObjectKind::Num => TdrNumType::decode(data, decoder).into(),
+      TdrObjectKind::Math => TdrMathType::decode(data, decoder).into(),
+      TdrObjectKind::List => TdrListType::decode(data, decoder).into(),
+      TdrObjectKind::Dict => TdrDictType::decode(data, decoder).into(),
+      TdrObjectKind::Func => TdrFuncType::decode(data, decoder).into(),
+      TdrObjectKind::Product => TdrProductType::decode(data, decoder).into(),
+      TdrObjectKind::Schema => TdrSchemaType::decode(data, decoder).into(),
+      TdrObjectKind::SchemaProperty => TdrSchemaPropertyType::decode(data, decoder).into(),
+      TdrObjectKind::DateTime => TdrDateTimeType::decode(data, decoder).into(),
+      TdrObjectKind::Date => TdrDateType::decode(data, decoder).into(),
+      TdrObjectKind::Time => TdrTimeType::decode(data, decoder).into(),
       // Objects
-      TdrObjectKind::StrObj => TdrStrObj::decode(decoder).into(),
-      TdrObjectKind::BoolObj => TdrBoolObj::decode(decoder).into(),
-      TdrObjectKind::NumObj => TdrNumObj::decode(decoder).into(),
-      TdrObjectKind::MathObj => TdrMathObj::decode(decoder).into(),
-      TdrObjectKind::ListObj => TdrListObj::decode(decoder).into(),
-      TdrObjectKind::DictObj => TdrDictObj::decode(decoder).into(),
-      TdrObjectKind::FuncObj => TdrFuncObj::decode(decoder).into(),
-      TdrObjectKind::ProductObj => TdrProductObj::decode(decoder).into(),
-      TdrObjectKind::DateTimeObj => TdrDateTimeObj::decode(decoder).into(),
-      TdrObjectKind::DateObj => TdrDateObj::decode(decoder).into(),
-      TdrObjectKind::TimeObj => TdrTimeObj::decode(decoder).into(),
+      TdrObjectKind::StrObj => TdrStrObj::decode(data, decoder).into(),
+      TdrObjectKind::BoolObj => TdrBoolObj::decode(data, decoder).into(),
+      TdrObjectKind::NumObj => TdrNumObj::decode(data, decoder).into(),
+      TdrObjectKind::MathObj => TdrMathObj::decode(data, decoder).into(),
+      TdrObjectKind::ListObj => TdrListObj::decode(data, decoder).into(),
+      TdrObjectKind::DictObj => TdrDictObj::decode(data, decoder).into(),
+      TdrObjectKind::FuncObj => TdrFuncObj::decode(data, decoder).into(),
+      TdrObjectKind::ProductObj => TdrProductObj::decode(data, decoder).into(),
+      TdrObjectKind::DateTimeObj => TdrDateTimeObj::decode(data, decoder).into(),
+      TdrObjectKind::DateObj => TdrDateObj::decode(data, decoder).into(),
+      TdrObjectKind::TimeObj => TdrTimeObj::decode(data, decoder).into(),
     }
   }
 }

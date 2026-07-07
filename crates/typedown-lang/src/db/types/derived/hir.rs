@@ -134,113 +134,113 @@ enum InterpolatedPartTag {
 }
 
 impl Encodable for HirValueKind {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       HirValueKind::Str(val) => {
-        encoder.emit_u8(HirValueKindTag::Str as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Str as u8);
+        val.encode(buf, encoder);
       }
       HirValueKind::Num(val) => {
-        encoder.emit_u8(HirValueKindTag::Num as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Num as u8);
+        val.encode(buf, encoder);
       }
       HirValueKind::Math(val) => {
-        encoder.emit_u8(HirValueKindTag::Math as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Math as u8);
+        val.encode(buf, encoder);
       }
       HirValueKind::Bool(val) => {
-        encoder.emit_u8(HirValueKindTag::Bool as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Bool as u8);
+        val.encode(buf, encoder);
       }
       HirValueKind::Null => {
-        encoder.emit_u8(HirValueKindTag::Null as u8);
+        Encoder::emit_u8(buf, HirValueKindTag::Null as u8);
       }
       HirValueKind::Ident(val) => {
-        encoder.emit_u8(HirValueKindTag::Ident as u8);
-        val.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Ident as u8);
+        val.encode(buf, encoder);
       }
       HirValueKind::Mapping(entries) => {
-        encoder.emit_u8(HirValueKindTag::Mapping as u8);
-        entries.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Mapping as u8);
+        entries.encode(buf, encoder);
       }
       HirValueKind::Sequence(items) => {
-        encoder.emit_u8(HirValueKindTag::Sequence as u8);
-        items.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Sequence as u8);
+        items.encode(buf, encoder);
       }
       HirValueKind::Interpolated(parts) => {
-        encoder.emit_u8(HirValueKindTag::Interpolated as u8);
-        parts.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Interpolated as u8);
+        parts.encode(buf, encoder);
       }
       HirValueKind::Markdown(parts) => {
-        encoder.emit_u8(HirValueKindTag::Markdown as u8);
-        parts.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Markdown as u8);
+        parts.encode(buf, encoder);
       }
       HirValueKind::Tag { tag, inner } => {
-        encoder.emit_u8(HirValueKindTag::Tag as u8);
-        tag.encode(encoder);
-        inner.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Tag as u8);
+        tag.encode(buf, encoder);
+        inner.encode(buf, encoder);
       }
       HirValueKind::Unary { op, operand } => {
-        encoder.emit_u8(HirValueKindTag::Unary as u8);
-        op.encode(encoder);
-        operand.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Unary as u8);
+        op.encode(buf, encoder);
+        operand.encode(buf, encoder);
       }
       HirValueKind::Binary { op, left, right } => {
-        encoder.emit_u8(HirValueKindTag::Binary as u8);
-        op.encode(encoder);
-        left.encode(encoder);
-        right.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Binary as u8);
+        op.encode(buf, encoder);
+        left.encode(buf, encoder);
+        right.encode(buf, encoder);
       }
       HirValueKind::Call { callee, args } => {
-        encoder.emit_u8(HirValueKindTag::Call as u8);
-        callee.encode(encoder);
-        args.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Call as u8);
+        callee.encode(buf, encoder);
+        args.encode(buf, encoder);
       }
       HirValueKind::Index { expr, indices } => {
-        encoder.emit_u8(HirValueKindTag::Index as u8);
-        expr.encode(encoder);
-        indices.encode(encoder);
+        Encoder::emit_u8(buf, HirValueKindTag::Index as u8);
+        expr.encode(buf, encoder);
+        indices.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for HirValueKind {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match HirValueKindTag::from_repr(tag)
       .unwrap_or_else(|| panic!("unknown HirValueKind tag {tag}"))
     {
-      HirValueKindTag::Str => HirValueKind::Str(String::decode(decoder)),
-      HirValueKindTag::Num => HirValueKind::Num(String::decode(decoder)),
-      HirValueKindTag::Math => HirValueKind::Math(String::decode(decoder)),
-      HirValueKindTag::Bool => HirValueKind::Bool(bool::decode(decoder)),
+      HirValueKindTag::Str => HirValueKind::Str(String::decode(data, decoder)),
+      HirValueKindTag::Num => HirValueKind::Num(String::decode(data, decoder)),
+      HirValueKindTag::Math => HirValueKind::Math(String::decode(data, decoder)),
+      HirValueKindTag::Bool => HirValueKind::Bool(bool::decode(data, decoder)),
       HirValueKindTag::Null => HirValueKind::Null,
-      HirValueKindTag::Ident => HirValueKind::Ident(String::decode(decoder)),
-      HirValueKindTag::Mapping => HirValueKind::Mapping(Vec::decode(decoder)),
-      HirValueKindTag::Sequence => HirValueKind::Sequence(Vec::decode(decoder)),
-      HirValueKindTag::Interpolated => HirValueKind::Interpolated(Vec::decode(decoder)),
-      HirValueKindTag::Markdown => HirValueKind::Markdown(Vec::decode(decoder)),
+      HirValueKindTag::Ident => HirValueKind::Ident(String::decode(data, decoder)),
+      HirValueKindTag::Mapping => HirValueKind::Mapping(Vec::decode(data, decoder)),
+      HirValueKindTag::Sequence => HirValueKind::Sequence(Vec::decode(data, decoder)),
+      HirValueKindTag::Interpolated => HirValueKind::Interpolated(Vec::decode(data, decoder)),
+      HirValueKindTag::Markdown => HirValueKind::Markdown(Vec::decode(data, decoder)),
       HirValueKindTag::Tag => HirValueKind::Tag {
-        tag: Box::decode(decoder),
-        inner: Box::decode(decoder),
+        tag: Box::decode(data, decoder),
+        inner: Box::decode(data, decoder),
       },
       HirValueKindTag::Unary => HirValueKind::Unary {
-        op: String::decode(decoder),
-        operand: Box::decode(decoder),
+        op: String::decode(data, decoder),
+        operand: Box::decode(data, decoder),
       },
       HirValueKindTag::Binary => HirValueKind::Binary {
-        op: String::decode(decoder),
-        left: Box::decode(decoder),
-        right: Box::decode(decoder),
+        op: String::decode(data, decoder),
+        left: Box::decode(data, decoder),
+        right: Box::decode(data, decoder),
       },
       HirValueKindTag::Call => HirValueKind::Call {
-        callee: Box::decode(decoder),
-        args: Vec::decode(decoder),
+        callee: Box::decode(data, decoder),
+        args: Vec::decode(data, decoder),
       },
       HirValueKindTag::Index => HirValueKind::Index {
-        expr: Box::decode(decoder),
-        indices: Vec::decode(decoder),
+        expr: Box::decode(data, decoder),
+        indices: Vec::decode(data, decoder),
       },
     }
   }
@@ -253,28 +253,28 @@ pub enum InterpolatedPart {
 }
 
 impl Encodable for InterpolatedPart {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       InterpolatedPart::Literal(s) => {
-        encoder.emit_u8(InterpolatedPartTag::Literal as u8);
-        s.encode(encoder);
+        Encoder::emit_u8(buf, InterpolatedPartTag::Literal as u8);
+        s.encode(buf, encoder);
       }
       InterpolatedPart::Expr(hir) => {
-        encoder.emit_u8(InterpolatedPartTag::Expr as u8);
-        hir.encode(encoder);
+        Encoder::emit_u8(buf, InterpolatedPartTag::Expr as u8);
+        hir.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for InterpolatedPart {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match InterpolatedPartTag::from_repr(tag)
       .unwrap_or_else(|| panic!("unknown InterpolatedPart tag {tag}"))
     {
-      InterpolatedPartTag::Literal => InterpolatedPart::Literal(String::decode(decoder)),
-      InterpolatedPartTag::Expr => InterpolatedPart::Expr(HirValue::decode(decoder)),
+      InterpolatedPartTag::Literal => InterpolatedPart::Literal(String::decode(data, decoder)),
+      InterpolatedPartTag::Expr => InterpolatedPart::Expr(HirValue::decode(data, decoder)),
     }
   }
 }

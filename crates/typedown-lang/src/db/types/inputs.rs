@@ -56,37 +56,37 @@ enum FileHandleTag {
 }
 
 impl Encodable for FileHandle {
-  fn encode<E: Encoder + ?Sized>(&self, encoder: &mut E) {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       FileHandle::Path(path, mtime) => {
-        encoder.emit_u8(FileHandleTag::Path as u8);
-        path.encode(encoder);
+        Encoder::emit_u8(buf, FileHandleTag::Path as u8);
+        path.encode(buf, encoder);
         let duration = mtime
           .duration_since(SystemTime::UNIX_EPOCH)
           .unwrap_or_default();
-        duration.as_secs().encode(encoder);
-        (duration.subsec_nanos() as u32).encode(encoder);
+        duration.as_secs().encode(buf, encoder);
+        (duration.subsec_nanos() as u32).encode(buf, encoder);
       }
       FileHandle::Content(content) => {
-        encoder.emit_u8(FileHandleTag::Content as u8);
-        content.encode(encoder);
+        Encoder::emit_u8(buf, FileHandleTag::Content as u8);
+        content.encode(buf, encoder);
       }
     }
   }
 }
 
 impl Decodable for FileHandle {
-  fn decode<D: Decoder + ?Sized>(decoder: &mut D) -> Self {
-    let tag = decoder.read_u8();
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = Decoder::read_u8(data);
     match FileHandleTag::from_repr(tag).unwrap_or_else(|| panic!("unknown FileHandle tag {tag}")) {
       FileHandleTag::Path => {
-        let path = PathBuf::decode(decoder);
-        let secs = u64::decode(decoder);
-        let nanos = u32::decode(decoder);
+        let path = PathBuf::decode(data, decoder);
+        let secs = u64::decode(data, decoder);
+        let nanos = u32::decode(data, decoder);
         let mtime = SystemTime::UNIX_EPOCH + std::time::Duration::new(secs, nanos);
         FileHandle::Path(path, mtime)
       }
-      FileHandleTag::Content => FileHandle::Content(String::decode(decoder)),
+      FileHandleTag::Content => FileHandle::Content(String::decode(data, decoder)),
     }
   }
 }

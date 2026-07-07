@@ -237,17 +237,17 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       }
 
       impl ::typedown_incremental::Encodable for #struct_name {
-        fn encode<E: ::typedown_incremental::Encoder + ?Sized>(&self, encoder: &mut E) {
+        fn encode(&self, buf: &mut Vec<u8>, encoder: &mut ::typedown_incremental::Encoder) {
           #(
-            self.#field_names(encoder.db()).encode(encoder);
+            self.#field_names(encoder.db()).encode(buf, encoder);
           )*
         }
       }
 
       impl ::typedown_incremental::Decodable for #struct_name {
-        fn decode<D: ::typedown_incremental::Decoder + ?Sized>(decoder: &mut D) -> Self {
+        fn decode(data: &mut &[u8], decoder: &::typedown_incremental::Decoder) -> Self {
           #(
-            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(decoder);
+            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(data, decoder);
           )*
           #struct_name::new(decoder.db(), #(#field_names),*)
         }
@@ -663,17 +663,17 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
       }
 
       impl ::typedown_incremental::Encodable for #struct_name {
-        fn encode<E: ::typedown_incremental::Encoder + ?Sized>(&self, encoder: &mut E) {
+        fn encode(&self, buf: &mut Vec<u8>, encoder: &mut ::typedown_incremental::Encoder) {
           #(
-            self.#field_names(encoder.db()).encode(encoder);
+            self.#field_names(encoder.db()).encode(buf, encoder);
           )*
         }
       }
 
       impl ::typedown_incremental::Decodable for #struct_name {
-        fn decode<D: ::typedown_incremental::Decoder + ?Sized>(decoder: &mut D) -> Self {
+        fn decode(data: &mut &[u8], decoder: &::typedown_incremental::Decoder) -> Self {
           #(
-            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(decoder);
+            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(data, decoder);
           )*
           #struct_name::new(decoder.db(), #(#field_names),*)
         }
@@ -852,17 +852,17 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
       }
 
       impl ::typedown_incremental::Encodable for #struct_name {
-        fn encode<E: ::typedown_incremental::Encoder + ?Sized>(&self, encoder: &mut E) {
+        fn encode(&self, buf: &mut Vec<u8>, encoder: &mut ::typedown_incremental::Encoder) {
           #(
-            self.#field_names(encoder.db()).encode(encoder);
+            self.#field_names(encoder.db()).encode(buf, encoder);
           )*
         }
       }
 
       impl ::typedown_incremental::Decodable for #struct_name {
-        fn decode<D: ::typedown_incremental::Decoder + ?Sized>(decoder: &mut D) -> Self {
+        fn decode(data: &mut &[u8], decoder: &::typedown_incremental::Decoder) -> Self {
           #(
-            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(decoder);
+            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(data, decoder);
           )*
           #struct_name::new(decoder.db(), #(#field_names),*)
         }
