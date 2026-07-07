@@ -39,8 +39,8 @@ impl<'a> TypedownEncoder<'a> {
     }
   }
 
-  pub fn finish(self) -> Vec<u8> {
-    self.buf
+  pub fn finish(self) -> (Vec<u8>, Vec<Vec<u8>>) {
+    (self.buf, self.intern_blobs)
   }
 }
 
@@ -85,20 +85,7 @@ pub struct TypedownDecoder<'a> {
 }
 
 impl<'a> TypedownDecoder<'a> {
-  pub fn new(db: &'a TypedownDatabase, data: &'a [u8]) -> Self {
-    TypedownDecoder {
-      db,
-      data,
-      pos: 0,
-      intern_blobs: &[],
-    }
-  }
-
-  pub fn with_intern_blobs(
-    db: &'a TypedownDatabase,
-    data: &'a [u8],
-    intern_blobs: &'a [Vec<u8>],
-  ) -> Self {
+  pub fn new(db: &'a TypedownDatabase, data: &'a [u8], intern_blobs: &'a [Vec<u8>]) -> Self {
     TypedownDecoder {
       db,
       data,
@@ -1618,7 +1605,7 @@ mod tests {
   use typedown_incremental::{Decoder, Encoder, QueryStorage};
 
   use crate::db::{TypedownDatabase, TypedownDecoder, TypedownEncoder};
-  use crate::syntax::green::GreenNode;
+  use crate::syntax::green::{GreenNode, SyntaxToken};
   use crate::syntax::red::RedNode;
   use crate::syntax::syntax_kind::SyntaxKind;
 
@@ -1629,8 +1616,8 @@ mod tests {
     };
     let mut enc = TypedownEncoder::new(&db);
     v.encode(&mut enc);
-    let bytes = enc.finish();
-    let mut dec = TypedownDecoder::new(&db, &bytes);
+    let (bytes, intern_blobs) = enc.finish();
+    let mut dec = TypedownDecoder::new(&db, &bytes, &intern_blobs);
     let decoded = T::decode(&mut dec);
     assert_eq!(*v, decoded);
   }
@@ -1644,7 +1631,7 @@ mod tests {
 
     let mut encoder = TypedownEncoder::new(&db);
     encoder.emit_bool(false);
-    let bytes = encoder.finish();
+    let (bytes, _) = encoder.finish();
 
     assert_eq!(bytes, vec![0]);
   }
@@ -1657,7 +1644,7 @@ mod tests {
 
     let mut encoder = TypedownEncoder::new(&db);
     encoder.emit_bool(true);
-    let bytes = encoder.finish();
+    let (bytes, _) = encoder.finish();
 
     assert_eq!(bytes, vec![1]);
   }
@@ -1669,7 +1656,7 @@ mod tests {
     };
 
     let data = vec![0];
-    let mut decoder = TypedownDecoder::new(&db, &data);
+    let mut decoder = TypedownDecoder::new(&db, &data, &[]);
 
     let decoded_value = decoder.read_bool();
     assert_eq!(decoded_value, false);
@@ -1682,7 +1669,7 @@ mod tests {
     };
 
     let data = vec![1];
-    let mut decoder = TypedownDecoder::new(&db, &data);
+    let mut decoder = TypedownDecoder::new(&db, &data, &[]);
 
     let decoded_value = decoder.read_bool();
     assert_eq!(decoded_value, true);

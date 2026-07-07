@@ -35,7 +35,8 @@ impl Arbitrary for RedNode {
   type Strategy = BoxedStrategy<Self>;
 
   fn arbitrary_with(_: ()) -> Self::Strategy {
-    any::<GreenNode>()
+    // RedNode root must be a node, not a token
+    arb_green_node(arb_green_token().prop_recursive(3, 64, 8, |inner| arb_green_node(inner)))
       .prop_map(|green| RedNode::from_green(0, green))
       .boxed()
   }
