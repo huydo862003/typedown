@@ -1,8 +1,10 @@
 //! Derived query engine for the incremental database
 
+use crate::Id;
+
 /// A fast id for a derived state
 /// Derived id is bound to a database's lifetime
-pub trait DerivedId: super::id::Id + From<usize> + Into<usize> {
+pub trait DerivedId: Id + From<usize> + Into<usize> {
   /// Marker used by macros to verify a type implements DerivedId at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
