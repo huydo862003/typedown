@@ -4,6 +4,7 @@
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::syntax::green::cache::Cache;
 use crate::syntax::syntax_kind::SyntaxKind;
 
 pub(super) struct TokenBody {
@@ -16,7 +17,7 @@ pub(super) struct TokenBody {
 pub struct SyntaxToken(pub(super) *const TokenBody);
 
 impl SyntaxToken {
-  pub(crate) fn new(cache: &mut super::cache::Cache, kind: SyntaxKind, text: &[u8]) -> Self {
+  pub(crate) fn new(cache: &mut Cache, kind: SyntaxKind, text: &[u8]) -> Self {
     cache.token(kind, text)
   }
 

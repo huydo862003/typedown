@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc dc82100ea5bcbe1197b1edda0196361c5a82ceb7b73f4c7b50a575a4e14a6a9f # shrinks to v = SourceFile("")
+cc eb119d6ed6752d6a55c8385361a9bdb7bf7d434883942e1c21b79a3b9e3af37e # shrinks to v = RedNode { offset: 0, green: SourceFile("") }
