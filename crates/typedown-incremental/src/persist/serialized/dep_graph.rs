@@ -14,6 +14,8 @@
 
 use crate::Fingerprint;
 
+pub type DepNodeIndex = u32;
+
 /* File identification */
 // Magic: 4 bytes
 // Version: 4 bytes
