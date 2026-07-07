@@ -1618,6 +1618,9 @@ mod tests {
   use typedown_incremental::{Decoder, Encoder, QueryStorage};
 
   use crate::db::{TypedownDatabase, TypedownDecoder, TypedownEncoder};
+  use crate::syntax::green::GreenNode;
+  use crate::syntax::red::RedNode;
+  use crate::syntax::syntax_kind::SyntaxKind;
 
   /// Check that encode and decode return the original value
   fn encode_decode_roundtrip<T: Encodable + Decodable + PartialEq + Debug>(v: &T) {
@@ -1806,6 +1809,25 @@ mod tests {
 
     #[test]
     fn vec_option_i64_roundtrip(v in proptest::collection::vec(any::<Option<i64>>(), 0..50)) {
+      encode_decode_roundtrip(&v);
+    }
+  }
+
+  // Syntax nodes
+
+  proptest! {
+    #[test]
+    fn syntax_kind_roundtrip(v in any::<SyntaxKind>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn green_node_roundtrip(v in any::<GreenNode>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn red_node_roundtrip(v in any::<RedNode>()) {
       encode_decode_roundtrip(&v);
     }
   }
