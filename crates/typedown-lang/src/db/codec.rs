@@ -1605,6 +1605,7 @@ mod tests {
   use typedown_incremental::{Decoder, Encoder, QueryStorage};
 
   use crate::db::{TypedownDatabase, TypedownDecoder, TypedownEncoder};
+  use crate::syntax::diagnostic::Diagnostic;
   use crate::syntax::green::{GreenNode, SyntaxToken};
   use crate::syntax::red::RedNode;
   use crate::syntax::syntax_kind::SyntaxKind;
@@ -1800,6 +1801,48 @@ mod tests {
     }
   }
 
+  // Compound types
+
+  proptest! {
+    #[test]
+    fn unit_roundtrip(_v in proptest::strategy::Just(())) {
+      encode_decode_roundtrip(&());
+    }
+
+    #[test]
+    fn tuple1_roundtrip(v in any::<(i32,)>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn tuple2_roundtrip(v in any::<(i32, String)>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn tuple3_roundtrip(v in any::<(u8, bool, String)>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn box_roundtrip(v in any::<Box<i32>>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn either_roundtrip(v in prop_oneof![
+      any::<i32>().prop_map(typedown_types::either::Either::<i32, String>::Left),
+      any::<String>().prop_map(typedown_types::either::Either::<i32, String>::Right),
+    ]) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn hashmap_roundtrip(v in proptest::collection::hash_map(any::<String>(), any::<i32>(), 0..20)) {
+      encode_decode_roundtrip(&v);
+    }
+  }
+
   // Syntax nodes
 
   proptest! {
@@ -1815,6 +1858,11 @@ mod tests {
 
     #[test]
     fn red_node_roundtrip(v in any::<RedNode>()) {
+      encode_decode_roundtrip(&v);
+    }
+
+    #[test]
+    fn diagnostic_roundtrip(v in any::<Diagnostic>()) {
       encode_decode_roundtrip(&v);
     }
   }
