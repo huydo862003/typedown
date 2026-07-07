@@ -1,7 +1,8 @@
 use std::any::Any;
 
 use super::storage::QueryStorage;
-use crate::{DeserializeContext, SerializeContext};
+use crate::persist::serialized::SerializedQueryStorage;
+use crate::{Decoder, Encoder};
 
 pub trait QueryDatabase: Any {
   #[doc(hidden)]
@@ -9,20 +10,19 @@ pub trait QueryDatabase: Any {
 
   #[doc(hidden)]
   unsafe fn storage_mut(&mut self) -> &mut QueryStorage;
+}
 
-  /// Serialize all ingredients into the given context.
-  fn dump(&self, ctx: &mut dyn SerializeContext) {
-    let storage = unsafe { self.storage() };
-    for entry in storage.ingredients.iter() {
-      entry.ingredient.serialize(ctx);
-    }
-  }
+/// Extension of QueryDatabase that supports serialization.
+pub trait SerializableQueryDatabase: QueryDatabase {
+  /// Create an encoder for serializing query data.
+  fn encoder(&self) -> Box<dyn Encoder + '_>;
 
-  /// Deserialize all ingredients from the given context.
-  fn load(&mut self, ctx: &mut dyn DeserializeContext) {
-    let storage = unsafe { self.storage() };
-    for entry in storage.ingredients.iter() {
-      entry.ingredient.deserialize(ctx);
-    }
-  }
+  /// Create a decoder for deserializing query data.
+  fn decoder<'a>(&'a self, data: &'a [u8], intern_blobs: &'a [Vec<u8>]) -> Box<dyn Decoder + 'a>;
+
+  /// Serialize the current query storage into the serialized formats.
+  fn dump(&self) -> SerializedQueryStorage;
+
+  /// Load query storage from the serialized formats.
+  fn load(&self, serialized: &SerializedQueryStorage);
 }

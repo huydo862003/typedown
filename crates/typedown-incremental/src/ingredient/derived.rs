@@ -359,11 +359,11 @@ impl<
     }
   }
 
-  fn serialize(&self, _ctx: &mut dyn SerializeContext) {
+  fn serialize(&self, _ctx: &mut SerializeContext) {
     // TODO: implement serialization
   }
 
-  fn deserialize(&self, _ctx: &mut dyn DeserializeContext) {
+  fn deserialize(&self, _ctx: &mut DeserializeContext) {
     // TODO: implement deserialization
   }
 }
@@ -417,11 +417,11 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
     // Derived fields are set by the query, nothing to recompute
   }
 
-  fn serialize(&self, _ctx: &mut dyn SerializeContext) {
+  fn serialize(&self, _ctx: &mut SerializeContext) {
     // TODO: implement serialization
   }
 
-  fn deserialize(&self, _ctx: &mut dyn DeserializeContext) {
+  fn deserialize(&self, _ctx: &mut DeserializeContext) {
     // TODO: implement deserialization
   }
 }

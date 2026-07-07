@@ -1,12 +1,11 @@
-//! On-disk format for interned green nodes (`interned-nodes.bin`).
+//! On-disk format for interned blobs (`interned-blobs.bin`).
 //! Based on rustc's interned node deduplication strategy.
 //!
-//! Stores deduplicated green tree nodes (tokens and inner nodes).
-//! Each node is stored once
-//! references use indices into this table.
+//! Stores deduplicated blobs (e.g. green tree nodes: tokens and inner nodes).
+//! Each blob is stored once; references use indices into this table.
 //!
 //! ```text
-//! [ FileHeader (8 bytes)       ]  magic "TDIN" + version
+//! [ FileHeader (8 bytes)       ]  magic "TDIB" + version
 //! [ NodeRecord                 ]  tag + kind + payload
 //! [ NodeRecord                 ]
 //! [ ...                        ]
@@ -18,14 +17,14 @@
 //! - Node  (tag = 1): SyntaxKind + child_count + child indices
 //!
 //! Child indices refer to earlier entries in this file.
-//! Decoded upfront into a Vec<GreenNode> on load.
+//! Decoded upfront into a Vec on load.
 
 /* File identification */
 // Magic: 4 bytes
 // Version: 4 bytes
 // Together takes 8 bytes
 
-pub const MAGIC: [u8; 4] = *b"TDIN";
+pub const MAGIC: [u8; 4] = *b"TDIB";
 pub const VERSION: u32 = 1;
 
 // Record tags
@@ -195,14 +194,14 @@ impl FileFooter {
   }
 }
 
-/// The interned nodes readily for serialization or deserialization into
-pub struct InternedNodes {
+/// The interned blobs readily for serialization or deserialization into
+pub struct InternedBlobs {
   pub header: FileHeader,
   pub records: Vec<NodeRecord>,
   pub footer: FileFooter,
 }
 
-impl InternedNodes {
+impl InternedBlobs {
   pub fn node_count(&self) -> usize {
     self.records.len()
   }
