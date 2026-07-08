@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use crate::{
-  DeserializeContext, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher,
+  Decodable, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher, UnresolvedDepNode
 };
 
 use super::Ingredient;
@@ -43,7 +43,7 @@ impl<T> InputFieldIngredient<T> {
   }
 }
 
-impl<T: StableHash + Send + Sync + 'static> Ingredient for InputFieldIngredient<T> {
+impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient for InputFieldIngredient<T> {
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }
@@ -64,8 +64,24 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for InputFieldIngredient<
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
-  fn serialize(&self, _ctx: &mut SerializeContext, _entry_id: usize) {
-    // TODO: implement serialization
+  fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
+    let entry = self.data.get(&entry_id);
+    if entry.is_none() {
+      return;
+    }
+
+    let entry = entry.expect("Entry must contain a value after the none check pass");
+
+    // Add the dep node
+    let node_index = ctx.dep_graph.set(
+      (self.ingredient_index, entry_id),
+      UnresolvedDepNode::InputField { name: self.name(), field_index: self.field_index, value: self.value_fingerprint(ctx.db(), entry_id).expect("Entry is available so there must be a fingerprint") },
+    );
+
+    // Encode and write to query cache
+    let mut buf = vec![];
+    entry.value.encode(&mut buf, &mut ctx.encoder);
+    ctx.query_cache.set(node_index, &buf);
   }
 
   fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {
