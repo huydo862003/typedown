@@ -363,8 +363,36 @@ impl<
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
-  fn serialize(&self, _ctx: &mut SerializeContext, _entry_id: usize) {
-    // TODO: implement serialization
+  fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
+    let Some(entry) = self.data.get(&entry_id) else {
+      return;
+    };
+    let QueryState::Computed(memo) = &*entry else {
+      return;
+    };
+
+    // Collect dependency edges as DepIds
+    let edges = memo
+      .dependencies
+      .iter()
+      .map(|dep| (dep.ingredient_index, dep.arg_id))
+      .collect();
+
+    let node_index = ctx.dep_graph.set(
+      (self.ingredient_index, entry_id),
+      UnresolvedDepNode::DerivedQuery {
+        name: self.stable_name,
+        key: self.key_fingerprint(ctx.db(), entry_id).expect("Computed entry must have a key fingerprint"),
+        value: self.value_fingerprint(ctx.db(), entry_id).expect("Computed entry must have a value fingerprint"),
+        edges,
+      },
+    );
+
+    // Encode key and value into the query cache
+    let mut buf = vec![];
+    memo.key.encode(&mut buf, &mut ctx.encoder);
+    memo.value.encode(&mut buf, &mut ctx.encoder);
+    ctx.query_cache.set(node_index, &buf);
   }
 
   fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {
