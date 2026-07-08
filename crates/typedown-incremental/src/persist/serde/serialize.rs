@@ -29,10 +29,11 @@ impl<'a> SerializeContext<'a> {
     self.encoder.db()
   }
 
-  pub fn finalize(self) -> (Vec<DepNode>, memmap2::Mmap) {
+  pub fn finalize(self) -> (Vec<DepNode>, memmap2::Mmap, Vec<Vec<u8>>) {
     let nodes = self.dep_graph.finalize();
     let mmap = self.query_cache.finalize();
-    (nodes, mmap)
+    let intern_blobs = self.encoder.finish();
+    (nodes, mmap, intern_blobs)
   }
 }
 
@@ -54,6 +55,10 @@ pub enum UnresolvedDepNode {
     name: Fingerprint,
     field_index: u8,
     value: Fingerprint,
+  },
+  Interned {
+    name: Fingerprint,
+    blob_index: u32,
   },
 }
 
@@ -105,6 +110,9 @@ impl DepGraphBuilder {
         }
         UnresolvedDepNode::InputField { name, field_index, value } => {
           DepNode::InputField { name, field_index, value }
+        }
+        UnresolvedDepNode::Interned { name, blob_index } => {
+          DepNode::Interned { name, blob_index }
         }
       })
       .collect()

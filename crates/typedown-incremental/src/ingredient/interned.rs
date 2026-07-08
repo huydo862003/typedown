@@ -3,7 +3,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use crate::{
-  DeserializeContext, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher,
+  Decodable, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext,
+  StableHash, StableHasher, UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -42,7 +43,7 @@ impl<T: StableHash + Send + Sync + 'static> InternedIngredient<T> {
   }
 }
 
-impl<T: Send + Sync + 'static> Ingredient for InternedIngredient<T> {
+impl<T: StableHash + Encodable + Decodable + Send + Sync + 'static> Ingredient for InternedIngredient<T> {
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }
@@ -60,8 +61,23 @@ impl<T: Send + Sync + 'static> Ingredient for InternedIngredient<T> {
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
-  fn serialize(&self, _ctx: &mut SerializeContext, _entry_id: usize) {
-    // TODO: implement serialization
+  fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
+    let Some(entry) = self.data.get(&entry_id) else {
+      return;
+    };
+
+    // Encode the value to register it in the encoder's intern table
+    let mut buf = vec![];
+    entry.value().encode(&mut buf, &mut ctx.encoder);
+    let blob_index = ctx.encoder.intern_blob(buf, Some(entry_id));
+
+    ctx.dep_graph.set(
+      (self.ingredient_index, entry_id),
+      UnresolvedDepNode::Interned {
+        name: self.name(),
+        blob_index,
+      },
+    );
   }
 
   fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {

@@ -82,6 +82,11 @@ pub enum DepNode {
     field_index: u8,
     value: Fingerprint,
   },
+  /// An interned value (e.g. `LiteralValue`). Leaf node.
+  Interned {
+    name: Fingerprint,
+    blob_index: u32,
+  },
 }
 
 // Tag bytes for serialization
@@ -89,6 +94,7 @@ pub enum DepNode {
 const TAG_DERIVED_QUERY: u8 = 0;
 const TAG_DERIVED_FIELD: u8 = 1;
 const TAG_INPUT_FIELD: u8 = 2;
+const TAG_INTERNED: u8 = 3;
 
 // Byte sizes
 const TAG_SIZE: usize = std::mem::size_of::<u8>();
@@ -102,7 +108,8 @@ impl DepNode {
     match self {
       DepNode::DerivedQuery { name, .. }
       | DepNode::DerivedField { name, .. }
-      | DepNode::InputField { name, .. } => *name,
+      | DepNode::InputField { name, .. }
+      | DepNode::Interned { name, .. } => *name,
     }
   }
 
@@ -111,13 +118,14 @@ impl DepNode {
       DepNode::DerivedQuery { value, .. }
       | DepNode::DerivedField { value, .. }
       | DepNode::InputField { value, .. } => *value,
+      DepNode::Interned { .. } => panic!("Interned nodes do not have a value fingerprint"),
     }
   }
 
   pub fn edges(&self) -> &[u32] {
     match self {
       DepNode::DerivedQuery { edges, .. } => edges,
-      DepNode::DerivedField { .. } | DepNode::InputField { .. } => &[],
+      DepNode::DerivedField { .. } | DepNode::InputField { .. } | DepNode::Interned { .. } => &[],
     }
   }
 
@@ -139,6 +147,11 @@ impl DepNode {
         TAG_SIZE + // discriminant
         FINGERPRINT_SIZE * 2 + // name + value fingerprints
         FIELD_INDEX_SIZE // the index of this field within the whole derived struct
+      }
+      DepNode::Interned { .. } => {
+        TAG_SIZE + // discriminant
+        FINGERPRINT_SIZE + // name fingerprint
+        4 // blob_index: u32
       }
     };
     let mut bytes = Vec::with_capacity(capacity); // preallocated to avoid reallocation overhead
@@ -177,6 +190,11 @@ impl DepNode {
         bytes.extend_from_slice(&name.0);
         bytes.push(*field_index);
         bytes.extend_from_slice(&value.0);
+      }
+      DepNode::Interned { name, blob_index } => {
+        bytes.push(TAG_INTERNED);
+        bytes.extend_from_slice(&name.0);
+        bytes.extend_from_slice(&blob_index.to_le_bytes());
       }
     }
     bytes
@@ -270,6 +288,15 @@ impl DepNode {
           },
           pos,
         )
+      }
+      TAG_INTERNED => {
+        let name = Fingerprint(bytes[pos..pos + FINGERPRINT_SIZE].try_into().unwrap());
+        pos += FINGERPRINT_SIZE;
+
+        let blob_index = u32::from_le_bytes(bytes[pos..pos + 4].try_into().unwrap());
+        pos += 4;
+
+        (DepNode::Interned { name, blob_index }, pos)
       }
       _ => panic!("unknown DepNode tag {tag}"),
     }
