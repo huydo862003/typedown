@@ -10,7 +10,7 @@ use std::{
 
 use crate::{Cancelled, ExecuteContext, QueryStackEntry};
 use crate::{Decodable, Encodable, Fingerprint, StableHash, StableHasher};
-use crate::{DerivedId, DeserializeContext, QueryDatabase, SerializeContext};
+use crate::{DerivedId, DeserializeContext, QueryDatabase, SerializeContext, UnresolvedDepNode};
 use dashmap::DashMap;
 
 use super::Ingredient;
@@ -425,8 +425,20 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
-  fn serialize(&self, _ctx: &mut SerializeContext, _entry_id: usize) {
-    // TODO: implement serialization
+  fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
+    let Some(_entry) = self.data.get(&entry_id) else {
+      return;
+    };
+
+    // Only register a dep node; the value blob lives in the parent query's cache entry.
+    ctx.dep_graph.set(
+      (self.ingredient_index, entry_id),
+      UnresolvedDepNode::DerivedField {
+        name: self.name(),
+        field_index: self.field_index,
+        value: self.value_fingerprint(ctx.db(), entry_id).expect("Entry is available so there must be a fingerprint"),
+      },
+    );
   }
 
   fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {
