@@ -80,7 +80,7 @@ impl<T: StableHash + Encodable + Decodable + Send + Sync + 'static> Ingredient f
     );
   }
 
-  fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {
+  fn deserialize(&self, _ctx: &mut DeserializeContext<'_>, _entry_id: usize) {
     // TODO: implement deserialization
   }
 }

@@ -84,7 +84,7 @@ impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient f
     ctx.query_cache.set(node_index, &buf);
   }
 
-  fn deserialize(&self, _ctx: &mut DeserializeContext, _entry_id: usize) {
+  fn deserialize(&self, _ctx: &mut DeserializeContext<'_>, _entry_id: usize) {
     // TODO: implement deserialization
   }
 }

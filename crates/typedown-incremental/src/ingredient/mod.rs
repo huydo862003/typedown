@@ -32,5 +32,5 @@ pub trait Ingredient: Any + Send + Sync {
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize);
 
-  fn deserialize(&self, ctx: &mut DeserializeContext, entry_id: usize);
+  fn deserialize(&self, ctx: &mut DeserializeContext<'_>, entry_id: usize);
 }
