@@ -16,10 +16,6 @@ pub struct TypedownDatabase {
 }
 
 impl SerializableQueryDatabase for TypedownDatabase {
-  fn dump(&self) -> SerializedQueryStorage {
-    todo!()
-  }
-
   fn load(&self, _serialized: &SerializedQueryStorage) {
     todo!()
   }

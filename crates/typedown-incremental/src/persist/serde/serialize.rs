@@ -17,7 +17,7 @@ pub struct SerializeContext<'a> {
 }
 
 impl<'a> SerializeContext<'a> {
-  pub fn new<DB: QueryDatabase>(db: &'a DB) -> Self {
+  pub fn new(db: &'a dyn QueryDatabase) -> Self {
     Self {
       dep_graph: DepGraphBuilder::new(),
       query_cache: QueryCacheBuilder::new(),
