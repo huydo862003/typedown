@@ -4,9 +4,9 @@ use std::io::Write;
 
 use tempfile::tempfile;
 
-use crate::{DepId, Encoder, Fingerprint, QueryDatabase};
 use crate::persist::serialized::dep_graph::{DepNode, DepNodeIndex};
 use crate::persist::serialized::query_cache::FooterCacheEntry;
+use crate::{DepId, Encoder, Fingerprint, QueryDatabase};
 
 /// Context for serializing ingredients during dump.
 /// Accumulates dep graph nodes and streams query result blobs.
@@ -97,7 +97,14 @@ impl DepGraphBuilder {
       .nodes
       .into_iter()
       .map(|node| match node {
-        UnresolvedDepNode::DerivedQuery { name, key, value, changed_at, verified_at, edges } => {
+        UnresolvedDepNode::DerivedQuery {
+          name,
+          key,
+          value,
+          changed_at,
+          verified_at,
+          edges,
+        } => {
           let resolved_edges = edges
             .iter()
             .map(|dep_id| {
@@ -107,17 +114,38 @@ impl DepGraphBuilder {
                 .unwrap_or_else(|| panic!("unresolved dep edge: ({}, {})", dep_id.0, dep_id.1))
             })
             .collect();
-          DepNode::DerivedQuery { name, key, value, changed_at, verified_at, edges: resolved_edges }
+          DepNode::DerivedQuery {
+            name,
+            key,
+            value,
+            changed_at,
+            verified_at,
+            edges: resolved_edges,
+          }
         }
-        UnresolvedDepNode::DerivedField { name, field_index, value, changed_at } => {
-          DepNode::DerivedField { name, field_index, value, changed_at }
-        }
-        UnresolvedDepNode::InputField { name, field_index, value, changed_at } => {
-          DepNode::InputField { name, field_index, value, changed_at }
-        }
-        UnresolvedDepNode::Interned { name, blob_index } => {
-          DepNode::Interned { name, blob_index }
-        }
+        UnresolvedDepNode::DerivedField {
+          name,
+          field_index,
+          value,
+          changed_at,
+        } => DepNode::DerivedField {
+          name,
+          field_index,
+          value,
+          changed_at,
+        },
+        UnresolvedDepNode::InputField {
+          name,
+          field_index,
+          value,
+          changed_at,
+        } => DepNode::InputField {
+          name,
+          field_index,
+          value,
+          changed_at,
+        },
+        UnresolvedDepNode::Interned { name, blob_index } => DepNode::Interned { name, blob_index },
       })
       .collect()
   }
@@ -137,7 +165,9 @@ impl QueryCacheBuilder {
 
     let mut file = tempfile().expect("Failed to create tempfile for query cache");
     let header = FileHeader::new();
-    file.write_all(&header.to_bytes()).expect("Failed to write query cache header");
+    file
+      .write_all(&header.to_bytes())
+      .expect("Failed to write query cache header");
 
     Self {
       file,
@@ -149,7 +179,10 @@ impl QueryCacheBuilder {
   /// Write a blob to the backing file. Returns the byte offset where the blob was written.
   pub fn set(&mut self, node_index: DepNodeIndex, blob: &[u8]) -> u64 {
     let byte_offset = self.offset;
-    self.file.write_all(blob).expect("Failed to write blob to query cache tempfile");
+    self
+      .file
+      .write_all(blob)
+      .expect("Failed to write blob to query cache tempfile");
     self.offset += blob.len() as u64;
     self.entries.push(FooterCacheEntry {
       node_index,
@@ -163,15 +196,24 @@ impl QueryCacheBuilder {
     let footer_pos = self.offset;
 
     // Write entry count
-    self.file.write_all(&(self.entries.len() as u64).to_le_bytes()).expect("Failed to write footer entry count");
+    self
+      .file
+      .write_all(&(self.entries.len() as u64).to_le_bytes())
+      .expect("Failed to write footer entry count");
 
     // Write entries
     for entry in &self.entries {
-      self.file.write_all(&entry.to_bytes()).expect("Failed to write footer entry");
+      self
+        .file
+        .write_all(&entry.to_bytes())
+        .expect("Failed to write footer entry");
     }
 
     // Write footer position as the last 8 bytes
-    self.file.write_all(&footer_pos.to_le_bytes()).expect("Failed to write footer position");
+    self
+      .file
+      .write_all(&footer_pos.to_le_bytes())
+      .expect("Failed to write footer position");
 
     unsafe { memmap2::Mmap::map(&self.file).expect("Failed to mmap query cache tempfile") }
   }

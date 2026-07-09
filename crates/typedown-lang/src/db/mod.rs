@@ -7,16 +7,10 @@ pub mod types;
 pub mod utils;
 
 pub use typedown_incremental::QueryStorage;
-use typedown_incremental::{SerializableQueryDatabase, SerializedQueryStorage, query_db};
+use typedown_incremental::query_db;
 
 #[query_db]
 #[derive(Clone)]
 pub struct TypedownDatabase {
   pub storage: QueryStorage,
-}
-
-impl SerializableQueryDatabase for TypedownDatabase {
-  fn load(&self, _serialized: &SerializedQueryStorage) {
-    todo!()
-  }
 }

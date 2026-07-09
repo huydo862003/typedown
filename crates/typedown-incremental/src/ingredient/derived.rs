@@ -8,7 +8,7 @@ use std::{
   },
 };
 
-use crate::{Cancelled, ExecuteContext, QueryStackEntry};
+use crate::{Cancelled, ExecuteContext, QueryStackEntry, QueryStorage};
 use crate::{Decodable, Encodable, Fingerprint, StableHash, StableHasher};
 use crate::{DerivedId, DeserializeContext, QueryDatabase, SerializeContext, UnresolvedDepNode};
 use dashmap::DashMap;
@@ -141,7 +141,7 @@ impl<
   fn execute_query_inner(
     &self,
     db: &DB,
-    storage: &crate::QueryStorage,
+    storage: &QueryStorage,
     current_revision: usize,
     ingredient_index: usize,
     arg_id: usize,
@@ -382,8 +382,12 @@ impl<
       (self.ingredient_index, entry_id),
       UnresolvedDepNode::DerivedQuery {
         name: self.stable_name,
-        key: self.key_fingerprint(ctx.db(), entry_id).expect("Computed entry must have a key fingerprint"),
-        value: self.value_fingerprint(ctx.db(), entry_id).expect("Computed entry must have a value fingerprint"),
+        key: self
+          .key_fingerprint(ctx.db(), entry_id)
+          .expect("Computed entry must have a key fingerprint"),
+        value: self
+          .value_fingerprint(ctx.db(), entry_id)
+          .expect("Computed entry must have a value fingerprint"),
         changed_at: memo.changed_at as u64,
         verified_at: memo.verified_at as u64,
         edges,
@@ -466,7 +470,9 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
       UnresolvedDepNode::DerivedField {
         name: self.name(),
         field_index: self.field_index,
-        value: self.value_fingerprint(ctx.db(), entry_id).expect("Entry is available so there must be a fingerprint"),
+        value: self
+          .value_fingerprint(ctx.db(), entry_id)
+          .expect("Entry is available so there must be a fingerprint"),
         changed_at: entry.changed_at as u64,
       },
     );

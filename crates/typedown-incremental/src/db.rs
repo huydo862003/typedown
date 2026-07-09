@@ -17,8 +17,22 @@ pub trait QueryDatabase: Any {
   unsafe fn storage_mut(&mut self) -> &mut QueryStorage;
 }
 
+/// TIL:
+/// We can seal some methods of a trait T by adding a private module and a private trait local here
+/// Then we can require the sealed trait to implement the the private trait local here
+/// Then we add a blanket implementation (see the one below)
+mod sealed {
+  use crate::QueryDatabase;
+
+  pub trait Sealed {}
+  impl<T: QueryDatabase> Sealed for T {}
+}
+
+impl<T: QueryDatabase> SerializableQueryDatabase for T {}
+
 /// Extension of QueryDatabase that supports serialization.
-pub trait SerializableQueryDatabase: QueryDatabase {
+/// All methods have fixed implementations and cannot be overridden.
+pub trait SerializableQueryDatabase: QueryDatabase + sealed::Sealed {
   /// Serialize the current query storage into the serialized formats.
   fn dump(&self) -> SerializedQueryStorage
   where
@@ -83,5 +97,10 @@ pub trait SerializableQueryDatabase: QueryDatabase {
   }
 
   /// Load query storage from the serialized formats.
-  fn load(&self, serialized: &SerializedQueryStorage);
+  fn load(&self, _serialized: &SerializedQueryStorage)
+  where
+    Self: Sized,
+  {
+    todo!()
+  }
 }

@@ -43,7 +43,9 @@ impl<T: StableHash + Send + Sync + 'static> InternedIngredient<T> {
   }
 }
 
-impl<T: StableHash + Encodable + Decodable + Send + Sync + 'static> Ingredient for InternedIngredient<T> {
+impl<T: StableHash + Encodable + Decodable + Send + Sync + 'static> Ingredient
+  for InternedIngredient<T>
+{
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }

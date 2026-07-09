@@ -60,7 +60,11 @@ impl FileHeader {
     magic.copy_from_slice(&bytes[0..4]);
     let version = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
     let revision = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
-    FileHeader { magic, version, revision }
+    FileHeader {
+      magic,
+      version,
+      revision,
+    }
   }
 }
 
@@ -91,10 +95,7 @@ pub enum DepNode {
     changed_at: u64,
   },
   /// An interned value (e.g. `LiteralValue`). Leaf node.
-  Interned {
-    name: Fingerprint,
-    blob_index: u32,
-  },
+  Interned { name: Fingerprint, blob_index: u32 },
 }
 
 // Tag bytes for serialization
