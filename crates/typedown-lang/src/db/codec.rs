@@ -1513,7 +1513,7 @@ mod tests {
     let mut enc = Encoder::new(&db);
     v.encode(&mut buf, &mut enc);
     let intern_blobs = enc.finish();
-    let decoder = Decoder::new(&db, intern_blobs);
+    let decoder = Decoder::new(&db, &intern_blobs);
     let mut data: &[u8] = &buf;
     let decoded = T::decode(&mut data, &decoder);
     assert_eq!(*v, decoded);
@@ -1547,7 +1547,7 @@ mod tests {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
-    let decoder = Decoder::new(&db, vec![]);
+    let decoder = Decoder::new(&db, &[]);
     let data: &[u8] = &[0];
     let mut data = data;
     assert_eq!(decoder.read_bool(&mut data), false);
@@ -1558,7 +1558,7 @@ mod tests {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
-    let decoder = Decoder::new(&db, vec![]);
+    let decoder = Decoder::new(&db, &[]);
     let data: &[u8] = &[1];
     let mut data = data;
     assert_eq!(decoder.read_bool(&mut data), true);

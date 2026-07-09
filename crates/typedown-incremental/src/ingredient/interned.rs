@@ -3,8 +3,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use crate::{
-  DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash,
-  StableHasher, UnresolvedDepNode,
+  Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher,
+  UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -61,6 +61,10 @@ impl<T: StableHash + Encodable + Send + Sync + 'static> Ingredient for InternedI
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
+  fn value_fingerprint(&self, db: &dyn QueryDatabase, entry_id: usize) -> Option<Fingerprint> {
+    InternedIngredient::value_fingerprint(self, db, entry_id)
+  }
+
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
     let Some(entry) = self.data.get(&entry_id) else {
       return;
@@ -80,9 +84,5 @@ impl<T: StableHash + Encodable + Send + Sync + 'static> Ingredient for InternedI
         blob_index,
       },
     );
-  }
-
-  fn deserialize(&self, _ctx: &mut DeserializeContext<'_>, _entry_id: usize) {
-    // TODO: implement deserialization
   }
 }

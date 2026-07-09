@@ -133,12 +133,12 @@ impl<'a> Encoder<'a> {
 
 pub struct Decoder<'a> {
   db: &'a dyn QueryDatabase,
-  intern_blobs: Vec<Vec<u8>>,
+  intern_blobs: &'a [Vec<u8>],
   dep_id_table: HashMap<DepNodeIndex, DepId>,
 }
 
 impl<'a> Decoder<'a> {
-  pub fn new(db: &'a dyn QueryDatabase, intern_blobs: Vec<Vec<u8>>) -> Self {
+  pub fn new(db: &'a dyn QueryDatabase, intern_blobs: &'a [Vec<u8>]) -> Self {
     Self {
       db,
       intern_blobs,

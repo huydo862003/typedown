@@ -1,5 +1,6 @@
 use std::{
   any::Any,
+  collections::HashMap,
   hash::Hash,
   panic::panic_any,
   sync::{
@@ -8,9 +9,10 @@ use std::{
   },
 };
 
+use crate::persist::serialized::dep_graph::DepNode;
 use crate::{Cancelled, ExecuteContext, QueryStackEntry, QueryStorage};
-use crate::{DerivedId, DeserializeContext, QueryDatabase, SerializeContext, UnresolvedDepNode};
-use crate::{Encodable, Fingerprint, StableHash, StableHasher};
+use crate::{Decodable, Encodable, Fingerprint, StableHash, StableHasher};
+use crate::{DerivedId, QueryDatabase, SerializeContext, UnresolvedDepNode};
 use dashmap::DashMap;
 
 use super::Ingredient;
@@ -55,8 +57,8 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: StableHash + Encodable + Eq + Hash + Clone + Send + Sync + 'static,
-  V: StableHash + Encodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
   pub fn new(ingredient_index: usize, stable_name: &str, query_fn: fn(&DB, K) -> V) -> Self {
@@ -102,6 +104,70 @@ impl<
       }
     }
     None
+  }
+
+  /// Try to load a cached result from the serialized cache.
+  fn try_load_from_serialized(
+    &self,
+    db: &DB,
+    storage: &QueryStorage,
+    arg: &K,
+  ) -> Option<(V, usize)> {
+    let ctx = storage.deserialize_ctx.as_ref().as_ref()?;
+
+    // Compute key fingerprint to find the matching node
+    let mut hasher = StableHasher::new();
+    arg.stable_hash(db, &mut hasher);
+    let key_fp = Fingerprint::from_hasher(hasher);
+
+    let (node_index, node) = ctx.find_derived_query(self.stable_name, key_fp)?;
+
+    let DepNode::DerivedQuery {
+      changed_at, edges, ..
+    } = node
+    else {
+      return None;
+    };
+
+    // Green check: compare multisets of (ingredient_name, value_fingerprint).
+    // Both the serialized edges and current entries must have matching counts.
+    let mut expected: HashMap<(Fingerprint, Fingerprint), usize> = HashMap::new();
+    for edge_idx in edges {
+      let edge_node = &ctx.serialized.dep_graph.nodes[*edge_idx as usize];
+      *expected
+        .entry((edge_node.name(), edge_node.value_fingerprint()))
+        .or_default() += 1;
+    }
+
+    let mut actual: HashMap<(Fingerprint, Fingerprint), usize> = HashMap::new();
+    for (name, _) in expected.keys() {
+      for entry in storage.ingredients.iter() {
+        if entry.ingredient.name() != *name {
+          continue;
+        }
+        for eid in entry.ingredient.entry_ids() {
+          if let Some(fp) = entry.ingredient.value_fingerprint(db, eid) {
+            *actual.entry((*name, fp)).or_default() += 1;
+          }
+        }
+      }
+    }
+
+    for (key, &needed) in &expected {
+      let available = actual.get(key).copied().unwrap_or(0);
+      if available < needed {
+        return None;
+      }
+    }
+
+    // All deps green. Decode the cached result.
+    let decoder = ctx.decoder(db);
+    let blob = ctx.serialized.query_cache.get(node_index)?;
+    let mut data: &[u8] = blob;
+    let _key = K::decode(&mut data, &decoder);
+    let value = V::decode(&mut data, &decoder);
+
+    Some((value, *changed_at as usize))
   }
 
   /// Get or create a stable entry ID for a key
@@ -187,6 +253,12 @@ impl<
           // green_check returned false, need to recompute
         }
       }
+    }
+
+    // Try loading from previous session before recomputing
+    if let Some(result) = self.try_load_from_serialized(db, storage, &arg) {
+      let (value, changed_at) = result;
+      return (value, changed_at);
     }
 
     #[allow(unused_labels)]
@@ -289,8 +361,8 @@ impl<
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: StableHash + Encodable + Eq + Hash + Clone + Send + Sync + 'static,
-  V: StableHash + Encodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
   fn name(&self) -> Fingerprint {
@@ -363,6 +435,10 @@ impl<
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
+  fn value_fingerprint(&self, db: &dyn QueryDatabase, entry_id: usize) -> Option<Fingerprint> {
+    DerivedQueryIngredient::value_fingerprint(self, db, entry_id)
+  }
+
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
     let Some(entry) = self.data.get(&entry_id) else {
       return;
@@ -401,10 +477,6 @@ impl<
     memo.key.encode(&mut buf, &mut ctx.encoder);
     memo.value.encode(&mut buf, &mut ctx.encoder);
     ctx.query_cache.set(node_index, &buf);
-  }
-
-  fn deserialize(&self, _ctx: &mut DeserializeContext<'_>, _entry_id: usize) {
-    // TODO: implement deserialization
   }
 }
 
@@ -461,6 +533,10 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
+  fn value_fingerprint(&self, db: &dyn QueryDatabase, entry_id: usize) -> Option<Fingerprint> {
+    DerivedFieldIngredient::value_fingerprint(self, db, entry_id)
+  }
+
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
     let Some(entry) = self.data.get(&entry_id) else {
       return;
@@ -480,10 +556,6 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
         changed_at: entry.changed_at as u64,
       },
     );
-  }
-
-  fn deserialize(&self, _ctx: &mut DeserializeContext<'_>, _entry_id: usize) {
-    // TODO: implement deserialization
   }
 }
 

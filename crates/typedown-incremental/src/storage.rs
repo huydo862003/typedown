@@ -5,6 +5,7 @@ use std::sync::{Arc, OnceLock};
 
 use super::ingredient::{Dependency, IngredientEntry, IngredientFactory, Inventory};
 use super::persist::serialized::SerializedQueryStorage;
+use crate::DeserializeContext;
 
 /// A registry of ingredient factories
 /// This is used in QueryStorage::default() to initialize the internal ingredient vector
@@ -33,7 +34,7 @@ pub struct QueryStorage {
   #[doc(hidden)]
   pub ingredients: Arc<Vec<IngredientEntry>>, // All ingredients
   #[doc(hidden)]
-  pub serialized: Arc<Option<SerializedQueryStorage>>, // Previous session's serialized data
+  pub deserialize_ctx: Arc<Option<DeserializeContext>>, // Previous session's data for lazy deserialization
 }
 
 impl QueryStorage {
@@ -48,12 +49,11 @@ impl QueryStorage {
           .map(|(idx, factory)| factory(idx))
           .collect(),
       ),
-      serialized: Arc::new(None),
+      deserialize_ctx: Arc::new(None),
     }
   }
 
   /// Create a QueryStorage from a previous session's serialized data.
-  /// Restores the revision and stores the serialized data for lazy deserialization.
   pub fn from_serialized(serialized: SerializedQueryStorage) -> Self {
     let revision = serialized.dep_graph.header.revision as usize;
     QueryStorage {
@@ -66,7 +66,7 @@ impl QueryStorage {
           .map(|(idx, factory)| factory(idx))
           .collect(),
       ),
-      serialized: Arc::new(Some(serialized)),
+      deserialize_ctx: Arc::new(Some(DeserializeContext::new(serialized))),
     }
   }
 

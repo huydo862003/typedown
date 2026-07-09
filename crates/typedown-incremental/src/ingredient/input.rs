@@ -4,8 +4,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use crate::{
-  DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash,
-  StableHasher, UnresolvedDepNode,
+  Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher,
+  UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -65,6 +65,10 @@ impl<T: StableHash + Send + Sync + Encodable + 'static> Ingredient for InputFiel
     Box::new(self.data.iter().map(|entry| *entry.key()))
   }
 
+  fn value_fingerprint(&self, db: &dyn QueryDatabase, entry_id: usize) -> Option<Fingerprint> {
+    InputFieldIngredient::value_fingerprint(self, db, entry_id)
+  }
+
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
     let entry = self.data.get(&entry_id);
     if entry.is_none() {
@@ -92,10 +96,6 @@ impl<T: StableHash + Send + Sync + Encodable + 'static> Ingredient for InputFiel
     let mut buf = vec![];
     entry.value.encode(&mut buf, &mut ctx.encoder);
     ctx.query_cache.set(node_index, &buf);
-  }
-
-  fn deserialize(&self, _ctx: &mut DeserializeContext<'_>, _entry_id: usize) {
-    // TODO: implement deserialization
   }
 }
 
