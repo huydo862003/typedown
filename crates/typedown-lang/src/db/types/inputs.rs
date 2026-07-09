@@ -59,7 +59,7 @@ impl Encodable for FileHandle {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       FileHandle::Path(path, mtime) => {
-        Encoder::emit_u8(buf, FileHandleTag::Path as u8);
+        encoder.emit_u8(buf, FileHandleTag::Path as u8);
         path.encode(buf, encoder);
         let duration = mtime
           .duration_since(SystemTime::UNIX_EPOCH)
@@ -68,7 +68,7 @@ impl Encodable for FileHandle {
         (duration.subsec_nanos() as u32).encode(buf, encoder);
       }
       FileHandle::Content(content) => {
-        Encoder::emit_u8(buf, FileHandleTag::Content as u8);
+        encoder.emit_u8(buf, FileHandleTag::Content as u8);
         content.encode(buf, encoder);
       }
     }
@@ -77,8 +77,8 @@ impl Encodable for FileHandle {
 
 impl Decodable for FileHandle {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    match FileHandleTag::from_repr(tag).unwrap_or_else(|| panic!("unknown FileHandle tag {tag}")) {
+    let tag = decoder.read_u8(data);
+    match FileHandleTag::from_repr(tag).expect("unknown FileHandle tag") {
       FileHandleTag::Path => {
         let path = PathBuf::decode(data, decoder);
         let secs = u64::decode(data, decoder);

@@ -30,7 +30,7 @@ impl<'a> SerializeContext<'a> {
   }
 
   pub fn finalize(self) -> (Vec<DepNode>, memmap2::Mmap, Vec<Vec<u8>>) {
-    let nodes = self.dep_graph.finalize();
+    let nodes = self.dep_graph.finalize(self.encoder.dep_id_table());
     let mmap = self.query_cache.finalize();
     let intern_blobs = self.encoder.finish();
     (nodes, mmap, intern_blobs)
@@ -67,36 +67,30 @@ pub enum UnresolvedDepNode {
 }
 
 /// Builder for the dep graph during serialization.
+/// Uses the Encoder's dep_id_table for DepId -> DepNodeIndex mapping.
 pub struct DepGraphBuilder {
-  nodes: Vec<UnresolvedDepNode>,
-  index_map: HashMap<DepId, DepNodeIndex>,
+  nodes: Vec<(DepNodeIndex, UnresolvedDepNode)>,
 }
 
 impl DepGraphBuilder {
   fn new() -> Self {
-    Self {
-      nodes: Vec::new(),
-      index_map: HashMap::new(),
-    }
+    Self { nodes: Vec::new() }
   }
 
-  pub fn set(&mut self, dep_id: DepId, node: UnresolvedDepNode) -> DepNodeIndex {
-    let index = self.nodes.len() as DepNodeIndex;
-    self.nodes.push(node);
-    self.index_map.insert(dep_id, index);
-    index
+  /// Add a dep node at the given index (obtained from Encoder::add_dep_id).
+  pub fn set(&mut self, index: DepNodeIndex, node: UnresolvedDepNode) {
+    self.nodes.push((index, node));
   }
 
-  pub fn get_node_index(&self, dep_id: &DepId) -> Option<DepNodeIndex> {
-    self.index_map.get(dep_id).copied()
-  }
+  /// Resolve edges and return the final dep graph nodes, using the Encoder's dep_id_table.
+  pub fn finalize(self, dep_id_table: &HashMap<DepId, DepNodeIndex>) -> Vec<DepNode> {
+    // Sort by index to ensure correct ordering
+    let mut sorted = self.nodes;
+    sorted.sort_by_key(|(idx, _)| *idx);
 
-  /// Resolve edges and return the final dep graph nodes.
-  pub fn finalize(self) -> Vec<DepNode> {
-    self
-      .nodes
+    sorted
       .into_iter()
-      .map(|node| match node {
+      .map(|(_, node)| match node {
         UnresolvedDepNode::DerivedQuery {
           name,
           key,
@@ -107,12 +101,7 @@ impl DepGraphBuilder {
         } => {
           let resolved_edges = edges
             .iter()
-            .map(|dep_id| {
-              *self
-                .index_map
-                .get(dep_id)
-                .unwrap_or_else(|| panic!("unresolved dep edge: ({}, {})", dep_id.0, dep_id.1))
-            })
+            .map(|dep_id| *dep_id_table.get(dep_id).expect("unresolved dep edge"))
             .collect();
           DepNode::DerivedQuery {
             name,

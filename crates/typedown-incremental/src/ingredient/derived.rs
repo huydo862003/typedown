@@ -9,8 +9,8 @@ use std::{
 };
 
 use crate::{Cancelled, ExecuteContext, QueryStackEntry, QueryStorage};
-use crate::{Decodable, Encodable, Fingerprint, StableHash, StableHasher};
 use crate::{DerivedId, DeserializeContext, QueryDatabase, SerializeContext, UnresolvedDepNode};
+use crate::{Encodable, Fingerprint, StableHash, StableHasher};
 use dashmap::DashMap;
 
 use super::Ingredient;
@@ -55,8 +55,8 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static,
-  V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash + Encodable + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash + Encodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
   pub fn new(ingredient_index: usize, stable_name: &str, query_fn: fn(&DB, K) -> V) -> Self {
@@ -289,8 +289,8 @@ impl<
 
 impl<
   DB: QueryDatabase + Send + Sync + 'static,
-  K: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static,
-  V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
+  K: StableHash + Encodable + Eq + Hash + Clone + Send + Sync + 'static,
+  V: StableHash + Encodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > Ingredient for DerivedQueryIngredient<DB, K, V>
 {
   fn name(&self) -> Fingerprint {
@@ -378,8 +378,10 @@ impl<
       .map(|dep| (dep.ingredient_index, dep.arg_id))
       .collect();
 
-    let node_index = ctx.dep_graph.set(
-      (self.ingredient_index, entry_id),
+    let dep_id = (self.ingredient_index, entry_id);
+    let node_index = ctx.encoder.add_dep_id(dep_id);
+    ctx.dep_graph.set(
+      node_index,
       UnresolvedDepNode::DerivedQuery {
         name: self.stable_name,
         key: self
@@ -465,8 +467,10 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
     };
 
     // Only register a dep node; the value blob lives in the parent query's cache entry.
+    let dep_id = (self.ingredient_index, entry_id);
+    let node_index = ctx.encoder.add_dep_id(dep_id);
     ctx.dep_graph.set(
-      (self.ingredient_index, entry_id),
+      node_index,
       UnresolvedDepNode::DerivedField {
         name: self.name(),
         field_index: self.field_index,

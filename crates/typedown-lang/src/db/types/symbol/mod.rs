@@ -5,7 +5,8 @@ use typedown_macros::query_derived;
 
 use crate::db::types::{File, Project};
 use typedown_incremental::{
-  Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher,
+  Decodable, Decoder, Encodable, Encoder, FieldDecodable, FieldEncodable, QueryDatabase,
+  StableHash, StableHasher,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -68,21 +69,21 @@ impl Encodable for SymbolKind {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       SymbolKind::UserDefinedSchema(project, file) => {
-        Encoder::emit_u8(buf, SymbolKindTag::UserDefinedSchema as u8);
-        project.encode(buf, encoder);
-        file.encode(buf, encoder);
+        encoder.emit_u8(buf, SymbolKindTag::UserDefinedSchema as u8);
+        project.encode_field(buf, encoder);
+        file.encode_field(buf, encoder);
       }
       SymbolKind::UserDefinedResource(project, file) => {
-        Encoder::emit_u8(buf, SymbolKindTag::UserDefinedResource as u8);
-        project.encode(buf, encoder);
-        file.encode(buf, encoder);
+        encoder.emit_u8(buf, SymbolKindTag::UserDefinedResource as u8);
+        project.encode_field(buf, encoder);
+        file.encode_field(buf, encoder);
       }
       SymbolKind::BuiltinSchema(kind) => {
-        Encoder::emit_u8(buf, SymbolKindTag::BuiltinSchema as u8);
+        encoder.emit_u8(buf, SymbolKindTag::BuiltinSchema as u8);
         kind.encode(buf, encoder);
       }
       SymbolKind::BuiltinMacro(kind) => {
-        Encoder::emit_u8(buf, SymbolKindTag::BuiltinMacro as u8);
+        encoder.emit_u8(buf, SymbolKindTag::BuiltinMacro as u8);
         kind.encode(buf, encoder);
       }
     }
@@ -91,14 +92,16 @@ impl Encodable for SymbolKind {
 
 impl Decodable for SymbolKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    match SymbolKindTag::from_repr(tag).unwrap_or_else(|| panic!("unknown SymbolKind tag {tag}")) {
-      SymbolKindTag::UserDefinedSchema => {
-        SymbolKind::UserDefinedSchema(Project::decode(data, decoder), File::decode(data, decoder))
-      }
-      SymbolKindTag::UserDefinedResource => {
-        SymbolKind::UserDefinedResource(Project::decode(data, decoder), File::decode(data, decoder))
-      }
+    let tag = decoder.read_u8(data);
+    match SymbolKindTag::from_repr(tag).expect("unknown SymbolKind tag") {
+      SymbolKindTag::UserDefinedSchema => SymbolKind::UserDefinedSchema(
+        Project::decode_field(data, decoder),
+        File::decode_field(data, decoder),
+      ),
+      SymbolKindTag::UserDefinedResource => SymbolKind::UserDefinedResource(
+        Project::decode_field(data, decoder),
+        File::decode_field(data, decoder),
+      ),
       SymbolKindTag::BuiltinSchema => {
         SymbolKind::BuiltinSchema(BuiltinSchemaKind::decode(data, decoder))
       }
@@ -123,14 +126,14 @@ impl StableHash for BuiltinMacroKind {
 
 impl Encodable for BuiltinMacroKind {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
-    Encoder::emit_u8(buf, *self as u8);
+    encoder.emit_u8(buf, *self as u8);
   }
 }
 
 impl Decodable for BuiltinMacroKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    BuiltinMacroKind::from_repr(tag).unwrap_or_else(|| panic!("unknown BuiltinMacroKind tag {tag}"))
+    let tag = decoder.read_u8(data);
+    BuiltinMacroKind::from_repr(tag).expect("unknown BuiltinMacroKind tag")
   }
 }
 
@@ -158,15 +161,14 @@ impl StableHash for BuiltinSchemaKind {
 
 impl Encodable for BuiltinSchemaKind {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
-    Encoder::emit_u8(buf, *self as u8);
+    encoder.emit_u8(buf, *self as u8);
   }
 }
 
 impl Decodable for BuiltinSchemaKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    BuiltinSchemaKind::from_repr(tag)
-      .unwrap_or_else(|| panic!("unknown BuiltinSchemaKind tag {tag}"))
+    let tag = decoder.read_u8(data);
+    BuiltinSchemaKind::from_repr(tag).expect("unknown BuiltinSchemaKind tag")
   }
 }
 
@@ -203,16 +205,16 @@ impl Encodable for ScopeKind {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       ScopeKind::Builtin => {
-        Encoder::emit_u8(buf, ScopeKindTag::Builtin as u8);
+        encoder.emit_u8(buf, ScopeKindTag::Builtin as u8);
       }
       ScopeKind::Project(project) => {
-        Encoder::emit_u8(buf, ScopeKindTag::Project as u8);
-        project.encode(buf, encoder);
+        encoder.emit_u8(buf, ScopeKindTag::Project as u8);
+        project.encode_field(buf, encoder);
       }
       ScopeKind::File(project, file) => {
-        Encoder::emit_u8(buf, ScopeKindTag::File as u8);
-        project.encode(buf, encoder);
-        file.encode(buf, encoder);
+        encoder.emit_u8(buf, ScopeKindTag::File as u8);
+        project.encode_field(buf, encoder);
+        file.encode_field(buf, encoder);
       }
     }
   }
@@ -220,13 +222,14 @@ impl Encodable for ScopeKind {
 
 impl Decodable for ScopeKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    match ScopeKindTag::from_repr(tag).unwrap_or_else(|| panic!("unknown ScopeKind tag {tag}")) {
+    let tag = decoder.read_u8(data);
+    match ScopeKindTag::from_repr(tag).expect("unknown ScopeKind tag") {
       ScopeKindTag::Builtin => ScopeKind::Builtin,
-      ScopeKindTag::Project => ScopeKind::Project(Project::decode(data, decoder)),
-      ScopeKindTag::File => {
-        ScopeKind::File(Project::decode(data, decoder), File::decode(data, decoder))
-      }
+      ScopeKindTag::Project => ScopeKind::Project(Project::decode_field(data, decoder)),
+      ScopeKindTag::File => ScopeKind::File(
+        Project::decode_field(data, decoder),
+        File::decode_field(data, decoder),
+      ),
     }
   }
 }

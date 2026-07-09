@@ -246,18 +246,23 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
       impl ::typedown_incremental::Encodable for #struct_name {
         fn encode(&self, buf: &mut Vec<u8>, encoder: &mut ::typedown_incremental::Encoder) {
+          let index = encoder.add_dep_id(::typedown_incremental::Id::as_id(self));
+          encoder.emit_u32(buf, index);
           #(
-            self.#field_names(encoder.db()).encode(buf, encoder);
+            ::typedown_incremental::FieldEncodable::encode_field(&self.#field_names(encoder.db()), buf, encoder);
           )*
         }
       }
 
       impl ::typedown_incremental::Decodable for #struct_name {
         fn decode(data: &mut &[u8], decoder: &::typedown_incremental::Decoder) -> Self {
+          let index = decoder.read_u32(data);
           #(
-            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(data, decoder);
+            let _ = <#field_types as ::typedown_incremental::FieldDecodable>::decode_field(data, decoder);
           )*
-          #struct_name::new(decoder.db(), #(#field_names),*)
+          let dep_id = decoder.get_dep_id(index)
+            .expect("DepNodeIndex not found in decoder dep_id_table");
+          Self::from(dep_id.1)
         }
       }
 
@@ -558,7 +563,6 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     .iter()
     .map(|(_, field)| field.ident.as_ref().unwrap())
     .collect();
-
   // Identity type = (creating_query, disambiguator, ids)
   let identity_ty = quote! {((usize, usize), usize, (#(#id_field_tys,)*) )};
 
@@ -672,18 +676,23 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
       impl ::typedown_incremental::Encodable for #struct_name {
         fn encode(&self, buf: &mut Vec<u8>, encoder: &mut ::typedown_incremental::Encoder) {
+          let index = encoder.add_dep_id(::typedown_incremental::Id::as_id(self));
+          encoder.emit_u32(buf, index);
           #(
-            self.#field_names(encoder.db()).encode(buf, encoder);
+            ::typedown_incremental::FieldEncodable::encode_field(&self.#field_names(encoder.db()), buf, encoder);
           )*
         }
       }
 
       impl ::typedown_incremental::Decodable for #struct_name {
         fn decode(data: &mut &[u8], decoder: &::typedown_incremental::Decoder) -> Self {
+          let index = decoder.read_u32(data);
           #(
-            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(data, decoder);
+            let _ = <#field_types as ::typedown_incremental::FieldDecodable>::decode_field(data, decoder);
           )*
-          #struct_name::new(decoder.db(), #(#field_names),*)
+          let dep_id = decoder.get_dep_id(index)
+            .expect("DepNodeIndex not found in decoder dep_id_table");
+          Self::from(dep_id.1)
         }
       }
 
@@ -861,18 +870,23 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 
       impl ::typedown_incremental::Encodable for #struct_name {
         fn encode(&self, buf: &mut Vec<u8>, encoder: &mut ::typedown_incremental::Encoder) {
+          let index = encoder.add_dep_id(::typedown_incremental::Id::as_id(self));
+          encoder.emit_u32(buf, index);
           #(
-            self.#field_names(encoder.db()).encode(buf, encoder);
+            ::typedown_incremental::FieldEncodable::encode_field(&self.#field_names(encoder.db()), buf, encoder);
           )*
         }
       }
 
       impl ::typedown_incremental::Decodable for #struct_name {
         fn decode(data: &mut &[u8], decoder: &::typedown_incremental::Decoder) -> Self {
+          let index = decoder.read_u32(data);
           #(
-            let #field_names = <#field_types as ::typedown_incremental::Decodable>::decode(data, decoder);
+            let _ = <#field_types as ::typedown_incremental::FieldDecodable>::decode_field(data, decoder);
           )*
-          #struct_name::new(decoder.db(), #(#field_names),*)
+          let dep_id = decoder.get_dep_id(index)
+            .expect("DepNodeIndex not found in decoder dep_id_table");
+          Self::from(dep_id.1)
         }
       }
 

@@ -4,8 +4,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use crate::{
-  Decodable, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext,
-  StableHash, StableHasher, UnresolvedDepNode,
+  DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash,
+  StableHasher, UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -44,9 +44,7 @@ impl<T> InputFieldIngredient<T> {
   }
 }
 
-impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient
-  for InputFieldIngredient<T>
-{
+impl<T: StableHash + Send + Sync + Encodable + 'static> Ingredient for InputFieldIngredient<T> {
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }
@@ -76,8 +74,10 @@ impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient
     let entry = entry.expect("Entry must contain a value after the none check pass");
 
     // Add the dep node
-    let node_index = ctx.dep_graph.set(
-      (self.ingredient_index, entry_id),
+    let dep_id = (self.ingredient_index, entry_id);
+    let node_index = ctx.encoder.add_dep_id(dep_id);
+    ctx.dep_graph.set(
+      node_index,
       UnresolvedDepNode::InputField {
         name: self.name(),
         field_index: self.field_index,

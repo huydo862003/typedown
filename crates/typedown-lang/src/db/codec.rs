@@ -43,7 +43,7 @@ fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
 impl Encodable for GreenNode {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     let index = encode_green_node(self, encoder);
-    Encoder::emit_u32(buf, index);
+    encoder.emit_u32(buf, index);
   }
 }
 
@@ -52,8 +52,7 @@ fn decode_green_blob(index: usize, decoder: &Decoder) -> GreenNode {
   let tag = blob[0];
   let kind_val = u16::from_le_bytes(blob[1..3].try_into().unwrap());
 
-  let kind =
-    SyntaxKind::from_repr(kind_val).unwrap_or_else(|| panic!("unknown SyntaxKind {kind_val}"));
+  let kind = SyntaxKind::from_repr(kind_val).expect("unknown SyntaxKind");
 
   match tag {
     0 => {
@@ -80,7 +79,7 @@ fn decode_green_blob(index: usize, decoder: &Decoder) -> GreenNode {
 
 impl Decodable for GreenNode {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let index = Decoder::read_u32(data) as usize;
+    let index = decoder.read_u32(data) as usize;
     decode_green_blob(index, decoder)
   }
 }
@@ -158,14 +157,14 @@ impl StableHash for FileHandle {
 
 impl Encodable for SyntaxKind {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
-    Encoder::emit_u16(buf, *self as u16);
+    encoder.emit_u16(buf, *self as u16);
   }
 }
 
 impl Decodable for SyntaxKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let val = Decoder::read_u16(data);
-    SyntaxKind::from_repr(val).unwrap_or_else(|| panic!("unknown SyntaxKind {val}"))
+    let val = decoder.read_u16(data);
+    SyntaxKind::from_repr(val).expect("unknown SyntaxKind")
   }
 }
 
@@ -179,7 +178,7 @@ impl StableHash for SyntaxKind {
 
 impl Encodable for Diagnostic {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
-    Encoder::emit_u8(buf, self.code() as u8);
+    encoder.emit_u8(buf, self.code() as u8);
     match self {
       Diagnostic::UnexpectedEof {
         expected,
@@ -621,9 +620,8 @@ impl Encodable for Diagnostic {
 
 impl Decodable for Diagnostic {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    let code =
-      DiagnosticCode::from_repr(tag).unwrap_or_else(|| panic!("unknown DiagnosticCode tag {tag}"));
+    let tag = decoder.read_u8(data);
+    let code = DiagnosticCode::from_repr(tag).expect("unknown DiagnosticCode tag");
     match code {
       DiagnosticCode::UnexpectedEof => {
         let expected = char::decode(data, decoder);
@@ -1524,30 +1522,46 @@ mod tests {
   // Boolean encode/decode
   #[test]
   fn encode_bool_false_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let encoder = Encoder::new(&db);
     let mut buf = Vec::new();
-    Encoder::emit_bool(&mut buf, false);
+    encoder.emit_bool(&mut buf, false);
     assert_eq!(buf, vec![0]);
   }
 
   #[test]
   fn encode_bool_true_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let encoder = Encoder::new(&db);
     let mut buf = Vec::new();
-    Encoder::emit_bool(&mut buf, true);
+    encoder.emit_bool(&mut buf, true);
     assert_eq!(buf, vec![1]);
   }
 
   #[test]
   fn decode_bool_false_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let decoder = Decoder::new(&db, vec![]);
     let data: &[u8] = &[0];
     let mut data = data;
-    assert_eq!(Decoder::read_bool(&mut data), false);
+    assert_eq!(decoder.read_bool(&mut data), false);
   }
 
   #[test]
   fn decode_bool_true_correctly() {
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let decoder = Decoder::new(&db, vec![]);
     let data: &[u8] = &[1];
     let mut data = data;
-    assert_eq!(Decoder::read_bool(&mut data), true);
+    assert_eq!(decoder.read_bool(&mut data), true);
   }
 
   proptest! {

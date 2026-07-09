@@ -32,14 +32,14 @@ impl StableHash for NativeFnKind {
 
 impl Encodable for NativeFnKind {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
-    Encoder::emit_u8(buf, *self as u8);
+    encoder.emit_u8(buf, *self as u8);
   }
 }
 
 impl Decodable for NativeFnKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    NativeFnKind::from_repr(tag).unwrap_or_else(|| panic!("unknown NativeFnKind tag {tag}"))
+    let tag = decoder.read_u8(data);
+    NativeFnKind::from_repr(tag).expect("unknown NativeFnKind tag")
   }
 }
 

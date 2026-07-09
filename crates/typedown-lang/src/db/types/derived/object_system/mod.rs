@@ -296,7 +296,9 @@ impl typedown_incremental::StableHash for TdrObjectEnum {
 
 use strum::FromRepr;
 
-use typedown_incremental::{Decodable, Decoder, Encodable, Encoder};
+use typedown_incremental::{
+  Decodable, Decoder, Encodable, Encoder, FieldDecodable, FieldEncodable,
+};
 
 #[derive(FromRepr)]
 #[repr(u8)]
@@ -356,64 +358,64 @@ impl Encodable for TdrTypeEnum {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     match self {
       TdrTypeEnum::TdrTypeType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Type as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Type as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrObjectType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Object as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Object as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrStrType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Str as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Str as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrBoolType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Bool as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Bool as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrNumType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Num as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Num as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrMathType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Math as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Math as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrListType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::List as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::List as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrDictType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Dict as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Dict as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrFuncType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Func as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Func as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrProductType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Product as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Product as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrSchemaType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Schema as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Schema as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrSchemaPropertyType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::SchemaProperty as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::SchemaProperty as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrDateTimeType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::DateTime as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::DateTime as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrDateType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Date as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Date as u8);
+        v.encode_field(buf, encoder);
       }
       TdrTypeEnum::TdrTimeType(v) => {
-        Encoder::emit_u8(buf, TdrTypeKind::Time as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrTypeKind::Time as u8);
+        v.encode_field(buf, encoder);
       }
     }
   }
@@ -421,23 +423,23 @@ impl Encodable for TdrTypeEnum {
 
 impl Decodable for TdrTypeEnum {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    match TdrTypeKind::from_repr(tag).unwrap_or_else(|| panic!("unknown TdrTypeKind tag {tag}")) {
-      TdrTypeKind::Type => TdrTypeType::decode(data, decoder).into(),
-      TdrTypeKind::Object => TdrObjectType::decode(data, decoder).into(),
-      TdrTypeKind::Str => TdrStrType::decode(data, decoder).into(),
-      TdrTypeKind::Bool => TdrBoolType::decode(data, decoder).into(),
-      TdrTypeKind::Num => TdrNumType::decode(data, decoder).into(),
-      TdrTypeKind::Math => TdrMathType::decode(data, decoder).into(),
-      TdrTypeKind::List => TdrListType::decode(data, decoder).into(),
-      TdrTypeKind::Dict => TdrDictType::decode(data, decoder).into(),
-      TdrTypeKind::Func => TdrFuncType::decode(data, decoder).into(),
-      TdrTypeKind::Product => TdrProductType::decode(data, decoder).into(),
-      TdrTypeKind::Schema => TdrSchemaType::decode(data, decoder).into(),
-      TdrTypeKind::SchemaProperty => TdrSchemaPropertyType::decode(data, decoder).into(),
-      TdrTypeKind::DateTime => TdrDateTimeType::decode(data, decoder).into(),
-      TdrTypeKind::Date => TdrDateType::decode(data, decoder).into(),
-      TdrTypeKind::Time => TdrTimeType::decode(data, decoder).into(),
+    let tag = decoder.read_u8(data);
+    match TdrTypeKind::from_repr(tag).expect("unknown TdrTypeKind tag") {
+      TdrTypeKind::Type => TdrTypeType::decode_field(data, decoder).into(),
+      TdrTypeKind::Object => TdrObjectType::decode_field(data, decoder).into(),
+      TdrTypeKind::Str => TdrStrType::decode_field(data, decoder).into(),
+      TdrTypeKind::Bool => TdrBoolType::decode_field(data, decoder).into(),
+      TdrTypeKind::Num => TdrNumType::decode_field(data, decoder).into(),
+      TdrTypeKind::Math => TdrMathType::decode_field(data, decoder).into(),
+      TdrTypeKind::List => TdrListType::decode_field(data, decoder).into(),
+      TdrTypeKind::Dict => TdrDictType::decode_field(data, decoder).into(),
+      TdrTypeKind::Func => TdrFuncType::decode_field(data, decoder).into(),
+      TdrTypeKind::Product => TdrProductType::decode_field(data, decoder).into(),
+      TdrTypeKind::Schema => TdrSchemaType::decode_field(data, decoder).into(),
+      TdrTypeKind::SchemaProperty => TdrSchemaPropertyType::decode_field(data, decoder).into(),
+      TdrTypeKind::DateTime => TdrDateTimeType::decode_field(data, decoder).into(),
+      TdrTypeKind::Date => TdrDateType::decode_field(data, decoder).into(),
+      TdrTypeKind::Time => TdrTimeType::decode_field(data, decoder).into(),
     }
   }
 }
@@ -448,109 +450,109 @@ impl Encodable for TdrObjectEnum {
     match self {
       // Types
       TdrObjectEnum::TdrTypeType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Type as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Type as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrObjectType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Object as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Object as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrStrType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Str as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Str as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrBoolType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Bool as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Bool as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrNumType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Num as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Num as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrMathType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Math as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Math as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrListType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::List as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::List as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrDictType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Dict as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Dict as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrFuncType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Func as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Func as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrProductType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Product as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Product as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrSchemaType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Schema as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Schema as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrSchemaPropertyType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::SchemaProperty as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::SchemaProperty as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrDateTimeType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::DateTime as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::DateTime as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrDateType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Date as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Date as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrTimeType(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::Time as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::Time as u8);
+        v.encode_field(buf, encoder);
       }
       // Objects
       TdrObjectEnum::TdrStrObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::StrObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::StrObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrBoolObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::BoolObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::BoolObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrNumObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::NumObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::NumObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrMathObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::MathObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::MathObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrListObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::ListObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::ListObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrDictObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::DictObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::DictObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrFuncObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::FuncObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::FuncObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrProductObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::ProductObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::ProductObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrDateTimeObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::DateTimeObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::DateTimeObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrDateObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::DateObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::DateObj as u8);
+        v.encode_field(buf, encoder);
       }
       TdrObjectEnum::TdrTimeObj(v) => {
-        Encoder::emit_u8(buf, TdrObjectKind::TimeObj as u8);
-        v.encode(buf, encoder);
+        encoder.emit_u8(buf, TdrObjectKind::TimeObj as u8);
+        v.encode_field(buf, encoder);
       }
     }
   }
@@ -558,37 +560,34 @@ impl Encodable for TdrObjectEnum {
 
 impl Decodable for TdrObjectEnum {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let tag = Decoder::read_u8(data);
-    match TdrObjectKind::from_repr(tag).unwrap_or_else(|| panic!("unknown TdrObjectKind tag {tag}"))
-    {
-      // Types
-      TdrObjectKind::Type => TdrTypeType::decode(data, decoder).into(),
-      TdrObjectKind::Object => TdrObjectType::decode(data, decoder).into(),
-      TdrObjectKind::Str => TdrStrType::decode(data, decoder).into(),
-      TdrObjectKind::Bool => TdrBoolType::decode(data, decoder).into(),
-      TdrObjectKind::Num => TdrNumType::decode(data, decoder).into(),
-      TdrObjectKind::Math => TdrMathType::decode(data, decoder).into(),
-      TdrObjectKind::List => TdrListType::decode(data, decoder).into(),
-      TdrObjectKind::Dict => TdrDictType::decode(data, decoder).into(),
-      TdrObjectKind::Func => TdrFuncType::decode(data, decoder).into(),
-      TdrObjectKind::Product => TdrProductType::decode(data, decoder).into(),
-      TdrObjectKind::Schema => TdrSchemaType::decode(data, decoder).into(),
-      TdrObjectKind::SchemaProperty => TdrSchemaPropertyType::decode(data, decoder).into(),
-      TdrObjectKind::DateTime => TdrDateTimeType::decode(data, decoder).into(),
-      TdrObjectKind::Date => TdrDateType::decode(data, decoder).into(),
-      TdrObjectKind::Time => TdrTimeType::decode(data, decoder).into(),
-      // Objects
-      TdrObjectKind::StrObj => TdrStrObj::decode(data, decoder).into(),
-      TdrObjectKind::BoolObj => TdrBoolObj::decode(data, decoder).into(),
-      TdrObjectKind::NumObj => TdrNumObj::decode(data, decoder).into(),
-      TdrObjectKind::MathObj => TdrMathObj::decode(data, decoder).into(),
-      TdrObjectKind::ListObj => TdrListObj::decode(data, decoder).into(),
-      TdrObjectKind::DictObj => TdrDictObj::decode(data, decoder).into(),
-      TdrObjectKind::FuncObj => TdrFuncObj::decode(data, decoder).into(),
-      TdrObjectKind::ProductObj => TdrProductObj::decode(data, decoder).into(),
-      TdrObjectKind::DateTimeObj => TdrDateTimeObj::decode(data, decoder).into(),
-      TdrObjectKind::DateObj => TdrDateObj::decode(data, decoder).into(),
-      TdrObjectKind::TimeObj => TdrTimeObj::decode(data, decoder).into(),
+    let tag = decoder.read_u8(data);
+    match TdrObjectKind::from_repr(tag).expect("unknown TdrObjectKind tag") {
+      TdrObjectKind::Type => TdrTypeType::decode_field(data, decoder).into(),
+      TdrObjectKind::Object => TdrObjectType::decode_field(data, decoder).into(),
+      TdrObjectKind::Str => TdrStrType::decode_field(data, decoder).into(),
+      TdrObjectKind::Bool => TdrBoolType::decode_field(data, decoder).into(),
+      TdrObjectKind::Num => TdrNumType::decode_field(data, decoder).into(),
+      TdrObjectKind::Math => TdrMathType::decode_field(data, decoder).into(),
+      TdrObjectKind::List => TdrListType::decode_field(data, decoder).into(),
+      TdrObjectKind::Dict => TdrDictType::decode_field(data, decoder).into(),
+      TdrObjectKind::Func => TdrFuncType::decode_field(data, decoder).into(),
+      TdrObjectKind::Product => TdrProductType::decode_field(data, decoder).into(),
+      TdrObjectKind::Schema => TdrSchemaType::decode_field(data, decoder).into(),
+      TdrObjectKind::SchemaProperty => TdrSchemaPropertyType::decode_field(data, decoder).into(),
+      TdrObjectKind::DateTime => TdrDateTimeType::decode_field(data, decoder).into(),
+      TdrObjectKind::Date => TdrDateType::decode_field(data, decoder).into(),
+      TdrObjectKind::Time => TdrTimeType::decode_field(data, decoder).into(),
+      TdrObjectKind::StrObj => TdrStrObj::decode_field(data, decoder).into(),
+      TdrObjectKind::BoolObj => TdrBoolObj::decode_field(data, decoder).into(),
+      TdrObjectKind::NumObj => TdrNumObj::decode_field(data, decoder).into(),
+      TdrObjectKind::MathObj => TdrMathObj::decode_field(data, decoder).into(),
+      TdrObjectKind::ListObj => TdrListObj::decode_field(data, decoder).into(),
+      TdrObjectKind::DictObj => TdrDictObj::decode_field(data, decoder).into(),
+      TdrObjectKind::FuncObj => TdrFuncObj::decode_field(data, decoder).into(),
+      TdrObjectKind::ProductObj => TdrProductObj::decode_field(data, decoder).into(),
+      TdrObjectKind::DateTimeObj => TdrDateTimeObj::decode_field(data, decoder).into(),
+      TdrObjectKind::DateObj => TdrDateObj::decode_field(data, decoder).into(),
+      TdrObjectKind::TimeObj => TdrTimeObj::decode_field(data, decoder).into(),
     }
   }
 }
