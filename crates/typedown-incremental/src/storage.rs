@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, OnceLock};
 
 use super::ingredient::{Dependency, IngredientEntry, IngredientFactory, Inventory};
+use super::persist::serialized::SerializedQueryStorage;
 
 /// A registry of ingredient factories
 /// This is used in QueryStorage::default() to initialize the internal ingredient vector
@@ -31,6 +32,8 @@ pub struct QueryStorage {
   pub cancelled: Arc<AtomicBool>, // Set to true to cancel in-flight derived queries
   #[doc(hidden)]
   pub ingredients: Arc<Vec<IngredientEntry>>, // All ingredients
+  #[doc(hidden)]
+  pub serialized: Arc<Option<SerializedQueryStorage>>, // Previous session's serialized data
 }
 
 impl QueryStorage {
@@ -45,6 +48,7 @@ impl QueryStorage {
           .map(|(idx, factory)| factory(idx))
           .collect(),
       ),
+      serialized: Arc::new(None),
     }
   }
 
