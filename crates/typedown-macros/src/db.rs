@@ -225,6 +225,14 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           Self(id)
         }
 
+        /// Iterate over all existing input handles of this type.
+        pub fn iter<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB) -> impl Iterator<Item = Self> {
+          let storage = unsafe { db.storage() };
+          let ingredient = &storage.ingredients[Self::ingredient_start_index()].ingredient;
+          let ids: Vec<usize> = ingredient.entry_ids().collect();
+          ids.into_iter().map(Self)
+        }
+
         #getter_setter_tokens
       }
 
