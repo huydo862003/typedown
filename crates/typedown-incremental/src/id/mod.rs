@@ -1,5 +1,13 @@
 //! Base Id trait for all query id types
 
+mod derived;
+mod input;
+mod interned;
+
+pub use derived::*;
+pub use input::*;
+pub use interned::*;
+
 /// All query ids wrap a usize. This trait exposes it in an object-safe way.
 /// Returns (type_tag, id) where type_tag is the ingredient start index
 /// (unique per type) and id is the instance id within that type.

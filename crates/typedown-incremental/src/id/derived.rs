@@ -1,6 +1,6 @@
 //! Derived query engine for the incremental database
 
-use crate::Id;
+use super::Id;
 
 /// A fast id for a derived state
 /// Derived id is bound to a database's lifetime
