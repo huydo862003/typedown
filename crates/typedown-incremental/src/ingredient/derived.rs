@@ -384,6 +384,8 @@ impl<
         name: self.stable_name,
         key: self.key_fingerprint(ctx.db(), entry_id).expect("Computed entry must have a key fingerprint"),
         value: self.value_fingerprint(ctx.db(), entry_id).expect("Computed entry must have a value fingerprint"),
+        changed_at: memo.changed_at as u64,
+        verified_at: memo.verified_at as u64,
         edges,
       },
     );
@@ -454,7 +456,7 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
-    let Some(_entry) = self.data.get(&entry_id) else {
+    let Some(entry) = self.data.get(&entry_id) else {
       return;
     };
 
@@ -465,6 +467,7 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
         name: self.name(),
         field_index: self.field_index,
         value: self.value_fingerprint(ctx.db(), entry_id).expect("Entry is available so there must be a fingerprint"),
+        changed_at: entry.changed_at as u64,
       },
     );
   }

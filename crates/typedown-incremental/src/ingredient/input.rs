@@ -75,7 +75,7 @@ impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient f
     // Add the dep node
     let node_index = ctx.dep_graph.set(
       (self.ingredient_index, entry_id),
-      UnresolvedDepNode::InputField { name: self.name(), field_index: self.field_index, value: self.value_fingerprint(ctx.db(), entry_id).expect("Entry is available so there must be a fingerprint") },
+      UnresolvedDepNode::InputField { name: self.name(), field_index: self.field_index, value: self.value_fingerprint(ctx.db(), entry_id).expect("Entry is available so there must be a fingerprint"), changed_at: entry.changed_at as u64 },
     );
 
     // Encode and write to query cache

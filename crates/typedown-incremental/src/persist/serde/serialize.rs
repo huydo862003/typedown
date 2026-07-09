@@ -44,17 +44,21 @@ pub enum UnresolvedDepNode {
     name: Fingerprint,
     key: Fingerprint,
     value: Fingerprint,
+    changed_at: u64,
+    verified_at: u64,
     edges: Vec<DepId>,
   },
   DerivedField {
     name: Fingerprint,
     field_index: u8,
     value: Fingerprint,
+    changed_at: u64,
   },
   InputField {
     name: Fingerprint,
     field_index: u8,
     value: Fingerprint,
+    changed_at: u64,
   },
   Interned {
     name: Fingerprint,
@@ -93,7 +97,7 @@ impl DepGraphBuilder {
       .nodes
       .into_iter()
       .map(|node| match node {
-        UnresolvedDepNode::DerivedQuery { name, key, value, edges } => {
+        UnresolvedDepNode::DerivedQuery { name, key, value, changed_at, verified_at, edges } => {
           let resolved_edges = edges
             .iter()
             .map(|dep_id| {
@@ -103,13 +107,13 @@ impl DepGraphBuilder {
                 .unwrap_or_else(|| panic!("unresolved dep edge: ({}, {})", dep_id.0, dep_id.1))
             })
             .collect();
-          DepNode::DerivedQuery { name, key, value, edges: resolved_edges }
+          DepNode::DerivedQuery { name, key, value, changed_at, verified_at, edges: resolved_edges }
         }
-        UnresolvedDepNode::DerivedField { name, field_index, value } => {
-          DepNode::DerivedField { name, field_index, value }
+        UnresolvedDepNode::DerivedField { name, field_index, value, changed_at } => {
+          DepNode::DerivedField { name, field_index, value, changed_at }
         }
-        UnresolvedDepNode::InputField { name, field_index, value } => {
-          DepNode::InputField { name, field_index, value }
+        UnresolvedDepNode::InputField { name, field_index, value, changed_at } => {
+          DepNode::InputField { name, field_index, value, changed_at }
         }
         UnresolvedDepNode::Interned { name, blob_index } => {
           DepNode::Interned { name, blob_index }

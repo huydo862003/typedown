@@ -1502,7 +1502,7 @@ mod tests {
 
   use crate::db::TypedownDatabase;
   use crate::syntax::diagnostic::Diagnostic;
-  use crate::syntax::green::{GreenNode, SyntaxToken};
+  use crate::syntax::green::GreenNode;
   use crate::syntax::red::RedNode;
   use crate::syntax::syntax_kind::SyntaxKind;
 
@@ -1515,7 +1515,7 @@ mod tests {
     let mut enc = Encoder::new(&db);
     v.encode(&mut buf, &mut enc);
     let intern_blobs = enc.finish();
-    let decoder = Decoder::new(&db, &intern_blobs);
+    let decoder = Decoder::new(&db, intern_blobs);
     let mut data: &[u8] = &buf;
     let decoded = T::decode(&mut data, &decoder);
     assert_eq!(*v, decoded);

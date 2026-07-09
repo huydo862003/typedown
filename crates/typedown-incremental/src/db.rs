@@ -3,9 +3,7 @@ use std::any::Any;
 use super::storage::QueryStorage;
 use crate::SerializeContext;
 use crate::persist::serialized::SerializedQueryStorage;
-use crate::persist::serialized::dep_graph::{
-  self as dep_graph_format, DepGraph,
-};
+use crate::persist::serialized::dep_graph::{self as dep_graph_format, DepGraph};
 use crate::persist::serialized::interned_blobs::{
   self as interned_blobs_format, InternedBlobs, NodeRecord,
 };
@@ -22,7 +20,10 @@ pub trait QueryDatabase: Any {
 /// Extension of QueryDatabase that supports serialization.
 pub trait SerializableQueryDatabase: QueryDatabase {
   /// Serialize the current query storage into the serialized formats.
-  fn dump(&self) -> SerializedQueryStorage where Self: Sized {
+  fn dump(&self) -> SerializedQueryStorage
+  where
+    Self: Sized,
+  {
     let storage = unsafe { self.storage() };
     let mut ctx = SerializeContext::new(self);
 
@@ -40,7 +41,9 @@ pub trait SerializableQueryDatabase: QueryDatabase {
     // Build DepGraph
     let total_edge_count = nodes.iter().map(|n| n.edges().len() as u64).sum();
     let dep_graph = DepGraph {
-      header: dep_graph_format::FileHeader::new(),
+      header: dep_graph_format::FileHeader::new(
+        storage.revision.load(std::sync::atomic::Ordering::Acquire) as u64,
+      ),
       footer: dep_graph_format::FileFooter {
         total_node_count: nodes.len() as u64,
         total_edge_count,
