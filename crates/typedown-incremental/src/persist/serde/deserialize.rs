@@ -14,15 +14,9 @@ pub struct DeserializeContext {
 
 impl DeserializeContext {
   pub fn new(serialized: SerializedQueryStorage) -> Self {
-    let intern_blobs = serialized
-      .interned_blobs
-      .records
-      .iter()
-      .map(|r| r.to_bytes())
-      .collect();
     Self {
+      intern_blobs: serialized.interned_blobs.records.clone(),
       serialized,
-      intern_blobs,
       fingerprint_map: OnceLock::new(),
     }
   }

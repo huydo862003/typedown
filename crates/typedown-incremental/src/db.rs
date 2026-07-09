@@ -2,9 +2,7 @@ use super::storage::QueryStorage;
 use crate::SerializeContext;
 use crate::persist::serialized::SerializedQueryStorage;
 use crate::persist::serialized::dep_graph::{self as dep_graph_format, DepGraph};
-use crate::persist::serialized::interned_blobs::{
-  self as interned_blobs_format, InternedBlobs, NodeRecord,
-};
+use crate::persist::serialized::interned_blobs::{self as interned_blobs_format, InternedBlobs};
 use crate::persist::serialized::query_cache::QueryCache;
 use std::any::Any;
 
@@ -51,27 +49,18 @@ pub trait SerializableQueryDatabase: QueryDatabase {
     };
 
     // Build QueryCache from mmap
-    let query_cache = unsafe {
-      QueryCache::from_raw(query_cache_mmap.as_ptr(), query_cache_mmap.len())
-        .expect("Failed to construct QueryCache from serialized data")
-    };
+    let query_cache = QueryCache::from_mmap(query_cache_mmap)
+      .expect("Failed to construct QueryCache from serialized data");
 
     // Build InternedBlobs
-    let records: Vec<NodeRecord> = intern_blobs
-      .into_iter()
-      .map(|blob| {
-        let (record, _) = NodeRecord::from_bytes(&blob);
-        record
-      })
-      .collect();
-    let total_byte_size: u64 = records.iter().map(|r| r.to_bytes().len() as u64).sum();
+    let total_byte_size: u64 = intern_blobs.iter().map(|b| b.len() as u64).sum();
     let interned_blobs = InternedBlobs {
       header: interned_blobs_format::FileHeader::new(),
       footer: interned_blobs_format::FileFooter {
-        total_node_count: records.len() as u64,
+        total_node_count: intern_blobs.len() as u64,
         total_byte_size,
       },
-      records,
+      records: intern_blobs,
     };
 
     SerializedQueryStorage {

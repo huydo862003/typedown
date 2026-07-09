@@ -197,7 +197,7 @@ impl FileFooter {
 /// The interned blobs readily for serialization or deserialization into
 pub struct InternedBlobs {
   pub header: FileHeader,
-  pub records: Vec<NodeRecord>,
+  pub records: Vec<Vec<u8>>,
   pub footer: FileFooter,
 }
 

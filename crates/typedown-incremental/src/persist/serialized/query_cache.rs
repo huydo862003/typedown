@@ -94,9 +94,10 @@ impl FooterCacheEntry {
 /// Footer is decoded upfront into a HashMap. Result blobs are decoded on demand.
 ///
 /// # Safety
-/// The caller must ensure the backing memory (`ptr..ptr + len`) remains valid
-/// for the lifetime of this struct.
+/// Owns the mmap'd query cache data and provides indexed access to result blobs.
 pub struct QueryCache {
+  /// The backing mmap'd data. Must be kept alive for the pointers to remain valid.
+  _mmap: memmap2::Mmap,
   /// Raw pointer to the mmap'd file data.
   ptr: *const u8,
   /// Length of the mmap'd region in bytes.
@@ -110,13 +111,11 @@ unsafe impl Send for QueryCache {}
 unsafe impl Sync for QueryCache {}
 
 impl QueryCache {
-  /// Create from a raw pointer to mmap'd file data.
-  /// Decodes the footer index upfront.
-  ///
-  /// # Safety
-  /// `ptr` must point to a valid memory region of `len` bytes that remains valid for the lifetime of this struct.
-  pub unsafe fn from_raw(ptr: *const u8, len: usize) -> Option<Self> {
-    let data = unsafe { std::slice::from_raw_parts(ptr, len) };
+  /// Create from an owned mmap. Decodes the footer index upfront.
+  pub fn from_mmap(mmap: memmap2::Mmap) -> Option<Self> {
+    let ptr = mmap.as_ptr();
+    let len = mmap.len();
+    let data = &*mmap;
 
     // Last 8 bytes: footer_pos
     let footer_pos = u64::from_le_bytes(data[len - 8..].try_into().ok()?) as usize;
@@ -134,7 +133,12 @@ impl QueryCache {
       index.insert(entry.node_index, entry.offset);
     }
 
-    Some(QueryCache { ptr, len, index })
+    Some(QueryCache {
+      _mmap: mmap,
+      ptr,
+      len,
+      index,
+    })
   }
 
   /// Get the backing data as a byte slice.
