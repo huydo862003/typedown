@@ -44,8 +44,9 @@ pub fn query_db_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       unsafe fn storage_mut(&mut self) -> &mut ::typedown_incremental::QueryStorage {
         &mut self.storage
       }
-
     }
+
+    impl ::typedown_incremental::SerializableQueryDatabase for #struct_name {}
   }
   .into()
 }

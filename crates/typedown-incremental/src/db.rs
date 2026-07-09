@@ -80,6 +80,4 @@ pub trait SerializableQueryDatabase: QueryDatabase {
       interned_blobs,
     }
   }
-
-  fn from_serialized(serialized: SerializedQueryStorage) -> Self;
 }
