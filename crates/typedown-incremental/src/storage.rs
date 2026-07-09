@@ -52,6 +52,24 @@ impl QueryStorage {
     }
   }
 
+  /// Create a QueryStorage from a previous session's serialized data.
+  /// Restores the revision and stores the serialized data for lazy deserialization.
+  pub fn from_serialized(serialized: SerializedQueryStorage) -> Self {
+    let revision = serialized.dep_graph.header.revision as usize;
+    QueryStorage {
+      revision: Arc::new(AtomicUsize::new(revision)),
+      cancelled: Arc::new(AtomicBool::new(false)),
+      ingredients: Arc::new(
+        registry()
+          .iter()
+          .enumerate()
+          .map(|(idx, factory)| factory(idx))
+          .collect(),
+      ),
+      serialized: Arc::new(Some(serialized)),
+    }
+  }
+
   /// Marker used by the `query_db` macro to verify the storage field type at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
@@ -100,7 +118,7 @@ impl QueryStorage {
   }
 }
 
-fn registry() -> &'static Vec<IngredientFactory> {
+pub(crate) fn registry() -> &'static Vec<IngredientFactory> {
   INGREDIENT_REGISTRY.get_or_init(|| {
     let mut factories = Vec::new();
 
