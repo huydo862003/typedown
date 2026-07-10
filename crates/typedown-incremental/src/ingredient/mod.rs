@@ -26,6 +26,6 @@ pub trait Ingredient: Any + Send + Sync {
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize);
 
-  /// Load a dep node into this ingredient's storage. Returns the new entry_id.
+  /// Load a dep node into this ingredient's storage.
   fn deserialize(&self, ctx: &DeserializeContext, node_index: DepNodeIndex) -> Option<DepId>;
 }

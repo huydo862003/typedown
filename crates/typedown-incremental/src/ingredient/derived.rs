@@ -50,7 +50,9 @@ pub enum QueryState<K, V: DerivedId> {
 pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
   ingredient_index: usize,
   stable_name: Fingerprint,
+  value_name: Fingerprint, // name of the return type struct (e.g. "FibResult")
   next_arg_id: Arc<AtomicUsize>,
+  value_id_counter: &'static AtomicUsize,
   query_fn: fn(&DB, K) -> V,
   intern_map: Arc<DashMap<K, usize>>, // key -> stable arg_id
   #[doc(hidden)]
@@ -63,11 +65,46 @@ impl<
   V: StableHash + Encodable + Decodable + DerivedId + Clone + PartialEq + Send + Sync + 'static,
 > DerivedQueryIngredient<DB, K, V>
 {
-  pub fn new(ingredient_index: usize, stable_name: &str, query_fn: fn(&DB, K) -> V) -> Self {
+  /// Deserialize all sibling DerivedField nodes for a value struct.
+  fn deserialize_field_group(&self, ctx: &DeserializeContext, serialized_entry_id: u64) {
+    let group_key = (self.value_name, serialized_entry_id);
+    if let Some(field_group) = ctx.derived_groups.get(&group_key) {
+      for &(_, field_node_index) in &field_group.fields {
+        ctx.decoder.get_or_deserialize_dep_node_id(field_node_index);
+      }
+    }
+  }
+
+  /// Deserialize edge DepNodeIndices into session-local Dependencies.
+  /// Edges that fail to deserialize are silently dropped.
+  fn deserialize_deps(edges: &[u32], ctx: &DeserializeContext) -> Vec<Dependency> {
+    edges
+      .iter()
+      .filter_map(|&edge_idx| {
+        let dep_id = ctx.decoder.get_or_deserialize_dep_node_id(edge_idx)?;
+        let edge_node = &ctx.serialized.dep_graph.nodes[edge_idx as usize];
+        Some(Dependency {
+          ingredient_index: dep_id.0,
+          arg_id: dep_id.1,
+          changed_at: edge_node.changed_at() as usize,
+        })
+      })
+      .collect()
+  }
+
+  pub fn new(
+    ingredient_index: usize,
+    stable_name: &str,
+    value_name: &str,
+    value_id_counter: &'static AtomicUsize,
+    query_fn: fn(&DB, K) -> V,
+  ) -> Self {
     Self {
       ingredient_index,
       stable_name: Fingerprint::from_name(stable_name),
+      value_name: Fingerprint::from_name(value_name),
       next_arg_id: Arc::new(AtomicUsize::new(0)),
+      value_id_counter,
       query_fn,
       intern_map: Arc::new(DashMap::new()),
       data: Arc::new(DashMap::new()),
@@ -115,7 +152,7 @@ impl<
     storage: &QueryStorage,
     arg: &K,
   ) -> Option<(V, usize)> {
-    let ctx = storage.deserialize_ctx.as_ref().as_ref()?;
+    let ctx = storage.deserialize_ctx.get()?;
 
     // Compute key fingerprint to find the matching node
     let mut hasher = StableHasher::new();
@@ -125,11 +162,20 @@ impl<
     let (node_index, node) = ctx.find_derived_query(self.stable_name, key_fp)?;
 
     let DepNode::DerivedQuery {
-      changed_at, edges, ..
+      value_entry_id: serialized_value_entry_id,
+      changed_at,
+      edges,
+      ..
     } = node
     else {
       return None;
     };
+
+    // Ensure all edge deps are deserialized before green checking
+    let decoder = &ctx.decoder;
+    for &edge_idx in edges {
+      decoder.get_or_deserialize_dep_node_id(edge_idx);
+    }
 
     // Green check: compare multisets of (ingredient_name, value_fingerprint).
     // Both the serialized edges and current entries must have matching counts.
@@ -143,10 +189,8 @@ impl<
 
     let mut actual: HashMap<(Fingerprint, Fingerprint), usize> = HashMap::new();
     for (name, _) in expected.keys() {
-      for entry in storage.ingredients.iter() {
-        if entry.ingredient.name() != *name {
-          continue;
-        }
+      for &idx in ctx.ingredients_by_name(name) {
+        let entry = &storage.ingredients[idx];
         for eid in entry.ingredient.entry_ids() {
           if let Some(fp) = entry.ingredient.value_fingerprint(db, eid) {
             *actual.entry((*name, fp)).or_default() += 1;
@@ -162,14 +206,34 @@ impl<
       }
     }
 
-    // All deps green. Decode the cached result.
-    let decoder = ctx.decoder(db);
+    // Deserialize field data
+    self.deserialize_field_group(ctx, *serialized_value_entry_id);
+    let value_entry_id = *ctx
+      .entry_id_map
+      .entry((self.value_name, *serialized_value_entry_id))
+      .or_insert_with(|| self.value_id_counter.fetch_add(1, Ordering::Relaxed));
+
+    // Decode key
     let blob = ctx.serialized.query_cache.get(node_index)?;
     let mut data: &[u8] = blob;
-    let _key = K::decode(&mut data, &decoder);
-    let value = V::decode(&mut data, &decoder);
+    let key = K::decode(&mut data, decoder);
+    let arg_id = self.get_or_intern_arg(&key);
+    let value = V::from(value_entry_id);
+    let changed_at = *changed_at as usize;
+    let dependencies = Self::deserialize_deps(edges, ctx);
+    let current_revision = storage.revision.load(Ordering::Acquire);
+    self.data.insert(
+      arg_id,
+      QueryState::Computed(StampedDerivedQuery {
+        key,
+        value: value.clone(),
+        changed_at,
+        verified_at: current_revision,
+        dependencies,
+      }),
+    );
 
-    Some((value, *changed_at as usize))
+    Some((value, changed_at))
   }
 
   /// Get or create a stable entry ID for a key
@@ -258,8 +322,7 @@ impl<
     }
 
     // Try loading from previous session before recomputing
-    if let Some(result) = self.try_load_from_serialized(db, storage, &arg) {
-      let (value, changed_at) = result;
+    if let Some((value, changed_at)) = self.try_load_from_serialized(db, storage, &arg) {
       return (value, changed_at);
     }
 
@@ -441,8 +504,60 @@ impl<
     DerivedQueryIngredient::value_fingerprint(self, db, entry_id)
   }
 
-  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
-    todo!()
+  fn deserialize(&self, ctx: &DeserializeContext, node_index: DepNodeIndex) -> Option<DepId> {
+    if let Some(dep_id) = ctx.decoder.get_dep_node_id(node_index) {
+      return Some(dep_id);
+    }
+    let node = &ctx.serialized.dep_graph.nodes[node_index as usize];
+    let DepNode::DerivedQuery {
+      value_entry_id: serialized_value_entry_id,
+      changed_at,
+      verified_at,
+      edges,
+      ..
+    } = node
+    else {
+      return None;
+    };
+    // Register dep_id BEFORE decoding to prevent recursion via
+    // get_or_deserialize_dep_node_id (idempotency guard).
+    let arg_id = self.next_arg_id.fetch_add(1, Ordering::Relaxed);
+    let dep_id = (self.ingredient_index, arg_id);
+    ctx.decoder.set_dep_node_id(node_index, dep_id);
+
+    // Deserialize all sibling DerivedField nodes, which populates field data
+    self.deserialize_field_group(ctx, *serialized_value_entry_id);
+
+    // Get the session-local entry_id allocated by field deserialization
+    let value_entry_id = *ctx
+      .entry_id_map
+      .entry((self.value_name, *serialized_value_entry_id))
+      .or_insert_with(|| self.value_id_counter.fetch_add(1, Ordering::Relaxed));
+
+    // Decode key
+    let blob = ctx.serialized.query_cache.get(node_index)?;
+    let mut data = blob;
+    let key = K::decode(&mut data, &ctx.decoder);
+    let value = V::from(value_entry_id);
+
+    // FIXME: This can be optimized
+    // We should only lazily load the dependencies
+    // If we do, must perform cache promotion
+    let dependencies = Self::deserialize_deps(edges, ctx);
+
+    self.intern_map.entry(key.clone()).or_insert(arg_id);
+    self.data.insert(
+      arg_id,
+      QueryState::Computed(StampedDerivedQuery {
+        key,
+        value,
+        changed_at: *changed_at as usize,
+        verified_at: *verified_at as usize,
+        dependencies,
+      }),
+    );
+
+    Some(dep_id)
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
@@ -472,16 +587,17 @@ impl<
         value: self
           .value_fingerprint(ctx.db(), entry_id)
           .expect("Computed entry must have a value fingerprint"),
+        entry_id: entry_id as u64,
+        value_entry_id: memo.value.clone().into() as u64,
         changed_at: memo.changed_at as u64,
         verified_at: memo.verified_at as u64,
         edges,
       },
     );
 
-    // Encode key and value into the query cache
+    // Encode key into the query cache
     let mut buf = vec![];
     memo.key.encode(&mut buf, &mut ctx.encoder);
-    memo.value.encode(&mut buf, &mut ctx.encoder);
     ctx.query_cache.set(node_index, &buf);
   }
 }
@@ -499,6 +615,8 @@ pub struct DerivedFieldIngredient<T> {
   ingredient_index: usize,
   field_index: u8,
   name: &'static str,
+  pub id_counter: &'static AtomicUsize,
+  pub identity_map: Option<Arc<dyn Any + Send + Sync>>,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, StampedDerivedField<T>>>,
 }
@@ -508,17 +626,27 @@ impl<T> DerivedFieldIngredient<T> {
   #[doc(hidden)]
   pub const __TYPEDOWN_DERIVED_FIELD_INGREDIENT: () = ();
 
-  pub fn new(ingredient_index: usize, name: &'static str, field_index: u8) -> Self {
+  pub fn new(
+    ingredient_index: usize,
+    name: &'static str,
+    field_index: u8,
+    id_counter: &'static AtomicUsize,
+    identity_map: Option<Arc<dyn Any + Send + Sync>>,
+  ) -> Self {
     Self {
       ingredient_index,
       field_index,
       name,
+      id_counter,
+      identity_map,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
-impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredient<T> {
+impl<T: StableHash + Encodable + Decodable + Send + Sync + 'static> Ingredient
+  for DerivedFieldIngredient<T>
+{
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }
@@ -543,8 +671,52 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
     DerivedFieldIngredient::value_fingerprint(self, db, entry_id)
   }
 
-  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
-    todo!()
+  fn deserialize(&self, ctx: &DeserializeContext, node_index: DepNodeIndex) -> Option<DepId> {
+    if let Some(dep_id) = ctx.decoder.get_dep_node_id(node_index) {
+      return Some(dep_id);
+    }
+    let node = &ctx.serialized.dep_graph.nodes[node_index as usize];
+    let DepNode::DerivedField {
+      name,
+      entry_id: serialized_entry_id,
+      changed_at,
+      ..
+    } = node
+    else {
+      return None;
+    };
+
+    // Allocate a session-local entry_id, shared across sibling fields
+    let entry_id = *ctx
+      .entry_id_map
+      .entry((*name, *serialized_entry_id))
+      .or_insert_with(|| self.id_counter.fetch_add(1, Ordering::Relaxed));
+
+    let blob = ctx.serialized.query_cache.get(node_index)?;
+    let mut data = blob;
+    let value = T::decode(&mut data, &ctx.decoder);
+    self.data.insert(
+      entry_id,
+      StampedDerivedField {
+        value,
+        changed_at: *changed_at as usize,
+      },
+    );
+
+    let dep_id = (self.ingredient_index, entry_id);
+    ctx.decoder.set_dep_node_id(node_index, dep_id);
+
+    // Trigger deserialization of sibling fields so the whole struct is populated
+    let group_key = (*name, *serialized_entry_id);
+    if let Some(field_group) = ctx.derived_groups.get(&group_key) {
+      for &(_, sibling_node_index) in &field_group.fields {
+        ctx
+          .decoder
+          .get_or_deserialize_dep_node_id(sibling_node_index);
+      }
+    }
+
+    Some(dep_id)
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
@@ -552,7 +724,6 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
       return;
     };
 
-    // Only register a dep node; the value blob lives in the parent query's cache entry.
     let dep_id = (self.ingredient_index, entry_id);
     let node_index = ctx.encoder.add_dep_id(dep_id);
     ctx.dep_graph.set(
@@ -560,12 +731,18 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
       UnresolvedDepNode::DerivedField {
         name: self.name(),
         field_index: self.field_index,
+        entry_id: entry_id as u64,
         value: self
           .value_fingerprint(ctx.db(), entry_id)
           .expect("Entry is available so there must be a fingerprint"),
         changed_at: entry.changed_at as u64,
       },
     );
+
+    // Write field value blob
+    let mut buf = vec![];
+    entry.value.encode(&mut buf, &mut ctx.encoder);
+    ctx.query_cache.set(node_index, &buf);
   }
 }
 

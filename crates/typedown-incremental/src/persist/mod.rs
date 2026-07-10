@@ -1,5 +1,6 @@
 mod codec;
 mod fingerprint;
+pub mod fs;
 mod serde;
 pub mod serialized;
 mod stable;
@@ -7,6 +8,7 @@ mod unstable;
 
 pub use codec::*;
 pub use fingerprint::*;
+pub use fs::CacheSession;
 pub use serde::*;
 pub use serialized::SerializedQueryStorage;
 pub use serialized::dep_graph;

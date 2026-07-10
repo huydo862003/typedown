@@ -3,7 +3,7 @@ use crate::SerializeContext;
 use crate::persist::serialized::SerializedQueryStorage;
 use crate::persist::serialized::dep_graph::{self as dep_graph_format, DepGraph};
 use crate::persist::serialized::interned_blobs::{self as interned_blobs_format, InternedBlobs};
-use crate::persist::serialized::query_cache::QueryCache;
+use crate::persist::serialized::query_cache::{BackingFile, QueryCache};
 use std::any::Any;
 
 pub trait QueryDatabase: Any {
@@ -25,6 +25,9 @@ pub trait SerializableQueryDatabase: QueryDatabase {
     let mut ctx = SerializeContext::new(self);
 
     // Serialize all ingredients
+    // NOTE: If we're intending to lazily load the deps
+    // instead of eagerly loading the deps like we're doing
+    // We must perform cache promotion here
     for entry in storage.ingredients.iter() {
       let ingredient = &entry.ingredient;
       for entry_id in ingredient.entry_ids().collect::<Vec<_>>() {
@@ -33,7 +36,7 @@ pub trait SerializableQueryDatabase: QueryDatabase {
     }
 
     // Finalize
-    let (nodes, query_cache_mmap, intern_blobs) = ctx.finalize();
+    let (nodes, query_cache_mmap, query_cache_file, intern_blobs) = ctx.finalize();
 
     // Build DepGraph
     let total_edge_count = nodes.iter().map(|n| n.edges().len() as u64).sum();
@@ -49,7 +52,9 @@ pub trait SerializableQueryDatabase: QueryDatabase {
     };
 
     // Build QueryCache from mmap
-    let query_cache = QueryCache::from_mmap(query_cache_mmap)
+    let temp_path = query_cache_file.into_temp_path();
+    let backing_path = temp_path.to_path_buf();
+    let query_cache = QueryCache::new(query_cache_mmap, backing_path, BackingFile::Temp(temp_path))
       .expect("Failed to construct QueryCache from serialized data");
 
     // Build InternedBlobs

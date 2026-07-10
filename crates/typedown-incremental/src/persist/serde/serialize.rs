@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::Write;
 
-use tempfile::tempfile;
+use tempfile::NamedTempFile;
 
 use crate::persist::serialized::dep_graph::{DepNode, DepNodeIndex};
+use crate::persist::serialized::query_cache::FileHeader;
 use crate::persist::serialized::query_cache::FooterCacheEntry;
 use crate::{DepId, Encoder, Fingerprint, QueryDatabase};
 
@@ -29,11 +29,11 @@ impl<'a> SerializeContext<'a> {
     self.encoder.db()
   }
 
-  pub fn finalize(self) -> (Vec<DepNode>, memmap2::Mmap, Vec<Vec<u8>>) {
+  pub fn finalize(self) -> (Vec<DepNode>, memmap2::Mmap, NamedTempFile, Vec<Vec<u8>>) {
     let nodes = self.dep_graph.finalize(self.encoder.dep_id_table());
-    let mmap = self.query_cache.finalize();
+    let (mmap, tempfile) = self.query_cache.finalize();
     let intern_blobs = self.encoder.finish();
-    (nodes, mmap, intern_blobs)
+    (nodes, mmap, tempfile, intern_blobs)
   }
 }
 
@@ -44,6 +44,8 @@ pub enum UnresolvedDepNode {
     name: Fingerprint,
     key: Fingerprint,
     value: Fingerprint,
+    entry_id: u64,
+    value_entry_id: u64,
     changed_at: u64,
     verified_at: u64,
     edges: Vec<DepId>,
@@ -51,12 +53,14 @@ pub enum UnresolvedDepNode {
   DerivedField {
     name: Fingerprint,
     field_index: u8,
+    entry_id: u64,
     value: Fingerprint,
     changed_at: u64,
   },
   InputField {
     name: Fingerprint,
     field_index: u8,
+    entry_id: u64,
     value: Fingerprint,
     changed_at: u64,
   },
@@ -77,12 +81,12 @@ impl DepGraphBuilder {
     Self { nodes: Vec::new() }
   }
 
-  /// Add a dep node at the given index (obtained from Encoder::add_dep_id).
+  /// Add a dep node at the given index
   pub fn set(&mut self, index: DepNodeIndex, node: UnresolvedDepNode) {
     self.nodes.push((index, node));
   }
 
-  /// Resolve edges and return the final dep graph nodes, using the Encoder's dep_id_table.
+  /// Resolve edges and return the final dep graph nodes, using the Encoder's dep_id_table
   pub fn finalize(self, dep_id_table: &HashMap<DepId, DepNodeIndex>) -> Vec<DepNode> {
     // Sort by index to ensure correct ordering
     let mut sorted = self.nodes;
@@ -95,6 +99,8 @@ impl DepGraphBuilder {
           name,
           key,
           value,
+          entry_id,
+          value_entry_id,
           changed_at,
           verified_at,
           edges,
@@ -107,6 +113,8 @@ impl DepGraphBuilder {
             name,
             key,
             value,
+            entry_id,
+            value_entry_id,
             changed_at,
             verified_at,
             edges: resolved_edges,
@@ -115,22 +123,26 @@ impl DepGraphBuilder {
         UnresolvedDepNode::DerivedField {
           name,
           field_index,
+          entry_id,
           value,
           changed_at,
         } => DepNode::DerivedField {
           name,
           field_index,
+          entry_id,
           value,
           changed_at,
         },
         UnresolvedDepNode::InputField {
           name,
           field_index,
+          entry_id,
           value,
           changed_at,
         } => DepNode::InputField {
           name,
           field_index,
+          entry_id,
           value,
           changed_at,
         },
@@ -143,16 +155,14 @@ impl DepGraphBuilder {
 /// Builder for the query cache during serialization.
 /// Writes blobs to a tempfile and tracks the mapping from dep node index to byte offset.
 pub struct QueryCacheBuilder {
-  file: File,
+  file: NamedTempFile,
   offset: u64,
   entries: Vec<FooterCacheEntry>,
 }
 
 impl QueryCacheBuilder {
   fn new() -> Self {
-    use crate::persist::serialized::query_cache::FileHeader;
-
-    let mut file = tempfile().expect("Failed to create tempfile for query cache");
+    let mut file = NamedTempFile::new().expect("Failed to create tempfile for query cache");
     let header = FileHeader::new();
     file
       .write_all(&header.to_bytes())
@@ -181,7 +191,7 @@ impl QueryCacheBuilder {
   }
 
   /// Write the footer and convert the backing tempfile into a read-only mmap.
-  pub fn finalize(mut self) -> memmap2::Mmap {
+  pub fn finalize(mut self) -> (memmap2::Mmap, NamedTempFile) {
     let footer_pos = self.offset;
 
     // Write entry count
@@ -204,6 +214,9 @@ impl QueryCacheBuilder {
       .write_all(&footer_pos.to_le_bytes())
       .expect("Failed to write footer position");
 
-    unsafe { memmap2::Mmap::map(&self.file).expect("Failed to mmap query cache tempfile") }
+    let mmap = unsafe {
+      memmap2::Mmap::map(self.file.as_file()).expect("Failed to mmap query cache tempfile")
+    };
+    (mmap, self.file)
   }
 }

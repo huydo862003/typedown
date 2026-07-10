@@ -16,6 +16,10 @@
 //! Result blobs stay in mmap and are decoded on demand.
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::path::PathBuf;
+
+use tempfile::TempPath;
 
 /* File identification */
 // Magic: 4 bytes
@@ -91,31 +95,28 @@ impl FooterCacheEntry {
   }
 }
 
-/// Footer is decoded upfront into a HashMap. Result blobs are decoded on demand.
-///
-/// # Safety
-/// Owns the mmap'd query cache data and provides indexed access to result blobs.
-pub struct QueryCache {
-  /// The backing mmap'd data. Must be kept alive for the pointers to remain valid.
-  _mmap: memmap2::Mmap,
-  /// Raw pointer to the mmap'd file data.
-  ptr: *const u8,
-  /// Length of the mmap'd region in bytes.
-  len: usize,
-  /// Index table: dep graph node index -> byte offset of the result blob.
-  index: HashMap<u32, u64>,
+pub enum BackingFile {
+  /// From loading a .bin file on disk
+  Disk(File),
+  /// From dump via a named tempfile
+  Temp(TempPath),
 }
 
-// Safety: the mmap'd data is read-only and shared
-unsafe impl Send for QueryCache {}
-unsafe impl Sync for QueryCache {}
+pub struct QueryCache {
+  pub(crate) mmap: memmap2::Mmap,
+  /// Index table: dep graph node index -> byte offset of the result blob.
+  index: HashMap<u32, u64>,
+  /// Path to the backing file, used for hard-linking during persist
+  pub(crate) backing_path: PathBuf,
+  /// Keeps the backing file alive so the mmap remains valid
+  #[allow(dead_code)]
+  backing: BackingFile,
+}
 
 impl QueryCache {
-  /// Create from an owned mmap. Decodes the footer index upfront.
-  pub fn from_mmap(mmap: memmap2::Mmap) -> Option<Self> {
-    let ptr = mmap.as_ptr();
-    let len = mmap.len();
+  pub fn new(mmap: memmap2::Mmap, backing_path: PathBuf, backing: BackingFile) -> Option<Self> {
     let data = &*mmap;
+    let len = data.len();
 
     // Last 8 bytes: footer_pos
     let footer_pos = u64::from_le_bytes(data[len - 8..].try_into().ok()?) as usize;
@@ -134,16 +135,11 @@ impl QueryCache {
     }
 
     Some(QueryCache {
-      _mmap: mmap,
-      ptr,
-      len,
+      mmap,
       index,
+      backing_path,
+      backing,
     })
-  }
-
-  /// Get the backing data as a byte slice.
-  fn data(&self) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
   }
 
   /// Get the byte offset of a cached result by dep graph node index.
@@ -154,6 +150,6 @@ impl QueryCache {
   /// Get a decoder-ready byte slice starting at the cached result for a node.
   pub fn get(&self, node_index: u32) -> Option<&[u8]> {
     let offset = *self.index.get(&node_index)? as usize;
-    Some(&self.data()[offset..])
+    Some(&self.mmap[offset..])
   }
 }

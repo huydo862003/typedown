@@ -1,12 +1,13 @@
 // TIL: We use DashMap to support high-performance concrruent reads, which fits the workload of IDEs
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use dashmap::DashMap;
 
-use crate::persist::serialized::dep_graph::DepNodeIndex;
+use crate::persist::serialized::dep_graph::{DepNode, DepNodeIndex};
 use crate::{
-  DepId, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash,
-  StableHasher, UnresolvedDepNode,
+  Decodable, DepId, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext,
+  StableHash, StableHasher, UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -23,29 +24,35 @@ pub struct InputFieldIngredient<T> {
   ingredient_index: usize,
   field_index: u8,
   name: &'static str,
-  // A map from id to field value
-  // DashMap is used to better support parallel workload
+  pub id_counter: &'static AtomicUsize,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, StampedInputField<T>>>,
 }
 
 impl<T> InputFieldIngredient<T> {
-  /// Marker used by the `query_db` macro to verify the input ingredient at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   pub const __TYPEDOWN_INPUT_FIELD_INGREDIENT: () = ();
 
-  pub fn new(ingredient_index: usize, name: &'static str, field_index: u8) -> Self {
+  pub fn new(
+    ingredient_index: usize,
+    name: &'static str,
+    field_index: u8,
+    id_counter: &'static AtomicUsize,
+  ) -> Self {
     Self {
       ingredient_index,
       field_index,
       name,
+      id_counter,
       data: Arc::new(DashMap::new()),
     }
   }
 }
 
-impl<T: StableHash + Send + Sync + Encodable + 'static> Ingredient for InputFieldIngredient<T> {
+impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient
+  for InputFieldIngredient<T>
+{
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }
@@ -70,8 +77,44 @@ impl<T: StableHash + Send + Sync + Encodable + 'static> Ingredient for InputFiel
     InputFieldIngredient::value_fingerprint(self, db, entry_id)
   }
 
-  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
-    todo!()
+  fn deserialize(&self, ctx: &DeserializeContext, node_index: DepNodeIndex) -> Option<DepId> {
+    if let Some(dep_id) = ctx.decoder.get_dep_node_id(node_index) {
+      return Some(dep_id);
+    }
+    let node = &ctx.serialized.dep_graph.nodes[node_index as usize];
+    let DepNode::InputField {
+      name,
+      entry_id: serialized_entry_id,
+      changed_at,
+      ..
+    } = node
+    else {
+      return None;
+    };
+
+    // Look up or allocate a session-local entry_id shared across all fields of this input entry.
+    let entry_id = *ctx
+      .entry_id_map
+      .entry((*name, *serialized_entry_id))
+      .or_insert_with(|| {
+        self
+          .id_counter
+          .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+      });
+
+    let blob = ctx.serialized.query_cache.get(node_index)?;
+    let mut data = blob;
+    let value = T::decode(&mut data, &ctx.decoder);
+    self.data.insert(
+      entry_id,
+      StampedInputField {
+        value,
+        changed_at: *changed_at as usize,
+      },
+    );
+    let dep_id = (self.ingredient_index, entry_id);
+    ctx.decoder.set_dep_node_id(node_index, dep_id);
+    Some(dep_id)
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
@@ -90,6 +133,7 @@ impl<T: StableHash + Send + Sync + Encodable + 'static> Ingredient for InputFiel
       UnresolvedDepNode::InputField {
         name: self.name(),
         field_index: self.field_index,
+        entry_id: entry_id as u64,
         value: self
           .value_fingerprint(ctx.db(), entry_id)
           .expect("Entry is available so there must be a fingerprint"),

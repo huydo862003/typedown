@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use dashmap::DashMap;
 use typedown_types::either::Either;
 
 use crate::persist::serialized::dep_graph::DepNodeIndex;
 use crate::persist::unstable::{FieldDecodable, FieldEncodable};
-use crate::{DepId, QueryDatabase};
+use crate::{DepId, QueryDatabase, QueryStorage};
 
 pub struct Encoder<'a> {
   db: &'a dyn QueryDatabase,
@@ -131,33 +133,51 @@ impl<'a> Encoder<'a> {
   }
 }
 
-pub struct Decoder<'a> {
-  db: &'a dyn QueryDatabase,
-  intern_blobs: &'a [Vec<u8>],
-  dep_id_table: HashMap<DepNodeIndex, DepId>,
+pub struct Decoder {
+  storage: Arc<QueryStorage>,
+  intern_blobs: Arc<Vec<Vec<u8>>>,
+  dep_id_table: DashMap<DepNodeIndex, DepId>,
 }
 
-impl<'a> Decoder<'a> {
-  pub fn new(db: &'a dyn QueryDatabase, intern_blobs: &'a [Vec<u8>]) -> Self {
+impl Decoder {
+  pub fn new(storage: Arc<QueryStorage>, intern_blobs: Arc<Vec<Vec<u8>>>) -> Self {
     Self {
-      db,
+      storage,
       intern_blobs,
-      dep_id_table: HashMap::new(),
+      dep_id_table: DashMap::new(),
     }
   }
 
+  pub fn storage(&self) -> &QueryStorage {
+    &self.storage
+  }
+
   /// Map a DepNodeIndex to a DepId. No-op if already set.
-  pub fn set_dep_id(&mut self, index: DepNodeIndex, dep_id: DepId) {
+  pub fn set_dep_node_id(&self, index: DepNodeIndex, dep_id: DepId) {
     self.dep_id_table.entry(index).or_insert(dep_id);
   }
 
-  /// Look up a DepId by its DepNodeIndex.
-  pub fn get_dep_id(&self, index: DepNodeIndex) -> Option<DepId> {
-    self.dep_id_table.get(&index).copied()
+  pub fn get_dep_node_id(&self, index: DepNodeIndex) -> Option<DepId> {
+    self.dep_id_table.get(&index).map(|e| *e.value())
   }
 
-  pub fn db(&self) -> &dyn QueryDatabase {
-    self.db
+  /// Get the DepId for a node, triggering deserialization if not yet loaded.
+  pub fn get_or_deserialize_dep_node_id(&self, index: DepNodeIndex) -> Option<DepId> {
+    if let Some(dep_id) = self.get_dep_node_id(index) {
+      return Some(dep_id);
+    }
+    let ctx = self.storage.deserialize_ctx.get()?;
+    let node = &ctx.serialized.dep_graph.nodes[index as usize];
+    let name = node.name();
+    let node_field_index = node.field_index();
+    for &idx in ctx.ingredients_by_name(&name) {
+      if self.storage.ingredients[idx].field_index == node_field_index {
+        return self.storage.ingredients[idx]
+          .ingredient
+          .deserialize(ctx, index);
+      }
+    }
+    None
   }
 
   pub fn get_intern_blob(&self, index: u32) -> &[u8] {

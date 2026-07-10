@@ -114,13 +114,16 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           register: |factories| {
             let start_index = factories.len();
             #(
-              factories.push(|index| ::typedown_incremental::IngredientEntry {
-                ingredient: Box::new(::typedown_incremental::InputFieldIngredient::<#field_types>::new(
-                  index,
-                  #struct_name_str,
-                  #field_indices as u8,
-                )),
-                field_index: Some(#field_indices as u8),
+              factories.push(|index| {
+                ::typedown_incremental::IngredientEntry {
+                  ingredient: Box::new(::typedown_incremental::InputFieldIngredient::<#field_types>::new(
+                    index,
+                    #struct_name_str,
+                    #field_indices as u8,
+                    #struct_name::id_counter(),
+                  )),
+                  field_index: Some(#field_indices as u8),
+                }
               });
             )*
             #struct_name::set_ingredient_start_index(start_index);
@@ -201,9 +204,13 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           let _ = Self::ingredient_start_index_lock().set(index);
         }
 
-        fn next_id() -> usize {
+        fn id_counter() -> &'static std::sync::atomic::AtomicUsize {
           static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-          COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+          &COUNTER
+        }
+
+        fn next_id() -> usize {
+          Self::id_counter().fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         }
 
         pub fn new<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
@@ -224,14 +231,6 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           )*
 
           Self(id)
-        }
-
-        /// Iterate over all existing input handles of this type.
-        pub fn iter<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB) -> impl Iterator<Item = Self> {
-          let storage = unsafe { db.storage() };
-          let ingredient = &storage.ingredients[Self::ingredient_start_index()].ingredient;
-          let ids: Vec<usize> = ingredient.entry_ids().collect();
-          ids.into_iter().map(Self)
         }
 
         #getter_setter_tokens
@@ -261,7 +260,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           #(
             let _ = <#field_types as ::typedown_incremental::FieldDecodable>::decode_field(data, decoder);
           )*
-          let dep_id = decoder.get_dep_id(index)
+          let dep_id = decoder.get_or_deserialize_dep_node_id(index)
             .expect("DepNodeIndex not found in decoder dep_id_table");
           Self::from(dep_id.1)
         }
@@ -277,7 +276,13 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
         fn from(val: #struct_name) -> usize { val.0 }
       }
 
-      impl ::typedown_incremental::InputId for #struct_name {}
+      impl ::typedown_incremental::InputId for #struct_name {
+        fn iter<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB) -> Vec<Self> {
+          let storage = unsafe { db.storage() };
+          let ingredient = &storage.ingredients[Self::ingredient_start_index()].ingredient;
+          ingredient.entry_ids().map(Self).collect()
+        }
+      }
 
       #[cfg(debug_assertions)]
       const _: () = <#struct_name as ::typedown_incremental::InputId>::__TYPEDOWN_INPUT_ID;
@@ -417,7 +422,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
             let index = factories.len();
             factories.push(|index| ::typedown_incremental::IngredientEntry {
               ingredient: Box::new(
-                ::typedown_incremental::DerivedQueryIngredient::<#db_type, #key_tuple_ty, #return_type>::new(index, stringify!(#fn_name), #fn_name::#fn_name),
+                ::typedown_incremental::DerivedQueryIngredient::<#db_type, #key_tuple_ty, #return_type>::new(index, stringify!(#fn_name), stringify!(#return_type), #return_type::id_counter(), #fn_name::#fn_name),
               ),
               field_index: None,
             });
@@ -486,22 +491,57 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     );
   }
 
+  // Ensure at least one field ingredient exists for serialization
+  let has_phantom = fields.is_empty();
+  let internal_field_types: Vec<syn::Type> = if has_phantom {
+    vec![syn::parse_quote! { () }]
+  } else {
+    fields.iter().map(|f| f.ty.clone()).collect()
+  };
+
   let field_types: Vec<_> = fields.iter().map(|f| &f.ty).collect();
   let field_names: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+  let first_field_ty = internal_field_types.first().cloned();
+
+  let id_fields: Vec<_> = fields
+    .iter()
+    .enumerate()
+    .filter(|(_, field)| field.attrs.iter().any(|attr| attr.path().is_ident("id")))
+    .collect();
+  let id_field_tys: Vec<_> = id_fields
+    .iter()
+    .map(|(_, field)| field.ty.clone())
+    .collect();
+  let id_field_names: Vec<_> = id_fields
+    .iter()
+    .map(|(_, field)| field.ident.as_ref().unwrap())
+    .collect();
+  let identity_ty = quote! {((usize, usize), usize, (#(#id_field_tys,)*) )};
 
   // Register per-field ingredients via inventory
   let struct_name_str = struct_name.to_string();
   let mut register_tokens = quote! {};
-  for (idx, field) in fields.iter().enumerate() {
-    let field_ty = &field.ty;
+  for (idx, field_ty) in internal_field_types.iter().enumerate() {
+    let identity_map_expr = if idx == 0 {
+      quote! {
+        Some(std::sync::Arc::new(dashmap::DashMap::<#identity_ty, usize>::new())
+          as std::sync::Arc<dyn std::any::Any + Send + Sync>)
+      }
+    } else {
+      quote! { None }
+    };
     register_tokens.extend(quote! {
-      factories.push(|index| ::typedown_incremental::IngredientEntry {
-        ingredient: Box::new(::typedown_incremental::DerivedFieldIngredient::<#field_ty>::new(
-          index,
-          #struct_name_str,
-          #idx as u8,
-        )),
-        field_index: Some(#idx as u8),
+      factories.push(|index| {
+        ::typedown_incremental::IngredientEntry {
+          ingredient: Box::new(::typedown_incremental::DerivedFieldIngredient::<#field_ty>::new(
+            index,
+            #struct_name_str,
+            #idx as u8,
+            #struct_name::id_counter(),
+            #identity_map_expr,
+          )),
+          field_index: Some(#idx as u8),
+        }
       });
     });
   }
@@ -550,24 +590,53 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
     });
   }
 
-  let id_fields: Vec<_> = fields
-    .iter()
-    .enumerate()
-    .filter(|(_, field)| field.attrs.iter().any(|attr| attr.path().is_ident("id")))
-    .collect();
+  let identity_map_lookup_tokens = if let Some(fft) = first_field_ty {
+    quote! {
+      let first_ingredient = (&*storage.ingredients[start_index].ingredient as &dyn std::any::Any)
+        .downcast_ref::<::typedown_incremental::DerivedFieldIngredient<#fft>>()
+        .expect("ingredient type mismatch");
+      let map = first_ingredient.identity_map.as_ref()
+        .expect("first field ingredient must have identity_map")
+        .downcast_ref::<dashmap::DashMap<#identity_ty, usize>>()
+        .expect("identity_map type mismatch");
 
-  let id_field_tys: Vec<_> = id_fields
-    .iter()
-    .map(|(_, field)| field.ty.clone())
-    .collect();
-  let id_field_names: Vec<_> = id_fields
-    .iter()
-    .map(|(_, field)| field.ident.as_ref().unwrap())
-    .collect();
-  // Identity type = (creating_query, disambiguator, ids)
-  let identity_ty = quote! {((usize, usize), usize, (#(#id_field_tys,)*) )};
+      let id = if let Some(existing) = map.get(&identity) {
+        *existing
+      } else {
+        let new_id = Self::next_id();
+        *map.entry(identity).or_insert(new_id)
+      };
+    }
+  } else {
+    unreachable!("all derived structs have at least one internal field (phantom)")
+  };
 
   let mut new_body_tokens = quote! {};
+
+  let phantom_encode_tokens = if has_phantom {
+    quote! { ::typedown_incremental::Encodable::encode(&(), buf, encoder); }
+  } else {
+    quote! {}
+  };
+  let phantom_decode_tokens = if has_phantom {
+    quote! { let _ = <() as ::typedown_incremental::Decodable>::decode(data, decoder); }
+  } else {
+    quote! {}
+  };
+
+  // Insert phantom field value for zero-field structs
+  if has_phantom {
+    new_body_tokens.extend(quote! {
+      {
+        let ingredient = (&*storage.ingredients[start_index].ingredient as &dyn std::any::Any)
+          .downcast_ref::<::typedown_incremental::DerivedFieldIngredient<()>>().expect("ingredient type mismatch");
+        ingredient.data.entry(id).or_insert(::typedown_incremental::StampedDerivedField {
+          value: (),
+          changed_at: current_revision,
+        });
+      }
+    });
+  }
 
   for (idx, field) in fields.iter().enumerate() {
     let field_name = field.ident.as_ref().unwrap();
@@ -604,12 +673,6 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
       #visibility struct #struct_name(usize);
 
       impl #struct_name {
-        // Map from the identity to the ingredient's id
-        fn identity_map() -> &'static dashmap::DashMap<#identity_ty, usize> {
-          static MAP: std::sync::OnceLock<dashmap::DashMap<#identity_ty, usize>> = std::sync::OnceLock::new();
-          MAP.get_or_init(|| dashmap::DashMap::new())
-        }
-
         fn ingredient_start_index_lock() -> &'static std::sync::OnceLock<usize> {
           static START_INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
           &START_INDEX
@@ -625,9 +688,14 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           let _ = Self::ingredient_start_index_lock().set(index);
         }
 
-        fn next_id() -> usize {
+        #[doc(hidden)]
+        pub fn id_counter() -> &'static std::sync::atomic::AtomicUsize {
           static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-          COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+          &COUNTER
+        }
+
+        fn next_id() -> usize {
+          Self::id_counter().fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         }
 
         /// Create or update a derived struct by identity
@@ -650,14 +718,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           let creating_query = storage.current_query_identity();
 
           let identity = (creating_query, disambiguator, (#(#id_field_names.clone(),)*));
-          let map = Self::identity_map();
-
-          let id = if let Some(existing) = map.get(&identity) {
-            *existing
-          } else {
-            let new_id = Self::next_id();
-            *map.entry(identity).or_insert(new_id)
-          };
+          #identity_map_lookup_tokens
 
           #new_body_tokens
 
@@ -682,6 +743,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           #(
             ::typedown_incremental::FieldEncodable::encode_field(&self.#field_names(encoder.db()), buf, encoder);
           )*
+          #phantom_encode_tokens
         }
       }
 
@@ -691,7 +753,8 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
           #(
             let _ = <#field_types as ::typedown_incremental::FieldDecodable>::decode_field(data, decoder);
           )*
-          let dep_id = decoder.get_dep_id(index)
+          #phantom_decode_tokens
+          let dep_id = decoder.get_or_deserialize_dep_node_id(index)
             .expect("DepNodeIndex not found in decoder dep_id_table");
           Self::from(dep_id.1)
         }
@@ -776,7 +839,12 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
           register: |factories| {
             let index = factories.len();
             factories.push(|index| ::typedown_incremental::IngredientEntry {
-              ingredient: Box::new(::typedown_incremental::InternedIngredient::<#intern_key_ty>::new(index, stringify!(#struct_name))),
+              ingredient: Box::new(::typedown_incremental::InternedIngredient::<#intern_key_ty>::new(
+                index,
+                stringify!(#struct_name),
+                #struct_name::id_counter(),
+                #struct_name::intern_map(),
+              )),
               field_index: None,
             });
             #struct_name::set_ingredient_index(index);
@@ -828,9 +896,13 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
           let _ = Self::ingredient_index_lock().set(index);
         }
 
-        fn next_id() -> usize {
+        fn id_counter() -> &'static std::sync::atomic::AtomicUsize {
           static COUNTER: std::sync::atomic::AtomicUsize = ::std::sync::atomic::AtomicUsize::new(0);
-          COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+          &COUNTER
+        }
+
+        fn next_id() -> usize {
+          Self::id_counter().fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         }
 
         fn intern_map() -> &'static dashmap::DashMap<#intern_key_ty, usize> {
@@ -885,7 +957,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
           #(
             let _ = <#field_types as ::typedown_incremental::FieldDecodable>::decode_field(data, decoder);
           )*
-          let dep_id = decoder.get_dep_id(index)
+          let dep_id = decoder.get_or_deserialize_dep_node_id(index)
             .expect("DepNodeIndex not found in decoder dep_id_table");
           Self::from(dep_id.1)
         }
@@ -901,7 +973,13 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
         fn from(val: #struct_name) -> usize { val.0 }
       }
 
-      impl ::typedown_incremental::InternedId for #struct_name {}
+      impl ::typedown_incremental::InternedId for #struct_name {
+        fn iter<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB) -> Vec<Self> {
+          let storage = unsafe { db.storage() };
+          let ingredient = &storage.ingredients[Self::ingredient_index()].ingredient;
+          ingredient.entry_ids().map(Self).collect()
+        }
+      }
 
       #[cfg(debug_assertions)]
       const _: () = <#struct_name as ::typedown_incremental::InternedId>::__TYPEDOWN_INTERNED_ID;

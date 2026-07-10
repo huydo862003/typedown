@@ -1,3 +1,16 @@
-fn main() {
-  println!("Hello, world!");
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "typedown", about = "Typedown CLI")]
+struct Cli {
+  #[command(subcommand)]
+  command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {}
+
+fn main() -> anyhow::Result<()> {
+  let _cli = Cli::parse();
+  Ok(())
 }

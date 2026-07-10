@@ -37,7 +37,7 @@ impl Server {
   }
 
   /// Run the server event loop until the client sends a shutdown request.
-  pub fn run(mut self) -> anyhow::Result<()> {
+  pub fn run(mut self) -> anyhow::Result<AnalysisHost> {
     for msg in &self.connection.receiver {
       // Drain pending file-watcher events before handling the next LSP message.
       for event in self.watcher_rx.try_iter() {
@@ -68,7 +68,7 @@ impl Server {
         Message::Response(_) => {}
       }
     }
-    Ok(())
+    Ok(self.host)
   }
 }
 

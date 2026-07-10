@@ -16,7 +16,7 @@ impl<T: Encodable> FieldEncodable for T {
   }
 }
 
-impl<T: Id + Encodable> FieldEncodable for T {
+impl<T: Id + Encodable + Into<usize>> FieldEncodable for T {
   fn encode_field(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     let index = encoder.add_dep_id(self.as_id());
     encoder.emit_u32(buf, index);
@@ -39,8 +39,8 @@ impl<T: Id + Decodable + From<usize>> FieldDecodable for T {
   fn decode_field(data: &mut &[u8], decoder: &Decoder) -> Self {
     let index = decoder.read_u32(data);
     let dep_id = decoder
-      .get_dep_id(index)
-      .expect("DepNodeIndex not found in decoder dep_id_table");
+      .get_or_deserialize_dep_node_id(index)
+      .expect("DepNodeIndex not found after deserialization");
     Self::from(dep_id.1)
   }
 }

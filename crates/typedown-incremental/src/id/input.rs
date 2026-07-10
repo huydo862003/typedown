@@ -7,6 +7,10 @@ pub trait InputId: super::Id + From<usize> + Into<usize> {
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   const __TYPEDOWN_INPUT_ID: () = ();
+
+  fn iter<DB: crate::QueryDatabase + ?Sized>(db: &DB) -> Vec<Self>
+  where
+    Self: Sized;
 }
 
 #[cfg(test)]

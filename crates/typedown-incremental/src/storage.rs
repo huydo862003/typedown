@@ -5,7 +5,8 @@ use std::sync::{Arc, OnceLock};
 
 use super::ingredient::{Dependency, IngredientEntry, IngredientFactory, Inventory};
 use super::persist::serialized::SerializedQueryStorage;
-use crate::DeserializeContext;
+use super::persist::serialized::dep_graph::{DepNode, DepNodeIndex};
+use crate::{DeserializeContext, Fingerprint};
 
 /// A registry of ingredient factories
 /// This is used in QueryStorage::default() to initialize the internal ingredient vector
@@ -34,7 +35,7 @@ pub struct QueryStorage {
   #[doc(hidden)]
   pub ingredients: Arc<Vec<IngredientEntry>>, // All ingredients
   #[doc(hidden)]
-  pub deserialize_ctx: Arc<Option<DeserializeContext>>, // Previous session's data for lazy deserialization
+  pub deserialize_ctx: Arc<OnceLock<DeserializeContext>>, // Previous session's data for lazy deserialization
 }
 
 impl QueryStorage {
@@ -49,14 +50,14 @@ impl QueryStorage {
           .map(|(idx, factory)| factory(idx))
           .collect(),
       ),
-      deserialize_ctx: Arc::new(None),
+      deserialize_ctx: Arc::new(OnceLock::new()),
     }
   }
 
   /// Create a QueryStorage from a previous session's serialized data.
-  pub fn from_serialized(serialized: SerializedQueryStorage) -> Self {
+  pub fn from_serialized(serialized: SerializedQueryStorage) -> Arc<Self> {
     let revision = serialized.dep_graph.header.revision as usize;
-    QueryStorage {
+    let storage = Arc::new(QueryStorage {
       revision: Arc::new(AtomicUsize::new(revision)),
       cancelled: Arc::new(AtomicBool::new(false)),
       ingredients: Arc::new(
@@ -66,7 +67,53 @@ impl QueryStorage {
           .map(|(idx, factory)| factory(idx))
           .collect(),
       ),
-      deserialize_ctx: Arc::new(Some(DeserializeContext::new(serialized))),
+      deserialize_ctx: Arc::new(OnceLock::new()),
+    });
+    let _ = storage.deserialize_ctx.set(DeserializeContext::new(
+      serialized,
+      Arc::downgrade(&storage),
+    ));
+    storage.load_leaf_nodes();
+    storage
+  }
+
+  /// Eagerly deserialize all input and interned nodes.
+  /// Must run before any derived query deserialization, because derived query
+  /// blobs contain DepNodeIndex references to inputs/interned that need to be
+  /// in the decoder's dep_id_table before decoding.
+  fn load_leaf_nodes(self: &Arc<Self>) {
+    let Some(ctx) = self.deserialize_ctx.get() else {
+      return;
+    };
+    // Collect node indices to avoid borrowing ctx during iteration
+    let leaf_nodes: Vec<(DepNodeIndex, Fingerprint)> = ctx
+      .serialized
+      .dep_graph
+      .nodes
+      .iter()
+      .enumerate()
+      .filter_map(|(i, node)| match node {
+        DepNode::InputField { .. } | DepNode::Interned { .. } => {
+          Some((i as DepNodeIndex, node.name()))
+        }
+        _ => None,
+      })
+      .collect();
+
+    for (node_index, name) in &leaf_nodes {
+      if ctx.decoder.get_dep_node_id(*node_index).is_some() {
+        continue;
+      }
+      let node = &ctx.serialized.dep_graph.nodes[*node_index as usize];
+      let node_field_index = node.field_index();
+      for &idx in ctx.ingredients_by_name(name) {
+        if self.ingredients[idx].field_index == node_field_index {
+          self.ingredients[idx]
+            .ingredient
+            .deserialize(ctx, *node_index);
+          break;
+        }
+      }
     }
   }
 

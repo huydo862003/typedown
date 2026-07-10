@@ -1,3 +1,11 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::time::SystemTime;
+
+use crate::db::derived::parse_file::parse_file;
+use crate::db::types::{File, FileHandle, Project};
+use crate::db::{QueryStorage, TypedownDatabase};
+
 use super::helpers::*;
 
 // Parses YAML frontmatter with nested mappings and sequences followed by rich markdown body
@@ -157,6 +165,137 @@ A paragraph with **bold** and *italic*.
           "blockquote")))
     "\n"))"####
   );
+}
+
+// Parses frontmatter with function call (fref) followed by markdown body
+#[test]
+fn parse_tdr_fref_in_frontmatter_then_markdown() {
+  let input = r#"---
+_type: Task
+title: "Design mockups"
+project: fref("content/projects/website-redesign.tdr")
+---
+
+Completed **ahead of schedule**.
+"#;
+  let (ast, _) = parse(input);
+  let tree = render_tree(&ast);
+  assert!(tree.contains("YamlFrontmatter"), "should have frontmatter");
+  assert!(tree.contains("MdBody"), "should have markdown body");
+}
+
+// Parse all files from the project_tracker example through the query engine
+#[test]
+fn parse_all_project_tracker_files() {
+  let project_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    .parent()
+    .unwrap()
+    .parent()
+    .unwrap()
+    .join("examples/project_tracker");
+  if !project_dir.exists() {
+    return;
+  }
+
+  let db = TypedownDatabase {
+    storage: QueryStorage::default(),
+  };
+
+  let mut file_map = HashMap::new();
+  fn collect_files(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+    for entry in std::fs::read_dir(dir).unwrap().flatten() {
+      let p = entry.path();
+      if p.is_dir() {
+        collect_files(&p, out);
+      } else {
+        let ext = p.extension().and_then(|e| e.to_str());
+        let name = p.file_name().and_then(|n| n.to_str());
+        if ext == Some("tdr") || matches!(name, Some("typedown.yaml") | Some("typedown.yml")) {
+          out.push(p);
+        }
+      }
+    }
+  }
+  let mut paths = Vec::new();
+  collect_files(&project_dir, &mut paths);
+
+  for path in &paths {
+    let handle = FileHandle::Path(
+      path.clone(),
+      std::fs::metadata(&path)
+        .and_then(|m| m.modified())
+        .unwrap_or(SystemTime::UNIX_EPOCH),
+    );
+    let file = File::new(&db, handle);
+    file_map.insert(path.clone(), file);
+  }
+  let project = Project::new(&db, project_dir, file_map.clone());
+
+  let mut sorted_files: Vec<_> = file_map.iter().collect();
+  sorted_files.sort_by_key(|(p, _)| p.clone());
+  for (path, file) in sorted_files {
+    if path.extension().and_then(|e| e.to_str()) != Some("tdr") {
+      continue;
+    }
+    eprintln!("parsing: {}", path.display());
+    let result = parse_file(&db, project, *file);
+    let _ = result.diagnostics(&db);
+  }
+}
+
+// Interpolation with function call in markdown body
+#[test]
+fn parse_tdr_interpolation_with_fref() {
+  let input = r#"---
+_type: Person
+name: "Alice"
+---
+
+Inline formula reference: ${fref("content/tasks/implement-auth.tdr")}
+"#;
+  let (ast, _) = parse(input);
+  let tree = render_tree(&ast);
+  assert!(tree.contains("InterpFragment"), "should have interpolation");
+  assert!(tree.contains("CallExpr"), "should have function call");
+}
+
+// Exact content from write-tests.tdr
+#[test]
+fn parse_tdr_write_tests_file() {
+  let input = r#"---
+_type: Task
+title: "Write integration tests for auth"
+status: "todo"
+priority: "medium"
+project: fref("content/projects/website-redesign.tdr")
+assignee: fref("content/people/alice.tdr")
+---
+
+Depends on the auth implementation being merged first.
+Tests should cover login success, login failure, session expiry, and password reset flow.
+Use the existing test harness in `tests/integration/`.
+
+## Test Cases
+
+| Scenario | Expected Result |
+|----------|----------------|
+| Valid credentials | 200 with access token |
+| Wrong password | 401 |
+| Expired session | 401, prompt re-login |
+| Password reset request | 200, email sent |
+| Rate limit exceeded | 429 |
+
+## Checklist
+
+- [ ] Set up test database fixtures
+- [ ] Write happy path tests
+- [ ] Write failure and edge case tests
+- [ ] Assert token expiry behavior
+"#;
+  let (ast, _) = parse(input);
+  let tree = render_tree(&ast);
+  assert!(tree.contains("YamlFrontmatter"), "should have frontmatter");
+  assert!(tree.contains("MdBody"), "should have markdown body");
 }
 
 // Parses YAML frontmatter with folded block scalar followed by markdown body

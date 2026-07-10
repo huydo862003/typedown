@@ -7,7 +7,7 @@ pub struct IngredientEntry {
   pub field_index: Option<u8>,
 }
 
-/// A callback that creates an IngredientEntry, receiving its index in the ingredients vec
+/// A callback that creates an IngredientEntry, receiving its index
 pub type IngredientFactory = fn(usize) -> IngredientEntry;
 
 pub struct Inventory {

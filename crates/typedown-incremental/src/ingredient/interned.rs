@@ -1,11 +1,13 @@
+use std::hash::Hash;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use dashmap::DashMap;
 
-use crate::persist::serialized::dep_graph::DepNodeIndex;
+use crate::persist::serialized::dep_graph::{DepNode, DepNodeIndex};
 use crate::{
-  DepId, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash,
-  StableHasher, UnresolvedDepNode,
+  Decodable, DepId, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext,
+  StableHash, StableHasher, UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -13,22 +15,31 @@ use super::Ingredient;
 /// An ingredient for an interned struct
 #[derive(Clone)]
 #[doc(hidden)]
-pub struct InternedIngredient<T> {
+pub struct InternedIngredient<T: 'static> {
   ingredient_index: usize,
   name: &'static str,
+  pub(crate) id_counter: &'static AtomicUsize,
+  pub(crate) intern_map: &'static DashMap<T, usize>,
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, T>>,
 }
 
-impl<T> InternedIngredient<T> {
+impl<T: 'static> InternedIngredient<T> {
   #[cfg(debug_assertions)]
   #[doc(hidden)]
   pub const __TYPEDOWN_INTERNED_INGREDIENT: () = ();
 
-  pub fn new(ingredient_index: usize, name: &'static str) -> Self {
+  pub fn new(
+    ingredient_index: usize,
+    name: &'static str,
+    id_counter: &'static AtomicUsize,
+    intern_map: &'static DashMap<T, usize>,
+  ) -> Self {
     Self {
       ingredient_index,
       name,
+      id_counter,
+      intern_map,
       data: Arc::new(DashMap::new()),
     }
   }
@@ -44,7 +55,9 @@ impl<T: StableHash + Send + Sync + 'static> InternedIngredient<T> {
   }
 }
 
-impl<T: StableHash + Encodable + Send + Sync + 'static> Ingredient for InternedIngredient<T> {
+impl<T: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + 'static> Ingredient
+  for InternedIngredient<T>
+{
   fn name(&self) -> Fingerprint {
     Fingerprint::from_name(self.name)
   }
@@ -66,8 +79,26 @@ impl<T: StableHash + Encodable + Send + Sync + 'static> Ingredient for InternedI
     InternedIngredient::value_fingerprint(self, db, entry_id)
   }
 
-  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
-    todo!()
+  fn deserialize(&self, ctx: &DeserializeContext, node_index: DepNodeIndex) -> Option<DepId> {
+    if let Some(dep_id) = ctx.decoder.get_dep_node_id(node_index) {
+      return Some(dep_id);
+    }
+    let node = &ctx.serialized.dep_graph.nodes[node_index as usize];
+    let DepNode::Interned { blob_index, .. } = node else {
+      return None;
+    };
+    let blob = ctx.decoder.get_intern_blob(*blob_index);
+    let mut data = blob;
+    let value = T::decode(&mut data, &ctx.decoder);
+    let id_counter = self.id_counter;
+    let entry_id = *self
+      .intern_map
+      .entry(value.clone())
+      .or_insert_with(|| id_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    self.data.entry(entry_id).or_insert(value);
+    let dep_id = (self.ingredient_index, entry_id);
+    ctx.decoder.set_dep_node_id(node_index, dep_id);
+    Some(dep_id)
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {

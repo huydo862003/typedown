@@ -9,6 +9,7 @@ use std::{fs, io};
 use lsp_types::Uri;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ropey::Rope;
+use typedown_incremental::InputId;
 use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::types::{File, FileHandle, Project};
 
@@ -29,7 +30,7 @@ pub struct AnalysisHost {
 
 impl AnalysisHost {
   pub fn new(
-    db: TypedownDatabase,
+    mut db: TypedownDatabase,
     project_dir: PathBuf,
     watcher_tx: Sender<notify::Result<Event>>,
   ) -> io::Result<Self> {
@@ -42,16 +43,39 @@ impl AnalysisHost {
     // Scan project directory for .tdr files
     let project_files = scan_project_files(&project_dir)?;
 
-    // Create stable File IDs and initial project
+    // Derived queries are keyed by File/Project entry ID, so we must reuse the
+    // same IDs from the previous session for cache hits to work.
+    let cached_files: HashMap<PathBuf, File> = File::iter(&db)
+      .into_iter()
+      .filter_map(|file| {
+        let handle = file.handle(&db);
+        handle.path().cloned().map(|path| (path, file))
+      })
+      .collect();
+
     let mut file_map = HashMap::new();
     let mut files = HashMap::new();
     for path in &project_files {
       let handle = disk_handle(path);
-      let file = File::new(&db, handle);
+      let file = if let Some(&cached) = cached_files.get(path) {
+        cached.set_handle(&mut db, handle);
+        cached
+      } else {
+        File::new(&db, handle)
+      };
       file_map.insert(path.clone(), file);
       files.insert(path.clone(), file);
     }
-    let project = Project::new(&db, project_dir.clone(), files);
+
+    let cached_project = Project::iter(&db)
+      .into_iter()
+      .find(|proj| proj.root_dir(&db) == project_dir);
+    let project = if let Some(proj) = cached_project {
+      proj.set_files(&mut db, files);
+      proj
+    } else {
+      Project::new(&db, project_dir.clone(), files)
+    };
 
     Ok(Self {
       db,
@@ -172,6 +196,10 @@ impl AnalysisHost {
     if self.project_files.remove(&path) {
       self.sync_files();
     }
+  }
+
+  pub fn into_db(self) -> TypedownDatabase {
+    self.db
   }
 
   pub fn open_file_content(&self, path: &PathBuf) -> Option<&Rope> {

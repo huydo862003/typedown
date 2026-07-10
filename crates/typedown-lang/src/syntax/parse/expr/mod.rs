@@ -235,8 +235,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
       return (self.emit(SyntaxKind::CallExpr, &children), None);
     }
 
-    // Parse first argument
-    let (arg, early_exit) = self.parse_expr(block_indent);
+    // Parse first argument (formula expression, not full YAML expr)
+    let (arg, early_exit) = self.parse_formula_expr(vec![], block_indent);
     children.push(arg);
     if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
       self.expr_ctx_stack.exit(ExprCtx::Call);
@@ -261,7 +261,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
             break;
           }
 
-          let (arg, early_exit) = self.parse_expr(block_indent);
+          let (arg, early_exit) = self.parse_formula_expr(vec![], block_indent);
           children.push(arg);
           if early_exit.is_some_and(|ctx| ctx != ExprCtx::Call) {
             self.expr_ctx_stack.exit(ExprCtx::Call);

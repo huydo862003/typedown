@@ -1498,6 +1498,8 @@ mod tests {
   use typedown_incremental::{Decodable, Encodable};
   use typedown_incremental::{Decoder, Encoder, QueryStorage};
 
+  use std::sync::Arc;
+
   use crate::db::TypedownDatabase;
   use crate::syntax::diagnostic::Diagnostic;
   use crate::syntax::green::GreenNode;
@@ -1513,7 +1515,7 @@ mod tests {
     let mut enc = Encoder::new(&db);
     v.encode(&mut buf, &mut enc);
     let intern_blobs = enc.finish();
-    let decoder = Decoder::new(&db, &intern_blobs);
+    let decoder = Decoder::new(Arc::new(db.storage.clone()), Arc::new(intern_blobs));
     let mut data: &[u8] = &buf;
     let decoded = T::decode(&mut data, &decoder);
     assert_eq!(*v, decoded);
@@ -1547,7 +1549,7 @@ mod tests {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
-    let decoder = Decoder::new(&db, &[]);
+    let decoder = Decoder::new(Arc::new(db.storage.clone()), Arc::new(vec![]));
     let data: &[u8] = &[0];
     let mut data = data;
     assert_eq!(decoder.read_bool(&mut data), false);
@@ -1558,7 +1560,7 @@ mod tests {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
-    let decoder = Decoder::new(&db, &[]);
+    let decoder = Decoder::new(Arc::new(db.storage.clone()), Arc::new(vec![]));
     let data: &[u8] = &[1];
     let mut data = data;
     assert_eq!(decoder.read_bool(&mut data), true);
