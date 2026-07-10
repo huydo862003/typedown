@@ -9,9 +9,11 @@ use std::{
   },
 };
 
-use crate::persist::serialized::dep_graph::DepNode;
+use crate::persist::serialized::dep_graph::{DepNode, DepNodeIndex};
 use crate::{Cancelled, ExecuteContext, QueryStackEntry, QueryStorage};
-use crate::{Decodable, Encodable, Fingerprint, StableHash, StableHasher};
+use crate::{
+  Decodable, DepId, DeserializeContext, Encodable, Fingerprint, StableHash, StableHasher,
+};
 use crate::{DerivedId, QueryDatabase, SerializeContext, UnresolvedDepNode};
 use dashmap::DashMap;
 
@@ -439,6 +441,10 @@ impl<
     DerivedQueryIngredient::value_fingerprint(self, db, entry_id)
   }
 
+  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
+    todo!()
+  }
+
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
     let Some(entry) = self.data.get(&entry_id) else {
       return;
@@ -535,6 +541,10 @@ impl<T: StableHash + Send + Sync + 'static> Ingredient for DerivedFieldIngredien
 
   fn value_fingerprint(&self, db: &dyn QueryDatabase, entry_id: usize) -> Option<Fingerprint> {
     DerivedFieldIngredient::value_fingerprint(self, db, entry_id)
+  }
+
+  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
+    todo!()
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {

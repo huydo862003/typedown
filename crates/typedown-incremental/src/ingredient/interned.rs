@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
+use crate::persist::serialized::dep_graph::DepNodeIndex;
 use crate::{
-  Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash, StableHasher,
-  UnresolvedDepNode,
+  DepId, DeserializeContext, Encodable, Fingerprint, QueryDatabase, SerializeContext, StableHash,
+  StableHasher, UnresolvedDepNode,
 };
 
 use super::Ingredient;
@@ -63,6 +64,10 @@ impl<T: StableHash + Encodable + Send + Sync + 'static> Ingredient for InternedI
 
   fn value_fingerprint(&self, db: &dyn QueryDatabase, entry_id: usize) -> Option<Fingerprint> {
     InternedIngredient::value_fingerprint(self, db, entry_id)
+  }
+
+  fn deserialize(&self, _ctx: &DeserializeContext, _node_index: DepNodeIndex) -> Option<DepId> {
+    todo!()
   }
 
   fn serialize(&self, ctx: &mut SerializeContext, entry_id: usize) {
