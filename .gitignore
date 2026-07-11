@@ -2,7 +2,7 @@ book
 node_modules
 
 # Added by cargo
-/target
+target/
 
 # Added by typedown
 .typedown

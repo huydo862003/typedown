@@ -6,10 +6,6 @@ authors = ["Huy Do <huydo862003@example.com>"]
 description = "Language server for Typedown - a structured type-safe markdown language"
 repository = "https://github.com/huydo862003/typedown"
 
-[grammars.typedown]
-repository = "https://github.com/huydo862003/tree-sitter-typedown"
-rev = "main"
-
 [language_servers.typedown-lsp]
 name = "Typedown LSP"
 languages = ["Typedown"]
