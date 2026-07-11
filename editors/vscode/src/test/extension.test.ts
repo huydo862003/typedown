@@ -1,0 +1,2 @@
+suite('Extension Test Suite', () => {
+});

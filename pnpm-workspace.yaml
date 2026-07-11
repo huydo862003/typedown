@@ -1,2 +1,5 @@
 packages:
   - "packages/*"
+  - "editors/vscode"
+allowBuilds:
+  unrs-resolver: true

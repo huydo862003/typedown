@@ -4,6 +4,11 @@ node_modules
 # Added by cargo
 target/
 
+# Typescript
+dist/
+build/
+output/
+
 # zed
 zed/extension.wasm
 
