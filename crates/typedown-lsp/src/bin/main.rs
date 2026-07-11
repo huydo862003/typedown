@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc;
 
 use lsp_server::Connection;
 use lsp_types::{
@@ -84,10 +83,9 @@ fn main() -> anyhow::Result<()> {
   };
   let db = TypedownDatabase { storage };
 
-  let (watcher_tx, watcher_rx) = mpsc::channel();
-  let host = AnalysisHost::new(db, project_dir, watcher_tx)?;
+  let host = AnalysisHost::new(db, project_dir)?;
 
-  let host = Server::new(connection, host, watcher_rx).run()?;
+  let host = Server::new(connection, host, init_params.capabilities).run()?;
 
   // Save incremental cache on shutdown
   let db = host.into_db();

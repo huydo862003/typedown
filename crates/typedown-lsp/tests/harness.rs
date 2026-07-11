@@ -11,7 +11,6 @@
 
 use std::cell::Cell;
 use std::str::FromStr;
-use std::sync::mpsc;
 use std::time::Duration;
 
 use lsp_server::{Connection, Message, Request, Response};
@@ -66,9 +65,7 @@ impl ServerBuilder {
       let db = TypedownDatabase {
         storage: QueryStorage::default(),
       };
-      let (watcher_tx, watcher_rx) = mpsc::channel();
-      let host =
-        AnalysisHost::new(db, root_clone, watcher_tx).expect("failed to create AnalysisHost");
+      let host = AnalysisHost::new(db, root_clone).expect("failed to create AnalysisHost");
 
       // Perform the LSP initialize handshake using the server-side connection.
       let capabilities = ServerCapabilities {
@@ -85,7 +82,9 @@ impl ServerBuilder {
         .initialize_finish(init_id, serde_json::json!({ "capabilities": capabilities }))
         .expect("initialize_finish failed");
 
-      LspServer::new(server_conn, host, watcher_rx).run().ok();
+      LspServer::new(server_conn, host, ClientCapabilities::default())
+        .run()
+        .ok();
     });
 
     // Client side: send initialize.
