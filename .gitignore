@@ -4,5 +4,8 @@ node_modules
 # Added by cargo
 target/
 
+# zed
+zed/extension.wasm
+
 # Added by typedown
 .typedown
