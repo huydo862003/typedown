@@ -76,7 +76,10 @@ fn cache_roundtrip_with_project() {
 
 // Trigger parsing, symbol resolution, and typechecking for all .tdr files
 fn run_diagnostics(db: &TypedownDatabase) {
-  let project = Project::iter(db).into_iter().next().expect("project should exist");
+  let project = Project::iter(db)
+    .into_iter()
+    .next()
+    .expect("project should exist");
   for (path, file) in project.files(db) {
     if path.extension().and_then(|e| e.to_str()) != Some("tdr") {
       continue;

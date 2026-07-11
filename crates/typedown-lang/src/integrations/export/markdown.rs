@@ -30,8 +30,13 @@ mod tests {
     let (db, project, file) =
       load_vault_fixture("evaluate/my_vault", "content/md_with_content.tdr");
     let output = export_markdown(&db, project, file);
-    assert_eq!(output.as_deref(), Some(r#"Hello world
-"#));
+    assert_eq!(
+      output.as_deref(),
+      Some(
+        r#"Hello world
+"#
+      )
+    );
   }
 
   #[test]
