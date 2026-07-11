@@ -2,7 +2,16 @@ book
 node_modules
 
 # Added by cargo
-/target
+<<<<<<< HEAD
+target/
+
+# Typescript
+dist/
+build/
+output/
+
+# zed
+zed/extension.wasm
 
 # Added by typedown
 .typedown
