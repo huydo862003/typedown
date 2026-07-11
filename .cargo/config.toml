@@ -1,0 +1,2 @@
+[alias]
+build-wasm = "build --target wasm32-wasip1 -p typedown-lsp-wasm --release"
