@@ -2,7 +2,7 @@ id = "typedown"
 name = "Typedown"
 version = "0.1.0"
 schema_version = 1
-authors = ["Huy Do <huydo862003@example.com>"]
+authors = ["Lucas Nguyen"]
 description = "Language server for Typedown - a structured type-safe markdown language"
 repository = "https://github.com/huydo862003/typedown"
 
