@@ -2,6 +2,7 @@
 name = "typedown-incremental"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL"
 
 [dependencies]
 typedown-macros = { version = "0.1.0", path = "../typedown-macros" }
