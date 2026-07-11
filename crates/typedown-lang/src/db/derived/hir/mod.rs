@@ -51,32 +51,16 @@ fn lower_markdown(db: &TypedownDatabase, project: Project, file: File, node: Red
         return;
       }
     }
-    // Math block: $$...$$
-    if let Some(math) = MathBlock::cast(node.clone()) {
-      let value = math.value().unwrap_or_default();
-      let hir = HirValue::new(db, project, file, node, HirValueKind::Math(value), vec![]);
-      parts.push(InterpolatedPart::Expr(hir));
-      return;
-    }
-    // Code block: ```...```
-    if let Some(code) = CodeBlock::cast(node.clone()) {
-      let value = code.value().unwrap_or_default();
-      let hir = HirValue::new(db, project, file, node, HirValueKind::Str(value), vec![]);
-      parts.push(InterpolatedPart::Expr(hir));
-      return;
-    }
-    // Inline math: $...$
-    if let Some(math) = InlineMath::cast(node.clone()) {
-      let value = math.value().unwrap_or_default();
-      let hir = HirValue::new(db, project, file, node, HirValueKind::Math(value), vec![]);
-      parts.push(InterpolatedPart::Expr(hir));
-      return;
-    }
-    // Inline code: `...`
-    if let Some(code) = InlineCode::cast(node.clone()) {
-      let value = code.value().unwrap_or_default();
-      let hir = HirValue::new(db, project, file, node, HirValueKind::Str(value), vec![]);
-      parts.push(InterpolatedPart::Expr(hir));
+    if MathBlock::cast(node.clone()).is_some()
+      || CodeBlock::cast(node.clone()).is_some()
+      || InlineMath::cast(node.clone()).is_some()
+      || InlineCode::cast(node.clone()).is_some()
+    {
+      let text = node.text();
+      match parts.last_mut() {
+        Some(InterpolatedPart::Literal(existing)) => existing.push_str(&text),
+        _ => parts.push(InterpolatedPart::Literal(text)),
+      }
       return;
     }
     // If node is a token, it must be a string token
@@ -450,10 +434,10 @@ mod tests {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
     };
-    let has_math = parts.iter().any(|p| {
-      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Math(_)))
-    });
-    assert!(has_math, "expected inline math part");
+    let has_math = parts
+      .iter()
+      .any(|p| matches!(p, InterpolatedPart::Literal(s) if s.contains('$')));
+    assert!(has_math, "expected inline math as literal with $ delimiter");
   }
 
   #[test]
@@ -473,10 +457,10 @@ mod tests {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
     };
-    let has_code = parts.iter().any(
-      |p| matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_))),
-    );
-    assert!(has_code, "expected inline code part as Str");
+    let has_code = parts
+      .iter()
+      .any(|p| matches!(p, InterpolatedPart::Literal(s) if s.contains('`')));
+    assert!(has_code, "expected inline code as literal with backtick delimiter");
   }
 
   #[test]
@@ -517,10 +501,10 @@ mod tests {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
     };
-    let has_math = parts.iter().any(|p| {
-      matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Math(_)))
-    });
-    assert!(has_math, "expected math block part");
+    let has_math = parts
+      .iter()
+      .any(|p| matches!(p, InterpolatedPart::Literal(s) if s.contains("$$")));
+    assert!(has_math, "expected math block as literal with $$ delimiter");
   }
 
   #[test]
@@ -540,9 +524,9 @@ mod tests {
       HirValueKind::Markdown(parts) => parts,
       _ => panic!("expected Markdown kind"),
     };
-    let has_code = parts.iter().any(
-      |p| matches!(p, InterpolatedPart::Expr(hir) if matches!(hir.kind(&db), HirValueKind::Str(_))),
-    );
-    assert!(has_code, "expected code block part as Str");
+    let has_code = parts
+      .iter()
+      .any(|p| matches!(p, InterpolatedPart::Literal(s) if s.contains("```")));
+    assert!(has_code, "expected code block as literal with ``` delimiter");
   }
 }
