@@ -2,7 +2,6 @@ name: Docs
 
 on:
   push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -14,10 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    name: Build Docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +28,16 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: doc/book
+          retention-days: 2
 
+  deploy:
+    name: Deploy Docs
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
