@@ -173,12 +173,11 @@ impl ExprCtxStack {
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
-      ExprCtx::MdCalloutBlock(parent_prefix_count)
-        if parent_prefix_count > 0 => {
-          self
-            .md_prefix_tokens
-            .push(cache.token(SyntaxKind::Whitespace, b" "));
-        }
+      ExprCtx::MdCalloutBlock(parent_prefix_count) if parent_prefix_count > 0 => {
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
+      }
       _ => {}
     }
   }

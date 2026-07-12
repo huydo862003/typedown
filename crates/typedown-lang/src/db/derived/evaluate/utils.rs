@@ -70,9 +70,10 @@ pub(crate) fn construct_from_hir(
         _ => {
           let resolved = referee(db, *callee);
           if let Some(symbol) = resolved.value(db)
-            && let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
-              return construct_macro(db, kind, args);
-            }
+            && let SymbolKind::BuiltinMacro(kind) = symbol.kind(db)
+          {
+            return construct_macro(db, kind, args);
+          }
           // Plain function call: evaluate callee, check if it's a function, call it
           let callee_obj = evaluate_node(db, *callee).value(db)?;
           if let TdrObjectEnum::TdrFuncObj(func_obj) = &callee_obj {
@@ -139,9 +140,7 @@ fn evaluate_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Option<
     }
     // Logical not: only null and false are falsy, everything else is truthy
     "~" => {
-      let is_falsy = operand_obj
-        .as_tdr_bool_obj()
-        .is_some_and(|b| !b.value(db));
+      let is_falsy = operand_obj.as_tdr_bool_obj().is_some_and(|b| !b.value(db));
       Some(TdrBoolObj::new(db, is_falsy).into())
     }
     _ => None,

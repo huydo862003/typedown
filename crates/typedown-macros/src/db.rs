@@ -337,9 +337,10 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
     .iter()
     .filter_map(|arg| {
       if let syn::FnArg::Typed(pat_type) = arg
-        && let syn::Pat::Ident(pat_ident) = pat_type.pat.as_ref() {
-          return Some(&pat_ident.ident);
-        }
+        && let syn::Pat::Ident(pat_ident) = pat_type.pat.as_ref()
+      {
+        return Some(&pat_ident.ident);
+      }
       None
     })
     .collect();

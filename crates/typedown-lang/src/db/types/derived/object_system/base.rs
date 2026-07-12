@@ -18,7 +18,11 @@ use typedown_macros::query_derived;
 pub trait TdrObjectLike: Id {
   fn get_type(&self, db: &::typedown_lang::db::TypedownDatabase) -> TdrTypeEnum;
 
-  fn lookup_method(&self, db: &::typedown_lang::db::TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
+  fn lookup_method(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    key: &str,
+  ) -> Option<TdrFuncObj> {
     let mut current = self.get_type(db);
     loop {
       if let Some(func_obj) = current.get_vtable(db).remove(key) {
@@ -32,14 +36,22 @@ pub trait TdrObjectLike: Id {
     }
   }
 
-  fn lookup_field(&self, db: &::typedown_lang::db::TypedownDatabase, key: &str) -> Option<TdrObjectEnum> {
+  fn lookup_field(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    key: &str,
+  ) -> Option<TdrObjectEnum> {
     if let Some(field) = self.get_owned_field(db, key) {
       return Some(field);
     }
     self.lookup_method(db, key).map(TdrObjectEnum::from)
   }
 
-  fn get_owned_field(&self, db: &::typedown_lang::db::TypedownDatabase, key: &str) -> Option<TdrObjectEnum>;
+  fn get_owned_field(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    key: &str,
+  ) -> Option<TdrObjectEnum>;
 
   fn source_path(&self, db: &::typedown_lang::db::TypedownDatabase) -> String;
 
@@ -107,7 +119,11 @@ pub trait TdrTypeLike: TdrObjectLike {
     args: Vec<TdrTypeEnum>,
   ) -> ::typedown_lang::db::types::InstResult;
 
-  fn is_compatible_with(&self, db: &::typedown_lang::db::TypedownDatabase, actual: &TdrTypeEnum) -> bool;
+  fn is_compatible_with(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    actual: &TdrTypeEnum,
+  ) -> bool;
 
   fn get_type_args(&self, db: &::typedown_lang::db::TypedownDatabase) -> Vec<TdrTypeEnum>;
 
@@ -152,11 +168,16 @@ pub trait TdrTypeLike: TdrObjectLike {
     supertype.lookup_instance_method(db, key)
   }
 
-  fn lookup_field_type(&self, db: &::typedown_lang::db::TypedownDatabase, name: &str) -> Option<TdrTypeEnum> {
+  fn lookup_field_type(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    name: &str,
+  ) -> Option<TdrTypeEnum> {
     if let Some(member) = self.get_field_type(db, name)
-      && let MemberType::Simple(typ) = member.typ(db) {
-        return Some(typ);
-      }
+      && let MemberType::Simple(typ) = member.typ(db)
+    {
+      return Some(typ);
+    }
     self
       .lookup_instance_method(db, name)
       .map(|func_obj| func_obj.get_type(db))
@@ -204,13 +225,21 @@ impl TdrTypeLike for TdrTypeType {
   ) -> Option<TypeMember> {
     None
   }
-  fn instantiate(&self, db: &::typedown_lang::db::TypedownDatabase, _args: Vec<TdrTypeEnum>) -> InstResult {
+  fn instantiate(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    _args: Vec<TdrTypeEnum>,
+  ) -> InstResult {
     InstResult::new(db, (*self).into(), vec![])
   }
   fn get_type_args(&self, _db: &::typedown_lang::db::TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
   }
-  fn is_compatible_with(&self, _db: &::typedown_lang::db::TypedownDatabase, actual: &TdrTypeEnum) -> bool {
+  fn is_compatible_with(
+    &self,
+    _db: &::typedown_lang::db::TypedownDatabase,
+    actual: &TdrTypeEnum,
+  ) -> bool {
     self.as_id() == actual.as_id()
   }
   fn construct(
@@ -280,13 +309,21 @@ impl TdrTypeLike for TdrObjectType {
   ) -> Option<TypeMember> {
     None
   }
-  fn instantiate(&self, db: &::typedown_lang::db::TypedownDatabase, _args: Vec<TdrTypeEnum>) -> InstResult {
+  fn instantiate(
+    &self,
+    db: &::typedown_lang::db::TypedownDatabase,
+    _args: Vec<TdrTypeEnum>,
+  ) -> InstResult {
     InstResult::new(db, (*self).into(), vec![])
   }
   fn get_type_args(&self, _db: &::typedown_lang::db::TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
   }
-  fn is_compatible_with(&self, _db: &::typedown_lang::db::TypedownDatabase, actual: &TdrTypeEnum) -> bool {
+  fn is_compatible_with(
+    &self,
+    _db: &::typedown_lang::db::TypedownDatabase,
+    actual: &TdrTypeEnum,
+  ) -> bool {
     self.as_id() == actual.as_id()
   }
   fn construct(

@@ -56,9 +56,10 @@ impl<'a> Encoder<'a> {
 
   pub fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
     if let Some(key) = hint
-      && let Some(&index) = self.intern_hints.get(&key) {
-        return index;
-      }
+      && let Some(&index) = self.intern_hints.get(&key)
+    {
+      return index;
+    }
     if let Some(&index) = self.intern_table.get(&blob) {
       if let Some(key) = hint {
         self.intern_hints.insert(key, index);

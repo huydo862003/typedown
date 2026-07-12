@@ -119,11 +119,12 @@ impl<
       .downcast_ref::<DB>()
       .expect("database type mismatch in key_fingerprint");
     if let Some(entry) = self.data.get(&arg_id)
-      && let QueryState::Computed(memo) = &*entry {
-        let mut hasher: StableHasher = StableHasher::new();
-        memo.key.stable_hash(db, &mut hasher);
-        return Some(Fingerprint::from_hasher(hasher));
-      }
+      && let QueryState::Computed(memo) = &*entry
+    {
+      let mut hasher: StableHasher = StableHasher::new();
+      memo.key.stable_hash(db, &mut hasher);
+      return Some(Fingerprint::from_hasher(hasher));
+    }
     None
   }
 
@@ -135,11 +136,12 @@ impl<
       .downcast_ref::<DB>()
       .expect("database type mismatch in value_fingerprint");
     if let Some(entry) = self.data.get(&arg_id)
-      && let QueryState::Computed(memo) = &*entry {
-        let mut hasher: StableHasher = StableHasher::new();
-        memo.value.stable_hash(db, &mut hasher);
-        return Some(Fingerprint::from_hasher(hasher));
-      }
+      && let QueryState::Computed(memo) = &*entry
+    {
+      let mut hasher: StableHasher = StableHasher::new();
+      memo.value.stable_hash(db, &mut hasher);
+      return Some(Fingerprint::from_hasher(hasher));
+    }
     None
   }
 
@@ -486,11 +488,12 @@ impl<
       .expect("database type mismatch in re_execute");
     // Look up the key from the memo and re-execute
     if let Some(entry) = self.data.get(&arg_id)
-      && let QueryState::Computed(memo) = &*entry {
-        let key = memo.key.clone();
-        drop(entry);
-        self.execute_query(db, key);
-      }
+      && let QueryState::Computed(memo) = &*entry
+    {
+      let key = memo.key.clone();
+      drop(entry);
+      self.execute_query(db, key);
+    }
   }
 
   fn entry_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {

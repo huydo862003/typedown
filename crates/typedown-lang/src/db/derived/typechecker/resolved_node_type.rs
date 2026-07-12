@@ -15,10 +15,11 @@ pub fn resolved_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
 
   // If there is a declared member with a simple type, use it
   if let Some(member) = declared.member(db)
-    && let MemberType::Simple(typ) = member.typ(db) {
-      let diagnostics = declared.diagnostics(db).clone();
-      return TypeResult::new(db, Some(typ), diagnostics);
-    }
+    && let MemberType::Simple(typ) = member.typ(db)
+  {
+    let diagnostics = declared.diagnostics(db).clone();
+    return TypeResult::new(db, Some(typ), diagnostics);
+  }
 
   // Fall back to inferred type
   infer_node_type(db, hir)

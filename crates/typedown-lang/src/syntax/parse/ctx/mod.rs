@@ -62,10 +62,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let yaml_frontmatter = self.parse_yaml_frontmatter();
     self.lex_ctx.set_mode(LexMode::MarkdownBody);
     let markdown_body = self.parse_markdown_body();
-    self.emit(
-      SyntaxKind::SourceFile,
-      &[yaml_frontmatter, markdown_body],
-    )
+    self.emit(SyntaxKind::SourceFile, &[yaml_frontmatter, markdown_body])
   }
 }
 

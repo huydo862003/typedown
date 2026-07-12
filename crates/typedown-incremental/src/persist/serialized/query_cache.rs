@@ -36,9 +36,9 @@ pub struct FileHeader {
 }
 
 impl Default for FileHeader {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
 
 impl FileHeader {

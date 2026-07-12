@@ -190,9 +190,9 @@ fn value_completions(
     && field
       .descriptors(db)
       .contains(TypeMemberDescriptors::OPTIONAL)
-    {
-      items.push(keyword_item("null"));
-    }
+  {
+    items.push(keyword_item("null"));
+  }
 
   Some(items)
 }

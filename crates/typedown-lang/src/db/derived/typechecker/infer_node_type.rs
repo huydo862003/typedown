@@ -231,9 +231,10 @@ fn get_call_type(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -
   // Check if callee is a macro
   let resolved = referee(db, callee);
   if let Some(symbol) = resolved.value(db)
-    && let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
-      return get_macro_call_type(db, kind, args);
-    }
+    && let SymbolKind::BuiltinMacro(kind) = symbol.kind(db)
+  {
+    return get_macro_call_type(db, kind, args);
+  }
 
   let callee_result = infer_node_type(db, callee);
   let diagnostics = callee_result.diagnostics(db).clone();

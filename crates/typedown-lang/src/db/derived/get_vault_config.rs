@@ -147,30 +147,32 @@ fn check_unknown_fields(
   if let Some(hash) = doc.as_hash() {
     for key in hash.keys() {
       if let Some(key_str) = key.as_str()
-        && !matches!(key_str, "version" | "vault") {
-          let offset = key_char_offset(contents, key_str).unwrap_or(0);
-          diagnostics.push(Diagnostic::VaultConfigUnknownField {
-            path: path_str.to_string(),
-            field: key_str.to_string(),
-            start_offset: offset,
-            end_offset: offset + key_str.chars().count(),
-          });
-        }
+        && !matches!(key_str, "version" | "vault")
+      {
+        let offset = key_char_offset(contents, key_str).unwrap_or(0);
+        diagnostics.push(Diagnostic::VaultConfigUnknownField {
+          path: path_str.to_string(),
+          field: key_str.to_string(),
+          start_offset: offset,
+          end_offset: offset + key_str.chars().count(),
+        });
+      }
     }
   }
 
   if let Some(vault_hash) = doc["vault"].as_hash() {
     for key in vault_hash.keys() {
       if let Some(key_str) = key.as_str()
-        && !matches!(key_str, "content_dir" | "schema_dir") {
-          let offset = key_char_offset(contents, key_str).unwrap_or(0);
-          diagnostics.push(Diagnostic::VaultConfigUnknownField {
-            path: path_str.to_string(),
-            field: format!("vault.{key_str}"),
-            start_offset: offset,
-            end_offset: offset + key_str.chars().count(),
-          });
-        }
+        && !matches!(key_str, "content_dir" | "schema_dir")
+      {
+        let offset = key_char_offset(contents, key_str).unwrap_or(0);
+        diagnostics.push(Diagnostic::VaultConfigUnknownField {
+          path: path_str.to_string(),
+          field: format!("vault.{key_str}"),
+          start_offset: offset,
+          end_offset: offset + key_str.chars().count(),
+        });
+      }
     }
   }
 }
@@ -182,8 +184,8 @@ fn extract_version(
   path_str: &str,
   diagnostics: &mut Vec<Diagnostic>,
 ) -> String {
-  doc["version"]
-    .as_str().map_or_else(|| {
+  doc["version"].as_str().map_or_else(
+    || {
       let offset = key_char_offset(contents, "version").unwrap_or(0);
       diagnostics.push(Diagnostic::VaultConfigMissingField {
         path: path_str.to_string(),
@@ -192,7 +194,9 @@ fn extract_version(
         end_offset: offset,
       });
       String::new()
-    }, |s| s.to_string())
+    },
+    |s| s.to_string(),
+  )
 }
 
 /// Extract `vault.content_dir` as an absolute path, pushing a missing-field diagnostic if absent.
@@ -203,8 +207,8 @@ fn extract_content_dir(
   root: &Path,
   diagnostics: &mut Vec<Diagnostic>,
 ) -> PathBuf {
-  doc["vault"]["content_dir"]
-    .as_str().map_or_else(|| {
+  doc["vault"]["content_dir"].as_str().map_or_else(
+    || {
       // Point at `content_dir:` if present, otherwise fall back to `vault:`.
       let offset = key_char_offset(contents, "content_dir")
         .or_else(|| key_char_offset(contents, "vault"))
@@ -216,7 +220,9 @@ fn extract_content_dir(
         end_offset: offset,
       });
       PathBuf::new()
-    }, |s| root.join(s))
+    },
+    |s| root.join(s),
+  )
 }
 
 /// Extract `vault.schema_dir` as an absolute path, pushing a missing-field diagnostic if absent.
@@ -227,8 +233,8 @@ fn extract_schema_dir(
   root: &Path,
   diagnostics: &mut Vec<Diagnostic>,
 ) -> PathBuf {
-  doc["vault"]["schema_dir"]
-    .as_str().map_or_else(|| {
+  doc["vault"]["schema_dir"].as_str().map_or_else(
+    || {
       // Point at `schema_dir:` if present, otherwise fall back to `vault:`.
       let offset = key_char_offset(contents, "schema_dir")
         .or_else(|| key_char_offset(contents, "vault"))
@@ -240,7 +246,9 @@ fn extract_schema_dir(
         end_offset: offset,
       });
       PathBuf::new()
-    }, |s| root.join(s))
+    },
+    |s| root.join(s),
+  )
 }
 
 /// Find the char offset of `key:` in the source text, returning `None` if the key is absent.

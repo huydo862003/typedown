@@ -35,11 +35,12 @@ impl DeserializeContext {
     let mut derived_groups: HashMap<(Fingerprint, u64), FieldGroup> = HashMap::new();
     for (i, node) in serialized.dep_graph.nodes.iter().enumerate() {
       if let DepNode::DerivedField {
-          name,
-          field_index,
-          entry_id,
-          ..
-        } = node {
+        name,
+        field_index,
+        entry_id,
+        ..
+      } = node
+      {
         derived_groups
           .entry((*name, *entry_id))
           .or_insert_with(|| FieldGroup { fields: Vec::new() })
@@ -96,9 +97,10 @@ impl DeserializeContext {
     indices.iter().find_map(|&idx| {
       let node = &self.serialized.dep_graph.nodes[idx as usize];
       if let DepNode::DerivedQuery { key: k, .. } = node
-        && k == &key {
-          return Some((idx, node));
-        }
+        && k == &key
+      {
+        return Some((idx, node));
+      }
       None
     })
   }
