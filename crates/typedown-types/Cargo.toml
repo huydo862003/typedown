@@ -1,6 +1,6 @@
 [package]
 name = "typedown-types"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "AGPL"
 authors = ["Huy-DNA <huydo862003@gmail.com>"]
