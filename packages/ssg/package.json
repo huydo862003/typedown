@@ -1,5 +1,8 @@
 {
-  "name": "@typedown/ssg",
+  "$schema": "https://json.schemastore.org/package",
   "version": "0.0.0",
-  "private": true
+  "name": "@typedown/ssg",
+  "author": "Huy-DNA <huydo862003@gmail.com>",
+  "private": true,
+  "license": "AGPL-3.0-only"
 }

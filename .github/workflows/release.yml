@@ -36,15 +36,19 @@ jobs:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             artifact: typedown-lsp
+            vsce-target: linux-x64
           - os: macos-15
             target: x86_64-apple-darwin
             artifact: typedown-lsp
+            vsce-target: darwin-x64
           - os: macos-15
             target: aarch64-apple-darwin
             artifact: typedown-lsp
+            vsce-target: darwin-arm64
           - os: windows-2025
             target: x86_64-pc-windows-msvc
             artifact: typedown-lsp.exe
+            vsce-target: win32-x64
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -60,11 +64,40 @@ jobs:
       - name: Build
         run: cargo build --locked --release -p typedown-lsp --target ${{ matrix.target }}
 
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: editors/vscode
+
+      - name: Copy binary into extension
+        shell: bash
+        run: |
+          mkdir -p editors/vscode/bin
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact }} editors/vscode/bin/
+
+      - name: Package VSIX
+        run: pnpm exec vsce package --target ${{ matrix.vsce-target }} --out typedown-${{ matrix.vsce-target }}.vsix
+        working-directory: editors/vscode
+
       - name: Upload binary
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: typedown-lsp-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
+          retention-days: 2
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: typedown-vscode-${{ matrix.vsce-target }}
+          path: editors/vscode/typedown-${{ matrix.vsce-target }}.vsix
           retention-days: 2
 
   release:
@@ -80,7 +113,7 @@ jobs:
         with:
           path: artifacts
 
-      - name: Rename artifacts
+      - name: Rename binary artifacts
         run: |
           mv artifacts/typedown-lsp-x86_64-unknown-linux-gnu/typedown-lsp artifacts/${{ env.ARTIFACT_LINUX_X86_64 }}
           mv artifacts/typedown-lsp-x86_64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
@@ -95,4 +128,8 @@ jobs:
             artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
             artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
             artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
+            artifacts/typedown-vscode-linux-x64/typedown-linux-x64.vsix
+            artifacts/typedown-vscode-darwin-x64/typedown-darwin-x64.vsix
+            artifacts/typedown-vscode-darwin-arm64/typedown-darwin-arm64.vsix
+            artifacts/typedown-vscode-win32-x64/typedown-win32-x64.vsix
           generate_release_notes: true

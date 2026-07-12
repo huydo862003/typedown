@@ -1,15 +1,20 @@
 {
-  "name": "typedown-lsp",
-  "displayName": "typedown-lsp",
+  "$schema": "https://json.schemastore.org/package",
+  "license": "AGPL-3.0-only",
+  "publisher": "hdnax",
+  "name": "typedown-vscode",
+  "displayName": "Typedown",
   "description": "vscode extension providing lsp services for the typedown language",
+  "private": true,
+  "author": "Huy-DNA <huydo862003@gmail.com>",
   "version": "0.0.0",
   "engines": {
-    "vscode": "^1.125.0"
+    "vscode": "^1.121.0"
   },
   "categories": [
     "lsp"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onLanguage:typedown"],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
@@ -37,31 +42,30 @@
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "lint:fix": "eslint src --fix",
+    "test": "vscode-test",
+    "build:rust": "cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
+    "watch:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
+    "compile:dev": "pnpm run build:rust && pnpm run compile",
+    "watch:dev": "npm-run-all -p watch:rust watch:esbuild watch:tsc",
+    "fetch:staging": "TYPEDOWN_BINARY_SOURCE=staging node scripts/setup-binary.mjs",
+    "compile:staging": "pnpm run fetch:staging && pnpm run compile",
+    "watch:staging": "npm-run-all -p watch:esbuild watch:tsc"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^5.10.0",
     "@types/mocha": "^10.0.10",
-    "@types/node": "24.x",
+    "@types/node": "~24.13.3",
     "@types/vscode": "^1.125.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.0.0",
-    "esbuild": "^0.28.1",
-    "eslint": "^9.39.4",
-    "eslint-plugin-import-x": "^4.17.1",
-    "eslint-plugin-n": "^18.2.1",
-    "eslint-plugin-perfectionist": "^5.10.0",
-    "eslint-plugin-unicorn": "^64.0.0",
     "npm-run-all": "^4.1.5",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1"
+    "shx": "^0.4.0"
   },
   "overrides": {
     "diff": "^8.0.4",
     "serialize-javascript": "^7.0.6"
   },
   "dependencies": {
-    "@hdnax/nuclint": "^0.17.4",
     "vscode-languageclient": "^10.1.0"
   }
 }

@@ -2,52 +2,18 @@ import type {
   ExtensionContext,
 } from 'vscode';
 import {
-  RevealOutputChannelOn,
-  window,
-  workspace,
-} from 'vscode';
-import type {
-  LanguageClientOptions,
-  ServerOptions,
-} from 'vscode-languageclient/node';
-import {
-  LanguageClient,
-  TransportKind,
-} from 'vscode-languageclient/node';
-
-let client: LanguageClient | undefined;
+  ExtensionContextManager,
+  LogManager,
+  LspManager,
+} from './managers';
 
 export function activate (context: ExtensionContext) {
-  const serverOptions: ServerOptions = {
-    command: 'typedown-lsp',
-    transport: TransportKind.stdio,
-  };
+  ExtensionContextManager.initialize(context);
 
-  const outputChannel = window.createOutputChannel('Typedown LSP');
-
-  const clientOptions: LanguageClientOptions = {
-    documentSelector: [
-      {
-        scheme: 'file',
-        language: 'typedown',
-      },
-    ],
-    workspaceFolder: workspace.workspaceFolders?.[0],
-    outputChannel,
-    revealOutputChannelOn: RevealOutputChannelOn.Error,
-  };
-
-  client = new LanguageClient(
-    'typedown-lsp',
-    'Typedown LSP',
-    serverOptions,
-    clientOptions,
-  );
-
-  client.start();
-  context.subscriptions.push(client);
+  // logManager pushed first so it is disposed last (VSCode uses LIFO order)
+  // the LSP client must be stopped before its output channel is torn down
+  context.subscriptions.push(LogManager.getInstance());
+  context.subscriptions.push(LspManager.getInstance());
 }
 
-export function deactivate (): Thenable<void> | undefined {
-  return client?.stop();
-}
+export function deactivate () {}
