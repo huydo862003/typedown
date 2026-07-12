@@ -1,6 +1,6 @@
 {
   "name": "typedown",
-  "version": "0.1.0",
+  "version": "0.1.1-test-publish.0",
   "private": true,
   "packageManager": "pnpm@11.9.0"
 }
