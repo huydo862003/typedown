@@ -2,7 +2,7 @@
   "name": "typedown-lsp",
   "displayName": "typedown-lsp",
   "description": "vscode extension providing lsp services for the typedown language",
-  "version": "0.1.1-test-publish.2",
+  "version": "0.1.1-test-publish.3",
   "engines": {
     "vscode": "^1.125.0"
   },
