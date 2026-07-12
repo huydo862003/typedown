@@ -80,6 +80,7 @@ pnpm -r version "$VERSION" --no-git-tag-version --no-git-checks
 git add VERSION Cargo.toml
 [[ "$BUMP_TYPE" != pre* ]] && git add CHANGELOG.md
 find . -name package.json -not -path '*/node_modules/*' -print0 | xargs -0 git add --ignore-errors
+find ./crates -name Cargo.toml -print0 | xargs -0 git add --ignore-errors
 git commit -m "chore: release $TAG"
 git tag "$TAG"
 git push origin HEAD "$TAG"
