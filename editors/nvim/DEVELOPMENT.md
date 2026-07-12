@@ -16,9 +16,9 @@ Run `:LspInfo` inside Neovim to confirm the server attached.
 
 ## Testing a Staging Release
 
-1. Push a staging tag via `./publish.sh` (choose a `pre*` bump type). This bumps all
-   versions including `version.lua` and pushes the tag. CI builds and uploads the
-   prerelease binaries automatically.
+1. Push a staging tag via `./publish.sh` from the repo root (choose a `pre*` bump type).
+   This bumps `VERSION` and all derived version files, then pushes the tag.
+   CI builds and uploads the prerelease binaries automatically.
 
 2. Launch with `staging_init.lua`:
 
@@ -26,11 +26,11 @@ Run `:LspInfo` inside Neovim to confirm the server attached.
    nvim -u editors/nvim/staging_init.lua path/to/file.tdr
    ```
 
-   The plugin reads `version.lua`, constructs the `staging/vX.Y.Z-label.N` release URL,
-   and downloads the matching binary automatically on first launch.
+   The plugin reads `version.lua` (derived from `VERSION`), constructs the
+   `staging/vX.Y.Z-label.N` release URL, and downloads the matching binary automatically
+   on first launch.
 
 ## Release
 
-Releases are handled by `publish.sh` from the repo root. It bumps the version in
-`editors/nvim/lua/typedown/version.lua` alongside all other crates and packages,
-then pushes the tag that triggers CI.
+Releases are handled by `publish.sh` from the repo root. It bumps the version in `VERSION`
+alongside all other derived version files and pushes the tag that triggers CI.

@@ -14,3 +14,5 @@ editors/zed/extension.wasm
 
 # Added by typedown
 .typedown
+editors/vscode/bin/
+editors/vscode/*.vsix

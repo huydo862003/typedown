@@ -34,6 +34,7 @@
             vscodium
             neovim
             cargo-edit
+            cargo-watch
           ];
         };
       }

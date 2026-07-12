@@ -5,3 +5,7 @@ export {
 export {
   LogManager,
 } from './log';
+
+export {
+  LspManager,
+} from './lsp';
