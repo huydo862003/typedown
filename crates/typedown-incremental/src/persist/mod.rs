@@ -1,5 +1,6 @@
 mod codec;
 mod fingerprint;
+#[cfg(feature = "session")]
 pub mod fs;
 mod serde;
 pub mod serialized;
@@ -8,6 +9,7 @@ mod unstable;
 
 pub use codec::*;
 pub use fingerprint::*;
+#[cfg(feature = "session")]
 pub use fs::CacheSession;
 pub use serde::*;
 pub use serialized::SerializedQueryStorage;

@@ -2,6 +2,8 @@
 name = "typedown-lang"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL"
+authors = ["Huy-DNA <huydo862003@gmail.com>"]
 
 [dependencies]
 typedown-incremental = { version = "0.1.0", path = "../typedown-incremental" }

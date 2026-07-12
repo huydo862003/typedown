@@ -460,7 +460,10 @@ mod tests {
     let has_code = parts
       .iter()
       .any(|p| matches!(p, InterpolatedPart::Literal(s) if s.contains('`')));
-    assert!(has_code, "expected inline code as literal with backtick delimiter");
+    assert!(
+      has_code,
+      "expected inline code as literal with backtick delimiter"
+    );
   }
 
   #[test]
@@ -527,6 +530,9 @@ mod tests {
     let has_code = parts
       .iter()
       .any(|p| matches!(p, InterpolatedPart::Literal(s) if s.contains("```")));
-    assert!(has_code, "expected code block as literal with ``` delimiter");
+    assert!(
+      has_code,
+      "expected code block as literal with ``` delimiter"
+    );
   }
 }

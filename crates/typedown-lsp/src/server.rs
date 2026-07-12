@@ -1,16 +1,17 @@
-use std::sync::mpsc;
-
 use ropey::Rope;
 
-use lsp_server::{Connection, Message, Notification};
+use lsp_server::{Connection, Message, Notification, Request, RequestId};
 use lsp_types::notification::{
-  DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Notification as _,
+  DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
+  Notification as _,
 };
+use lsp_types::request::{RegisterCapability, Request as _};
 use lsp_types::{
-  DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-  TextDocumentContentChangeEvent,
+  ClientCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+  DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+  FileChangeType, FileSystemWatcher, GlobPattern, Registration, RegistrationParams,
+  TextDocumentContentChangeEvent, WatchKind,
 };
-use notify::{Event, EventKind};
 
 use crate::analysis_host::AnalysisHost;
 use crate::notification;
@@ -20,32 +21,27 @@ use crate::utils::uri::uri_to_path;
 pub struct Server {
   connection: Connection,
   host: AnalysisHost,
-  watcher_rx: mpsc::Receiver<notify::Result<Event>>,
+  client_capabilities: ClientCapabilities,
 }
 
 impl Server {
   pub fn new(
     connection: Connection,
     host: AnalysisHost,
-    watcher_rx: mpsc::Receiver<notify::Result<Event>>,
+    client_capabilities: ClientCapabilities,
   ) -> Self {
     Self {
       connection,
       host,
-      watcher_rx,
+      client_capabilities,
     }
   }
 
   /// Run the server event loop until the client sends a shutdown request.
   pub fn run(mut self) -> anyhow::Result<AnalysisHost> {
-    for msg in &self.connection.receiver {
-      // Drain pending file-watcher events before handling the next LSP message.
-      for event in self.watcher_rx.try_iter() {
-        if let Ok(event) = event {
-          handle_watcher_event(&mut self.host, event);
-        }
-      }
+    self.register_file_watcher()?;
 
+    for msg in &self.connection.receiver {
       match msg {
         Message::Request(req) => {
           // Check for shutdown before dispatching
@@ -69,6 +65,55 @@ impl Server {
       }
     }
     Ok(self.host)
+  }
+
+  fn register_file_watcher(&self) -> anyhow::Result<()> {
+    let supports_dynamic = self
+      .client_capabilities
+      .workspace
+      .as_ref()
+      .and_then(|workspace| workspace.did_change_watched_files.as_ref())
+      .and_then(|cap| cap.dynamic_registration)
+      .unwrap_or(false);
+
+    if !supports_dynamic {
+      return Ok(());
+    }
+
+    // Watch all relevant files
+    let watchers = vec![
+      FileSystemWatcher {
+        glob_pattern: GlobPattern::String("**/*.tdr".to_string()),
+        kind: Some(WatchKind::all()),
+      },
+      FileSystemWatcher {
+        glob_pattern: GlobPattern::String("**/typedown.yaml".to_string()),
+        kind: Some(WatchKind::all()),
+      },
+      FileSystemWatcher {
+        glob_pattern: GlobPattern::String("**/typedown.yml".to_string()),
+        kind: Some(WatchKind::all()),
+      },
+    ];
+
+    let registration = Registration {
+      id: "typedown-file-watcher".to_string(),
+      method: DidChangeWatchedFiles::METHOD.to_string(),
+      register_options: Some(serde_json::to_value(
+        DidChangeWatchedFilesRegistrationOptions { watchers },
+      )?),
+    };
+
+    let req = Request::new(
+      RequestId::from("typedown-register-watcher".to_string()),
+      RegisterCapability::METHOD.to_string(),
+      RegistrationParams {
+        registrations: vec![registration],
+      },
+    );
+
+    self.connection.sender.send(Message::Request(req))?;
+    Ok(())
   }
 }
 
@@ -106,20 +151,19 @@ fn handle_notification(host: &mut AnalysisHost, note: &Notification) {
         host.on_close_file(&path);
       }
     }
-    _ => {}
-  }
-}
-
-fn handle_watcher_event(host: &mut AnalysisHost, event: Event) {
-  match event.kind {
-    EventKind::Create(_) | EventKind::Modify(_) => {
-      for path in event.paths {
-        host.on_disk_change(path);
-      }
-    }
-    EventKind::Remove(_) => {
-      for path in event.paths {
-        host.on_disk_delete(path);
+    DidChangeWatchedFiles::METHOD => {
+      let Ok(params) = serde_json::from_value::<DidChangeWatchedFilesParams>(note.params.clone())
+      else {
+        return;
+      };
+      for change in params.changes {
+        if let Some(path) = uri_to_path(&change.uri) {
+          match change.typ {
+            FileChangeType::CREATED | FileChangeType::CHANGED => host.on_disk_change(path),
+            FileChangeType::DELETED => host.on_disk_delete(path),
+            _ => {}
+          }
+        }
       }
     }
     _ => {}
