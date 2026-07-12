@@ -11,6 +11,7 @@ struct Cli {
 enum Command {}
 
 fn main() -> anyhow::Result<()> {
+  #[allow(unreachable_code)]
   let _cli = Cli::parse();
   Ok(())
 }

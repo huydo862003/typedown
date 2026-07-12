@@ -39,8 +39,8 @@ impl SyntaxToken {
     bytes
       .iter()
       .cloned()
-      .map(|b| u32::from(b))
-      .map(|val| char::from_u32(val))
+      .map(u32::from)
+      .map(char::from_u32)
       .map(|maybe_char| maybe_char.unwrap_or('\u{FFFD}'))
   }
 

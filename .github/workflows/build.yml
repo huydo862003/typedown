@@ -1,0 +1,94 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-versions:
+    name: Verify Versions
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # nightly
+        with:
+          toolchain: nightly
+
+      - name: Check version consistency
+        run: |
+          VERSION=$(cat VERSION)
+
+          # Cargo workspace version
+          CARGO_VERSION=$(cargo pkgid typedown-lsp | sed 's/.*#//')
+          if [[ "$CARGO_VERSION" != "$VERSION" ]]; then
+            echo "Cargo.toml version '$CARGO_VERSION' does not match VERSION '$VERSION'"
+            exit 1
+          fi
+
+          # package.json versions
+          while IFS= read -r PKG_JSON; do
+            PKG_VERSION=$(pnpm --dir "$(dirname "$PKG_JSON")" pkg get version | tr -d '"')
+            if [[ "$PKG_VERSION" != "$VERSION" ]]; then
+              echo "$PKG_JSON version '$PKG_VERSION' does not match VERSION '$VERSION'"
+              exit 1
+            fi
+          done < <(find . -name package.json -not -path '*/node_modules/*')
+
+          # CHANGELOG.md latest version
+          CHANGELOG_VERSION=$(grep -m1 '^## \[' CHANGELOG.md | sed 's/## \[\(.*\)\].*/\1/' || true)
+          if [[ -n "$CHANGELOG_VERSION" && "$CHANGELOG_VERSION" != "$VERSION" ]]; then
+            echo "CHANGELOG.md latest version '$CHANGELOG_VERSION' does not match VERSION '$VERSION'"
+            exit 1
+          fi
+
+          echo "All versions consistent: $VERSION"
+
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # nightly
+        with:
+          toolchain: nightly
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.3
+
+      - name: Test
+        run: cargo test --locked --workspace --exclude typedown-zed
+
+  build-zed:
+    name: Build Zed Extension
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # nightly
+        with:
+          toolchain: nightly
+
+      - name: Add wasm32-wasip1 target
+        run: rustup target add wasm32-wasip1
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.3
+
+      - name: Build
+        run: cargo build --locked -p typedown-zed --target wasm32-wasip1

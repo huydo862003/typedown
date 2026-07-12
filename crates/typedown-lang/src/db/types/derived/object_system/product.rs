@@ -71,7 +71,7 @@ impl TdrTypeLike for TdrProductType {
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
-    InstResult::new(db, self.clone().into(), vec![])
+    InstResult::new(db, (*self).into(), vec![])
   }
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]
@@ -102,7 +102,7 @@ impl TdrTypeLike for TdrProductType {
     let arg = args.into_iter().next()?;
     let dict = arg.as_tdr_dict_obj()?;
     let fields = dict.entries(db);
-    Some(TdrProductObj::new(db, self.clone().into(), fields).into())
+    Some(TdrProductObj::new(db, (*self).into(), fields).into())
   }
   fn display_name(&self, db: &TypedownDatabase) -> String {
     if let Some(name) = self.name(db) {

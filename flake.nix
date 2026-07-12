@@ -33,6 +33,7 @@
             zed-editor
             vscodium
             neovim
+            cargo-edit
           ];
         };
       }

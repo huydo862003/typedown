@@ -65,7 +65,7 @@ fn str_to_string(
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
   let obj = this.as_tdr_str_obj()?;
-  Some(TdrStrObj::new(db, obj.value(db).into()).into())
+  Some(TdrStrObj::new(db, obj.value(db)).into())
 }
 
 fn num_to_string(
@@ -92,7 +92,7 @@ fn math_to_string(
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
   let obj = this.as_tdr_math_obj()?;
-  Some(TdrStrObj::new(db, obj.value(db).into()).into())
+  Some(TdrStrObj::new(db, obj.value(db)).into())
 }
 
 fn object_to_string(
@@ -100,7 +100,7 @@ fn object_to_string(
   this: TdrObjectEnum,
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
-  Some(TdrStrObj::new(db, this.source_path(db).into()).into())
+  Some(TdrStrObj::new(db, this.source_path(db)).into())
 }
 
 fn func_to_string(
@@ -109,7 +109,7 @@ fn func_to_string(
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
   let func = this.as_tdr_func_obj()?;
-  Some(TdrStrObj::new(db, func.name(db).into()).into())
+  Some(TdrStrObj::new(db, func.name(db)).into())
 }
 
 fn datetime_to_string(
@@ -118,7 +118,7 @@ fn datetime_to_string(
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
   let obj = this.as_tdr_date_time_obj()?;
-  Some(TdrStrObj::new(db, obj.value(db).into()).into())
+  Some(TdrStrObj::new(db, obj.value(db)).into())
 }
 
 fn date_to_string(
@@ -127,7 +127,7 @@ fn date_to_string(
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
   let obj = this.as_tdr_date_obj()?;
-  Some(TdrStrObj::new(db, obj.value(db).into()).into())
+  Some(TdrStrObj::new(db, obj.value(db)).into())
 }
 
 fn time_to_string(
@@ -136,5 +136,5 @@ fn time_to_string(
   _args: Vec<TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
   let obj = this.as_tdr_time_obj()?;
-  Some(TdrStrObj::new(db, obj.value(db).into()).into())
+  Some(TdrStrObj::new(db, obj.value(db)).into())
 }

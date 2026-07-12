@@ -47,15 +47,15 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Parse body
     let early_exit = self.parse_yaml_body(&mut children);
 
-    if let Some(ctx) = early_exit {
-      if ctx != ExprCtx::YamlFrontmatter {
-        self
-          .diagnostics
-          .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
-            start_offset: self.offset(),
-            end_offset: self.offset(),
-          });
-      }
+    if let Some(ctx) = early_exit
+      && ctx != ExprCtx::YamlFrontmatter
+    {
+      self
+        .diagnostics
+        .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
+          start_offset: self.offset(),
+          end_offset: self.offset(),
+        });
     }
 
     // Consume closing ---

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 #[cfg(feature = "session")]
 use std::sync::Arc;
 #[cfg(feature = "session")]
@@ -115,8 +115,8 @@ pub fn run() -> anyhow::Result<()> {
 }
 
 /// Walk up from `start` until a directory containing `typedown.yaml` or `typedown.yml` is found.
-fn find_project_root(start: &PathBuf) -> Option<PathBuf> {
-  let mut current = start.as_path();
+fn find_project_root(start: &Path) -> Option<PathBuf> {
+  let mut current = start;
   loop {
     if current.join("typedown.yaml").exists() || current.join("typedown.yml").exists() {
       return Some(current.to_path_buf());

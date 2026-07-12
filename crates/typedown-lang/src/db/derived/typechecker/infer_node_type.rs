@@ -230,10 +230,10 @@ fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeResult 
 fn get_call_type(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> TypeResult {
   // Check if callee is a macro
   let resolved = referee(db, callee);
-  if let Some(symbol) = resolved.value(db) {
-    if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
-      return get_macro_call_type(db, kind, args);
-    }
+  if let Some(symbol) = resolved.value(db)
+    && let SymbolKind::BuiltinMacro(kind) = symbol.kind(db)
+  {
+    return get_macro_call_type(db, kind, args);
   }
 
   let callee_result = infer_node_type(db, callee);

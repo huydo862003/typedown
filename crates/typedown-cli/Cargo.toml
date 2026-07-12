@@ -1,6 +1,6 @@
 [package]
 name = "typedown-cli"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "AGPL"
 authors = ["Huy-DNA <huydo862003@gmail.com>"]
@@ -8,4 +8,4 @@ authors = ["Huy-DNA <huydo862003@gmail.com>"]
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-typedown-lang = { version = "0.1.0", path = "../typedown-lang" }
+typedown-lang = { version = "0.1.1-test-publish.3", path = "../typedown-lang" }

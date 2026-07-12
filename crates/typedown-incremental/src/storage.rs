@@ -38,8 +38,8 @@ pub struct QueryStorage {
   pub deserialize_ctx: Arc<OnceLock<DeserializeContext>>, // Previous session's data for lazy deserialization
 }
 
-impl QueryStorage {
-  pub fn default() -> Self {
+impl Default for QueryStorage {
+  fn default() -> Self {
     QueryStorage {
       revision: Arc::new(AtomicUsize::new(0)),
       cancelled: Arc::new(AtomicBool::new(false)),
@@ -53,7 +53,9 @@ impl QueryStorage {
       deserialize_ctx: Arc::new(OnceLock::new()),
     }
   }
+}
 
+impl QueryStorage {
   /// Create a QueryStorage from a previous session's serialized data.
   pub fn from_serialized(serialized: SerializedQueryStorage) -> Arc<Self> {
     let revision = serialized.dep_graph.header.revision as usize;
@@ -126,7 +128,7 @@ impl QueryStorage {
   #[doc(hidden)]
   pub fn with_context<R>(&self, f: impl FnOnce(&mut Option<ExecuteContext>) -> R) -> R {
     thread_local! {
-      static CTX: RefCell<Option<ExecuteContext>> = RefCell::new(None);
+      static CTX: RefCell<Option<ExecuteContext>> = const { RefCell::new(None) };
     }
     CTX.with(|c| f(&mut c.borrow_mut()))
   }

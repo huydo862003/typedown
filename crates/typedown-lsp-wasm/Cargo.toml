@@ -1,6 +1,6 @@
 [package]
 name = "typedown-lsp-wasm"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 
 [package.metadata]
