@@ -2,6 +2,8 @@
 name = "typedown-types"
 version = "0.1.0"
 edition = "2024"
+license = "AGPL"
+authors = ["Huy-DNA <huydo862003@gmail.com>"]
 
 [dependencies]
 unescaper = "0.1"

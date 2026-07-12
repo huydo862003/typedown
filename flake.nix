@@ -29,6 +29,7 @@
             rust-nightly
             nodejs
             pnpm
+            wasm-pack
           ];
         };
       }

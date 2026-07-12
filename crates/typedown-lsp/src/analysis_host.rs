@@ -1,13 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::SystemTime;
 use std::{fs, io};
 
 use lsp_types::Uri;
-use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use ropey::Rope;
 use typedown_incremental::InputId;
 use typedown_lang::db::TypedownDatabase;
@@ -25,21 +23,10 @@ pub struct AnalysisHost {
   scheme_map: HashMap<PathBuf, String>, // URI scheme per path, set when editor opens a file
   project_files: HashSet<PathBuf>,      // all tracked files known on disk
   file_map: HashMap<PathBuf, File>,     // stable File IDs, one per tracked path
-  _watcher: RecommendedWatcher,
 }
 
 impl AnalysisHost {
-  pub fn new(
-    mut db: TypedownDatabase,
-    project_dir: PathBuf,
-    watcher_tx: Sender<notify::Result<Event>>,
-  ) -> io::Result<Self> {
-    let mut watcher =
-      notify::recommended_watcher(watcher_tx).expect("failed to create file watcher");
-    watcher
-      .watch(&project_dir, RecursiveMode::Recursive)
-      .expect("failed to watch project directory");
-
+  pub fn new(mut db: TypedownDatabase, project_dir: PathBuf) -> io::Result<Self> {
     // Scan project directory for .tdr files
     let project_files = scan_project_files(&project_dir)?;
 
@@ -86,7 +73,6 @@ impl AnalysisHost {
       scheme_map: HashMap::new(),
       project_files,
       file_map,
-      _watcher: watcher,
     })
   }
 
