@@ -1,5 +1,7 @@
 use std::path::PathBuf;
+#[cfg(feature = "session")]
 use std::sync::Arc;
+#[cfg(feature = "session")]
 use std::sync::atomic::Ordering;
 
 use lsp_server::Connection;
@@ -9,6 +11,7 @@ use lsp_types::{
   ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
   Uri,
 };
+#[cfg(feature = "session")]
 use typedown_incremental::{CacheSession, SerializableQueryDatabase};
 use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
@@ -59,13 +62,16 @@ pub fn run() -> anyhow::Result<()> {
     .unwrap_or_else(|| PathBuf::from("."));
   let project_dir = find_project_root(&workspace_dir).unwrap_or(workspace_dir);
 
-  // Load incremental cache from previous session
+  #[cfg(feature = "session")]
   let cache_dir = project_dir.join(".typedown/cache");
+
+  #[cfg(feature = "session")]
   let (session, serialized) = CacheSession::open(&cache_dir).unwrap_or_else(|_| {
     // If cache dir is inaccessible, proceed without cache
     (CacheSession::empty(), None)
   });
 
+  #[cfg(feature = "session")]
   let storage = match serialized {
     Some(data) => {
       match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -82,6 +88,10 @@ pub fn run() -> anyhow::Result<()> {
     }
     None => QueryStorage::default(),
   };
+
+  #[cfg(not(feature = "session"))]
+  let storage = QueryStorage::default();
+
   let db = TypedownDatabase { storage };
 
   let host = AnalysisHost::new(db, project_dir)?;
@@ -89,11 +99,15 @@ pub fn run() -> anyhow::Result<()> {
   let host = Server::new(connection, host, init_params.capabilities).run()?;
 
   // Save incremental cache on shutdown
+  #[cfg_attr(not(feature = "session"), allow(unused_variables))]
   let db = host.into_db();
-  let revision = db.storage.revision.load(Ordering::Acquire) as u64;
-  let serialized = db.dump();
-  if let Err(err) = session.finalize(&serialized, revision) {
-    eprintln!("Failed to save incremental cache: {}", err);
+  #[cfg(feature = "session")]
+  {
+    let revision = db.storage.revision.load(Ordering::Acquire) as u64;
+    let serialized = db.dump();
+    if let Err(err) = session.finalize(&serialized, revision) {
+      eprintln!("Failed to save incremental cache: {}", err);
+    }
   }
 
   io_thread.join()?;

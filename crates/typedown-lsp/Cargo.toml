@@ -9,6 +9,10 @@ authors = ["Huy-DNA <huydo862003@gmail.com>"]
 name = "typedown-lsp"
 path = "src/bin/main.rs"
 
+[features]
+default = ["session"]
+session = ["typedown-incremental/session"]
+
 [dependencies]
 anyhow = "1"
 typedown-incremental = { version = "0.1.0", path = "../typedown-incremental" }
