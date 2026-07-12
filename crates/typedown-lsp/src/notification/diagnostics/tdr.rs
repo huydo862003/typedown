@@ -2,8 +2,10 @@ use lsp_server::Notification;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
 use lsp_types::{Diagnostic, PublishDiagnosticsParams};
 use typedown_lang::db::derived::evaluate::evaluate_resource::evaluate_resource;
+use typedown_lang::db::derived::hir::lower_node;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::derived::parse_file::parse_file;
+use typedown_lang::db::derived::typechecker::typecheck::typecheck;
 use typedown_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
@@ -28,9 +30,17 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
       None => continue,
     };
 
+    // Parse error
     let parse_result = parse_file(db, project, *file);
     let mut tdr_diags: Vec<TdrDiagnostic> = parse_result.diagnostics(db).to_vec();
 
+    // Typecheck error
+    let root = parse_result.ast(db);
+    let hir = lower_node(db, project, *file, root);
+    let typecheck_result = typecheck(db, hir);
+    tdr_diags.extend(typecheck_result.diagnostics(db).iter().cloned());
+
+    // Evaluate result
     if let Some(sym) = file_symbol(db, project, *file).value(db) {
       let eval_result = evaluate_resource(db, sym);
       tdr_diags.extend(eval_result.diagnostics(db).iter().cloned());

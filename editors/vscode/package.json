@@ -1,10 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "license": "AGPL-3.0-only",
+  "publisher": "hdnax",
   "name": "typedown-vscode",
   "displayName": "Typedown",
   "description": "vscode extension providing lsp services for the typedown language",
-  "type": "module",
   "private": true,
   "author": "Huy-DNA <huydo862003@gmail.com>",
   "version": "0.0.0",
@@ -14,7 +14,7 @@
   "categories": [
     "lsp"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onLanguage:typedown"],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
