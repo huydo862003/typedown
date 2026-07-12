@@ -89,7 +89,7 @@ jobs:
       - name: Upload WASM
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: ${{ env.ARTIFACT_WASM }}
+          name: typedown-lsp-wasm
           path: target/wasm32-wasip1/release/typedown-lsp.wasm
           retention-days: 2
 
@@ -111,17 +111,17 @@ jobs:
           mv artifacts/typedown-lsp-x86_64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
           mv artifacts/typedown-lsp-aarch64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
           mv artifacts/typedown-lsp-x86_64-pc-windows-msvc/typedown-lsp.exe artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
-          mv artifacts/${{ env.ARTIFACT_WASM }}/typedown-lsp.wasm artifacts/${{ env.ARTIFACT_WASM }}-bin
+          mv artifacts/typedown-lsp-wasm/typedown-lsp.wasm artifacts/${{ env.ARTIFACT_WASM }}
 
       - name: Create Prerelease
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.1.0
         with:
-          tag_name: staging-${{ github.sha }}
-          name: Staging ${{ github.sha }}
+          tag_name: ${{ github.ref_name }}
+          name: Staging ${{ github.ref_name }}
           prerelease: true
           files: |
             artifacts/${{ env.ARTIFACT_LINUX_X86_64 }}
             artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
             artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
             artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
-            artifacts/${{ env.ARTIFACT_WASM }}-bin
+            artifacts/${{ env.ARTIFACT_WASM }}

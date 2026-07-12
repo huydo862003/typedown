@@ -10,6 +10,28 @@ A typed markdown language for structured content.
 
 The compiler design is researched and documented in the [dboxide](https://github.com/Huy-DNA/dboxide) repo. See the [design docs](https://github.com/Huy-DNA/dboxide/tree/main/doc/src/design) for details on the syntax, type system, and incremental compilation engine.
 
+## Dev Setup
+
+Requirements: [Nix](https://nixos.org) with flakes enabled.
+
+```bash
+nix develop
+```
+
+This provides Rust (nightly), pnpm, git-cliff, cargo-edit, and all other tools needed for development and releasing.
+
+To build:
+
+```bash
+cargo build
+```
+
+To release:
+
+```bash
+./publish.sh
+```
+
 ## Editor Integration
 
 | Editor            | User Guide                         | Development                                  |
