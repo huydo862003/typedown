@@ -2,7 +2,6 @@ book
 node_modules
 
 # Added by cargo
-<<<<<<< HEAD
 target/
 
 # Typescript
