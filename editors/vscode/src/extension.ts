@@ -2,7 +2,6 @@ import type {
   ExtensionContext,
 } from 'vscode';
 import {
-  window,
   workspace,
 } from 'vscode';
 import type {
@@ -14,18 +13,20 @@ import {
   RevealOutputChannelOn,
   TransportKind,
 } from 'vscode-languageclient/node';
+import {
+  ExtensionContextManager,
+  LogManager,
+} from './managers';
 
 let client: LanguageClient | undefined;
 
 export function activate (context: ExtensionContext) {
+  ExtensionContextManager.initialize(context);
+
   const serverOptions: ServerOptions = {
     command: 'typedown-lsp',
     transport: TransportKind.stdio,
   };
-
-  const outputChannel = window.createOutputChannel('Typedown LSP', {
-    log: true,
-  });
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -35,7 +36,7 @@ export function activate (context: ExtensionContext) {
       },
     ],
     workspaceFolder: workspace.workspaceFolders?.[0],
-    outputChannel,
+    outputChannel: LogManager.getInstance().mainChannel,
     revealOutputChannelOn: RevealOutputChannelOn.Error,
   };
 
@@ -48,6 +49,7 @@ export function activate (context: ExtensionContext) {
 
   client.start();
   context.subscriptions.push(client);
+  context.subscriptions.push(LogManager.getInstance());
 }
 
 export function deactivate (): Thenable<void> | undefined {
