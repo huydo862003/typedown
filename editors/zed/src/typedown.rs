@@ -13,7 +13,7 @@ impl zed::Extension for TypedownLsp {
   ) -> zed::Result<zed::Command> {
     let server = worktree
       .which("typedown-lsp")
-      .unwrap_or_else(|| "typedown-lsp".to_string());
+      .ok_or_else(|| "typedown-lsp not found on PATH".to_string())?;
     Ok(zed::Command {
       command: server,
       args: vec![],

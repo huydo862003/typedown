@@ -3,13 +3,6 @@
 version = 4
 
 [[package]]
-name = "Typedown"
-version = "0.0.1"
-dependencies = [
- "zed_extension_api",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1413,6 +1406,13 @@ dependencies = [
  "html-escape",
  "num_enum",
  "unescaper",
+]
+
+[[package]]
+name = "typedown-zed"
+version = "0.0.1"
+dependencies = [
+ "zed_extension_api",
 ]
 
 [[package]]

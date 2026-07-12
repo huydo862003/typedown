@@ -1,4 +1,3 @@
 name = "Typedown"
 # grammar = "typedown"
 path_suffixes = ["tdr"]
-line_comments = ["# "]
