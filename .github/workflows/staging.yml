@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Check tag format
         run: |
-          if [[ ! "${{ github.ref_name }}" =~ ^staging/v[0-9]+\.[0-9]+\.[0-9]+-[a-zA-Z]+\.[0-9]+$ ]]; then
+          if [[ ! "${{ github.ref_name }}" =~ ^staging/v[0-9]+\.[0-9]+\.[0-9]+-[a-zA-Z\-]+\.[0-9]+$ ]]; then
             echo "Tag '${{ github.ref_name }}' does not match expected format staging/vX.Y.Z-label.N"
             exit 1
           fi
