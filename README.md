@@ -12,10 +12,10 @@ The compiler design is researched and documented in the [dboxide](https://github
 
 ## Editor Integration
 
-| Editor | User Guide | Development |
-|--------|-----------|-------------|
-| Neovim | [README](editors/nvim/README.md) | [DEVELOPMENT](editors/nvim/DEVELOPMENT.md) |
-| Zed | [README](editors/zed/README.md) | [DEVELOPMENT](editors/zed/DEVELOPMENT.md) |
+| Editor            | User Guide                         | Development                                  |
+| ----------------- | ---------------------------------- | -------------------------------------------- |
+| Neovim            | [README](editors/nvim/README.md)   | [DEVELOPMENT](editors/nvim/DEVELOPMENT.md)   |
+| Zed               | [README](editors/zed/README.md)    | [DEVELOPMENT](editors/zed/DEVELOPMENT.md)    |
 | VSCode / VSCodium | [README](editors/vscode/README.md) | [DEVELOPMENT](editors/vscode/DEVELOPMENT.md) |
 
 ## Dependency Graph
@@ -42,7 +42,13 @@ These are some lessons learnt during the development of the project. Some commen
 
 There are two naive approaches to serialization, and a third that combines the best of both. This applies to why the built-in Hash trait chooses this design.
 
-**Approach 1: Serializer knows every type**: The serializer has a method per type. Adding a new type means modifying the serializer.
+> I think this is related to the expression problem.
+
+**Approach 1: Serializer knows every type**:
+
+- There's a single serializer.
+- The serializer has a method per type to serialize objects of that type.
+- Adding a new type means modifying the serializer.
 
 ```rust
 struct Serializer { buf: Vec<u8> }
@@ -57,7 +63,10 @@ impl Serializer {
 }
 ```
 
-**Approach 2: Each type serializes itself**: Each type writes its own bytes. But now every type must know the byte format, and changing the format means updating every type.
+**Approach 2: Each type serializes itself**:
+
+- Each type handles its own serialization.
+- Now every type must know the byte format, and changing the format means updating every type.
 
 ```rust
 trait Serialize {
@@ -72,7 +81,11 @@ impl Serialize for Person {
 }
 ```
 
-**Approach 3: Visitor (double dispatch)**. Split the responsibilities. The type decides WHAT to write (which fields, in what order). The serializer decides HOW to write it (byte format, endianness, buffering). Neither depends on the other's internals.
+**Approach 3: Visitor (double dispatch)**. Split the responsibilities.
+
+- The type decides WHAT to write (which fields, in what order).
+- The serializer decides HOW to write it (byte format, endianness, buffering).
+- Therefore, neither depends on the other's internals.
 
 ```rust
 trait Serializer {
