@@ -67,7 +67,7 @@ jobs:
         uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.3
 
       - name: Test
-        run: cargo test --workspace --exclude typedown-zed
+        run: cargo test --locked --workspace --exclude typedown-zed
 
   build-zed:
     name: Build Zed Extension
@@ -85,4 +85,4 @@ jobs:
         uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.3
 
       - name: Build
-        run: cargo build -p typedown-zed --target wasm32-wasip1
+        run: cargo build --locked -p typedown-zed --target wasm32-wasip1
