@@ -55,10 +55,10 @@ impl<'a> Encoder<'a> {
   }
 
   pub fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
-    if let Some(key) = hint {
-      if let Some(&index) = self.intern_hints.get(&key) {
-        return index;
-      }
+    if let Some(key) = hint
+      && let Some(&index) = self.intern_hints.get(&key)
+    {
+      return index;
     }
     if let Some(&index) = self.intern_table.get(&blob) {
       if let Some(key) = hint {
@@ -619,7 +619,7 @@ impl<K: FieldEncodable + Ord, V: FieldEncodable> Encodable for HashMap<K, V> {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     encoder.emit_u32(buf, self.len() as u32);
     let mut entries: Vec<(&K, &V)> = self.iter().collect();
-    entries.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+    entries.sort_by_key(|(k1, _)| *k1);
     for (key, value) in entries {
       key.encode_field(buf, encoder);
       value.encode_field(buf, encoder);

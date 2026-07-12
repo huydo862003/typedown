@@ -59,7 +59,7 @@ impl TdrTypeLike for TdrSchemaType {
     }
   }
   fn instantiate(&self, db: &TypedownDatabase, _args: Vec<TdrTypeEnum>) -> InstResult {
-    InstResult::new(db, self.clone().into(), vec![])
+    InstResult::new(db, (*self).into(), vec![])
   }
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]

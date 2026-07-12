@@ -49,7 +49,7 @@ impl TdrTypeLike for TdrNumType {
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
     assert_eq!(args.len(), self.arity(db), "arity mismatch");
-    InstResult::new(db, self.clone().into(), vec![])
+    InstResult::new(db, (*self).into(), vec![])
   }
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdrTypeEnum> {
     vec![]

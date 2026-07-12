@@ -1,6 +1,6 @@
 [package]
 name = "typedown-lsp"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "AGPL"
 authors = ["Huy-DNA <huydo862003@gmail.com>"]
@@ -15,9 +15,9 @@ session = ["typedown-incremental/session"]
 
 [dependencies]
 anyhow = "1"
-typedown-incremental = { version = "0.1.0", path = "../typedown-incremental" }
-typedown-lang = { version = "0.1.0", path = "../typedown-lang" }
-typedown-types = { version = "0.1.0", path = "../typedown-types" }
+typedown-incremental = { version = "0.1.1-test-publish.3", path = "../typedown-incremental" }
+typedown-lang = { version = "0.1.1-test-publish.3", path = "../typedown-lang" }
+typedown-types = { version = "0.1.1-test-publish.3", path = "../typedown-types" }
 lsp-types = "0.97"
 lsp-server = "0.7"
 serde_json = "1"

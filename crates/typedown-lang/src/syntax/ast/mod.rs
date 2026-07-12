@@ -703,7 +703,7 @@ impl UnaryExpr {
 
   /// Return the operator
   pub fn op(&self) -> Option<YamlOp> {
-    self.0.children().find_map(|c| YamlOp::cast(c))
+    self.0.children().find_map(YamlOp::cast)
   }
 }
 
@@ -718,7 +718,7 @@ impl BinaryExpr {
 
   /// Return the operator
   pub fn op(&self) -> Option<YamlOp> {
-    self.0.children().find_map(|c| YamlOp::cast(c))
+    self.0.children().find_map(YamlOp::cast)
   }
 
   /// Return the right operand expression

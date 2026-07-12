@@ -9,7 +9,7 @@ use super::ord::StableOrd;
 use crate::QueryDatabase;
 use typedown_types::either::Either;
 
-/// The following is the original rustc comment: '''
+/// The following is the original rustc comment:
 /// Note that `StableHash` imposes rather more strict requirements than usual
 /// hash functions:
 ///
@@ -27,13 +27,12 @@ use typedown_types::either::Either;
 ///   past.
 ///
 /// - `stable_hash()` must be independent of the current
-///    compilation session. E.g. they must not hash memory addresses or other
-///    things that are "randomly" assigned per compilation session.
+///   compilation session. E.g. they must not hash memory addresses or other
+///   things that are "randomly" assigned per compilation session.
 ///
 /// - `stable_hash()` must be independent of the host architecture. The
 ///   `StableHasher` takes care of endianness and `isize`/`usize` platform
 ///   differences.
-/// '''
 pub trait StableHash {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher);
 }
@@ -292,7 +291,7 @@ impl<K: StableHash + StableOrd, V: StableHash> StableHash for std::collections::
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     self.len().stable_hash(db, hasher);
     let mut entries: Vec<(&K, &V)> = self.iter().collect();
-    entries.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+    entries.sort_by_key(|(k1, _)| *k1);
     for (key, value) in entries {
       key.stable_hash(db, hasher);
       value.stable_hash(db, hasher);
@@ -304,7 +303,7 @@ impl<K: StableHash + StableOrd> StableHash for std::collections::HashSet<K> {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     self.len().stable_hash(db, hasher);
     let mut entries: Vec<&K> = self.iter().collect();
-    entries.sort_by(|k1, k2| k1.cmp(k2));
+    entries.sort();
     for key in entries {
       key.stable_hash(db, hasher);
     }

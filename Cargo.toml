@@ -1,3 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*",  "editors/zed"]
+members = ["crates/*", "editors/zed"]
+
+[workspace.package]
+version = "0.1.1-test-publish.3"

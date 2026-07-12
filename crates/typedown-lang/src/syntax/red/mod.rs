@@ -122,7 +122,7 @@ impl RedNode {
     let green_node = self.0.green.as_node();
     RedNodeChildren {
       parent: self.clone(),
-      green_node: green_node.map(|n| n.clone()),
+      green_node: green_node.cloned(),
       index: 0,
       offset: self.0.offset,
     }

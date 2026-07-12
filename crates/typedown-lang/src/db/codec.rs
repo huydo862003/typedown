@@ -18,7 +18,7 @@ fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
     let children = syntax_node.children();
     let mut child_indices = Vec::with_capacity(children.len());
     for child in children {
-      child_indices.push(encode_green_node(&child, encoder));
+      child_indices.push(encode_green_node(child, encoder));
     }
     let mut blob = Vec::new();
     blob.push(0); // tag: node

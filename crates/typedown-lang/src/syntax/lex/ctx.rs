@@ -1,9 +1,7 @@
-//! An on-demand lexer
-//! Supports 2 lex modes:
-//! - YAML frontmatter mode
-//! - Markdown mode
-//! The parser will trigger lex and switch mode where sensible
-//! This produces one green token at a time
+//! An on-demand lexer supporting 2 lex modes (YAML frontmatter and Markdown).
+//!
+//! The parser triggers lex and switches mode where sensible,
+//! producing one green token at a time.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -170,7 +168,7 @@ impl<S: Utf8Stream> LexCtx<S> {
   /// INVARIANT: Always call before any other advance()/consume().
   fn try_consume_invalid_utf8(&mut self) -> Option<LexResult> {
     debug_assert!(
-      self.text_buffer.len() == 0,
+      self.text_buffer.is_empty(),
       "Do not call advance()/consume() before try_consume_invalid_utf8()"
     );
     if let Utf8Result::Invalid { len, bytes } = self.peek() {

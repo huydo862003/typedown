@@ -1,6 +1,6 @@
 [package]
 name = "typedown-zed"
-version = "0.0.1"
+version.workspace = true
 edition = "2024"
 
 [lib]
