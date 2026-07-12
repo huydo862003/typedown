@@ -1,6 +1,6 @@
 {
-  "name": "typedown-lsp",
-  "displayName": "typedown-lsp",
+  "name": "typedown-vscode",
+  "displayName": "typedown-vscode",
   "description": "vscode extension providing lsp services for the typedown language",
   "version": "0.1.1-test-publish.3",
   "engines": {
