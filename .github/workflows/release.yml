@@ -13,7 +13,6 @@ env:
   ARTIFACT_MACOS_X86_64: typedown-lsp-macos-x86_64
   ARTIFACT_MACOS_AARCH64: typedown-lsp-macos-aarch64
   ARTIFACT_WINDOWS_X86_64: typedown-lsp-windows-x86_64.exe
-  ARTIFACT_WASM: typedown-lsp.wasm
 
 jobs:
   build-binaries:
@@ -57,8 +56,7 @@ jobs:
           path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
           retention-days: 2
 
-  build-wasm:
-    name: Build WASM
+  name: Build WASM
     needs: validate-tag
     runs-on: ubuntu-24.04
     steps:
@@ -98,7 +96,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [validate-tag, build-binaries, build-wasm]
+    needs: [validate-tag, build-binaries]
     environment: release
     runs-on: ubuntu-24.04
     steps:
@@ -115,7 +113,6 @@ jobs:
           mv artifacts/typedown-lsp-x86_64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
           mv artifacts/typedown-lsp-aarch64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
           mv artifacts/typedown-lsp-x86_64-pc-windows-msvc/typedown-lsp.exe artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
-          mv artifacts/typedown-lsp-wasm/typedown-lsp.wasm artifacts/${{ env.ARTIFACT_WASM }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.1.0
@@ -125,5 +122,4 @@ jobs:
             artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
             artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
             artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
-            artifacts/${{ env.ARTIFACT_WASM }}
           generate_release_notes: true
