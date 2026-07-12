@@ -1,5 +1,5 @@
--- test_init is used to load the plugin for testing
--- Load normal user config first so other plugins are available
+-- Load the plugin and auto-download the staging binary matching version.lua.
+-- Usage: nvim -u editors/nvim/staging_init.lua path/to/file.tdr
 vim.cmd("source " .. vim.fn.stdpath("config") .. "/init.lua")
 
 local plugin_dir = vim.fn.getcwd() .. "/editors/nvim"

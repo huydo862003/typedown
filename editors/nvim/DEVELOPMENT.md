@@ -1,12 +1,36 @@
 # Development
 
-## Testing
+## Testing Against a Local Build
 
-To test without affecting your regular Neovim config:
+Build the debug binary, then launch with `local_init.lua`:
 
 ```bash
-cargo build
-nvim -u editors/nvim/test_init.lua
+cargo build -p typedown-lsp
+nvim -u editors/nvim/local_init.lua path/to/file.tdr
 ```
 
-Then run `:LspInfo` inside Neovim to verify the server attached.
+`local_init.lua` sets `vim.g.typedown_dev = true`, which tells the plugin to use
+`target/debug/typedown-lsp` instead of downloading a binary.
+
+Run `:LspInfo` inside Neovim to confirm the server attached.
+
+## Testing a Staging Release
+
+1. Push a staging tag via `./publish.sh` (choose a `pre*` bump type). This bumps all
+   versions including `version.lua` and pushes the tag. CI builds and uploads the
+   prerelease binaries automatically.
+
+2. Launch with `staging_init.lua`:
+
+   ```bash
+   nvim -u editors/nvim/staging_init.lua path/to/file.tdr
+   ```
+
+   The plugin reads `version.lua`, constructs the `staging/vX.Y.Z-label.N` release URL,
+   and downloads the matching binary automatically on first launch.
+
+## Release
+
+Releases are handled by `publish.sh` from the repo root. It bumps the version in
+`editors/nvim/lua/typedown/version.lua` alongside all other crates and packages,
+then pushes the tag that triggers CI.
