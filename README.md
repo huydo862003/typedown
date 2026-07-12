@@ -18,7 +18,7 @@ Requirements: [Nix](https://nixos.org) with flakes enabled.
 nix develop
 ```
 
-This provides Rust (nightly), pnpm, git-cliff, cargo-edit, and all other tools needed for development and releasing.
+This provides Rust (nightly), pnpm, cargo-edit, and all other tools needed for development and releasing.
 
 To build:
 
