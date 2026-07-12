@@ -65,7 +65,7 @@ impl Encodable for FileHandle {
           .duration_since(SystemTime::UNIX_EPOCH)
           .unwrap_or_default();
         duration.as_secs().encode(buf, encoder);
-        (duration.subsec_nanos() as u32).encode(buf, encoder);
+        duration.subsec_nanos().encode(buf, encoder);
       }
       FileHandle::Content(content) => {
         encoder.emit_u8(buf, FileHandleTag::Content as u8);

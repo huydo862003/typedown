@@ -1166,12 +1166,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.expr_ctx_stack.exit(callout_ctx);
         return (self.emit(SyntaxKind::MdCalloutBlock, &children), early_exit);
       }
-      if early_exit.is_some_and(|ctx| ctx.is_md_callout_block()) {
-        if let Some(ctx) = self.synchronize_callout_block(&mut children) {
+      if early_exit.is_some_and(|ctx| ctx.is_md_callout_block())
+        && let Some(ctx) = self.synchronize_callout_block(&mut children) {
           self.expr_ctx_stack.exit(callout_ctx);
           return (self.emit(SyntaxKind::MdCalloutBlock, &children), Some(ctx));
         }
-      }
     }
 
     // Consume closing `:::`
@@ -1673,12 +1672,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.expr_ctx_stack.exit(ExprCtx::MdBold);
         return (self.emit(SyntaxKind::MdBold, &children), early_exit);
       }
-      if early_exit == Some(ExprCtx::MdBold) {
-        if let Some(ctx) = self.synchronize_bold(&mut children) {
+      if early_exit == Some(ExprCtx::MdBold)
+        && let Some(ctx) = self.synchronize_bold(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdBold);
           return (self.emit(SyntaxKind::MdBold, &children), Some(ctx));
         }
-      }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdBold);
@@ -1762,12 +1760,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.expr_ctx_stack.exit(ctx);
         return (self.emit(SyntaxKind::MdItalic, &children), early_exit);
       }
-      if early_exit == Some(ctx) {
-        if let Some(propagate) = self.synchronize_italic(&opening, &mut children) {
+      if early_exit == Some(ctx)
+        && let Some(propagate) = self.synchronize_italic(&opening, &mut children) {
           self.expr_ctx_stack.exit(ctx);
           return (self.emit(SyntaxKind::MdItalic, &children), Some(propagate));
         }
-      }
     }
 
     self.expr_ctx_stack.exit(ctx);
@@ -1852,12 +1849,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
         self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
         return (self.emit(SyntaxKind::MdBoldItalic, &children), early_exit);
       }
-      if early_exit == Some(ExprCtx::MdBoldItalic) {
-        if let Some(ctx) = self.synchronize_bold_italic(&mut children) {
+      if early_exit == Some(ExprCtx::MdBoldItalic)
+        && let Some(ctx) = self.synchronize_bold_italic(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
           return (self.emit(SyntaxKind::MdBoldItalic, &children), Some(ctx));
         }
-      }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdBoldItalic);
@@ -1936,12 +1932,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
           early_exit,
         );
       }
-      if early_exit == Some(ExprCtx::MdStrikethrough) {
-        if let Some(ctx) = self.synchronize_strikethrough(&mut children) {
+      if early_exit == Some(ExprCtx::MdStrikethrough)
+        && let Some(ctx) = self.synchronize_strikethrough(&mut children) {
           self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);
           return (self.emit(SyntaxKind::MdStrikethrough, &children), Some(ctx));
         }
-      }
     }
 
     self.expr_ctx_stack.exit(ExprCtx::MdStrikethrough);

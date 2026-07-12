@@ -127,15 +127,14 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
 
     // Check for ${ (formula mode, only when exactly one $)
-    if fence_count == 1 {
-      if self.consume_avoid_invalid_utf8('{') {
+    if fence_count == 1
+      && self.consume_avoid_invalid_utf8('{') {
         self
           .markdown_lex_ctx
           .interp_stack
           .push(InterpContext::Interpolation);
         return self.emit(SyntaxKind::InterpStart);
       }
-    }
 
     // Check if content starts with a newline (block) or not (inline)
     let is_block = matches!(self.peek(), Utf8Result::Char('\n') | Utf8Result::Char('\r'));
@@ -216,12 +215,11 @@ impl<S: Utf8Stream> LexCtx<S> {
                 break;
               }
             }
-            if count > 0 {
-              if let Utf8Result::Char(';') = self.peek() {
+            if count > 0
+              && let Utf8Result::Char(';') = self.peek() {
                 self.advance_avoid_invalid_utf8();
                 return self.emit(SyntaxKind::MdHtmlEntity);
               }
-            }
           }
           _ => {
             let mut count = 0;
@@ -233,12 +231,11 @@ impl<S: Utf8Stream> LexCtx<S> {
                 break;
               }
             }
-            if count > 0 {
-              if let Utf8Result::Char(';') = self.peek() {
+            if count > 0
+              && let Utf8Result::Char(';') = self.peek() {
                 self.advance_avoid_invalid_utf8();
                 return self.emit(SyntaxKind::MdHtmlEntity);
               }
-            }
           }
         }
       }

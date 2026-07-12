@@ -35,6 +35,12 @@ pub struct FileHeader {
   pub version: u32,
 }
 
+impl Default for FileHeader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileHeader {
   pub fn new() -> Self {
     FileHeader {

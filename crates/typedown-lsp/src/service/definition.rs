@@ -98,14 +98,12 @@ fn fref_target(
   let call_expr = Expr::cast(call)?;
   let dummy_file = *project.files(db).values().next()?;
   let hir = lower_node(db, project, dummy_file, call_expr.syntax().clone());
-  if let HirValueKind::Call { args, .. } = hir.kind(db) {
-    if let Some(arg) = args.first() {
-      if let HirValueKind::Str(path_str) = arg.kind(db) {
+  if let HirValueKind::Call { args, .. } = hir.kind(db)
+    && let Some(arg) = args.first()
+      && let HirValueKind::Str(path_str) = arg.kind(db) {
         let root = project.root_dir(db);
         return Some(root.join(path_str));
       }
-    }
-  }
   None
 }
 

@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use lsp_types::Uri;
 
-pub fn path_to_uri(path: &PathBuf, scheme: &str) -> Uri {
+pub fn path_to_uri(path: &Path, scheme: &str) -> Uri {
   let uri_str = format!("{scheme}://{}", path.display());
   uri_str
     .parse()

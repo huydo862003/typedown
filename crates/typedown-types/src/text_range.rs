@@ -17,4 +17,8 @@ impl TextRange {
   pub fn len(&self) -> usize {
     self.end_offset - self.start_offset
   }
+
+  pub fn is_empty(&self) -> bool {
+    self.start_offset == self.end_offset
+  }
 }

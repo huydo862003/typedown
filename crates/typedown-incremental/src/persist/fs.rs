@@ -168,12 +168,11 @@ fn garbage_collect(cache_dir: &Path) {
   finalized.sort_unstable_by(|a, b| b.cmp(a));
   for old in finalized.into_iter().skip(1) {
     let lock_path = old.join(LOCK_FILE);
-    if let Ok(f) = File::open(&lock_path) {
-      if f.try_lock_exclusive().is_ok() {
+    if let Ok(f) = File::open(&lock_path)
+      && f.try_lock_exclusive().is_ok() {
         let _ = f.unlock();
         let _ = fs::remove_dir_all(old);
       }
-    }
   }
 }
 

@@ -186,14 +186,13 @@ fn value_completions(
   let mut items = vec![keyword_item("true"), keyword_item("false")];
 
   // Suggest null only for optional fields.
-  if let Some(field) = declared_field(db, project, file, node) {
-    if field
+  if let Some(field) = declared_field(db, project, file, node)
+    && field
       .descriptors(db)
       .contains(TypeMemberDescriptors::OPTIONAL)
     {
       items.push(keyword_item("null"));
     }
-  }
 
   Some(items)
 }

@@ -69,15 +69,14 @@ pub(crate) fn construct_from_hir(
         // Macro calls: pass raw HIR args (macros need project context from HIR)
         _ => {
           let resolved = referee(db, *callee);
-          if let Some(symbol) = resolved.value(db) {
-            if let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
+          if let Some(symbol) = resolved.value(db)
+            && let SymbolKind::BuiltinMacro(kind) = symbol.kind(db) {
               return construct_macro(db, kind, args);
             }
-          }
           // Plain function call: evaluate callee, check if it's a function, call it
           let callee_obj = evaluate_node(db, *callee).value(db)?;
           if let TdrObjectEnum::TdrFuncObj(func_obj) = &callee_obj {
-            let func_obj = func_obj.clone();
+            let func_obj = *func_obj;
             let arg_objs: Vec<_> = args
               .into_iter()
               .filter_map(|arg| evaluate_node(db, arg).value(db))
@@ -142,7 +141,7 @@ fn evaluate_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Option<
     "~" => {
       let is_falsy = operand_obj
         .as_tdr_bool_obj()
-        .map_or(false, |b| !b.value(db));
+        .is_some_and(|b| !b.value(db));
       Some(TdrBoolObj::new(db, is_falsy).into())
     }
     _ => None,
@@ -256,7 +255,7 @@ fn evaluate_index(
       });
       return None;
     }
-    return Some(TdrStrObj::new(db, chars[idx].to_string().into()).into());
+    return Some(TdrStrObj::new(db, chars[idx].to_string()).into());
   }
   None
 }
@@ -337,7 +336,7 @@ fn evaluate_mapping(
       }
       fields.insert(key, Either::Left(val_hir));
     }
-    return Some(TdrProductObj::new(db, product_typ.clone().into(), fields).into());
+    return Some(TdrProductObj::new(db, (*product_typ).into(), fields).into());
   }
 
   let dict_entries: HashMap<_, _> = entries

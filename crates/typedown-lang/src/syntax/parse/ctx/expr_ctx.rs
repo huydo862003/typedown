@@ -173,13 +173,12 @@ impl ExprCtxStack {
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
-      ExprCtx::MdCalloutBlock(parent_prefix_count) => {
-        if parent_prefix_count > 0 {
+      ExprCtx::MdCalloutBlock(parent_prefix_count)
+        if parent_prefix_count > 0 => {
           self
             .md_prefix_tokens
             .push(cache.token(SyntaxKind::Whitespace, b" "));
         }
-      }
       _ => {}
     }
   }
@@ -222,77 +221,77 @@ impl ExprCtx {
   pub(in crate::syntax::parse) fn can_handle(self, token: &SyntaxToken) -> bool {
     if matches!(token.kind(), SyntaxKind::YamlOp | SyntaxKind::MdSymbol) {
       let text: String = token.chars().collect();
-      return match (self, text.as_str()) {
-        (ExprCtx::YamlFrontmatter, "---") => true,
-        (ExprCtx::MdBold, "**") => true,
-        (ExprCtx::MdItalicStar, "*") => true,
-        (ExprCtx::MdItalicUnderscore, "_") => true,
-        (ExprCtx::MdBoldItalic, "***") => true,
-        (ExprCtx::MdStrikethrough, "~~") => true,
-        (ExprCtx::MdCalloutBlock(_), ":::") => true,
-        (ExprCtx::MdTableCell, "|") => true,
-        _ => false,
-      };
+      return matches!(
+        (self, text.as_str()),
+        (ExprCtx::YamlFrontmatter, "---")
+          | (ExprCtx::MdBold, "**")
+          | (ExprCtx::MdItalicStar, "*")
+          | (ExprCtx::MdItalicUnderscore, "_")
+          | (ExprCtx::MdBoldItalic, "***")
+          | (ExprCtx::MdStrikethrough, "~~")
+          | (ExprCtx::MdCalloutBlock(_), ":::")
+          | (ExprCtx::MdTableCell, "|")
+      );
     }
 
-    match (self, token.kind()) {
+    matches!(
+      (self, token.kind()),
       (ExprCtx::YamlFrontmatter, SyntaxKind::YamlIndent)
-      | (ExprCtx::YamlFrontmatter, SyntaxKind::Eof)
-      | (ExprCtx::MarkdownBody, SyntaxKind::Eof)
-      | (ExprCtx::Interp, SyntaxKind::InterpEnd)
-      | (ExprCtx::List, SyntaxKind::RBracket)
-      | (ExprCtx::List, SyntaxKind::Comma)
-      | (ExprCtx::Dict, SyntaxKind::RBrace)
-      | (ExprCtx::Dict, SyntaxKind::Comma)
-      | (ExprCtx::Dict, SyntaxKind::Colon)
-      | (ExprCtx::DqString, SyntaxKind::DqStrEnd)
-      | (ExprCtx::SqString, SyntaxKind::SqStrEnd)
-      | (ExprCtx::Paren, SyntaxKind::RParen)
-      | (ExprCtx::Call, SyntaxKind::RParen)
-      | (ExprCtx::Call, SyntaxKind::Comma)
-      | (ExprCtx::Index, SyntaxKind::RBracket)
-      | (ExprCtx::Index, SyntaxKind::Comma)
-      | (ExprCtx::BlockSeq, SyntaxKind::Newline)
-      | (ExprCtx::BlockMap, SyntaxKind::Newline)
-      | (ExprCtx::MdBlockQuote, SyntaxKind::Newline)
-      | (ExprCtx::MdBlockQuote, SyntaxKind::Eof)
-      | (ExprCtx::MdOrderedList, SyntaxKind::Eof)
-      | (ExprCtx::MdOrderedListItem, SyntaxKind::Newline)
-      | (ExprCtx::MdOrderedListItem, SyntaxKind::Eof)
-      | (ExprCtx::MdUnorderedList, SyntaxKind::Eof)
-      | (ExprCtx::MdUnorderedListItem, SyntaxKind::Newline)
-      | (ExprCtx::MdUnorderedListItem, SyntaxKind::Eof)
-      | (ExprCtx::MdTaskListItem, SyntaxKind::Newline)
-      | (ExprCtx::MdTaskListItem, SyntaxKind::Eof)
-      | (ExprCtx::MdToggleList, SyntaxKind::Eof)
-      | (ExprCtx::MdToggleListItem, SyntaxKind::Newline)
-      | (ExprCtx::MdToggleListItem, SyntaxKind::Eof)
-      | (ExprCtx::MdTable, SyntaxKind::Eof)
-      | (ExprCtx::MdTableRow, SyntaxKind::Newline)
-      | (ExprCtx::MdTableRow, SyntaxKind::Eof)
-      | (ExprCtx::MdTableCell, SyntaxKind::Newline)
-      | (ExprCtx::MdTableCell, SyntaxKind::Eof)
-      | (ExprCtx::MdLinkText, SyntaxKind::RBracket)
-      | (ExprCtx::MdLinkText, SyntaxKind::Newline)
-      | (ExprCtx::MdLinkText, SyntaxKind::Eof)
-      | (ExprCtx::MdLinkUrl, SyntaxKind::RParen)
-      | (ExprCtx::MdLinkUrl, SyntaxKind::Newline)
-      | (ExprCtx::MdLinkUrl, SyntaxKind::Eof)
-      | (ExprCtx::MdBold, SyntaxKind::Newline)
-      | (ExprCtx::MdBold, SyntaxKind::Eof)
-      | (ExprCtx::MdItalicStar, SyntaxKind::Newline)
-      | (ExprCtx::MdItalicStar, SyntaxKind::Eof)
-      | (ExprCtx::MdItalicUnderscore, SyntaxKind::Newline)
-      | (ExprCtx::MdItalicUnderscore, SyntaxKind::Eof)
-      | (ExprCtx::MdBoldItalic, SyntaxKind::Newline)
-      | (ExprCtx::MdBoldItalic, SyntaxKind::Eof)
-      | (ExprCtx::MdStrikethrough, SyntaxKind::Newline)
-      | (ExprCtx::MdStrikethrough, SyntaxKind::Eof)
-      | (ExprCtx::MdCitation, SyntaxKind::RBracket)
-      | (ExprCtx::MdCitation, SyntaxKind::Newline)
-      | (ExprCtx::MdCitation, SyntaxKind::Eof)
-      | (ExprCtx::MdCalloutBlock(_), SyntaxKind::Eof) => true,
-      _ => false,
-    }
+        | (ExprCtx::YamlFrontmatter, SyntaxKind::Eof)
+        | (ExprCtx::MarkdownBody, SyntaxKind::Eof)
+        | (ExprCtx::Interp, SyntaxKind::InterpEnd)
+        | (ExprCtx::List, SyntaxKind::RBracket)
+        | (ExprCtx::List, SyntaxKind::Comma)
+        | (ExprCtx::Dict, SyntaxKind::RBrace)
+        | (ExprCtx::Dict, SyntaxKind::Comma)
+        | (ExprCtx::Dict, SyntaxKind::Colon)
+        | (ExprCtx::DqString, SyntaxKind::DqStrEnd)
+        | (ExprCtx::SqString, SyntaxKind::SqStrEnd)
+        | (ExprCtx::Paren, SyntaxKind::RParen)
+        | (ExprCtx::Call, SyntaxKind::RParen)
+        | (ExprCtx::Call, SyntaxKind::Comma)
+        | (ExprCtx::Index, SyntaxKind::RBracket)
+        | (ExprCtx::Index, SyntaxKind::Comma)
+        | (ExprCtx::BlockSeq, SyntaxKind::Newline)
+        | (ExprCtx::BlockMap, SyntaxKind::Newline)
+        | (ExprCtx::MdBlockQuote, SyntaxKind::Newline)
+        | (ExprCtx::MdBlockQuote, SyntaxKind::Eof)
+        | (ExprCtx::MdOrderedList, SyntaxKind::Eof)
+        | (ExprCtx::MdOrderedListItem, SyntaxKind::Newline)
+        | (ExprCtx::MdOrderedListItem, SyntaxKind::Eof)
+        | (ExprCtx::MdUnorderedList, SyntaxKind::Eof)
+        | (ExprCtx::MdUnorderedListItem, SyntaxKind::Newline)
+        | (ExprCtx::MdUnorderedListItem, SyntaxKind::Eof)
+        | (ExprCtx::MdTaskListItem, SyntaxKind::Newline)
+        | (ExprCtx::MdTaskListItem, SyntaxKind::Eof)
+        | (ExprCtx::MdToggleList, SyntaxKind::Eof)
+        | (ExprCtx::MdToggleListItem, SyntaxKind::Newline)
+        | (ExprCtx::MdToggleListItem, SyntaxKind::Eof)
+        | (ExprCtx::MdTable, SyntaxKind::Eof)
+        | (ExprCtx::MdTableRow, SyntaxKind::Newline)
+        | (ExprCtx::MdTableRow, SyntaxKind::Eof)
+        | (ExprCtx::MdTableCell, SyntaxKind::Newline)
+        | (ExprCtx::MdTableCell, SyntaxKind::Eof)
+        | (ExprCtx::MdLinkText, SyntaxKind::RBracket)
+        | (ExprCtx::MdLinkText, SyntaxKind::Newline)
+        | (ExprCtx::MdLinkText, SyntaxKind::Eof)
+        | (ExprCtx::MdLinkUrl, SyntaxKind::RParen)
+        | (ExprCtx::MdLinkUrl, SyntaxKind::Newline)
+        | (ExprCtx::MdLinkUrl, SyntaxKind::Eof)
+        | (ExprCtx::MdBold, SyntaxKind::Newline)
+        | (ExprCtx::MdBold, SyntaxKind::Eof)
+        | (ExprCtx::MdItalicStar, SyntaxKind::Newline)
+        | (ExprCtx::MdItalicStar, SyntaxKind::Eof)
+        | (ExprCtx::MdItalicUnderscore, SyntaxKind::Newline)
+        | (ExprCtx::MdItalicUnderscore, SyntaxKind::Eof)
+        | (ExprCtx::MdBoldItalic, SyntaxKind::Newline)
+        | (ExprCtx::MdBoldItalic, SyntaxKind::Eof)
+        | (ExprCtx::MdStrikethrough, SyntaxKind::Newline)
+        | (ExprCtx::MdStrikethrough, SyntaxKind::Eof)
+        | (ExprCtx::MdCitation, SyntaxKind::RBracket)
+        | (ExprCtx::MdCitation, SyntaxKind::Newline)
+        | (ExprCtx::MdCitation, SyntaxKind::Eof)
+        | (ExprCtx::MdCalloutBlock(_), SyntaxKind::Eof)
+    )
   }
 }

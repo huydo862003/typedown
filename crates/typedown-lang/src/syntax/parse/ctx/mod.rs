@@ -64,7 +64,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     let markdown_body = self.parse_markdown_body();
     self.emit(
       SyntaxKind::SourceFile,
-      &vec![yaml_frontmatter, markdown_body],
+      &[yaml_frontmatter, markdown_body],
     )
   }
 }

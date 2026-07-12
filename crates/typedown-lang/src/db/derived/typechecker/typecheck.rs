@@ -84,8 +84,8 @@ fn check_mapping_fields(
     // _type requires the value to resolve to a schema symbol
     if key == "_type" {
       let resolved = referee(db, *value_hir);
-      if let Some(symbol) = resolved.value(db) {
-        if !symbol.kind(db).is_schema() {
+      if let Some(symbol) = resolved.value(db)
+        && !symbol.kind(db).is_schema() {
           let node = value_hir.node(db);
           diagnostics.push(Diagnostic::FieldTypeMismatch {
             field: "_type".to_string(),
@@ -94,7 +94,6 @@ fn check_mapping_fields(
             end_offset: node.offset() + node.text_len(),
           });
         }
-      }
       continue;
     }
     if let Some(member) = expected_type.get_field_type(db, key) {
@@ -181,8 +180,8 @@ fn check_tag(
   let mut diagnostics = vec![];
   let inner_result = infer_node_type(db, inner);
   diagnostics.extend(inner_result.diagnostics(db).iter().cloned());
-  if let Some(actual_type) = inner_result.typ(db) {
-    if !expected_type.is_compatible_with(db, &actual_type) {
+  if let Some(actual_type) = inner_result.typ(db)
+    && !expected_type.is_compatible_with(db, &actual_type) {
       let node = inner.node(db);
       diagnostics.push(Diagnostic::TagTypeMismatch {
         expected: expected_type.display_name(db),
@@ -190,7 +189,6 @@ fn check_tag(
         end_offset: node.offset() + node.text_len(),
       });
     }
-  }
   diagnostics
 }
 
@@ -231,8 +229,8 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
   for (param, arg_hir) in params.iter().zip(args.iter()) {
     let arg_result = infer_node_type(db, *arg_hir);
     diagnostics.extend(arg_result.diagnostics(db).iter().cloned());
-    if let Some(arg_type) = arg_result.typ(db) {
-      if !param.is_compatible_with(db, &arg_type) {
+    if let Some(arg_type) = arg_result.typ(db)
+      && !param.is_compatible_with(db, &arg_type) {
         let node = arg_hir.node(db);
         diagnostics.push(Diagnostic::ArgTypeMismatch {
           expected: param.display_name(db),
@@ -240,7 +238,6 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
           end_offset: node.offset() + node.text_len(),
         });
       }
-    }
   }
 
   diagnostics
@@ -288,8 +285,8 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
       for idx_hir in &indices {
         let idx_result = infer_node_type(db, *idx_hir);
         diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
-        if let Some(idx_type) = idx_result.typ(db) {
-          if !key_type.is_compatible_with(db, &idx_type) {
+        if let Some(idx_type) = idx_result.typ(db)
+          && !key_type.is_compatible_with(db, &idx_type) {
             let node = idx_hir.node(db);
             diagnostics.push(Diagnostic::IndexTypeMismatch {
               expected: key_type.display_name(db),
@@ -297,7 +294,6 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
               end_offset: node.offset() + node.text_len(),
             });
           }
-        }
       }
     }
     return diagnostics;
@@ -385,8 +381,8 @@ fn check_binary(
     // Arithmetic: both operands must be number
     "+" | "-" | "*" | "/" | "%" | "**" => {
       let num_type: TdrTypeEnum = get_num_type(db).into();
-      if let Some(lt) = &left_type {
-        if !num_type.is_compatible_with(db, &lt) {
+      if let Some(lt) = &left_type
+        && !num_type.is_compatible_with(db, lt) {
           let node = left.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -395,9 +391,8 @@ fn check_binary(
             end_offset: node.offset() + node.text_len(),
           });
         }
-      }
-      if let Some(rt) = &right_type {
-        if !num_type.is_compatible_with(db, &rt) {
+      if let Some(rt) = &right_type
+        && !num_type.is_compatible_with(db, rt) {
           let node = right.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -406,14 +401,13 @@ fn check_binary(
             end_offset: node.offset() + node.text_len(),
           });
         }
-      }
     }
     // Logical: both operands must be boolean
     // Consider allow truthy and falsy?
     "&&" | "||" => {
       let bool_type: TdrTypeEnum = get_bool_type(db).into();
-      if let Some(lt) = &left_type {
-        if !bool_type.is_compatible_with(db, &lt) {
+      if let Some(lt) = &left_type
+        && !bool_type.is_compatible_with(db, lt) {
           let node = left.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -422,9 +416,8 @@ fn check_binary(
             end_offset: node.offset() + node.text_len(),
           });
         }
-      }
-      if let Some(rt) = &right_type {
-        if !bool_type.is_compatible_with(db, &rt) {
+      if let Some(rt) = &right_type
+        && !bool_type.is_compatible_with(db, rt) {
           let node = right.node(db);
           diagnostics.push(Diagnostic::OperandTypeMismatch {
             op: op.to_string(),
@@ -433,7 +426,6 @@ fn check_binary(
             end_offset: node.offset() + node.text_len(),
           });
         }
-      }
     }
     // Comparison: any type can be compared
     // :)) not sure
@@ -469,8 +461,8 @@ fn check_sequence(
 
     // Check item type against element type
     let item_result = infer_node_type(db, item);
-    if let Some(item_type) = item_result.typ(db) {
-      if !elem_type.is_compatible_with(db, &item_type) {
+    if let Some(item_type) = item_result.typ(db)
+      && !elem_type.is_compatible_with(db, &item_type) {
         let node = item.node(db);
         diagnostics.push(Diagnostic::ElementTypeMismatch {
           expected: elem_type.display_name(db),
@@ -478,7 +470,6 @@ fn check_sequence(
           end_offset: node.offset() + node.text_len(),
         });
       }
-    }
   }
 
   diagnostics

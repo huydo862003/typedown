@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::SystemTime;
@@ -224,11 +224,11 @@ fn scan_dir(root: &PathBuf, dir: &PathBuf, files: &mut HashSet<PathBuf>) -> io::
   Ok(())
 }
 
-fn is_tdr_file(path: &PathBuf) -> bool {
+fn is_tdr_file(path: &Path) -> bool {
   path.extension().is_some_and(|ext| ext == "tdr")
 }
 
-fn is_vault_config(path: &PathBuf) -> bool {
+fn is_vault_config(path: &Path) -> bool {
   matches!(
     path.file_name().and_then(|name| name.to_str()),
     Some("typedown.yaml") | Some("typedown.yml")

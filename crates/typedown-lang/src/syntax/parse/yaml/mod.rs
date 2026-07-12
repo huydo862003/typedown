@@ -47,8 +47,8 @@ impl<S: Utf8Stream> ParseCtx<S> {
     // Parse body
     let early_exit = self.parse_yaml_body(&mut children);
 
-    if let Some(ctx) = early_exit {
-      if ctx != ExprCtx::YamlFrontmatter {
+    if let Some(ctx) = early_exit
+      && ctx != ExprCtx::YamlFrontmatter {
         self
           .diagnostics
           .push(Diagnostic::UnexpectedTokensOnFrontmatterMarkerLine {
@@ -56,7 +56,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
             end_offset: self.offset(),
           });
       }
-    }
 
     // Consume closing ---
     // Require the indentation to be 0

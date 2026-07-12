@@ -24,11 +24,10 @@ impl<S: Utf8Stream> LexCtx<S> {
     }
 
     // At line start, handle indentation
-    if self.yaml_lex_ctx.at_line_start {
-      if let Some(result) = self.lex_yaml_indent() {
+    if self.yaml_lex_ctx.at_line_start
+      && let Some(result) = self.lex_yaml_indent() {
         return result;
       }
-    }
 
     self.lex_yaml_token()
   }
@@ -245,8 +244,8 @@ impl<S: Utf8Stream> LexCtx<S> {
     // Check for `!` tag before consuming op chars:
     if let Utf8Result::Char('!') = self.peek() {
       self.advance_avoid_invalid_utf8();
-      if let Utf8Result::Char(char) = self.peek() {
-        if char.is_alphabetic() || char == '_' {
+      if let Utf8Result::Char(char) = self.peek()
+        && (char.is_alphabetic() || char == '_') {
           // Tag: consume the identifier part
           self.advance_avoid_invalid_utf8();
           loop {
@@ -259,14 +258,12 @@ impl<S: Utf8Stream> LexCtx<S> {
           }
           return self.emit(SyntaxKind::YamlOp);
         }
-      }
       // `!` followed by another op char (e.g. `!=`): continue consuming op chars
-      if let Utf8Result::Char(char) = self.peek() {
-        if is_op_char(char) {
+      if let Utf8Result::Char(char) = self.peek()
+        && is_op_char(char) {
           self.consume_op_chars();
           return self.emit(SyntaxKind::YamlOp);
         }
-      }
       // Standalone `!` not followed by identifier or op char is an error
       return self.emit(SyntaxKind::Error);
     }

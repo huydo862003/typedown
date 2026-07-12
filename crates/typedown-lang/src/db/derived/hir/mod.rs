@@ -44,13 +44,12 @@ fn lower_markdown(db: &TypedownDatabase, project: Project, file: File, node: Red
     parts: &mut Vec<InterpolatedPart>,
   ) {
     // If node is an interp fragment, lower the expression inside it
-    if node.kind() == SyntaxKind::InterpFragment {
-      if let Some(expr) = InterpFragment::cast(node.clone()).and_then(|f| f.expr()) {
+    if node.kind() == SyntaxKind::InterpFragment
+      && let Some(expr) = InterpFragment::cast(node.clone()).and_then(|f| f.expr()) {
         let hir = lower_node(db, project, file, expr.syntax().clone());
         parts.push(InterpolatedPart::Expr(hir));
         return;
       }
-    }
     if MathBlock::cast(node.clone()).is_some()
       || CodeBlock::cast(node.clone()).is_some()
       || InlineMath::cast(node.clone()).is_some()
@@ -173,17 +172,15 @@ fn lower_expr_kind(
   // Handle various kinds of string literal
   if let Some(lit) = StrLit::cast(inner.syntax().clone()) {
     // A string containing only a math literal lowers to Math
-    if let Some(math) = inner.syntax().children().find_map(MathLit::cast) {
-      if let Some(val) = math.value() {
+    if let Some(math) = inner.syntax().children().find_map(MathLit::cast)
+      && let Some(val) = math.value() {
         return HirValueKind::Math(val);
       }
-    }
     // A string containing only a code literal lowers to Str with code content
-    if let Some(code) = inner.syntax().children().find_map(CodeLit::cast) {
-      if let Some(val) = code.value() {
+    if let Some(code) = inner.syntax().children().find_map(CodeLit::cast)
+      && let Some(val) = code.value() {
         return HirValueKind::Str(val);
       }
-    }
     return if lit.is_interpolated() {
       let hir_parts = lit
         .fragments()
@@ -213,29 +210,26 @@ fn lower_expr_kind(
   }
 
   // Handle number lit
-  if let Some(lit) = NumberLit::cast(inner.syntax().clone()) {
-    if let Some(val) = lit.value() {
+  if let Some(lit) = NumberLit::cast(inner.syntax().clone())
+    && let Some(val) = lit.value() {
       return HirValueKind::Num(val.to_string());
     }
-  }
 
   // Handle math lit
-  if let Some(lit) = MathLit::cast(inner.syntax().clone()) {
-    if let Some(val) = lit.value() {
+  if let Some(lit) = MathLit::cast(inner.syntax().clone())
+    && let Some(val) = lit.value() {
       return HirValueKind::Math(val);
     }
-  }
 
   // Handle code lit
-  if let Some(lit) = CodeLit::cast(inner.syntax().clone()) {
-    if let Some(val) = lit.value() {
+  if let Some(lit) = CodeLit::cast(inner.syntax().clone())
+    && let Some(val) = lit.value() {
       return HirValueKind::Str(val);
     }
-  }
 
   // Handle identifier
-  if let Some(lit) = IdentLit::cast(inner.syntax().clone()) {
-    if let Some(val) = lit.value() {
+  if let Some(lit) = IdentLit::cast(inner.syntax().clone())
+    && let Some(val) = lit.value() {
       return match val.as_str() {
         "null" => HirValueKind::Null,
         "true" => HirValueKind::Bool(true),
@@ -243,11 +237,10 @@ fn lower_expr_kind(
         _ => HirValueKind::Ident(val),
       };
     }
-  }
 
   // Handle unary
-  if let Some(unary) = UnaryExpr::cast(inner.syntax().clone()) {
-    if let Some(operand) = unary.expr() {
+  if let Some(unary) = UnaryExpr::cast(inner.syntax().clone())
+    && let Some(operand) = unary.expr() {
       let op = unary
         .op()
         .and_then(|o| o.syntax().as_token())
@@ -276,11 +269,10 @@ fn lower_expr_kind(
         operand: operand.into(),
       };
     }
-  }
 
   // Handle binary
-  if let Some(binary) = BinaryExpr::cast(inner.syntax().clone()) {
-    if let (Some(lhs), Some(rhs)) = (binary.left(), binary.right()) {
+  if let Some(binary) = BinaryExpr::cast(inner.syntax().clone())
+    && let (Some(lhs), Some(rhs)) = (binary.left(), binary.right()) {
       let op = binary
         .op()
         .and_then(|o| o.syntax().as_token())
@@ -294,11 +286,10 @@ fn lower_expr_kind(
         right: right.into(),
       };
     }
-  }
 
   // Handle call expression
-  if let Some(call) = CallExpr::cast(inner.syntax().clone()) {
-    if let Some(callee) = call.callee() {
+  if let Some(call) = CallExpr::cast(inner.syntax().clone())
+    && let Some(callee) = call.callee() {
       let callee = lower_node(db, project, file, callee.syntax().clone());
       let args = call
         .args()
@@ -310,11 +301,10 @@ fn lower_expr_kind(
         args,
       };
     }
-  }
 
   // Handle index expression
-  if let Some(index) = IndexExpr::cast(inner.syntax().clone()) {
-    if let Some(expr) = index.expr() {
+  if let Some(index) = IndexExpr::cast(inner.syntax().clone())
+    && let Some(expr) = index.expr() {
       let expr = lower_node(db, project, file, expr.syntax().clone());
       let indices = index
         .indices()
@@ -326,18 +316,16 @@ fn lower_expr_kind(
         indices,
       };
     }
-  }
 
   HirValueKind::Str(inner.syntax().text().trim().to_string())
 }
 
 // Remove unnecessary parens
 fn unwrap_parens(expr: Expr) -> Expr {
-  if let Some(paren) = ParenExpr::cast(expr.syntax().clone()) {
-    if let Some(inner) = paren.expr() {
+  if let Some(paren) = ParenExpr::cast(expr.syntax().clone())
+    && let Some(inner) = paren.expr() {
       return unwrap_parens(inner);
     }
-  }
   expr
 }
 
