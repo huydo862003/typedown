@@ -31,7 +31,7 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
-    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
+    "compile": "pnpm run check-types && pnpm run lint && pnpm run build-wasm && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
@@ -41,9 +41,13 @@
     "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "lint:fix": "eslint src --fix",
+    "test": "vscode-test",
+    "build-wasm": "cargo build -p typedown-lsp-wasm --target wasm32-wasip1",
+    "watch:wasm": "cargo watch -x \"build -p typedown-lsp-wasm --target wasm32-wasip1\""
   },
   "devDependencies": {
+    "@hdnax/nuclint": "^0.17.4",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "24.x",
@@ -65,7 +69,6 @@
     "serialize-javascript": "^7.0.6"
   },
   "dependencies": {
-    "@hdnax/nuclint": "^0.17.4",
     "vscode-languageclient": "^10.1.0"
   }
 }
