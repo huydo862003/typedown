@@ -2,7 +2,6 @@ import type {
   ExtensionContext,
 } from 'vscode';
 import {
-  RevealOutputChannelOn,
   window,
   workspace,
 } from 'vscode';
@@ -12,6 +11,7 @@ import type {
 } from 'vscode-languageclient/node';
 import {
   LanguageClient,
+  RevealOutputChannelOn,
   TransportKind,
 } from 'vscode-languageclient/node';
 
@@ -23,7 +23,9 @@ export function activate (context: ExtensionContext) {
     transport: TransportKind.stdio,
   };
 
-  const outputChannel = window.createOutputChannel('Typedown LSP');
+  const outputChannel = window.createOutputChannel('Typedown LSP', {
+    log: true,
+  });
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
