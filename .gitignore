@@ -10,7 +10,7 @@ build/
 output/
 
 # zed
-zed/extension.wasm
+editors/zed/extension.wasm
 
 # Added by typedown
 .typedown

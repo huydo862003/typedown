@@ -1,0 +1,12 @@
+id = "typedown"
+name = "Typedown"
+version = "0.1.0"
+schema_version = 1
+authors = ["Lucas Nguyen"]
+description = "Language server for Typedown - a structured type-safe markdown language"
+repository = "https://github.com/huydo862003/typedown"
+
+[language_servers.typedown-lsp]
+name = "Typedown LSP"
+languages = ["Typedown"]
+command = "typedown-lsp"

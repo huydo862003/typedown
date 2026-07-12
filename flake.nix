@@ -30,6 +30,9 @@
             nodejs
             pnpm
             wasm-pack
+            zed-editor
+            vscodium
+            neovim
           ];
         };
       }

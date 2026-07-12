@@ -10,19 +10,13 @@ A typed markdown language for structured content.
 
 The compiler design is researched and documented in the [dboxide](https://github.com/Huy-DNA/dboxide) repo. See the [design docs](https://github.com/Huy-DNA/dboxide/tree/main/doc/src/design) for details on the syntax, type system, and incremental compilation engine.
 
-## Neovim Plugin
+## Editor Integration
 
-The Neovim LSP client lives in `editors/nvim/`. To test it without affecting your regular Neovim config:
-
-```bash
-nvim -u editors/nvim/test_init.lua
-```
-
-Then run `:LspInfo` inside Neovim to verify the server attached. Make sure `typedown-lsp` is built first:
-
-```bash
-cargo build --release
-```
+| Editor | User Guide | Development |
+|--------|-----------|-------------|
+| Neovim | [README](editors/nvim/README.md) | [DEVELOPMENT](editors/nvim/DEVELOPMENT.md) |
+| Zed | [README](editors/zed/README.md) | [DEVELOPMENT](editors/zed/DEVELOPMENT.md) |
+| VSCode / VSCodium | [README](editors/vscode/README.md) | [DEVELOPMENT](editors/vscode/DEVELOPMENT.md) |
 
 ## Dependency Graph
 
