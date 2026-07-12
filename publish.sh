@@ -77,7 +77,7 @@ cargo set-version "$VERSION"
 pnpm -r version "$VERSION" --no-git-tag-version --no-git-checks
 
 # Commit and push
-git add VERSION Cargo.toml
+git add VERSION Cargo.toml Cargo.lock
 [[ "$BUMP_TYPE" != pre* ]] && git add CHANGELOG.md
 find . -name package.json -not -path '*/node_modules/*' -print0 | xargs -0 git add --ignore-errors
 find ./crates -name Cargo.toml -print0 | xargs -0 git add --ignore-errors
