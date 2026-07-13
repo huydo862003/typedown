@@ -11,13 +11,12 @@ use lsp_types::{
 };
 use typedown_incremental::{CacheSession, SerializableQueryDatabase};
 use typedown_lang::db::{QueryStorage, TypedownDatabase};
-
-use crate::analysis_host::AnalysisHost;
-use crate::server::Server;
-use crate::service::semantic_tokens;
+use typedown_lsp::analysis_host::AnalysisHost;
+use typedown_lsp::server::Server;
+use typedown_lsp::service::semantic_tokens;
 
 // The entrypoint
-pub fn run() -> anyhow::Result<()> {
+pub fn main() -> anyhow::Result<()> {
   let (connection, io_thread) = Connection::stdio();
 
   // Capabilities of the server
@@ -82,8 +81,6 @@ pub fn run() -> anyhow::Result<()> {
     }
     None => QueryStorage::default(),
   };
-
-  let storage = QueryStorage::default();
 
   let db = TypedownDatabase { storage };
 

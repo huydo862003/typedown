@@ -14,7 +14,7 @@ use lsp_types::{
 };
 
 use crate::analysis_host::AnalysisHost;
-use crate::notification;
+use crate::notification::diagnostics::publish_diagnostics;
 use crate::service;
 use crate::utils::uri::uri_to_path;
 
@@ -57,7 +57,7 @@ impl Server {
           handle_notification(&mut self.host, &note);
           // Push diagnostics after each state change
           let analysis = self.host.snapshot();
-          for notif in notification::diagnostics::publish_diagnostics(&analysis) {
+          for notif in publish_diagnostics(&analysis) {
             self.connection.sender.send(Message::Notification(notif))?;
           }
         }
