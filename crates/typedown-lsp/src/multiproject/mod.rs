@@ -1,7 +1,7 @@
 use std::{
   fmt::Debug,
   path::{Path, PathBuf},
-  sync::{Arc, atomic::Ordering},
+  sync::{Arc, RwLock, atomic::Ordering},
 };
 
 use anyhow::Error;
@@ -12,14 +12,14 @@ use typedown_lang::db::TypedownDatabase;
 use crate::analysis_host::AnalysisHost;
 
 pub struct ProjectEntry {
-  root_dir: PathBuf,
-  cache: CacheSession,
-  host: AnalysisHost,
+  pub root_dir: PathBuf,
+  pub cache: CacheSession,
+  pub host: RwLock<AnalysisHost>,
 }
 
 impl Debug for ProjectEntry {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.write_str(self.root_dir.to_str().unwrap_or("<unknown path>"));
+    f.write_str(self.root_dir.to_str().unwrap_or("<unknown path>"))?;
     Ok(())
   }
 }
@@ -28,12 +28,20 @@ pub struct Multiproject {
   projects: DashMap<PathBuf, Arc<ProjectEntry>>, // map from project root dir to the corresponding cache sessions
 }
 
+impl Default for Multiproject {
+  fn default() -> Self {
+    Multiproject {
+      projects: DashMap::new(),
+    }
+  }
+}
+
 impl Multiproject {
-  fn projects(&self) -> impl Iterator<Item = Arc<ProjectEntry>> {
+  pub fn projects(&self) -> impl Iterator<Item = Arc<ProjectEntry>> {
     self.projects.iter().map(|e| e.value().clone())
   }
 
-  fn load_project(&self, project_dir: &Path) -> anyhow::Result<Arc<ProjectEntry>> {
+  pub fn load_project(&self, project_dir: &Path) -> anyhow::Result<Arc<ProjectEntry>> {
     let cache_dir = project_dir.join(".typedown/cache");
 
     let (session, serialized) = CacheSession::open(&cache_dir).unwrap_or_else(|_| {
@@ -60,7 +68,7 @@ impl Multiproject {
 
     let db = TypedownDatabase { storage };
 
-    let host = AnalysisHost::new(db, project_dir.into())?;
+    let host = RwLock::new(AnalysisHost::new(db, project_dir.into())?);
 
     let entry = Arc::new(ProjectEntry {
       root_dir: project_dir.into(),
@@ -73,13 +81,13 @@ impl Multiproject {
     Ok(entry)
   }
 
-  fn load_nearest_project(&self, nested_dir: &Path) -> anyhow::Result<Arc<ProjectEntry>> {
+  pub fn load_nearest_project(&self, nested_dir: &Path) -> anyhow::Result<Arc<ProjectEntry>> {
     let project_dir = find_project_root(&nested_dir)?;
     self.load_project(&project_dir)
   }
 
   /// NOTE: we should only save when the main thread is running
-  fn save(mut self) {
+  pub fn save(mut self) {
     let projects = std::mem::take(&mut self.projects);
     for project in projects.into_iter().map(|e| e.1) {
       let ProjectEntry {
@@ -88,7 +96,10 @@ impl Multiproject {
         ..
       } = Arc::try_unwrap(project).expect("Only one thread can save");
 
-      let db = host.into_db();
+      let db = host
+        .into_inner()
+        .expect("Only one thread can save")
+        .into_db();
 
       let revision = db.storage.revision.load(Ordering::Acquire) as u64;
       let serialized = db.dump();

@@ -14,31 +14,37 @@ use lsp_types::{
 };
 
 use crate::analysis_host::AnalysisHost;
+use crate::multiproject::Multiproject;
 use crate::notification::diagnostics::publish_diagnostics;
 use crate::service;
+use crate::utils::lsp::{try_extract_path_from_notification, try_extract_path_from_request};
 use crate::utils::uri::uri_to_path;
 
 pub struct Server {
   connection: Connection,
-  host: AnalysisHost,
+  multiproject: Multiproject,
   client_capabilities: ClientCapabilities,
 }
 
 impl Server {
   pub fn new(
     connection: Connection,
-    host: AnalysisHost,
+    multiproject: Multiproject,
     client_capabilities: ClientCapabilities,
   ) -> Self {
     Self {
       connection,
-      host,
+      multiproject,
       client_capabilities,
     }
   }
 
+  pub fn save(self) {
+    self.multiproject.save();
+  }
+
   /// Run the server event loop until the client sends a shutdown request.
-  pub fn run(mut self) -> anyhow::Result<AnalysisHost> {
+  pub fn run(&self) -> anyhow::Result<()> {
     self.register_file_watcher()?;
 
     for msg in &self.connection.receiver {
@@ -48,15 +54,48 @@ impl Server {
           if self.connection.handle_shutdown(&req)? {
             break;
           }
-          let analysis = self.host.snapshot();
+          let Some(uri) = try_extract_path_from_request(&req) else {
+            continue;
+          };
+          let Some(path) = uri_to_path(&uri) else {
+            continue;
+          };
+          let Ok(project_entry) = self.multiproject.load_nearest_project(&path) else {
+            continue;
+          };
+          let analysis = project_entry
+            .host
+            .read()
+            .expect("The read lock should be acquired")
+            .snapshot();
           let resp = service::dispatch(&analysis, req);
           self.connection.sender.send(Message::Response(resp))?;
         }
         Message::Notification(note) => {
+          let Some(uri) = try_extract_path_from_notification(&note) else {
+            continue;
+          };
+          let Some(path) = uri_to_path(&uri) else {
+            continue;
+          };
+          let Ok(project_entry) = self.multiproject.load_nearest_project(&path) else {
+            continue;
+          };
+
           // File open/change/close: update the host's tracked state
-          handle_notification(&mut self.host, &note);
+          handle_notification(
+            &mut project_entry
+              .host
+              .write()
+              .expect("The write lock should be acquired"),
+            &note,
+          );
           // Push diagnostics after each state change
-          let analysis = self.host.snapshot();
+          let analysis = project_entry
+            .host
+            .read()
+            .expect("The read lock should be acquired")
+            .snapshot();
           for notif in publish_diagnostics(&analysis) {
             self.connection.sender.send(Message::Notification(notif))?;
           }
@@ -64,7 +103,7 @@ impl Server {
         Message::Response(_) => {}
       }
     }
-    Ok(self.host)
+    Ok(())
   }
 
   fn register_file_watcher(&self) -> anyhow::Result<()> {

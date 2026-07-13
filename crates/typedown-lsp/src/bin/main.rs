@@ -1,6 +1,4 @@
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::path::PathBuf;
 
 use lsp_server::Connection;
 use lsp_types::{
@@ -9,9 +7,7 @@ use lsp_types::{
   ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
   Uri,
 };
-use typedown_incremental::{CacheSession, SerializableQueryDatabase};
-use typedown_lang::db::{QueryStorage, TypedownDatabase};
-use typedown_lsp::analysis_host::AnalysisHost;
+use typedown_lsp::multiproject::Multiproject;
 use typedown_lsp::server::Server;
 use typedown_lsp::service::semantic_tokens;
 
@@ -46,72 +42,33 @@ pub fn main() -> anyhow::Result<()> {
     ..Default::default()
   };
 
+  let multiproject = Multiproject::default();
+
   // Handshake with the capabilities and get back the client
   let init_params: InitializeParams =
     serde_json::from_value(connection.initialize(serde_json::to_value(capabilities)?)?)?;
 
-  // Lookup the project root
-  let workspace_dir = init_params
+  // Lookup the project roots
+  let initial_dirs = init_params
     .workspace_folders
-    .and_then(|folders| folders.into_iter().next())
-    .and_then(|folder| uri_to_path(&folder.uri))
-    .unwrap_or_else(|| PathBuf::from("."));
+    .unwrap_or_default()
+    .into_iter()
+    .map(|folder| {
+      uri_to_path(&folder.uri).unwrap_or(std::env::current_dir().unwrap_or(PathBuf::from(".")))
+    });
 
-  let project_dir = find_project_root(&workspace_dir).unwrap_or(workspace_dir);
-
-  let cache_dir = project_dir.join(".typedown/cache");
-
-  let (session, serialized) = CacheSession::open(&cache_dir).unwrap_or_else(|_| {
-    // If cache dir is inaccessible, proceed without cache
-    (CacheSession::empty(), None)
-  });
-
-  let storage = match serialized {
-    Some(data) => {
-      match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let arc = QueryStorage::from_serialized(data);
-        Arc::try_unwrap(arc).unwrap_or_else(|arc| (*arc).clone())
-      })) {
-        Ok(storage) => storage,
-        Err(_) => {
-          eprintln!("Failed to load incremental cache, starting fresh");
-          let _ = std::fs::remove_dir_all(&cache_dir);
-          QueryStorage::default()
-        }
-      }
-    }
-    None => QueryStorage::default(),
-  };
-
-  let db = TypedownDatabase { storage };
-
-  let host = AnalysisHost::new(db, project_dir)?;
-
-  let host = Server::new(connection, host, init_params.capabilities).run()?;
-
-  // Save incremental cache on shutdown
-  let db = host.into_db();
-  {
-    let revision = db.storage.revision.load(Ordering::Acquire) as u64;
-    let serialized = db.dump();
-    if let Err(err) = session.finalize(&serialized, revision) {
-      eprintln!("Failed to save incremental cache: {}", err);
-    }
+  for dir in initial_dirs {
+    multiproject.load_nearest_project(&dir)?;
   }
+
+  let server = Server::new(connection, multiproject, init_params.capabilities);
+
+  server.run()?;
+
+  server.save();
 
   io_thread.join()?;
   Ok(())
-}
-
-/// Walk up from `start` until a directory containing `typedown.yaml` or `typedown.yml` is found.
-fn find_project_root(start: &Path) -> Option<PathBuf> {
-  let mut current = start;
-  loop {
-    if current.join("typedown.yaml").exists() || current.join("typedown.yml").exists() {
-      return Some(current.to_path_buf());
-    }
-    current = current.parent()?;
-  }
 }
 
 fn uri_to_path(uri: &Uri) -> Option<PathBuf> {
