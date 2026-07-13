@@ -56,6 +56,7 @@ pub fn main() -> anyhow::Result<()> {
     .and_then(|folders| folders.into_iter().next())
     .and_then(|folder| uri_to_path(&folder.uri))
     .unwrap_or_else(|| PathBuf::from("."));
+
   let project_dir = find_project_root(&workspace_dir).unwrap_or(workspace_dir);
 
   let cache_dir = project_dir.join(".typedown/cache");
