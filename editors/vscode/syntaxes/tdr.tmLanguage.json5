@@ -11,6 +11,7 @@
     }
   ],
   "repository": {
+    /* entrypoints */
     "frontmatter": {
       "comment": "YAML mode between --- delimiters",
       "begin": "\\A(---)",
@@ -25,13 +26,170 @@
           "name": "punctuation.definition.frontmatter.end.tdr"
         }
       },
-      "patterns": []
+      "patterns": [
+        { "include": "#yaml-comment" },
+        { "include": "#yaml-block-mapping" }
+      ]
     },
     "body": {
       "comment": "Markdown mode after frontmatter",
       "begin": "(?<=^---)\\s*$",
       "end": "\\z",
       "patterns": []
+    },
+
+    /* yaml mode */
+    "yaml-comment": {
+      "match": "(#).*$",
+      "name": "comment.line.number-sign.tdr"
+    },
+    "yaml-block-mapping": {
+      "patterns": [
+        { "include": "#yaml-block-mapping-entry" }
+      ]
+    },
+    "yaml-block-mapping-entry": {
+      // Captures the indent level in group 1 and uses a backreference
+      // in the end pattern so that only a key at the same or lesser
+      // indent closes this entry.
+      "begin": "^(\\s*)(\\w+)\\s*(:)",
+      "beginCaptures": {
+        "2": { "name": "entity.name.tag.tdr" },
+        "3": { "name": "punctuation.separator.key-value.tdr" }
+      },
+      "end": "(?=^(?!\\1\\s)\\s*\\w+\\s*:|^---)",
+      "patterns": [
+        { "include": "#yaml-value" }
+      ]
+    },
+    "yaml-block-sequence": {
+      "patterns": [
+        { "include": "#yaml-block-sequence-entry" }
+      ]
+    },
+    "yaml-block-sequence-entry": {
+      "begin": "^(\\s*)(-)\\s",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.list.begin.tdr" }
+      },
+      "end": "(?=^\\s*-\\s|^(?!\\1\\s)\\s*\\w+\\s*:|^---)",
+      "patterns": [
+        { "include": "#yaml-value" }
+      ]
+    },
+    "yaml-value": {
+      // Order matters: expression before yaml-comment so strings containing # match before comment
+      "patterns": [
+        { "include": "#expression" },
+        { "include": "#yaml-comment" },
+        { "include": "#yaml-block-sequence" },
+        { "include": "#yaml-block-mapping" }
+      ]
+    },
+
+    /* markdown mode */
+
+    /* expressions: inline values usable in both YAML and formula mode */
+    "expression": {
+      "patterns": [
+        { "include": "#dict" },
+        { "include": "#list" },
+        { "include": "#string-double" },
+        { "include": "#string-single" },
+        { "include": "#number" },
+        { "include": "#boolean" },
+        { "include": "#type-tag" },
+        { "include": "#operator" },
+        { "include": "#identifier" }
+      ]
+    },
+
+    /* building blocks */
+    "dict": {
+      // { key: value, key: value }
+      "begin": "(\\{)",
+      "end": "(\\})",
+      "beginCaptures": { "1": { "name": "punctuation.definition.dict.begin.tdr" } },
+      "endCaptures": { "1": { "name": "punctuation.definition.dict.end.tdr" } },
+      "name": "meta.dict.tdr",
+      "patterns": [
+        { "include": "#dict-entry" },
+        { "include": "#yaml-comment" }
+      ]
+    },
+    "dict-entry": {
+      // Uses begin/end so the value after the colon gets highlighted
+      "begin": "(\\w+)\\s*(:)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.tag.tdr" },
+        "2": { "name": "punctuation.separator.key-value.tdr" }
+      },
+      "end": "(?=,|\\})",
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "list": {
+      // [ item, item ]
+      "begin": "(\\[)",
+      "end": "(\\])",
+      "beginCaptures": { "1": { "name": "punctuation.definition.list.begin.tdr" } },
+      "endCaptures": { "1": { "name": "punctuation.definition.list.end.tdr" } },
+      "name": "meta.list.tdr",
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "string-double": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.tdr",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "include": "#escape" }
+      ]
+    },
+    "string-single": {
+      "begin": "'",
+      "end": "'",
+      "name": "string.quoted.single.tdr",
+      "patterns": [
+        { "include": "#escape" }
+      ]
+    },
+    "escape": {
+      "match": "\\\\[\\\\\"'nt$]",
+      "name": "constant.character.escape.tdr"
+    },
+    "interpolation": {
+      "begin": "(\\$\\{)",
+      "end": "(\\})",
+      "beginCaptures": { "1": { "name": "punctuation.section.interpolation.begin.tdr" } },
+      "endCaptures": { "1": { "name": "punctuation.section.interpolation.end.tdr" } },
+      "name": "meta.interpolation.tdr",
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "number": {
+      "match": "\\b\\d+(\\.\\d+)?\\b",
+      "name": "constant.numeric.tdr"
+    },
+    "boolean": {
+      "match": "\\b(true|false)\\b",
+      "name": "constant.language.boolean.tdr"
+    },
+    "type-tag": {
+      "match": "(![a-zA-Z_]+)",
+      "name": "storage.type.tag.tdr"
+    },
+    "operator": {
+      "match": "(\\+|-|\\*\\*|\\*|/|%|==|!=|<=|>=|<|>|&&|\\|\\||~|\\.)",
+      "name": "keyword.operator.tdr"
+    },
+    "identifier": {
+      "match": "\\b[a-zA-Z_]\\w*\\b",
+      "name": "variable.other.tdr"
     }
   }
 }

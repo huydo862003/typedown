@@ -44,4 +44,4 @@ Both syntactic and semantic highlighting rely on naming conventions so themes ca
 - **Tree-sitter captures** (Neovim/Zed): [nvim-treesitter highlight groups](https://neovim.io/doc/user/treesitter.html#treesitter-highlight)
 - **TextMate scopes** (VS Code): See [vscode/DEVELOPMENT.md](vscode/DEVELOPMENT.md#scope-naming-conventions)
 
-Our LSP uses two custom token types (`heading`, `punctuation.bracket`) that aren't part of the LSP standard. Editors need explicit theme mappings for these (see `theme.lua` for Neovim and `configurationDefaults` in VS Code's `package.json`).
+Our LSP currently only provides `TYPE` as a semantic token (for identifiers that resolve to types). All other highlighting is left to syntactic grammars.
