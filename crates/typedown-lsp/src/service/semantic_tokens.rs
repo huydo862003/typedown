@@ -337,9 +337,15 @@ properties:
 ---
 "#,
     );
-    let type_count = types.iter().filter(|t| **t == SemanticTokenType::TYPE).count();
+    let type_count = types
+      .iter()
+      .filter(|t| **t == SemanticTokenType::TYPE)
+      .count();
     // schema, string, number
-    assert_eq!(type_count, 3, "expected 3 TYPE tokens (schema, string, number), got: {type_count}");
+    assert_eq!(
+      type_count, 3,
+      "expected 3 TYPE tokens (schema, string, number), got: {type_count}"
+    );
   }
 
   #[test]
@@ -352,8 +358,14 @@ value: self.name
 ---
 "#,
     );
-    let var_count = types.iter().filter(|t| **t == SemanticTokenType::VARIABLE).count();
-    assert_eq!(var_count, 3, "expected 3 VARIABLE tokens (true, self, name), got: {var_count}");
+    let var_count = types
+      .iter()
+      .filter(|t| **t == SemanticTokenType::VARIABLE)
+      .count();
+    assert_eq!(
+      var_count, 3,
+      "expected 3 VARIABLE tokens (true, self, name), got: {var_count}"
+    );
   }
 
   #[test]
