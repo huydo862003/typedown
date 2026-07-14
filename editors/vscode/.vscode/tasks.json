@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "watch:dev",
+      "dependsOn": ["npm: watch:rust", "npm: watch:esbuild", "npm: watch:tsc"],
+      "presentation": { "reveal": "never" },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "compile:dev",
+      "type": "npm",
+      "script": "compile:dev",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "compile:staging",
+      "type": "npm",
+      "script": "compile:staging",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "type": "npm",
+      "script": "watch:rust",
+      "group": "build",
+      "isBackground": true,
+      "label": "npm: watch:rust",
+      "presentation": { "group": "watch", "reveal": "never" }
+    },
+    {
+      "type": "npm",
+      "script": "watch:esbuild",
+      "group": "build",
+      "problemMatcher": [],
+      "isBackground": true,
+      "label": "npm: watch:esbuild",
+      "presentation": { "group": "watch", "reveal": "never" }
+    },
+    {
+      "type": "npm",
+      "script": "watch:tsc",
+      "group": "build",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "label": "npm: watch:tsc",
+      "presentation": { "group": "watch", "reveal": "never" }
+    }
+  ]
+}
