@@ -760,4 +760,144 @@ mod tests {
       result.diagnostics(&db)
     );
   }
+
+  // Schema property descriptor tests: valid cases
+
+  #[test]
+  fn typecheck_schema_simple_props_no_errors() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/SimpleProps.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with simple property types should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_with_optional_no_errors() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/WithOptional.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with optional property should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_with_explicit_type_tag_no_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "schemas/WithExplicitTypeTag.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with !type tags should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_with_union_type_no_errors() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/WithUnion.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with union type should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_with_nested_type_no_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "schemas/WithNestedType.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with nested inline type should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_with_literal_type_no_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "schemas/WithLiteralType.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with literal types should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Schema property descriptor tests: negative cases
+
+  #[test]
+  fn typecheck_schema_properties_not_mapping_has_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "schemas/PropertiesNotMapping.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    let diags = result.diagnostics(&db);
+    assert!(
+      !diags.is_empty(),
+      "schema with non-mapping properties should have errors"
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_missing_properties_field() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "schemas/MissingProperties.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    let diags = result.diagnostics(&db);
+    assert!(
+      diags.iter().any(
+        |d| matches!(d, Diagnostic::MissingRequiredField { field, .. } if field == "properties")
+      ),
+      "schema without properties should have MissingRequiredField: {:?}",
+      diags
+    );
+  }
+
+  // Property descriptor structural validation (extra fields, missing type) is handled
+  // by evaluate_type::resolve_property_descriptor, not the typechecker. These tests
+  // verify the typechecker does not produce false errors for these cases.
+
+  #[test]
+  fn typecheck_schema_prop_descriptor_extra_field_no_typecheck_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/my_vault", "schemas/PropDescriptorExtraField.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "extra fields in property descriptor are ignored by typechecker: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_schema_prop_descriptor_missing_type_no_typecheck_errors() {
+    let (db, project, file) = load_vault_fixture(
+      "typecheck/my_vault",
+      "schemas/PropDescriptorMissingType.tdr",
+    );
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "missing type in property descriptor is caught by evaluate_type, not typechecker: {:?}",
+      result.diagnostics(&db)
+    );
+  }
 }

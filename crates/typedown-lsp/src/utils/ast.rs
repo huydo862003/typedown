@@ -62,10 +62,50 @@ pub fn ident_is_type_ref(node: &RedNode) -> bool {
     return false;
   };
   // Find the sibling key node.
-  entry
+  let key_text = entry
     .children()
     .find(|child| child.kind() == SyntaxKind::YamlMappingEntryKey)
-    .is_some_and(|key| key.text().trim() == "_type")
+    .map(|key| key.text().trim().to_string());
+  match key_text.as_deref() {
+    Some("_type") => true,
+    // `type: string` inside a schema property descriptor
+    Some("type") => is_inside_schema_properties(&entry),
+    _ => false,
+  }
+}
+
+/// Check if a mapping entry is nested inside the `properties` mapping of a schema.
+fn is_inside_schema_properties(entry: &RedNode) -> bool {
+  // Walk up: entry -> mapping (prop descriptor) -> value -> entry (prop name)
+  //       -> mapping (properties) -> value -> entry (properties key)
+  let prop_descriptor_mapping = match entry.parent() {
+    Some(m) if m.kind() == SyntaxKind::YamlMapping => m,
+    _ => return false,
+  };
+  let properties_entry_value = match prop_descriptor_mapping.parent() {
+    Some(v) if v.kind() == SyntaxKind::YamlMappingEntryValue => v,
+    _ => return false,
+  };
+  let prop_name_entry = match properties_entry_value.parent() {
+    Some(e) if e.kind() == SyntaxKind::YamlMappingEntry => e,
+    _ => return false,
+  };
+  let properties_mapping = match prop_name_entry.parent() {
+    Some(m) if m.kind() == SyntaxKind::YamlMapping => m,
+    _ => return false,
+  };
+  let properties_value = match properties_mapping.parent() {
+    Some(v) if v.kind() == SyntaxKind::YamlMappingEntryValue => v,
+    _ => return false,
+  };
+  let properties_entry = match properties_value.parent() {
+    Some(e) if e.kind() == SyntaxKind::YamlMappingEntry => e,
+    _ => return false,
+  };
+  properties_entry
+    .children()
+    .find(|child| child.kind() == SyntaxKind::YamlMappingEntryKey)
+    .is_some_and(|key| key.text().trim() == "properties")
 }
 
 /// Walk up to find the nearest ancestor with the given syntax kind.

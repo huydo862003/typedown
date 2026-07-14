@@ -63,7 +63,19 @@ impl TdrTypeLike for TdrSchemaPropertyType {
     vec![]
   }
   fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &TdrTypeEnum) -> bool {
-    self.as_id() == actual.as_id()
+    if self.as_id() == actual.as_id() {
+      return true;
+    }
+    // FIXME: Currently, the type system is not sophisticated enough
+    // But schema_property is an opaque type anyways...
+    // We don't actually provide any validation here.
+
+    // Property descriptors are structurally validated by
+    // evaluate_type::resolve_property_descriptor
+    if actual.is_tdr_product_type() {
+      return true;
+    }
+    false
   }
   fn construct(&self, _db: &TypedownDatabase, _args: Vec<TdrObjectEnum>) -> Option<TdrObjectEnum> {
     None
