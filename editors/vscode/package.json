@@ -40,6 +40,336 @@
         "language": "typedown",
         "scopeName": "source.tdr",
         "path": "./syntaxes/tdr.tmLanguage.json"
+      },
+      {
+        "scopeName": "tdr.javascript.codeblock",
+        "path": "./syntaxes/javascript-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.javascript": "javascript"
+        }
+      },
+      {
+        "scopeName": "tdr.typescript.codeblock",
+        "path": "./syntaxes/typescript-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.typescript": "typescript"
+        }
+      },
+      {
+        "scopeName": "tdr.typescriptreact.codeblock",
+        "path": "./syntaxes/typescriptreact-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.typescriptreact": "typescriptreact"
+        }
+      },
+      {
+        "scopeName": "tdr.javascriptreact.codeblock",
+        "path": "./syntaxes/javascriptreact-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.javascriptreact": "javascriptreact"
+        }
+      },
+      {
+        "scopeName": "tdr.json.codeblock",
+        "path": "./syntaxes/json-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.json": "json"
+        }
+      },
+      {
+        "scopeName": "tdr.css.codeblock",
+        "path": "./syntaxes/css-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.css": "css"
+        }
+      },
+      {
+        "scopeName": "tdr.html.codeblock",
+        "path": "./syntaxes/html-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.html": "html"
+        }
+      },
+      {
+        "scopeName": "tdr.python.codeblock",
+        "path": "./syntaxes/python-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.python": "python"
+        }
+      },
+      {
+        "scopeName": "tdr.rust.codeblock",
+        "path": "./syntaxes/rust-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.rust": "rust"
+        }
+      },
+      {
+        "scopeName": "tdr.go.codeblock",
+        "path": "./syntaxes/go-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.go": "go"
+        }
+      },
+      {
+        "scopeName": "tdr.c.codeblock",
+        "path": "./syntaxes/c-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.c": "c"
+        }
+      },
+      {
+        "scopeName": "tdr.cpp.codeblock",
+        "path": "./syntaxes/cpp-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.cpp": "cpp"
+        }
+      },
+      {
+        "scopeName": "tdr.java.codeblock",
+        "path": "./syntaxes/java-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.java": "java"
+        }
+      },
+      {
+        "scopeName": "tdr.ruby.codeblock",
+        "path": "./syntaxes/ruby-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.ruby": "ruby"
+        }
+      },
+      {
+        "scopeName": "tdr.shellscript.codeblock",
+        "path": "./syntaxes/shellscript-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.shellscript": "shellscript"
+        }
+      },
+      {
+        "scopeName": "tdr.lua.codeblock",
+        "path": "./syntaxes/lua-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.lua": "lua"
+        }
+      },
+      {
+        "scopeName": "tdr.sql.codeblock",
+        "path": "./syntaxes/sql-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.sql": "sql"
+        }
+      },
+      {
+        "scopeName": "tdr.yaml.codeblock",
+        "path": "./syntaxes/yaml-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.yaml": "yaml"
+        }
+      },
+      {
+        "scopeName": "tdr.toml.codeblock",
+        "path": "./syntaxes/toml-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.toml": "toml"
+        }
+      },
+      {
+        "scopeName": "tdr.xml.codeblock",
+        "path": "./syntaxes/xml-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.xml": "xml"
+        }
+      },
+      {
+        "scopeName": "tdr.graphql.codeblock",
+        "path": "./syntaxes/graphql-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.graphql": "graphql"
+        }
+      },
+      {
+        "scopeName": "tdr.dockerfile.codeblock",
+        "path": "./syntaxes/dockerfile-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.dockerfile": "dockerfile"
+        }
+      },
+      {
+        "scopeName": "tdr.markdown.codeblock",
+        "path": "./syntaxes/markdown-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.markdown": "markdown"
+        }
+      },
+      {
+        "scopeName": "tdr.elixir.codeblock",
+        "path": "./syntaxes/elixir-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.elixir": "elixir"
+        }
+      },
+      {
+        "scopeName": "tdr.swift.codeblock",
+        "path": "./syntaxes/swift-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.swift": "swift"
+        }
+      },
+      {
+        "scopeName": "tdr.kotlin.codeblock",
+        "path": "./syntaxes/kotlin-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.kotlin": "kotlin"
+        }
+      },
+      {
+        "scopeName": "tdr.r.codeblock",
+        "path": "./syntaxes/r-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.r": "r"
+        }
+      },
+      {
+        "scopeName": "tdr.csharp.codeblock",
+        "path": "./syntaxes/csharp-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.csharp": "csharp"
+        }
+      },
+      {
+        "scopeName": "tdr.php.codeblock",
+        "path": "./syntaxes/php-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.php": "php"
+        }
+      },
+      {
+        "scopeName": "tdr.scala.codeblock",
+        "path": "./syntaxes/scala-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.scala": "scala"
+        }
+      },
+      {
+        "scopeName": "tdr.zig.codeblock",
+        "path": "./syntaxes/zig-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.zig": "zig"
+        }
+      },
+      {
+        "scopeName": "tdr.haskell.codeblock",
+        "path": "./syntaxes/haskell-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.haskell": "haskell"
+        }
+      },
+      {
+        "scopeName": "tdr.ocaml.codeblock",
+        "path": "./syntaxes/ocaml-codeblock.json",
+        "injectTo": [
+          "source.tdr"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.ocaml": "ocaml"
+        }
       }
     ]
   },

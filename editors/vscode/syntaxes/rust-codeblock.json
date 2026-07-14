@@ -1,0 +1,29 @@
+{
+  "scopeName": "tdr.rust.codeblock",
+  "injectionSelector": "L:source.tdr",
+  "patterns": [
+    {
+      "begin": "(^```+)(rust|rs)\\s*$",
+      "end": "^(\\1)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.code.begin.tdr"
+        },
+        "2": {
+          "name": "entity.name.tag.tdr"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.code.end.tdr"
+        }
+      },
+      "contentName": "meta.embedded.block.rust",
+      "patterns": [
+        {
+          "include": "source.rust"
+        }
+      ]
+    }
+  ]
+}
