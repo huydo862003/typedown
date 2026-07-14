@@ -8,7 +8,7 @@ use typedown_lang::syntax::red::RedNode;
 use typedown_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{ident_is_mapping_key, ident_is_type_ref};
+use crate::utils::ast::ident_is_type_ref;
 use crate::utils::position::text_offset_to_lsp_position;
 use crate::utils::uri::uri_to_path;
 
@@ -19,20 +19,7 @@ use typedown_lang::db::{
 };
 
 pub fn token_types() -> Vec<SemanticTokenType> {
-  vec![
-    SemanticTokenType::KEYWORD,
-    SemanticTokenType::MODIFIER,
-    SemanticTokenType::TYPE,
-    SemanticTokenType::PROPERTY,
-    SemanticTokenType::VARIABLE,
-    SemanticTokenType::STRING,
-    SemanticTokenType::NUMBER,
-    SemanticTokenType::COMMENT,
-    SemanticTokenType::OPERATOR,
-    SemanticTokenType::FUNCTION,
-    SemanticTokenType::new("heading"),
-    SemanticTokenType::new("punctuation.bracket"),
-  ]
+  vec![SemanticTokenType::TYPE]
 }
 
 fn token_type_index(token_type: &SemanticTokenType) -> u32 {
@@ -82,157 +69,24 @@ fn emit(
 
 // Walk the AST and collect (offset, length, type, modifiers) spans for all highlighted regions.
 fn collect_tokens(node: RedNode, out: &mut Vec<(usize, usize, SemanticTokenType, u32)>) {
-  // Node-level: emit the whole span and skip children
   if !node.is_token() {
-    if let Some(token_type) = classify_node(&node) {
-      emit(&node, token_type, node_modifiers(&node), out);
-      return;
-    }
     for child in node.children() {
       collect_tokens(child, out);
     }
     return;
   }
-  // Leaf token
   if let Some(token_type) = classify_token(&node) {
     emit(&node, token_type, 0, out);
   }
 }
 
-// Modifier bit positions must match the order returned by token_modifiers().
-const MODIFIER_BOLD: u32 = 1 << 1;
-const MODIFIER_ITALIC: u32 = 1 << 2;
-const MODIFIER_STRIKETHROUGH: u32 = 1 << 3;
-
 pub fn token_modifiers() -> Vec<SemanticTokenModifier> {
-  vec![
-    SemanticTokenModifier::READONLY,             // index 0
-    SemanticTokenModifier::new("bold"),          // index 1
-    SemanticTokenModifier::new("italic"),        // index 2
-    SemanticTokenModifier::new("strikethrough"), // index 3
-  ]
+  vec![]
 }
 
-// Returns the modifier bitset for nodes that carry formatting information.
-fn node_modifiers(node: &RedNode) -> u32 {
-  match node.kind() {
-    SyntaxKind::MdHeading => MODIFIER_BOLD,
-    SyntaxKind::MdBold => MODIFIER_BOLD,
-    SyntaxKind::MdItalic => MODIFIER_ITALIC,
-    SyntaxKind::MdBoldItalic => MODIFIER_BOLD | MODIFIER_ITALIC,
-    SyntaxKind::MdStrikethrough => MODIFIER_STRIKETHROUGH,
-    _ => 0,
-  }
-}
-
-// Classify a non-leaf node
-// Returning Some stops descent into children.
-fn classify_node(node: &RedNode) -> Option<SemanticTokenType> {
-  match node.kind() {
-    SyntaxKind::MdHeading => Some(SemanticTokenType::new("heading")),
-    SyntaxKind::MdTableSeparatorRow => Some(SemanticTokenType::OPERATOR),
-    SyntaxKind::MdBold
-    | SyntaxKind::MdBoldItalic
-    | SyntaxKind::MdItalic
-    | SyntaxKind::MdStrikethrough => Some(SemanticTokenType::MODIFIER),
-    // Not at node level: descend so content inside is highlighted normally.
-    // The `>` marker is highlighted via MdSymbol in classify_token.
-    // SyntaxKind::MdBlockquote
-    SyntaxKind::InlineCode | SyntaxKind::CodeBlock => Some(SemanticTokenType::STRING),
-    SyntaxKind::InlineMath | SyntaxKind::MathBlock => Some(SemanticTokenType::OPERATOR),
-    SyntaxKind::MdLink | SyntaxKind::MdMedia => Some(SemanticTokenType::STRING),
-    SyntaxKind::MdFootnoteRef | SyntaxKind::MdCitation => Some(SemanticTokenType::VARIABLE),
-    SyntaxKind::MdCheckbox | SyntaxKind::MdCalloutBlock => Some(SemanticTokenType::KEYWORD),
-    _ => None,
-  }
-}
-
-// Classify a leaf token.
 fn classify_token(node: &RedNode) -> Option<SemanticTokenType> {
   match node.kind() {
-    SyntaxKind::Ident if ident_is_mapping_key(node) => {
-      let text = node.text();
-      if text == "_type" || text == "_label" || text == "self" {
-        Some(SemanticTokenType::KEYWORD)
-      } else {
-        Some(SemanticTokenType::PROPERTY)
-      }
-    }
-    SyntaxKind::DqStrStart
-    | SyntaxKind::DqStrContent
-    | SyntaxKind::DqStrEnd
-    | SyntaxKind::SqStrStart
-    | SyntaxKind::SqStrContent
-    | SyntaxKind::SqStrEnd
-    | SyntaxKind::YamlLiteralBlockStrLit
-    | SyntaxKind::YamlFoldedBlockStrLit => Some(SemanticTokenType::STRING),
-    SyntaxKind::Number => Some(SemanticTokenType::NUMBER),
-    SyntaxKind::Ident => {
-      if node
-        .parent()
-        .is_some_and(|p| p.kind() == SyntaxKind::MdText)
-      {
-        return None;
-      }
-      if node
-        .parent()
-        .is_some_and(|p| p.kind() == SyntaxKind::IdentLit)
-        && node
-          .parent()
-          .and_then(|p| p.parent())
-          .is_some_and(|gp| gp.kind() == SyntaxKind::CallExpr)
-      {
-        return Some(SemanticTokenType::FUNCTION);
-      }
-      if ident_is_type_ref(node) {
-        Some(SemanticTokenType::TYPE)
-      } else {
-        Some(SemanticTokenType::VARIABLE)
-      }
-    }
-    SyntaxKind::YamlComment => Some(SemanticTokenType::COMMENT),
-    SyntaxKind::Colon | SyntaxKind::YamlOp => Some(SemanticTokenType::OPERATOR),
-    SyntaxKind::LParen
-    | SyntaxKind::RParen
-    | SyntaxKind::LBracket
-    | SyntaxKind::RBracket
-    | SyntaxKind::InterpStart
-    | SyntaxKind::InterpEnd => Some(SemanticTokenType::new("punctuation.bracket")),
-    SyntaxKind::MdNumber => Some(SemanticTokenType::NUMBER),
-    SyntaxKind::MdHtmlEntity => Some(SemanticTokenType::STRING),
-    // Only highlight structural markers, not arbitrary symbols.
-    // MdTableHeaderRow and MdTableSeparatorRow are classified at node level (no descent).
-    SyntaxKind::MdSymbol => {
-      let parent = node.parent()?;
-      let parent_kind = parent.kind();
-      match parent_kind {
-        // List markers: -, +, *
-        SyntaxKind::MdBulletListItem
-        | SyntaxKind::MdOrderedListItem
-        | SyntaxKind::MdTaskListItem => Some(SemanticTokenType::OPERATOR),
-        // Toggle list marker: >-
-        SyntaxKind::MdToggleListItem => Some(SemanticTokenType::OPERATOR),
-        // Blockquote marker: >
-        SyntaxKind::MdBlockquote => Some(SemanticTokenType::COMMENT),
-        // Table leading pipe: direct child of the row
-        SyntaxKind::MdTableHeaderRow | SyntaxKind::MdTableDataRow => {
-          Some(SemanticTokenType::OPERATOR)
-        }
-        // Table separator/trailing pipes: parse_text consumes | into MdText inside MdTableCell
-        SyntaxKind::MdText if node.text() == "|" => {
-          let grandparent_kind = parent.parent()?.kind();
-          if matches!(
-            grandparent_kind,
-            SyntaxKind::MdTableCell | SyntaxKind::MdTableHeaderRow | SyntaxKind::MdTableDataRow
-          ) {
-            Some(SemanticTokenType::OPERATOR)
-          } else {
-            None
-          }
-        }
-        _ => None,
-      }
-    }
+    SyntaxKind::Ident if ident_is_type_ref(node) => Some(SemanticTokenType::TYPE),
     _ => None,
   }
 }
@@ -305,27 +159,20 @@ mod tests {
   }
 
   #[test]
-  fn keyword_and_type_tokens() {
+  fn type_ref_in_type_field() {
     let types = parse_tokens(
       r#"---
 _type: Person
 name: "Alice"
-age: 30
 ---
 "#,
     );
-    assert!(types.contains(&SemanticTokenType::KEYWORD));
     assert!(types.contains(&SemanticTokenType::TYPE));
-    assert!(types.contains(&SemanticTokenType::PROPERTY));
-    assert!(types.contains(&SemanticTokenType::STRING));
-    assert!(types.contains(&SemanticTokenType::NUMBER));
+    assert_eq!(types.len(), 1, "only Person should be a TYPE token");
   }
 
   #[test]
   fn schema_property_type_ref_highlighted_as_type() {
-    // tokens: _type(KW) :(OP) schema(TYPE) properties(PROP) :(OP)
-    //         name(PROP) :(OP) type(PROP) :(OP) string(TYPE)
-    //         age(PROP) :(OP) type(PROP) :(OP) number(TYPE)
     let types = parse_tokens(
       r#"---
 _type: schema
@@ -341,7 +188,6 @@ properties:
       .iter()
       .filter(|t| **t == SemanticTokenType::TYPE)
       .count();
-    // schema, string, number
     assert_eq!(
       type_count, 3,
       "expected 3 TYPE tokens (schema, string, number), got: {type_count}"
@@ -349,8 +195,7 @@ properties:
   }
 
   #[test]
-  fn identifier_in_value_highlighted_as_variable() {
-    // tokens: active(PROP) :(OP) true(VAR) value(PROP) :(OP) self(VAR) .(OP) name(VAR)
+  fn non_type_identifiers_not_emitted() {
     let types = parse_tokens(
       r#"---
 active: true
@@ -358,27 +203,9 @@ value: self.name
 ---
 "#,
     );
-    let var_count = types
-      .iter()
-      .filter(|t| **t == SemanticTokenType::VARIABLE)
-      .count();
-    assert_eq!(
-      var_count, 3,
-      "expected 3 VARIABLE tokens (true, self, name), got: {var_count}"
-    );
-  }
-
-  #[test]
-  fn identifier_in_interpolation_highlighted_as_variable() {
-    let types = parse_tokens(
-      r#"---
-greeting: "Hello, ${self.name}!"
----
-"#,
-    );
     assert!(
-      types.contains(&SemanticTokenType::VARIABLE),
-      "identifiers in interpolation should be VARIABLE"
+      types.is_empty(),
+      "no semantic tokens for non-type identifiers"
     );
   }
 }

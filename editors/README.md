@@ -35,3 +35,13 @@ Each editor uses a different system for syntactic highlighting:
 - `zed/`: Zed extension (Rust/WASM)
 
 See each directory's `DEVELOPMENT.md` for setup and build instructions.
+
+## Naming conventions
+
+Both syntactic and semantic highlighting rely on naming conventions so themes can style tokens without language-specific rules:
+
+- **LSP semantic token types**: [LSP specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#semanticTokenTypes)
+- **Tree-sitter captures** (Neovim/Zed): [nvim-treesitter highlight groups](https://neovim.io/doc/user/treesitter.html#treesitter-highlight)
+- **TextMate scopes** (VS Code): See [vscode/DEVELOPMENT.md](vscode/DEVELOPMENT.md#scope-naming-conventions)
+
+Our LSP uses two custom token types (`heading`, `punctuation.bracket`) that aren't part of the LSP standard. Editors need explicit theme mappings for these (see `theme.lua` for Neovim and `configurationDefaults` in VS Code's `package.json`).
