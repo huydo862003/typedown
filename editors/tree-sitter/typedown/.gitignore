@@ -1,16 +1,13 @@
 # Rust artifacts
 target/
-Cargo.lock
 
 # Node artifacts
 build/
 prebuilds/
 node_modules/
-package-lock.json
 
 # Swift artifacts
 .build/
-Package.resolved
 
 # Go artifacts
 _obj/
@@ -39,9 +36,6 @@ zig-out/
 # Example dirs
 /examples/*/
 
-# Generated parser sources
-src/
-
 # Grammar volatiles
 *.wasm
 *.obj
@@ -51,3 +45,4 @@ src/
 *.tar.gz
 *.tgz
 *.zip
+*.jar

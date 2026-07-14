@@ -1,6 +1,9 @@
 packages:
   - "packages/*"
   - "editors/vscode"
+  - "editors/tree-sitter/typedown"
+  - "editors/tree-sitter/typedown-yaml"
+  - "editors/tree-sitter/typedown-markdown"
 allowBuilds:
   unrs-resolver: true
   esbuild: true

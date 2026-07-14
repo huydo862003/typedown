@@ -35,6 +35,7 @@
             neovim
             cargo-edit
             cargo-watch
+            tree-sitter
           ];
         };
       }

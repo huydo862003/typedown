@@ -30,6 +30,14 @@ Run `:LspInfo` inside Neovim to confirm the server attached.
    `staging/vX.Y.Z-label.N` release URL, and downloads the matching binary automatically
    on first launch.
 
+## Tree-sitter
+
+Syntactic highlighting in Neovim uses Tree-sitter. The grammar lives in `editors/tree-sitter/` and the query files live in `queries/typedown/` inside this plugin.
+
+Once the grammar is built, register the parser with nvim-treesitter and the query files will provide highlighting, injections, and folds.
+
+See also: [Tree-sitter research](https://huydo862003.github.io/loupe/research/analysis/syntactic-analysis.html)
+
 ## Release
 
 Releases are handled by `publish.sh` from the repo root. It bumps the version in `VERSION`
