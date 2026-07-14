@@ -1,0 +1,39 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "typedown",
+      "camelcase": "Typedown",
+      "title": "Typedown",
+      "scope": "source.tdr",
+      "file-types": [
+        "tdr"
+      ],
+      "injection-regex": "^typedown$",
+      "class-name": "TreeSitterTypedown"
+    }
+  ],
+  "metadata": {
+    "version": "0.0.0",
+    "license": "AGPL",
+    "description": "Tree-sitter grammar for typedown",
+    "authors": [
+      {
+        "name": "Huy-DNA",
+        "email": "huydo862003@gmail.com"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/huydo862003/typedown/tree/main/editors/tree-sitter"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": true,
+    "node": true,
+    "python": true,
+    "rust": true,
+    "swift": true,
+    "zig": false
+  }
+}
