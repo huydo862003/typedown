@@ -6,6 +6,7 @@ use lsp_types::{Diagnostic, PublishDiagnosticsParams};
 use ropey::Rope;
 use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::derived::evaluate::evaluate_resource::evaluate_resource;
+use typedown_lang::db::derived::evaluate::evaluate_type::evaluate_type;
 use typedown_lang::db::derived::hir::lower_node;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::derived::parse_file::parse_file;
@@ -75,8 +76,13 @@ fn diagnostics_for_one(
 
   // Evaluation errors
   if let Some(sym) = file_symbol(db, project, file).value(db) {
-    let eval_result = evaluate_resource(db, sym);
-    tdr_diags.extend(eval_result.diagnostics(db).iter().cloned());
+    if sym.kind(db).is_schema() {
+      let eval_result = evaluate_type(db, sym);
+      tdr_diags.extend(eval_result.diagnostics(db).iter().cloned());
+    } else {
+      let eval_result = evaluate_resource(db, sym);
+      tdr_diags.extend(eval_result.diagnostics(db).iter().cloned());
+    }
   }
 
   let lsp_diags: Vec<Diagnostic> = tdr_diags
