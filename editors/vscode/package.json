@@ -14,7 +14,9 @@
   "categories": [
     "lsp"
   ],
-  "activationEvents": ["onLanguage:typedown"],
+  "activationEvents": [
+    "onLanguage:typedown"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
@@ -31,6 +33,13 @@
           "light": "./icons/tdr.svg",
           "dark": "./icons/tdr.svg"
         }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "typedown",
+        "scopeName": "source.tdr",
+        "path": "./syntaxes/tdr.tmLanguage.json"
       }
     ]
   },
