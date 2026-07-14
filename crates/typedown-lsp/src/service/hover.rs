@@ -131,6 +131,8 @@ properties:
 ---
 "#;
 
+  // Accept a text with `|` marker
+  // Return the original text with the offset of the marker
   fn cursor(content: &str) -> (String, usize) {
     let offset = content
       .find('|')
@@ -138,6 +140,7 @@ properties:
     (content.replacen('|', "", 1), offset)
   }
 
+  // Prepare the LSP client hover request params
   fn make_params(uri: Uri, content: &str, offset: usize) -> HoverParams {
     let rope = Rope::from(content);
     let line = rope.char_to_line(offset);
@@ -154,6 +157,8 @@ properties:
     }
   }
 
+  // Project to test against
+  // Accept a `content` as the current editing content
   fn setup(content: &str) -> (Analysis, Uri) {
     let root = PathBuf::from("/vault");
     let content_path = root.join("content/file.tdr");
@@ -177,8 +182,8 @@ properties:
     let analysis = Analysis::new(
       db,
       project,
-      HashMap::new(),
-      HashMap::new(),
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
       Arc::new((Mutex::new(1), Condvar::new())),
     );
 

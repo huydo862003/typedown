@@ -1,11 +1,16 @@
+use std::path::Path;
+
 use lsp_server::Notification;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
 use lsp_types::{Diagnostic, PublishDiagnosticsParams};
+use ropey::Rope;
+use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::derived::evaluate::evaluate_resource::evaluate_resource;
 use typedown_lang::db::derived::hir::lower_node;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::db::derived::typechecker::typecheck::typecheck;
+use typedown_lang::db::types::{File, Project};
 use typedown_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::analysis::Analysis;
@@ -19,57 +24,79 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let files = project.files(db);
 
   let mut notifications = Vec::new();
-
   for (path, file) in &files {
     if path.extension().and_then(|e| e.to_str()) != Some("tdr") {
       continue;
     }
-
     let rope = match analysis.file_rope(path) {
       Some(rope) => rope,
       None => continue,
     };
-
-    // Parse error
-    let parse_result = parse_file(db, project, *file);
-    let mut tdr_diags: Vec<TdrDiagnostic> = parse_result.diagnostics(db).to_vec();
-
-    // Typecheck error
-    let root = parse_result.ast(db);
-    let hir = lower_node(db, project, *file, root);
-    let typecheck_result = typecheck(db, hir);
-    tdr_diags.extend(typecheck_result.diagnostics(db).iter().cloned());
-
-    // Evaluate result
-    if let Some(sym) = file_symbol(db, project, *file).value(db) {
-      let eval_result = evaluate_resource(db, sym);
-      tdr_diags.extend(eval_result.diagnostics(db).iter().cloned());
-    }
-
-    let lsp_diags: Vec<Diagnostic> = tdr_diags
-      .iter()
-      .filter_map(|diag| to_lsp_diagnostic(diag, &rope))
-      .collect();
-
-    let scheme = analysis
-      .scheme_map
-      .get(path)
-      .map(String::as_str)
-      .unwrap_or("file");
-    let uri = path_to_uri(path, scheme);
-    let params = PublishDiagnosticsParams {
-      uri,
-      diagnostics: lsp_diags,
-      version: None,
-    };
-
-    notifications.push(Notification::new(
-      PublishDiagnostics::METHOD.to_string(),
-      params,
+    notifications.push(diagnostics_for_one(
+      analysis, db, project, path, *file, &rope,
     ));
   }
-
   notifications
+}
+
+pub fn publish_diagnostics_for_file(analysis: &Analysis, target: &Path) -> Vec<Notification> {
+  let db = &analysis.db;
+  let project = analysis.project;
+  let files = project.files(db);
+
+  let Some(file) = files.get(target) else {
+    return vec![];
+  };
+  let Some(rope) = analysis.file_rope(target) else {
+    return vec![];
+  };
+  vec![diagnostics_for_one(
+    analysis, db, project, target, *file, &rope,
+  )]
+}
+
+fn diagnostics_for_one(
+  analysis: &Analysis,
+  db: &TypedownDatabase,
+  project: Project,
+  path: &Path,
+  file: File,
+  rope: &Rope,
+) -> Notification {
+  // Parse errors
+  let parse_result = parse_file(db, project, file);
+  let mut tdr_diags: Vec<TdrDiagnostic> = parse_result.diagnostics(db).to_vec();
+
+  // Typecheck errors
+  let root = parse_result.ast(db);
+  let hir = lower_node(db, project, file, root);
+  let typecheck_result = typecheck(db, hir);
+  tdr_diags.extend(typecheck_result.diagnostics(db).iter().cloned());
+
+  // Evaluation errors
+  if let Some(sym) = file_symbol(db, project, file).value(db) {
+    let eval_result = evaluate_resource(db, sym);
+    tdr_diags.extend(eval_result.diagnostics(db).iter().cloned());
+  }
+
+  let lsp_diags: Vec<Diagnostic> = tdr_diags
+    .iter()
+    .filter_map(|diag| to_lsp_diagnostic(diag, rope))
+    .collect();
+
+  let scheme = analysis
+    .scheme_map
+    .get(path)
+    .map(String::as_str)
+    .unwrap_or("file");
+  let uri = path_to_uri(path, scheme);
+  let params = PublishDiagnosticsParams {
+    uri,
+    diagnostics: lsp_diags,
+    version: None,
+  };
+
+  Notification::new(PublishDiagnostics::METHOD.to_string(), params)
 }
 
 #[cfg(test)]
@@ -122,8 +149,8 @@ properties:
     Analysis::new(
       db,
       project,
-      HashMap::new(),
-      HashMap::new(),
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
       Arc::new((Mutex::new(1), Condvar::new())),
     )
   }

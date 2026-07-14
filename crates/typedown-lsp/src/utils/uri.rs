@@ -12,6 +12,7 @@ pub fn path_to_uri(path: &Path, scheme: &str) -> Uri {
 pub fn uri_to_path(uri: &Uri) -> Option<PathBuf> {
   let path = uri.path().as_str();
   if path.is_empty() {
+    log::warn!("URI has empty path: {}", uri.as_str());
     return None;
   }
   Some(PathBuf::from(path))

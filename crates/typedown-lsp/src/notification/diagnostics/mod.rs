@@ -1,6 +1,8 @@
 pub mod config;
 pub mod tdr;
 
+use std::path::Path;
+
 use lsp_server::Notification;
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString};
 use ropey::Rope;
@@ -15,6 +17,11 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   notifications
 }
 
+pub fn publish_diagnostics_for_file(analysis: &Analysis, path: &Path) -> Vec<Notification> {
+  tdr::publish_diagnostics_for_file(analysis, path)
+}
+
+// Convert our diagnostics to lsp diagnostics
 pub(super) fn to_lsp_diagnostic(diag: &TdrDiagnostic, rope: &Rope) -> Option<Diagnostic> {
   let (start_offset, end_offset) = diag.offsets()?;
 

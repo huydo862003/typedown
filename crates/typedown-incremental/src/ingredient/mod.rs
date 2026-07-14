@@ -28,4 +28,8 @@ pub trait Ingredient: Any + Send + Sync {
 
   /// Load a dep node into this ingredient's storage.
   fn deserialize(&self, ctx: &DeserializeContext, node_index: DepNodeIndex) -> Option<DepId>;
+
+  /// Number of times the query function was actually invoked (not served from cache).
+  #[cfg(debug_assertions)]
+  fn recompute_count(&self) -> usize;
 }

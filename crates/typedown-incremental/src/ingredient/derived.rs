@@ -57,6 +57,8 @@ pub struct DerivedQueryIngredient<DB, K, V: DerivedId> {
   intern_map: Arc<DashMap<K, usize>>, // key -> stable arg_id
   #[doc(hidden)]
   pub data: Arc<DashMap<usize, QueryState<K, V>>>, // arg_id -> state
+  #[cfg(debug_assertions)]
+  recompute_count: Arc<AtomicUsize>,
 }
 
 impl<
@@ -108,6 +110,8 @@ impl<
       query_fn,
       intern_map: Arc::new(DashMap::new()),
       data: Arc::new(DashMap::new()),
+      #[cfg(debug_assertions)]
+      recompute_count: Arc::new(AtomicUsize::new(0)),
     }
   }
 
@@ -387,6 +391,8 @@ impl<
     }
 
     // Recompute
+    #[cfg(debug_assertions)]
+    self.recompute_count.fetch_add(1, Ordering::Relaxed);
     let key = arg.clone();
     let value = (self.query_fn)(db, arg);
 
@@ -600,6 +606,11 @@ impl<
     memo.key.encode(&mut buf, &mut ctx.encoder);
     ctx.query_cache.set(node_index, &buf);
   }
+
+  #[cfg(debug_assertions)]
+  fn recompute_count(&self) -> usize {
+    self.recompute_count.load(Ordering::Relaxed)
+  }
 }
 
 /// A stamped field value for a derived struct
@@ -743,6 +754,12 @@ impl<T: StableHash + Encodable + Decodable + Send + Sync + 'static> Ingredient
     let mut buf = vec![];
     entry.value.encode(&mut buf, &mut ctx.encoder);
     ctx.query_cache.set(node_index, &buf);
+  }
+
+  // Derived fields are set by their parent query, not independently recomputed
+  #[cfg(debug_assertions)]
+  fn recompute_count(&self) -> usize {
+    0
   }
 }
 

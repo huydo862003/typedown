@@ -391,8 +391,8 @@ properties:
     let analysis = Analysis::new(
       db,
       project,
-      HashMap::new(),
-      HashMap::new(),
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
       Arc::new((Mutex::new(1), Condvar::new())),
     );
 
@@ -634,8 +634,8 @@ date: 2024-01-01
     let analysis = Analysis::new(
       db,
       project,
-      HashMap::new(),
-      HashMap::new(),
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
       Arc::new((Mutex::new(1), Condvar::new())),
     );
 

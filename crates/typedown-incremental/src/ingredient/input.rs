@@ -146,6 +146,12 @@ impl<T: StableHash + Send + Sync + Encodable + Decodable + 'static> Ingredient
     entry.value.encode(&mut buf, &mut ctx.encoder);
     ctx.query_cache.set(node_index, &buf);
   }
+
+  // Input fields are ground truth, they are never recomputed
+  #[cfg(debug_assertions)]
+  fn recompute_count(&self) -> usize {
+    0
+  }
 }
 
 impl<T: StableHash + Send + Sync + 'static> InputFieldIngredient<T> {

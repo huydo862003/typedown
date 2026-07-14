@@ -23,8 +23,11 @@ use serde::Serialize;
 use serde_json::Value;
 use tempfile::TempDir;
 use typedown_lang::db::{QueryStorage, TypedownDatabase};
-use typedown_lsp::analysis_host::AnalysisHost;
 use typedown_lsp::server::Server as LspServer;
+use typedown_lsp::{
+  analysis_host::AnalysisHost,
+  multiproject::{self, Multiproject},
+};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -62,10 +65,8 @@ impl ServerBuilder {
 
     let root_clone = root.clone();
     std::thread::spawn(move || {
-      let db = TypedownDatabase {
-        storage: QueryStorage::default(),
-      };
-      let host = AnalysisHost::new(db, root_clone).expect("failed to create AnalysisHost");
+      let multiproject = Multiproject::default();
+      multiproject.load_nearest_project(&root_clone);
 
       // Perform the LSP initialize handshake using the server-side connection.
       let capabilities = ServerCapabilities {
@@ -82,7 +83,7 @@ impl ServerBuilder {
         .initialize_finish(init_id, serde_json::json!({ "capabilities": capabilities }))
         .expect("initialize_finish failed");
 
-      LspServer::new(server_conn, host, ClientCapabilities::default())
+      LspServer::new(server_conn, multiproject, ClientCapabilities::default())
         .run()
         .ok();
     });

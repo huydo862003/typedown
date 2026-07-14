@@ -283,6 +283,7 @@ mod tests {
 
   use super::*;
 
+  // Token -> Semantic token
   fn parse_tokens(content: &str) -> Vec<SemanticTokenType> {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
