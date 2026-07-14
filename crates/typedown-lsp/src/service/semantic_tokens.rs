@@ -314,25 +314,59 @@ age: 30
 ---
 "#,
     );
-    assert!(
-      types.contains(&SemanticTokenType::KEYWORD),
-      "expected keyword for _type, got: {types:?}"
+    assert!(types.contains(&SemanticTokenType::KEYWORD));
+    assert!(types.contains(&SemanticTokenType::TYPE));
+    assert!(types.contains(&SemanticTokenType::PROPERTY));
+    assert!(types.contains(&SemanticTokenType::STRING));
+    assert!(types.contains(&SemanticTokenType::NUMBER));
+  }
+
+  #[test]
+  fn schema_property_type_ref_highlighted_as_type() {
+    // tokens: _type(KW) :(OP) schema(TYPE) properties(PROP) :(OP)
+    //         name(PROP) :(OP) type(PROP) :(OP) string(TYPE)
+    //         age(PROP) :(OP) type(PROP) :(OP) number(TYPE)
+    let types = parse_tokens(
+      r#"---
+_type: schema
+properties:
+  name:
+    type: string
+  age:
+    type: number
+---
+"#,
+    );
+    let type_count = types.iter().filter(|t| **t == SemanticTokenType::TYPE).count();
+    // schema, string, number
+    assert_eq!(type_count, 3, "expected 3 TYPE tokens (schema, string, number), got: {type_count}");
+  }
+
+  #[test]
+  fn identifier_in_value_highlighted_as_variable() {
+    // tokens: active(PROP) :(OP) true(VAR) value(PROP) :(OP) self(VAR) .(OP) name(VAR)
+    let types = parse_tokens(
+      r#"---
+active: true
+value: self.name
+---
+"#,
+    );
+    let var_count = types.iter().filter(|t| **t == SemanticTokenType::VARIABLE).count();
+    assert_eq!(var_count, 3, "expected 3 VARIABLE tokens (true, self, name), got: {var_count}");
+  }
+
+  #[test]
+  fn identifier_in_interpolation_highlighted_as_variable() {
+    let types = parse_tokens(
+      r#"---
+greeting: "Hello, ${self.name}!"
+---
+"#,
     );
     assert!(
-      types.contains(&SemanticTokenType::TYPE),
-      "expected type for Person, got: {types:?}"
-    );
-    assert!(
-      types.contains(&SemanticTokenType::PROPERTY),
-      "expected property for name/age, got: {types:?}"
-    );
-    assert!(
-      types.contains(&SemanticTokenType::STRING),
-      "expected string for Alice, got: {types:?}"
-    );
-    assert!(
-      types.contains(&SemanticTokenType::NUMBER),
-      "expected number for 30, got: {types:?}"
+      types.contains(&SemanticTokenType::VARIABLE),
+      "identifiers in interpolation should be VARIABLE"
     );
   }
 }
