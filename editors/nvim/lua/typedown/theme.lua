@@ -36,8 +36,8 @@ function M.setup()
     devicons.set_icon({
       tdr = {
         icon = "",
-        color = "#519aba",
-        cterm_color = "74",
+        color = "#a0522d",
+        cterm_color = "130",
         name = "Typedown",
       },
     })
@@ -46,7 +46,7 @@ function M.setup()
   local ok_mini, mini_icons = pcall(require, "mini.icons")
   if ok_mini and mini_icons.config then
     mini_icons.config.extension = mini_icons.config.extension or {}
-    mini_icons.config.extension.tdr = { glyph = "", hl = "MiniIconsBlue" }
+    mini_icons.config.extension.tdr = { glyph = "", hl = "MiniIconsGrey" }
   end
 
   -- Modifiers: font style only
