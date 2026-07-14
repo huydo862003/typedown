@@ -59,6 +59,8 @@ Releases are handled by `publish.sh` from the repo root. It bumps the version in
 
 ## Authoring Textmate Grammar
 
+The grammar source is `syntaxes/tdr.tmLanguage.json5` (JSON5, supports comments). It is converted to `syntaxes/tdr.tmLanguage.json` at build time via `pnpm run build:grammar`. The generated `.json` file is gitignored.
+
 In this section, I will document my personal experiences with Textmate grammar, maybe some pitfalls or high-level concepts to know.
 
 ### High-level structure
