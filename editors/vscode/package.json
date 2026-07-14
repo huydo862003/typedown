@@ -26,7 +26,11 @@
         ],
         "extensions": [
           ".tdr"
-        ]
+        ],
+        "icon": {
+          "light": "./icons/tdr.svg",
+          "dark": "./icons/tdr.svg"
+        }
       }
     ]
   },

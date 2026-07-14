@@ -30,6 +30,25 @@ function M.setup()
   -- Punctuation bracket: matches @punctuation.bracket from the active theme
   vim.api.nvim_set_hl(0, "@lsp.type.punctuation.bracket.typedown", { link = "@punctuation.bracket" })
 
+  -- File icon for .tdr files
+  local ok_devicons, devicons = pcall(require, "nvim-web-devicons")
+  if ok_devicons then
+    devicons.set_icon({
+      tdr = {
+        icon = "",
+        color = "#519aba",
+        cterm_color = "74",
+        name = "Typedown",
+      },
+    })
+  end
+
+  local ok_mini, mini_icons = pcall(require, "mini.icons")
+  if ok_mini and mini_icons.config then
+    mini_icons.config.extension = mini_icons.config.extension or {}
+    mini_icons.config.extension.tdr = { glyph = "", hl = "MiniIconsBlue" }
+  end
+
   -- Modifiers: font style only
   vim.api.nvim_set_hl(0, "@lsp.mod.bold.typedown", { bold = true })
   vim.api.nvim_set_hl(0, "@lsp.mod.italic.typedown", { italic = true })
