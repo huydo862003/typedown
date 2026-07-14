@@ -34,23 +34,23 @@ impl Log for Logger {
     };
 
     // Write to log file
-    if let Some(file) = &self.file {
-      if let Ok(mut file) = file.lock() {
-        let secs = std::time::SystemTime::now()
-          .duration_since(std::time::UNIX_EPOCH)
-          .unwrap_or_default()
-          .as_secs();
-        let time_of_day = secs % 86400;
-        let hours = time_of_day / 3600;
-        let minutes = (time_of_day % 3600) / 60;
-        let seconds = time_of_day % 60;
-        let _ = writeln!(
-          file,
-          "[{hours:02}:{minutes:02}:{seconds:02}] [{level}] {message}"
-        );
-        // Flush on every write so logs survive crashes
-        let _ = file.flush();
-      }
+    if let Some(file) = &self.file
+      && let Ok(mut file) = file.lock()
+    {
+      let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+      let time_of_day = secs % 86400;
+      let hours = time_of_day / 3600;
+      let minutes = (time_of_day % 3600) / 60;
+      let seconds = time_of_day % 60;
+      let _ = writeln!(
+        file,
+        "[{hours:02}:{minutes:02}:{seconds:02}] [{level}] {message}"
+      );
+      // Flush on every write so logs survive crashes
+      let _ = file.flush();
     }
 
     // Send to LSP client if available
