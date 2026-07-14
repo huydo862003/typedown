@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Typedown",
+  "scopeName": "source.tdr",
+  "patterns": [
+    {
+      "include": "#frontmatter"
+    },
+    {
+      "include": "#body"
+    }
+  ],
+  "repository": {
+    "frontmatter": {
+      "comment": "YAML mode between --- delimiters",
+      "begin": "\\A(---)",
+      "end": "^(---)",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.frontmatter.begin.tdr"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.frontmatter.end.tdr"
+        }
+      },
+      "patterns": []
+    },
+    "body": {
+      "comment": "Markdown mode after frontmatter",
+      "begin": "(?<=^---)\\s*$",
+      "end": "\\z",
+      "patterns": []
+    }
+  }
+}
