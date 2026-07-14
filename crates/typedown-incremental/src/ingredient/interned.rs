@@ -121,4 +121,10 @@ impl<T: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + '
       },
     );
   }
+
+  // Interned values are never recomputed
+  #[cfg(debug_assertions)]
+  fn recompute_count(&self) -> usize {
+    0
+  }
 }

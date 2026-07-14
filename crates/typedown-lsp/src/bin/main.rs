@@ -2,29 +2,27 @@ use std::path::PathBuf;
 
 use lsp_server::Connection;
 use lsp_types::{
-  CompletionOptions, HoverProviderCapability, InitializeParams, OneOf, SemanticTokensFullOptions,
-  SemanticTokensLegend, SemanticTokensOptions, SemanticTokensServerCapabilities,
-  ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-  Uri,
+  CompletionOptions, HoverProviderCapability, InitializeParams, InitializeResult, OneOf,
+  SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+  SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo, TextDocumentSyncCapability,
+  TextDocumentSyncKind,
 };
+use typedown_lsp::logger;
 use typedown_lsp::multiproject::Multiproject;
 use typedown_lsp::server::Server;
 use typedown_lsp::service::semantic_tokens;
+use typedown_lsp::utils::uri::uri_to_path;
 
 // The entrypoint
 pub fn main() -> anyhow::Result<()> {
   let (connection, io_thread) = Connection::stdio();
 
-  // Capabilities of the server
+  // File logger available immediately, before handshake
+  logger::init_file();
+
   let capabilities = ServerCapabilities {
-    text_document_sync: Some(TextDocumentSyncCapability::Options(
-      TextDocumentSyncOptions {
-        // Required for clients to send didOpen, which triggers semantic token requests.
-        // See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocumentSyncOptions
-        open_close: Some(true),
-        change: Some(TextDocumentSyncKind::INCREMENTAL),
-        ..Default::default()
-      },
+    text_document_sync: Some(TextDocumentSyncCapability::Kind(
+      TextDocumentSyncKind::INCREMENTAL,
     )),
     hover_provider: Some(HoverProviderCapability::Simple(true)),
     completion_provider: Some(CompletionOptions::default()),
@@ -44,37 +42,54 @@ pub fn main() -> anyhow::Result<()> {
 
   let multiproject = Multiproject::default();
 
-  // Handshake with the capabilities and get back the client
-  let init_params: InitializeParams =
-    serde_json::from_value(connection.initialize(serde_json::to_value(capabilities)?)?)?;
+  // connection.initialize wraps its arg in { "capabilities": ... },
+  // so we use initialize_start/initialize_finish to also include serverInfo
+  let (init_id, init_params) = connection.initialize_start()?;
+  let init_data = serde_json::to_value(InitializeResult {
+    capabilities,
+    server_info: Some(ServerInfo {
+      name: "typedown-lsp".to_string(),
+      version: Some(env!("CARGO_PKG_VERSION").to_string()),
+    }),
+  })?;
+  connection.initialize_finish(init_id, init_data)?;
+  let init_params: InitializeParams = serde_json::from_value(init_params)?;
 
-  // Lookup the project roots
-  let initial_dirs = init_params
+  // Upgrade logger to also send window/logMessage after handshake
+  logger::set_lsp_sender(connection.sender.clone());
+
+  // Resolve workspace folder URIs to paths
+  let initial_dirs: Vec<PathBuf> = init_params
     .workspace_folders
     .unwrap_or_default()
     .into_iter()
-    .map(|folder| {
-      uri_to_path(&folder.uri).unwrap_or(std::env::current_dir().unwrap_or(PathBuf::from(".")))
-    });
+    .filter_map(|folder| {
+      uri_to_path(&folder.uri).or_else(|| {
+        log::warn!(
+          "Could not convert workspace folder URI to path: {}",
+          folder.uri.as_str()
+        );
+        None
+      })
+    })
+    .collect();
 
-  for dir in initial_dirs {
-    multiproject.load_nearest_project(&dir)?;
+  // Pre-load projects so diagnostics are ready before the first request
+  for dir in &initial_dirs {
+    if let Err(err) = multiproject.load_nearest_project(dir) {
+      log::error!("Failed to load project for {}: {err}", dir.display());
+    }
   }
+
+  log::info!("Typedown LSP server started");
 
   let server = Server::new(connection, multiproject, init_params.capabilities);
 
   server.run()?;
 
+  log::info!("Shutting down, saving cache");
   server.save();
 
   io_thread.join()?;
   Ok(())
-}
-
-fn uri_to_path(uri: &Uri) -> Option<PathBuf> {
-  let path = uri.path().as_str();
-  if path.is_empty() {
-    return None;
-  }
-  Some(PathBuf::from(path))
 }

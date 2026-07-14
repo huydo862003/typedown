@@ -142,10 +142,13 @@ impl AnalysisHost {
   /// Called on textDocument/didOpen.
   pub fn on_editor_open_file(&mut self, uri: &Uri, content: String) {
     if let Some(path) = uri_to_path(uri) {
+      log::debug!("Editor opened: {}", path.display());
       let scheme = uri_scheme(uri).to_string();
       self.scheme_map.insert(path.clone(), scheme);
       self.open_files.insert(path, Rope::from(content));
       self.sync_files();
+    } else {
+      log::warn!("Could not convert URI to path: {}", uri.as_str());
     }
   }
 
@@ -157,6 +160,7 @@ impl AnalysisHost {
 
   /// Called on textDocument/didClose. Falls back to disk version.
   pub fn on_close_file(&mut self, path: &PathBuf) {
+    log::debug!("Editor closed: {}", path.display());
     self.open_files.remove(path);
     self.sync_files();
   }

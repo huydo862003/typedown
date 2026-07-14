@@ -9,12 +9,14 @@ use typedown_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 use crate::analysis::Analysis;
 use crate::utils::position::text_offset_to_lsp_position;
 
+// Entrypoint for notification to publish diagnostics
 pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let mut notifications = tdr::publish_diagnostics(analysis);
   notifications.extend(config::publish_diagnostics(analysis));
   notifications
 }
 
+// Convert our diagnostics to lsp diagnostics
 pub(super) fn to_lsp_diagnostic(diag: &TdrDiagnostic, rope: &Rope) -> Option<Diagnostic> {
   let (start_offset, end_offset) = diag.offsets()?;
 

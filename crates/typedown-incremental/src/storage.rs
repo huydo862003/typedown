@@ -119,6 +119,16 @@ impl QueryStorage {
     }
   }
 
+  /// Total number of query function invocations across all derived ingredients.
+  #[cfg(debug_assertions)]
+  pub fn total_recompute_count(&self) -> usize {
+    self
+      .ingredients
+      .iter()
+      .map(|e| e.ingredient.recompute_count())
+      .sum()
+  }
+
   /// Marker used by the `query_db` macro to verify the storage field type at compile time.
   #[cfg(debug_assertions)]
   #[doc(hidden)]

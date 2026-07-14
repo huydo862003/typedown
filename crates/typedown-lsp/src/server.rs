@@ -1,11 +1,12 @@
+use anyhow::Error;
 use ropey::Rope;
 
 use lsp_server::{Connection, Message, Notification, Request, RequestId};
 use lsp_types::notification::{
   DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
-  Notification as _,
+  Notification as NotificationTrait,
 };
-use lsp_types::request::{RegisterCapability, Request as _};
+use lsp_types::request::{RegisterCapability, Request as RequestTrait};
 use lsp_types::{
   ClientCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
   DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
@@ -14,7 +15,7 @@ use lsp_types::{
 };
 
 use crate::analysis_host::AnalysisHost;
-use crate::multiproject::Multiproject;
+use crate::multiproject::{Multiproject, ProjectEntry};
 use crate::notification::diagnostics::publish_diagnostics;
 use crate::service;
 use crate::utils::lsp::{try_extract_path_from_notification, try_extract_path_from_request};
@@ -50,54 +51,13 @@ impl Server {
     for msg in &self.connection.receiver {
       match msg {
         Message::Request(req) => {
-          // Check for shutdown before dispatching
-          if self.connection.handle_shutdown(&req)? {
-            break;
+          if let Err(err) = self.handle_request(req) {
+            log::error!("Failed to handle request: {err}");
           }
-          let Some(uri) = try_extract_path_from_request(&req) else {
-            continue;
-          };
-          let Some(path) = uri_to_path(&uri) else {
-            continue;
-          };
-          let Ok(project_entry) = self.multiproject.load_nearest_project(&path) else {
-            continue;
-          };
-          let analysis = project_entry
-            .host
-            .read()
-            .expect("The read lock should be acquired")
-            .snapshot();
-          let resp = service::dispatch(&analysis, req);
-          self.connection.sender.send(Message::Response(resp))?;
         }
         Message::Notification(note) => {
-          let Some(uri) = try_extract_path_from_notification(&note) else {
-            continue;
-          };
-          let Some(path) = uri_to_path(&uri) else {
-            continue;
-          };
-          let Ok(project_entry) = self.multiproject.load_nearest_project(&path) else {
-            continue;
-          };
-
-          // File open/change/close: update the host's tracked state
-          handle_notification(
-            &mut project_entry
-              .host
-              .write()
-              .expect("The write lock should be acquired"),
-            &note,
-          );
-          // Push diagnostics after each state change
-          let analysis = project_entry
-            .host
-            .read()
-            .expect("The read lock should be acquired")
-            .snapshot();
-          for notif in publish_diagnostics(&analysis) {
-            self.connection.sender.send(Message::Notification(notif))?;
+          if let Err(err) = self.handle_notification(note) {
+            log::error!("Failed to handle notification: {err}");
           }
         }
         Message::Response(_) => {}
@@ -106,6 +66,108 @@ impl Server {
     Ok(())
   }
 
+  fn handle_request(&self, req: Request) -> anyhow::Result<()> {
+    if self.connection.handle_shutdown(&req)? {
+      return Ok(());
+    }
+
+    // Resolve to the owning project
+    let uri = try_extract_path_from_request(&req)?;
+    let path = uri_to_path(&uri).ok_or_else(|| Error::msg("Failed to convert URI to path"))?;
+    let project_entry = self.multiproject.load_nearest_project(&path)?;
+
+    let analysis = project_entry
+      .host
+      .read()
+      .map_err(|_| Error::msg("project_entry.host RwLock is poisoned"))?
+      .snapshot();
+    let resp = service::dispatch(&analysis, req);
+    self.connection.sender.send(Message::Response(resp))?;
+    Ok(())
+  }
+
+  fn handle_notification(&self, note: Notification) -> anyhow::Result<()> {
+    // DidChangeWatchedFiles can contain changes spanning multiple projects.
+    // Route each change to its own project independently.
+    if note.method == DidChangeWatchedFiles::METHOD {
+      let params = serde_json::from_value::<DidChangeWatchedFilesParams>(note.params.clone())?;
+      // Collect affected projects so we push diagnostics once per project, not per file
+      let mut affected_projects = Vec::new();
+      for change in params.changes {
+        let Some(path) = uri_to_path(&change.uri) else {
+          log::warn!(
+            "Could not convert watched file URI to path: {}",
+            change.uri.as_str()
+          );
+          continue;
+        };
+        let project_entry = match self.multiproject.load_nearest_project(&path) {
+          Ok(entry) => entry,
+          Err(err) => {
+            log::warn!(
+              "No project found for watched file {}: {err}",
+              path.display()
+            );
+            continue;
+          }
+        };
+        {
+          let mut host = project_entry
+            .host
+            .write()
+            .expect("RwLock should not be poisoned");
+          match change.typ {
+            FileChangeType::CREATED | FileChangeType::CHANGED => host.on_disk_change(path),
+            FileChangeType::DELETED => host.on_disk_delete(path),
+            _ => {}
+          }
+        }
+        if !affected_projects
+          .iter()
+          .any(|p: &std::sync::Arc<ProjectEntry>| p.root_dir == project_entry.root_dir)
+        {
+          affected_projects.push(project_entry);
+        }
+      }
+      for project_entry in &affected_projects {
+        self.push_diagnostics(project_entry)?;
+      }
+      return Ok(());
+    }
+
+    // For other notifications, extract the document URI and route to a single project
+    let uri = try_extract_path_from_notification(&note)?;
+    let path = uri_to_path(&uri).ok_or_else(|| Error::msg("Failed to convert URI to path"))?;
+    let project_entry = self.multiproject.load_nearest_project(&path)?;
+
+    // File open/change/close: update the host's tracked state
+    handle_text_notification(
+      &mut project_entry
+        .host
+        .write()
+        .expect("RwLock should not be poisoned"),
+      &note,
+    )?;
+
+    // Push diagnostics after each state change
+    self.push_diagnostics(&project_entry)?;
+
+    Ok(())
+  }
+
+  fn push_diagnostics(&self, project_entry: &ProjectEntry) -> anyhow::Result<()> {
+    let analysis = project_entry
+      .host
+      .read()
+      .expect("RwLock should not be poisoned")
+      .snapshot();
+    for notif in publish_diagnostics(&analysis) {
+      self.connection.sender.send(Message::Notification(notif))?;
+    }
+    Ok(())
+  }
+
+  /* File watcher */
   fn register_file_watcher(&self) -> anyhow::Result<()> {
     let supports_dynamic = self
       .client_capabilities
@@ -156,57 +218,36 @@ impl Server {
   }
 }
 
-fn handle_notification(host: &mut AnalysisHost, note: &Notification) {
+/// Handle text document notifications (open, change, close).
+fn handle_text_notification(host: &mut AnalysisHost, note: &Notification) -> anyhow::Result<()> {
   match note.method.as_str() {
     // Editor opened a file: take ownership of its content from the editor buffer.
     DidOpenTextDocument::METHOD => {
-      let Ok(params) = serde_json::from_value::<DidOpenTextDocumentParams>(note.params.clone())
-      else {
-        return;
-      };
+      let params = serde_json::from_value::<DidOpenTextDocumentParams>(note.params.clone())?;
       host.on_editor_open_file(&params.text_document.uri, params.text_document.text);
     }
     // Editor sent incremental diffs: apply each change to the in-memory rope.
     DidChangeTextDocument::METHOD => {
-      let Ok(params) = serde_json::from_value::<DidChangeTextDocumentParams>(note.params.clone())
-      else {
-        return;
-      };
-      if let Some(path) = uri_to_path(&params.text_document.uri) {
-        let mut rope = host.open_file_content(&path).cloned().unwrap_or_default();
-        for change in params.content_changes {
-          rope = apply_content_change(rope, change);
-        }
-        host.on_editor_change_file(path, rope);
+      let params = serde_json::from_value::<DidChangeTextDocumentParams>(note.params.clone())?;
+      let path = uri_to_path(&params.text_document.uri)
+        .ok_or_else(|| Error::msg("Failed to convert URI to path"))?;
+
+      let mut rope = host.open_file_content(&path).cloned().unwrap_or_default();
+      for change in params.content_changes {
+        rope = apply_content_change(rope, change);
       }
+      host.on_editor_change_file(path, rope);
     }
     // Editor closed the file: fall back to the on-disk version.
     DidCloseTextDocument::METHOD => {
-      let Ok(params) = serde_json::from_value::<DidCloseTextDocumentParams>(note.params.clone())
-      else {
-        return;
-      };
-      if let Some(path) = uri_to_path(&params.text_document.uri) {
-        host.on_close_file(&path);
-      }
-    }
-    DidChangeWatchedFiles::METHOD => {
-      let Ok(params) = serde_json::from_value::<DidChangeWatchedFilesParams>(note.params.clone())
-      else {
-        return;
-      };
-      for change in params.changes {
-        if let Some(path) = uri_to_path(&change.uri) {
-          match change.typ {
-            FileChangeType::CREATED | FileChangeType::CHANGED => host.on_disk_change(path),
-            FileChangeType::DELETED => host.on_disk_delete(path),
-            _ => {}
-          }
-        }
-      }
+      let params = serde_json::from_value::<DidCloseTextDocumentParams>(note.params.clone())?;
+      let path = uri_to_path(&params.text_document.uri)
+        .ok_or_else(|| Error::msg("Failed to convert URI to path"))?;
+      host.on_close_file(&path);
     }
     _ => {}
-  }
+  };
+  Ok(())
 }
 
 /// Apply a single incremental change to a rope. If the change has no range it is a full replacement.
