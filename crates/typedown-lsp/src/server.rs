@@ -1,7 +1,12 @@
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use anyhow::Error;
 use ropey::Rope;
+use threadpool::ThreadPool;
+use typedown_incremental::Cancelled;
 
-use lsp_server::{Connection, Message, Notification, Request, RequestId};
+use lsp_server::{Connection, Message, Notification, Request, RequestId, Response};
 use lsp_types::notification::{
   DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
   Notification as NotificationTrait,
@@ -14,9 +19,10 @@ use lsp_types::{
   TextDocumentContentChangeEvent, WatchKind,
 };
 
+use crate::analysis::Analysis;
 use crate::analysis_host::AnalysisHost;
 use crate::multiproject::{Multiproject, ProjectEntry};
-use crate::notification::diagnostics::publish_diagnostics;
+use crate::notification::diagnostics::{publish_diagnostics, publish_diagnostics_for_file};
 use crate::service;
 use crate::utils::lsp::{try_extract_path_from_notification, try_extract_path_from_request};
 use crate::utils::uri::uri_to_path;
@@ -25,6 +31,7 @@ pub struct Server {
   connection: Connection,
   multiproject: Multiproject,
   client_capabilities: ClientCapabilities,
+  thread_pool: ThreadPool,
 }
 
 impl Server {
@@ -33,14 +40,20 @@ impl Server {
     multiproject: Multiproject,
     client_capabilities: ClientCapabilities,
   ) -> Self {
+    let num_threads = std::thread::available_parallelism()
+      .map(|count| count.get().min(4))
+      .unwrap_or(2);
     Self {
       connection,
       multiproject,
       client_capabilities,
+      thread_pool: ThreadPool::new(num_threads),
     }
   }
 
   pub fn save(self) {
+    // Wait for in-flight requests and diagnostics to finish
+    self.thread_pool.join();
     self.multiproject.save();
   }
 
@@ -81,8 +94,26 @@ impl Server {
       .read()
       .map_err(|_| Error::msg("project_entry.host RwLock is poisoned"))?
       .snapshot();
-    let resp = service::dispatch(&analysis, req);
-    self.connection.sender.send(Message::Response(resp))?;
+
+    // Dispatch to thread pool so the main loop stays responsive.
+    // Cancelled::catch handles the case where a didChange cancels in-flight queries.
+    let sender = self.connection.sender.clone();
+    let request_id = req.id.clone();
+    self.thread_pool.execute(move || {
+      let resp = match Cancelled::catch(|| service::dispatch(&analysis, req)) {
+        Ok(resp) => resp,
+        // A didChange arrived and cancelled this query via the DB's cancelled flag
+        Err(_) => Response::new_err(
+          request_id,
+          lsp_server::ErrorCode::ContentModified as i32,
+          "request cancelled: content modified".to_string(),
+        ),
+      };
+      if let Err(err) = sender.send(Message::Response(resp)) {
+        log::error!("Failed to send response: {err}");
+      }
+    });
+
     Ok(())
   }
 
@@ -124,13 +155,13 @@ impl Server {
         }
         if !affected_projects
           .iter()
-          .any(|p: &std::sync::Arc<ProjectEntry>| p.root_dir == project_entry.root_dir)
+          .any(|p: &Arc<ProjectEntry>| p.root_dir == project_entry.root_dir)
         {
           affected_projects.push(project_entry);
         }
       }
       for project_entry in &affected_projects {
-        self.push_diagnostics(project_entry)?;
+        self.send_diagnostics_async(project_entry, None);
       }
       return Ok(());
     }
@@ -140,31 +171,58 @@ impl Server {
     let path = uri_to_path(&uri).ok_or_else(|| Error::msg("Failed to convert URI to path"))?;
     let project_entry = self.multiproject.load_nearest_project(&path)?;
 
-    // File open/change/close: update the host's tracked state
-    handle_text_notification(
-      &mut project_entry
+    let method = note.method.clone();
+
+    let analysis = {
+      let mut host = project_entry
         .host
         .write()
-        .expect("RwLock should not be poisoned"),
-      &note,
-    )?;
+        .expect("RwLock should not be poisoned");
+      handle_text_notification(&mut host, &note)?;
+      host.snapshot()
+    };
 
-    // Push diagnostics after each state change
-    self.push_diagnostics(&project_entry)?;
+    // didOpen: All files, so cross-file errors show immediately
+    // didChange: Only the changed file, for responsiveness
+    // didClose: No diagnostics needed
+    if method == DidOpenTextDocument::METHOD {
+      self.send_diagnostics_with_snapshot(analysis, None);
+    } else if method == DidChangeTextDocument::METHOD {
+      self.send_diagnostics_with_snapshot(analysis, Some(path));
+    }
 
     Ok(())
   }
 
-  fn push_diagnostics(&self, project_entry: &ProjectEntry) -> anyhow::Result<()> {
+  // Compute and send diagnostics on a worker thread using an existing snapshot
+  fn send_diagnostics_with_snapshot(&self, analysis: Analysis, path: Option<PathBuf>) {
+    let sender = self.connection.sender.clone();
+    self.thread_pool.execute(move || {
+      // Silently drop if cancelled by a newer didChange
+      let Ok(notifications) = Cancelled::catch(|| match path.as_deref() {
+        Some(path) => publish_diagnostics_for_file(&analysis, path),
+        None => publish_diagnostics(&analysis),
+      }) else {
+        return;
+      };
+      for notif in notifications {
+        if let Err(err) = sender.send(Message::Notification(notif)) {
+          log::error!("Failed to send diagnostics: {err}");
+          break;
+        }
+      }
+    });
+  }
+
+  // Take a fresh snapshot and send diagnostics on a worker thread
+  fn send_diagnostics_async(&self, project_entry: &ProjectEntry, path: Option<&Path>) {
     let analysis = project_entry
       .host
       .read()
       .expect("RwLock should not be poisoned")
       .snapshot();
-    for notif in publish_diagnostics(&analysis) {
-      self.connection.sender.send(Message::Notification(notif))?;
-    }
-    Ok(())
+    let path = path.map(Path::to_path_buf);
+    self.send_diagnostics_with_snapshot(analysis, path);
   }
 
   /* File watcher */

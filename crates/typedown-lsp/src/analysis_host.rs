@@ -19,10 +19,10 @@ pub struct AnalysisHost {
   project: Project,
   project_dir: PathBuf,
   snapshot_counter: Arc<(Mutex<usize>, Condvar)>,
-  open_files: HashMap<PathBuf, Rope>,   // editor-managed content
-  scheme_map: HashMap<PathBuf, String>, // URI scheme per path, set when editor opens a file
-  project_files: HashSet<PathBuf>,      // all tracked files known on disk
-  file_map: HashMap<PathBuf, File>,     // stable File IDs, one per tracked path
+  open_files: Arc<HashMap<PathBuf, Rope>>, // editor-managed content
+  scheme_map: Arc<HashMap<PathBuf, String>>, // URI scheme per path, set when editor opens a file
+  project_files: HashSet<PathBuf>,         // all tracked files known on disk
+  file_map: HashMap<PathBuf, File>,        // stable File IDs, one per tracked path
 }
 
 impl AnalysisHost {
@@ -69,8 +69,8 @@ impl AnalysisHost {
       project,
       project_dir,
       snapshot_counter: Arc::new((Mutex::new(1), Condvar::new())),
-      open_files: HashMap::new(),
-      scheme_map: HashMap::new(),
+      open_files: Arc::new(HashMap::new()),
+      scheme_map: Arc::new(HashMap::new()),
       project_files,
       file_map,
     })
@@ -109,7 +109,7 @@ impl AnalysisHost {
       .iter()
       .map(|path| (path.clone(), disk_handle(path)))
       .collect();
-    for (path, rope) in &self.open_files {
+    for (path, rope) in self.open_files.iter() {
       desired.insert(path.clone(), FileHandle::Content(rope.to_string()));
     }
 
@@ -144,8 +144,8 @@ impl AnalysisHost {
     if let Some(path) = uri_to_path(uri) {
       log::debug!("Editor opened: {}", path.display());
       let scheme = uri_scheme(uri).to_string();
-      self.scheme_map.insert(path.clone(), scheme);
-      self.open_files.insert(path, Rope::from(content));
+      Arc::make_mut(&mut self.scheme_map).insert(path.clone(), scheme);
+      Arc::make_mut(&mut self.open_files).insert(path, Rope::from(content));
       self.sync_files();
     } else {
       log::warn!("Could not convert URI to path: {}", uri.as_str());
@@ -154,14 +154,24 @@ impl AnalysisHost {
 
   /// Called on textDocument/didChange.
   pub fn on_editor_change_file(&mut self, path: PathBuf, rope: Rope) {
-    self.open_files.insert(path, rope);
-    self.sync_files();
+    let handle = FileHandle::Content(rope.to_string());
+    Arc::make_mut(&mut self.open_files).insert(path.clone(), rope);
+    let file_map = &self.file_map;
+
+    if let Some(&file) = file_map.get(&path) {
+      self.write(|db| {
+        file.set_handle(db, handle);
+      });
+    } else {
+      // File not tracked yet, fall back to full sync
+      self.sync_files();
+    }
   }
 
   /// Called on textDocument/didClose. Falls back to disk version.
   pub fn on_close_file(&mut self, path: &PathBuf) {
     log::debug!("Editor closed: {}", path.display());
-    self.open_files.remove(path);
+    Arc::make_mut(&mut self.open_files).remove(path);
     self.sync_files();
   }
 

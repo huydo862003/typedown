@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use lsp_server::Connection;
 use lsp_types::{
   CompletionOptions, HoverProviderCapability, InitializeParams, InitializeResult, OneOf,
@@ -11,7 +9,6 @@ use typedown_lsp::logger;
 use typedown_lsp::multiproject::Multiproject;
 use typedown_lsp::server::Server;
 use typedown_lsp::service::semantic_tokens;
-use typedown_lsp::utils::uri::uri_to_path;
 
 // The entrypoint
 pub fn main() -> anyhow::Result<()> {
@@ -58,29 +55,7 @@ pub fn main() -> anyhow::Result<()> {
   // Upgrade logger to also send window/logMessage after handshake
   logger::set_lsp_sender(connection.sender.clone());
 
-  // Resolve workspace folder URIs to paths
-  let initial_dirs: Vec<PathBuf> = init_params
-    .workspace_folders
-    .unwrap_or_default()
-    .into_iter()
-    .filter_map(|folder| {
-      uri_to_path(&folder.uri).or_else(|| {
-        log::warn!(
-          "Could not convert workspace folder URI to path: {}",
-          folder.uri.as_str()
-        );
-        None
-      })
-    })
-    .collect();
-
-  // Pre-load projects so diagnostics are ready before the first request
-  for dir in &initial_dirs {
-    if let Err(err) = multiproject.load_nearest_project(dir) {
-      log::error!("Failed to load project for {}: {err}", dir.display());
-    }
-  }
-
+  // Projects are loaded lazily on first didOpen/request via load_nearest_project
   log::info!("Typedown LSP server started");
 
   let server = Server::new(connection, multiproject, init_params.capabilities);

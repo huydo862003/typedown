@@ -1,6 +1,8 @@
 pub mod config;
 pub mod tdr;
 
+use std::path::Path;
+
 use lsp_server::Notification;
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString};
 use ropey::Rope;
@@ -9,11 +11,14 @@ use typedown_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 use crate::analysis::Analysis;
 use crate::utils::position::text_offset_to_lsp_position;
 
-// Entrypoint for notification to publish diagnostics
 pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
   let mut notifications = tdr::publish_diagnostics(analysis);
   notifications.extend(config::publish_diagnostics(analysis));
   notifications
+}
+
+pub fn publish_diagnostics_for_file(analysis: &Analysis, path: &Path) -> Vec<Notification> {
+  tdr::publish_diagnostics_for_file(analysis, path)
 }
 
 // Convert our diagnostics to lsp diagnostics

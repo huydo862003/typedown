@@ -64,10 +64,14 @@ local binary = resolve_binary()
 
 local function start_lsp()
   if not binary then return end
+  -- The server resolves the project root per-file via multiproject,
+  -- so root_dir just needs to be a valid directory for the client.
+  local root = vim.fs.root(0, { "typedown.yaml", "typedown.yml" })
+    or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
   vim.lsp.start({
     name = "typedown-lsp",
     cmd = { binary },
-    root_dir = vim.fs.root(0, { "typedown.yaml", "typedown.yml" }),
+    root_dir = root,
     capabilities = vim.lsp.protocol.make_client_capabilities(),
   })
 end

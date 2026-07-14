@@ -201,8 +201,8 @@ age: 30
     let analysis = Analysis::new(
       db,
       project,
-      HashMap::new(),
-      HashMap::new(),
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
       Arc::new((Mutex::new(1), Condvar::new())),
     );
 

@@ -75,7 +75,7 @@ impl Log for Logger {
 pub fn init_file() {
   let file = open_log_file();
   let logger = Box::leak(Box::new(Logger { file }));
-  log::set_max_level(log::LevelFilter::Debug);
+  log::set_max_level(log::LevelFilter::Info);
   let _ = log::set_logger(logger);
 }
 
