@@ -35,8 +35,8 @@
     "tree-sitter-cli": "^0.26.9"
   },
   "scripts": {
-    "build:c": "tree-sitter generate grammar.js && tree-sitter generate typedown-yaml/grammar.js && tree-sitter generate typedown-md/grammar.js",
-    "build:wasm": "pnpm run build:c && tree-sitter build --wasm grammar.js && tree-sitter build --wasm typedown-yaml/grammar.js && tree-sitter build --wasm typedown-md/grammar.js",
+    "build:c": "tree-sitter generate && cd typedown-yaml && tree-sitter generate && cd ../typedown-md && tree-sitter generate && cd ../typedown-md-inline && tree-sitter generate",
+    "build:wasm": "pnpm run build:c && tree-sitter build --wasm grammar.js && tree-sitter build --wasm typedown-yaml/grammar.js && tree-sitter build --wasm typedown-md/grammar.js && tree-sitter build --wasm typedown-md-inline/grammar.js",
     "prestart": "pnpm run build:wasm",
     "start": "tree-sitter playground"
   }

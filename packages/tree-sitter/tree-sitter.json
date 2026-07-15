@@ -15,6 +15,7 @@
       "name": "typedown_yaml",
       "camelcase": "TypedownYaml",
       "title": "Typedown YAML",
+      "scope": "source.tdr.yaml",
       "path": "typedown-yaml",
       "file-types": [],
       "injection-regex": "^typedown_yaml$",
@@ -24,10 +25,21 @@
       "name": "typedown_md",
       "camelcase": "TypedownMd",
       "title": "Typedown Markdown",
+      "scope": "source.tdr.md",
       "path": "typedown-md",
       "file-types": [],
       "injection-regex": "^typedown_md$",
       "class-name": "TreeSitterTypedownMd"
+    },
+    {
+      "name": "typedown_md_inline",
+      "camelcase": "TypedownMdInline",
+      "title": "Typedown Markdown Inline",
+      "scope": "source.tdr.md.inline",
+      "path": "typedown-md-inline",
+      "file-types": [],
+      "injection-regex": "^typedown_md_inline$",
+      "class-name": "TreeSitterTypedownMdInline"
     }
   ],
   "metadata": {

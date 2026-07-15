@@ -4,11 +4,12 @@
  * @license AGPL
  */
 
+/* eslint-disable id-length */
 /// <reference types="tree-sitter-cli/dsl" />
 // @ts-check
 
 export default grammar({
-  name: "typedown",
+  name: 'typedown',
 
   externals: ($) => [
     $.frontmatter_content,
@@ -24,9 +25,9 @@ export default grammar({
 
     frontmatter: ($) =>
       seq(
-        "---\n",
+        seq('---', /\r?\n/),
         $.frontmatter_content,
-        "---",
+        '---',
       ),
 
     body: ($) => $.body_content,
