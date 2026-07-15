@@ -8,10 +8,10 @@
 // @ts-check
 
 export default grammar({
-  name: "typedown_yaml",
+  name: 'typedown_yaml',
 
   rules: {
     // TODO: add the actual grammar rules
-    source_file: ($) => "hello",
+    source_file: ($) => 'hello',
   },
 });
