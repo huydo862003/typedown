@@ -10,8 +10,25 @@
 export default grammar({
   name: "typedown",
 
+  externals: ($) => [
+    $.frontmatter_content,
+    $.body_content,
+  ],
+
   rules: {
-    // TODO: add the actual grammar rules
-    source_file: ($) => "hello",
+    source_file: ($) =>
+      seq(
+        optional($.frontmatter),
+        optional($.body),
+      ),
+
+    frontmatter: ($) =>
+      seq(
+        "---\n",
+        $.frontmatter_content,
+        "---",
+      ),
+
+    body: ($) => $.body_content,
   },
 });
