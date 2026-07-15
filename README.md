@@ -10,6 +10,8 @@ A typed markdown language for structured content.
 
 The compiler design is researched and documented in the [dboxide](https://github.com/Huy-DNA/dboxide) repo. See the [design docs](https://github.com/Huy-DNA/dboxide/tree/main/doc/src/design) for details on the syntax, type system, and incremental compilation engine.
 
+The tree-sitter grammar research is documented in the [loupe](https://github.com/huydo862003/loupe) repo.
+
 ## Dev Setup
 
 Requirements: [Nix](https://nixos.org) with flakes enabled.

@@ -1,0 +1,43 @@
+{
+  "name": "tree-sitter-typedown",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typedown grammar for tree-sitter",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huydo862003/typedown/packages/tree-sitter.git"
+  },
+  "funding": "",
+  "license": "AGPL",
+  "author": {
+    "name": "Huy-DNA",
+    "email": "huydo862003@gmail.com",
+    "url": ""
+  },
+  "keywords": [
+    "incremental",
+    "parsing",
+    "tree-sitter",
+    "typedown"
+  ],
+  "files": [
+    "tree-sitter.json",
+    "grammar.js",
+    "queries/*",
+    "src/**",
+    "typedown-*/grammar.js",
+    "typedown-*/queries/*",
+    "typedown-*/src/**",
+    "*.wasm"
+  ],
+  "devDependencies": {
+    "tree-sitter-cli": "^0.26.9"
+  },
+  "scripts": {
+    "build:c": "tree-sitter generate grammar.js && tree-sitter generate typedown-yaml/grammar.js && tree-sitter generate typedown-md/grammar.js",
+    "build:wasm": "pnpm run build:c && tree-sitter build --wasm grammar.js && tree-sitter build --wasm typedown-yaml/grammar.js && tree-sitter build --wasm typedown-md/grammar.js",
+    "prestart": "pnpm run build:wasm",
+    "start": "tree-sitter playground"
+  }
+}

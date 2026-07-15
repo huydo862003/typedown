@@ -78,6 +78,12 @@ importers:
 
   packages/ssg: {}
 
+  packages/tree-sitter:
+    devDependencies:
+      tree-sitter-cli:
+        specifier: ^0.26.9
+        version: 0.26.11
+
 packages:
 
   '@babel/helper-validator-identifier@7.29.7':
@@ -2058,6 +2064,11 @@ packages:
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
+
+  tree-sitter-cli@0.26.11:
+    resolution: {integrity: sha512-/hRCA0Ehkgk6B5WTYSiENk1R2Zv3LJcfvL3wjofzx+EYaKySZDu0agGRQcccay9Lg7wxJWsDa9cTRS92wsM5gQ==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
 
   ts-api-utils@2.5.0:
     resolution: {integrity: sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==}
@@ -4299,6 +4310,8 @@ snapshots:
   to-regex-range@5.0.1:
     dependencies:
       is-number: 7.0.0
+
+  tree-sitter-cli@0.26.11: {}
 
   ts-api-utils@2.5.0(typescript@6.0.3):
     dependencies:

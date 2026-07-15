@@ -7,3 +7,4 @@ packages:
 allowBuilds:
   unrs-resolver: true
   esbuild: true
+  tree-sitter-cli: true
