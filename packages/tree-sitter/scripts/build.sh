@@ -10,14 +10,14 @@ ROOT="$PWD"
 build_so() {
   mkdir -p dist/tree-sitter-so
   for index in "${!GRAMMARS[@]}"; do
-    (cd "${GRAMMARS[$index]}" && tree-sitter build -o "$ROOT/dist/tree-sitter-so/${NAMES[$index]}.so")
+    (cd "${GRAMMARS[$index]}" && "$TREE_SITTER" build -o "$ROOT/dist/tree-sitter-so/${NAMES[$index]}.so")
   done
 }
 
 build_wasm() {
   mkdir -p dist/tree-sitter-wasm
   for index in "${!GRAMMARS[@]}"; do
-    (cd "${GRAMMARS[$index]}" && tree-sitter build --wasm -o "$ROOT/dist/tree-sitter-wasm/${NAMES[$index]}.wasm")
+    (cd "${GRAMMARS[$index]}" && "$TREE_SITTER" build --wasm -o "$ROOT/dist/tree-sitter-wasm/${NAMES[$index]}.wasm")
   done
 }
 

@@ -4,5 +4,5 @@ set -euo pipefail
 source "$(dirname "$0")/grammars.sh"
 
 for dir in "${GRAMMARS[@]}"; do
-  (cd "$dir" && tree-sitter test)
+  (cd "$dir" && "$TREE_SITTER" test)
 done

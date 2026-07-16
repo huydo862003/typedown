@@ -73,6 +73,9 @@
             tree-sitter
           ];
           TREE_SITTER_WASI_SDK_PATH = "${wasi-sdk}";
+          shellHook = ''
+            export TREE_SITTER_PATH="${pkgs.tree-sitter}/bin/tree-sitter"
+          '';
         };
       }
     );
