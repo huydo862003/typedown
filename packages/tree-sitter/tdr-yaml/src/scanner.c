@@ -30,15 +30,15 @@ typedef struct {
   uint16_t depth;
 } Scanner;
 
-void *tree_sitter_typedown_yaml_external_scanner_create(void) {
+void *tree_sitter_tdr_yaml_external_scanner_create(void) {
   return calloc(1, sizeof(Scanner));
 }
 
-void tree_sitter_typedown_yaml_external_scanner_destroy(void *payload) {
+void tree_sitter_tdr_yaml_external_scanner_destroy(void *payload) {
   free(payload);
 }
 
-unsigned tree_sitter_typedown_yaml_external_scanner_serialize(void *payload,
+unsigned tree_sitter_tdr_yaml_external_scanner_serialize(void *payload,
                                                               char *buffer) {
   Scanner *scanner = (Scanner *)payload;
   unsigned pos = 0;
@@ -52,7 +52,7 @@ unsigned tree_sitter_typedown_yaml_external_scanner_serialize(void *payload,
   return pos;
 }
 
-void tree_sitter_typedown_yaml_external_scanner_deserialize(void *payload,
+void tree_sitter_tdr_yaml_external_scanner_deserialize(void *payload,
                                                             const char *buffer,
                                                             unsigned length) {
   Scanner *scanner = (Scanner *)payload;
@@ -86,7 +86,7 @@ static void push_indent(Scanner *scanner, uint16_t col, uint8_t typ) {
   }
 }
 
-bool tree_sitter_typedown_yaml_external_scanner_scan(
+bool tree_sitter_tdr_yaml_external_scanner_scan(
     void *payload, TSLexer *lexer, const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
 

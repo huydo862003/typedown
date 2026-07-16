@@ -37,6 +37,7 @@ export default grammar({
     $.math_block_content,
 
     $.block_quote_marker,
+    $.toggle_list_marker,
 
     $.list_marker_minus,
     $.list_marker_star,
@@ -144,6 +145,7 @@ export default grammar({
         $.fenced_code_block,
         $.math_block,
         $.block_quote,
+        $.toggle_list,
         $.list,
         $.callout_block,
         $.pipe_table,
@@ -203,6 +205,28 @@ export default grammar({
       prec.right(
         seq(
           $.block_quote_marker,
+          repeat(
+            choice(
+              $._block,
+              $._blank_line,
+              $._block_continuation,
+            ),
+          ),
+          $._block_close,
+        ),
+      ),
+
+    // Toggle list
+
+    toggle_list: ($) =>
+      prec.right(
+        repeat1($.toggle_list_item),
+      ),
+
+    toggle_list_item: ($) =>
+      prec.right(
+        seq(
+          $.toggle_list_marker,
           repeat(
             choice(
               $._block,

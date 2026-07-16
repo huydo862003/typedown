@@ -1,0 +1,1 @@
+../../../../packages/tree-sitter/tdr-yaml/queries/folds.scm

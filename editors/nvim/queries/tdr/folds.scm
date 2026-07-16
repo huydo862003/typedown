@@ -1,0 +1,1 @@
+../../../../packages/tree-sitter/queries/folds.scm

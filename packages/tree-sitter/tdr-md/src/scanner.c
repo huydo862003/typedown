@@ -29,6 +29,7 @@ enum TokenType {
   MATH_BLOCK_CONTENT,
 
   BLOCK_QUOTE_MARKER,
+  TOGGLE_LIST_MARKER,
 
   LIST_MARKER_MINUS,
   LIST_MARKER_STAR,
@@ -48,6 +49,7 @@ enum BlockType {
   BLOCK_QUOTE_BLOCK = 1,
   LIST_ITEM = 2,
   LIST_ITEM_MAX_INDENTATION = 18,
+  TOGGLE_LIST_BLOCK = 19,
 };
 
 #define MAX_BLOCK_DEPTH 32
@@ -67,15 +69,15 @@ typedef struct {
   uint16_t indentation;
 } Scanner;
 
-void *tree_sitter_typedown_md_external_scanner_create(void) {
+void *tree_sitter_tdr_md_external_scanner_create(void) {
   return calloc(1, sizeof(Scanner));
 }
 
-void tree_sitter_typedown_md_external_scanner_destroy(void *payload) {
+void tree_sitter_tdr_md_external_scanner_destroy(void *payload) {
   free(payload);
 }
 
-unsigned tree_sitter_typedown_md_external_scanner_serialize(void *payload,
+unsigned tree_sitter_tdr_md_external_scanner_serialize(void *payload,
                                                             char *buffer) {
   Scanner *scanner = (Scanner *)payload;
   unsigned pos = 0;
@@ -94,7 +96,7 @@ unsigned tree_sitter_typedown_md_external_scanner_serialize(void *payload,
   return pos;
 }
 
-void tree_sitter_typedown_md_external_scanner_deserialize(void *payload,
+void tree_sitter_tdr_md_external_scanner_deserialize(void *payload,
                                                           const char *buffer,
                                                           unsigned length) {
   Scanner *scanner = (Scanner *)payload;
@@ -163,6 +165,19 @@ static bool match_block(Scanner *scanner, TSLexer *lexer,
     skip_spaces(lexer);
     if (lexer->lookahead == '>') {
       lexer->advance(lexer, false);
+      if (lexer->lookahead == ' ') lexer->advance(lexer, false);
+      scanner->indentation = 0;
+      return true;
+    }
+    return false;
+  }
+  if (block_type == TOGGLE_LIST_BLOCK) {
+    skip_spaces(lexer);
+    if (lexer->lookahead == '>') {
+      lexer->mark_end(lexer);
+      lexer->advance(lexer, false);
+      // >- starts a new toggle item; close this block
+      if (lexer->lookahead == '-') return false;
       if (lexer->lookahead == ' ') lexer->advance(lexer, false);
       scanner->indentation = 0;
       return true;
@@ -448,7 +463,7 @@ static bool try_list_marker_bullet(Scanner *scanner, TSLexer *lexer,
   return false;
 }
 
-bool tree_sitter_typedown_md_external_scanner_scan(void *payload,
+bool tree_sitter_tdr_md_external_scanner_scan(void *payload,
                                                    TSLexer *lexer,
                                                    const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
@@ -634,14 +649,27 @@ bool tree_sitter_typedown_md_external_scanner_scan(void *payload,
     }
   }
 
-  // >
-  if (lexer->lookahead == '>' && valid_symbols[BLOCK_QUOTE_MARKER]) {
+  // >- (toggle list) or > (block quote)
+  if (lexer->lookahead == '>' &&
+      (valid_symbols[TOGGLE_LIST_MARKER] || valid_symbols[BLOCK_QUOTE_MARKER])) {
     lexer->advance(lexer, false);
-    if (lexer->lookahead == ' ') lexer->advance(lexer, false);
-    push_block(scanner, BLOCK_QUOTE_BLOCK);
-    lexer->mark_end(lexer);
-    lexer->result_symbol = BLOCK_QUOTE_MARKER;
-    return true;
+    if (lexer->lookahead == '-' && valid_symbols[TOGGLE_LIST_MARKER]) {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+        lexer->advance(lexer, false);
+      }
+      push_block(scanner, TOGGLE_LIST_BLOCK);
+      lexer->mark_end(lexer);
+      lexer->result_symbol = TOGGLE_LIST_MARKER;
+      return true;
+    }
+    if (valid_symbols[BLOCK_QUOTE_MARKER]) {
+      if (lexer->lookahead == ' ') lexer->advance(lexer, false);
+      push_block(scanner, BLOCK_QUOTE_BLOCK);
+      lexer->mark_end(lexer);
+      lexer->result_symbol = BLOCK_QUOTE_MARKER;
+      return true;
+    }
   }
 
   // -, *, N.

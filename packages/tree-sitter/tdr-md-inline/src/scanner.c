@@ -49,15 +49,15 @@ static uint8_t char_type(int32_t character) {
   return CHAR_OTHER;
 }
 
-void *tree_sitter_typedown_md_inline_external_scanner_create(void) {
+void *tree_sitter_tdr_md_inline_external_scanner_create(void) {
   return calloc(1, sizeof(Scanner));
 }
 
-void tree_sitter_typedown_md_inline_external_scanner_destroy(void *payload) {
+void tree_sitter_tdr_md_inline_external_scanner_destroy(void *payload) {
   free(payload);
 }
 
-unsigned tree_sitter_typedown_md_inline_external_scanner_serialize(
+unsigned tree_sitter_tdr_md_inline_external_scanner_serialize(
     void *payload, char *buffer) {
   Scanner *scanner = (Scanner *)payload;
   buffer[0] = (char)scanner->code_span_count;
@@ -66,7 +66,7 @@ unsigned tree_sitter_typedown_md_inline_external_scanner_serialize(
   return 3;
 }
 
-void tree_sitter_typedown_md_inline_external_scanner_deserialize(
+void tree_sitter_tdr_md_inline_external_scanner_deserialize(
     void *payload, const char *buffer, unsigned length) {
   Scanner *scanner = (Scanner *)payload;
   scanner->code_span_count = 0;
@@ -268,7 +268,7 @@ static bool scan_text_content(Scanner *scanner, TSLexer *lexer,
   return false;
 }
 
-bool tree_sitter_typedown_md_inline_external_scanner_scan(
+bool tree_sitter_tdr_md_inline_external_scanner_scan(
     void *payload, TSLexer *lexer, const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
 

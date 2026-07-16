@@ -35,7 +35,17 @@
       "comment": "Markdown mode after frontmatter",
       "begin": "(?<=^---)\\s*$",
       "end": "\\z",
-      "patterns": []
+      "patterns": [
+        { "include": "#md-fenced-code" },
+        { "include": "#md-math-block" },
+        { "include": "#md-heading" },
+        { "include": "#md-callout" },
+        { "include": "#md-toggle-list" },
+        { "include": "#md-block-quote" },
+        { "include": "#md-table" },
+        { "include": "#md-list" },
+        { "include": "#md-inline" }
+      ]
     },
 
     /* yaml mode */
@@ -88,6 +98,178 @@
     },
 
     /* markdown mode */
+    "md-heading": {
+      "match": "^(#{1,6})\\s+(.*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.heading.tdr" },
+        "2": {
+          "name": "markup.heading.tdr",
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-fenced-code": {
+      // Fenced code block with optional language label.
+      // Language-specific injection is handled by the *-codeblock.json grammars,
+      // which take priority over this rule for known languages.
+      "begin": "^(```+)(\\w+)?\\s*$",
+      "end": "^(\\1)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.code.begin.tdr" },
+        "2": { "name": "entity.name.tag.tdr" }
+      },
+      "endCaptures": { "1": { "name": "punctuation.definition.code.end.tdr" } },
+      "contentName": "markup.raw.block.tdr"
+    },
+    "md-math-block": {
+      "begin": "^(\\$\\$+)\\s*$",
+      "end": "^(\\1)\\s*$",
+      "beginCaptures": { "0": { "name": "punctuation.definition.math.begin.tdr" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.math.end.tdr" } },
+      "contentName": "markup.math.block.tdr"
+    },
+    "md-callout": {
+      "begin": "^(:::)\\s*(\\w+)?",
+      "end": "^(:::)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.callout.begin.tdr" },
+        "2": { "name": "entity.name.tag.tdr" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.callout.end.tdr" }
+      },
+      "patterns": [
+        { "include": "#md-fenced-code" },
+        { "include": "#md-math-block" },
+        { "include": "#md-list" },
+        { "include": "#md-inline" }
+      ]
+    },
+    "md-toggle-list": {
+      "match": "^(>-)(\\s+)(.*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.toggle.tdr" },
+        "3": {
+          "name": "markup.list.tdr",
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-block-quote": {
+      "match": "^(>)\\s?(.*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.quote.tdr" },
+        "2": {
+          "name": "markup.quote.tdr",
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-table": {
+      "match": "^(\\|)(.+)(\\|)\\s*$",
+      "captures": {
+        "1": { "name": "punctuation.definition.table.tdr" },
+        "2": {
+          "patterns": [{
+            "match": "\\|",
+            "name": "punctuation.definition.table.tdr"
+          }]
+        },
+        "3": { "name": "punctuation.definition.table.tdr" }
+      }
+    },
+    "md-list": {
+      "match": "^(\\s*)([-*]|\\d+\\.)(\\s+)(.*)",
+      "captures": {
+        "2": { "name": "punctuation.definition.list.tdr" },
+        "4": {
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-inline": {
+      "patterns": [
+        { "include": "#md-code-span" },
+        { "include": "#md-math-span" },
+        { "include": "#md-strong" },
+        { "include": "#md-emphasis" },
+        { "include": "#md-image" },
+        { "include": "#md-link" },
+        { "include": "#md-footnote" },
+        { "include": "#md-citation" },
+        { "include": "#interpolation" },
+        { "include": "#md-escape" }
+      ]
+    },
+    "md-code-span": {
+      "match": "(`+)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "punctuation.definition.raw.begin.tdr" },
+        "2": { "name": "markup.raw.inline.tdr" },
+        "3": { "name": "punctuation.definition.raw.end.tdr" }
+      }
+    },
+    "md-math-span": {
+      "match": "(\\$+)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "punctuation.definition.math.begin.tdr" },
+        "2": { "name": "markup.math.inline.tdr" },
+        "3": { "name": "punctuation.definition.math.end.tdr" }
+      }
+    },
+    "md-strong": {
+      "match": "(\\*\\*|__)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "punctuation.definition.bold.begin.tdr" },
+        "2": { "name": "markup.bold.tdr" },
+        "3": { "name": "punctuation.definition.bold.end.tdr" }
+      }
+    },
+    "md-emphasis": {
+      "match": "(\\*|_)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "punctuation.definition.italic.begin.tdr" },
+        "2": { "name": "markup.italic.tdr" },
+        "3": { "name": "punctuation.definition.italic.end.tdr" }
+      }
+    },
+    "md-image": {
+      "match": "(!)\\[([^\\]]*)\\]\\(([^)]+)\\)",
+      "captures": {
+        "1": { "name": "punctuation.definition.image.tdr" },
+        "2": { "name": "string.other.link.description.tdr" },
+        "3": { "name": "markup.underline.link.tdr" }
+      }
+    },
+    "md-link": {
+      "match": "\\[([^\\]]*)\\]\\(([^)]+)\\)",
+      "captures": {
+        "1": { "name": "string.other.link.title.tdr" },
+        "2": { "name": "markup.underline.link.tdr" }
+      }
+    },
+    "md-footnote": {
+      "match": "(\\[)(\\^)([a-zA-Z_]\\w*)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.footnote.begin.tdr" },
+        "2": { "name": "punctuation.definition.footnote.tdr" },
+        "3": { "name": "entity.name.footnote.tdr" },
+        "4": { "name": "punctuation.definition.footnote.end.tdr" }
+      }
+    },
+    "md-citation": {
+      "match": "(\\[)(@)([a-zA-Z_]\\w*)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.citation.begin.tdr" },
+        "2": { "name": "punctuation.definition.citation.tdr" },
+        "3": { "name": "entity.name.citation.tdr" },
+        "4": { "name": "punctuation.definition.citation.end.tdr" }
+      }
+    },
+    "md-escape": {
+      "match": "\\\\[\\\\`*_\\[\\](){}#+\\-.!|$@^~>:]",
+      "name": "constant.character.escape.tdr"
+    },
 
     /* expressions: inline values usable in both YAML and formula mode */
     "expression": {

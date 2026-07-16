@@ -608,8 +608,8 @@ Ordered lists use a number followed by `.`:
 Toggle lists use `>-`. The item is collapsed by default and can be expanded:
 
 ```markdown
-> - Summary line
->   Content shown when expanded.
+>- Summary line
+>  Content shown when expanded.
 ```
 
 ### Callout Blocks

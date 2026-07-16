@@ -9,4 +9,20 @@ repository = "https://github.com/huydo862003/typedown"
 [language_servers.tdr-lsp]
 name = "Typedown TDR LSP"
 languages = ["TDR"]
-command = "tdr-lsp"
+
+# Local dev uses file:// paths. CI replaces with GitHub URL + pinned SHA.
+[grammars.tdr]
+repository = "file://../../packages/tree-sitter"
+rev = "HEAD"
+
+[grammars.tdr_yaml]
+repository = "file://../../packages/tree-sitter/tdr-yaml"
+rev = "HEAD"
+
+[grammars.tdr_md]
+repository = "file://../../packages/tree-sitter/tdr-md"
+rev = "HEAD"
+
+[grammars.tdr_md_inline]
+repository = "file://../../packages/tree-sitter/tdr-md-inline"
+rev = "HEAD"
