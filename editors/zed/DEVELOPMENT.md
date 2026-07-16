@@ -19,6 +19,6 @@ Install the extension locally in Zed via `zed: install dev extension`, pointing 
 
 ## Tree-sitter
 
-Syntactic highlighting in Zed uses Tree-sitter. The grammar lives in `editors/tree-sitter/`. Zed extensions reference the grammar via `extension.toml` and include query files under `languages/typedown/`.
+Syntactic highlighting in Zed uses Tree-sitter. The grammar lives in `packages/tree-sitter/`. Zed extensions reference the grammar via `extension.toml` and include query files under `languages/tdr/`.
 
 See also: [Tree-sitter research](https://huydo862003.github.io/loupe/research/analysis/syntactic-analysis.html)

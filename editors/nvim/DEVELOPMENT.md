@@ -33,7 +33,7 @@ Run `:LspInfo` inside Neovim to confirm the server attached.
 
 ## Tree-sitter
 
-Syntactic highlighting in Neovim uses Tree-sitter. The grammar lives in `editors/tree-sitter/` and the query files live in `queries/typedown/` inside this plugin.
+Syntactic highlighting in Neovim uses Tree-sitter. The grammar lives in `packages/tree-sitter/` and the query files live in `queries/tdr/` inside this plugin.
 
 Once the grammar is built, register the parser with nvim-treesitter and the query files will provide highlighting, injections, and folds.
 
