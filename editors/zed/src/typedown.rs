@@ -12,8 +12,8 @@ impl zed::Extension for TypedownLsp {
     worktree: &zed::Worktree,
   ) -> zed::Result<zed::Command> {
     let server = worktree
-      .which("typedown-lsp")
-      .ok_or_else(|| "typedown-lsp not found on PATH".to_string())?;
+      .which("tdr-lsp")
+      .ok_or_else(|| "tdr-lsp not found on PATH".to_string())?;
     Ok(zed::Command {
       command: server,
       args: vec![],

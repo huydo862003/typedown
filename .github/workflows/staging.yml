@@ -9,10 +9,10 @@ permissions:
   contents: write
 
 env:
-  ARTIFACT_LINUX_X86_64: typedown-lsp-linux-x86_64
-  ARTIFACT_MACOS_X86_64: typedown-lsp-macos-x86_64
-  ARTIFACT_MACOS_AARCH64: typedown-lsp-macos-aarch64
-  ARTIFACT_WINDOWS_X86_64: typedown-lsp-windows-x86_64.exe
+  ARTIFACT_LINUX_X86_64: tdr-lsp-linux-x86_64
+  ARTIFACT_MACOS_X86_64: tdr-lsp-macos-x86_64
+  ARTIFACT_MACOS_AARCH64: tdr-lsp-macos-aarch64
+  ARTIFACT_WINDOWS_X86_64: tdr-lsp-windows-x86_64.exe
 
 jobs:
   validate-tag:
@@ -35,22 +35,22 @@ jobs:
         include:
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-            artifact: typedown-lsp
+            artifact: tdr-lsp
             vsce-target: linux-x64
             ts-target: linux-x64
           - os: macos-15
             target: x86_64-apple-darwin
-            artifact: typedown-lsp
+            artifact: tdr-lsp
             vsce-target: darwin-x64
             ts-target: darwin-x64
           - os: macos-15
             target: aarch64-apple-darwin
-            artifact: typedown-lsp
+            artifact: tdr-lsp
             vsce-target: darwin-arm64
             ts-target: darwin-arm64
           - os: windows-2025
             target: x86_64-pc-windows-msvc
-            artifact: typedown-lsp.exe
+            artifact: tdr-lsp.exe
             vsce-target: win32-x64
             ts-target: win32-x64
     steps:
@@ -69,7 +69,7 @@ jobs:
 
       # LSP
       - name: Build
-        run: cargo build --locked --release -p typedown-lsp --target ${{ matrix.target }}
+        run: cargo build --locked --release -p tdr-lsp --target ${{ matrix.target }}
 
       - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
 
@@ -97,7 +97,7 @@ jobs:
       - name: Upload binary
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: typedown-lsp-${{ matrix.target }}
+          name: tdr-lsp-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
           retention-days: 2
 
@@ -121,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: tree-sitter-so-${{ matrix.ts-target }}
-          path: packages/tree-sitter/artifacts/tree-sitter-so/*.so
+          path: packages/tree-sitter/dist/tree-sitter-so/*.so
           retention-days: 2
 
       - name: Build parsers to wasm (ubuntu only)
@@ -134,7 +134,7 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         with:
           name: tree-sitter-wasm
-          path: packages/tree-sitter/artifacts/tree-sitter-wasm/*.wasm
+          path: packages/tree-sitter/dist/tree-sitter-wasm/*.wasm
           retention-days: 2
 
   release:
@@ -151,10 +151,10 @@ jobs:
 
       - name: Rename binary artifacts
         run: |
-          mv artifacts/typedown-lsp-x86_64-unknown-linux-gnu/typedown-lsp artifacts/${{ env.ARTIFACT_LINUX_X86_64 }}
-          mv artifacts/typedown-lsp-x86_64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
-          mv artifacts/typedown-lsp-aarch64-apple-darwin/typedown-lsp artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
-          mv artifacts/typedown-lsp-x86_64-pc-windows-msvc/typedown-lsp.exe artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
+          mv artifacts/tdr-lsp-x86_64-unknown-linux-gnu/tdr-lsp artifacts/${{ env.ARTIFACT_LINUX_X86_64 }}
+          mv artifacts/tdr-lsp-x86_64-apple-darwin/tdr-lsp artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
+          mv artifacts/tdr-lsp-aarch64-apple-darwin/tdr-lsp artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
+          mv artifacts/tdr-lsp-x86_64-pc-windows-msvc/tdr-lsp.exe artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
 
       - name: Create Prerelease
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.1.0

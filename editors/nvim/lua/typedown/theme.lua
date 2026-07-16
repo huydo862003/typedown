@@ -4,7 +4,7 @@
 local M = {}
 
 function M.setup()
-  vim.api.nvim_set_hl(0, "@lsp.type.type.typedown", { link = "Type" })
+  vim.api.nvim_set_hl(0, "@lsp.type.type.tdr", { link = "Type" })
 
   -- File icon for .tdr files
   local ok_devicons, devicons = pcall(require, "nvim-web-devicons")

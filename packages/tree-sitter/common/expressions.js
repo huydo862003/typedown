@@ -1,5 +1,5 @@
 /**
- * Shared expression rules for typedown sub-grammars
+ * Shared expression rules for tdr sub-grammars
  */
 
 /* eslint-disable id-length */

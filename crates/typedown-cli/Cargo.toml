@@ -8,4 +8,4 @@ authors = ["Huy-DNA <huydo862003@gmail.com>"]
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-typedown-lang = { version = "0.0.0", path = "../typedown-lang" }
+tdr-lang = { version = "0.0.0", path = "../tdr-lang" }

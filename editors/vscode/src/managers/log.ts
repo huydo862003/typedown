@@ -14,7 +14,7 @@ export class LogManager implements Disposable {
   private readonly channel: LogOutputChannel;
 
   private constructor () {
-    this.channel = window.createOutputChannel('Typedown LSP', {
+    this.channel = window.createOutputChannel('Typedown', {
       log: true,
     });
   }

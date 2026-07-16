@@ -2,50 +2,50 @@
   "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
   "grammars": [
     {
-      "name": "typedown",
-      "camelcase": "Typedown",
-      "title": "Typedown",
+      "name": "tdr",
+      "camelcase": "Tdr",
+      "title": "Typedown TDR",
       "scope": "source.tdr",
       "file-types": ["tdr"],
       "path": ".",
-      "injection-regex": "^typedown$",
-      "class-name": "TreeSitterTypedown"
+      "injection-regex": "^tdr$",
+      "class-name": "TreeSitterTdr"
     },
     {
-      "name": "typedown_yaml",
-      "camelcase": "TypedownYaml",
-      "title": "Typedown YAML",
+      "name": "tdr_yaml",
+      "camelcase": "TdrYaml",
+      "title": "Typedown TDR YAML",
       "scope": "source.tdr.yaml",
-      "path": "typedown-yaml",
+      "path": "tdr-yaml",
       "file-types": [],
-      "injection-regex": "^typedown_yaml$",
-      "class-name": "TreeSitterTypedownYaml"
+      "injection-regex": "^tdr_yaml$",
+      "class-name": "TreeSitterTdrYaml"
     },
     {
-      "name": "typedown_md",
-      "camelcase": "TypedownMd",
-      "title": "Typedown Markdown",
+      "name": "tdr_md",
+      "camelcase": "TdrMd",
+      "title": "Typedown TDR Markdown",
       "scope": "source.tdr.md",
-      "path": "typedown-md",
+      "path": "tdr-md",
       "file-types": [],
-      "injection-regex": "^typedown_md$",
-      "class-name": "TreeSitterTypedownMd"
+      "injection-regex": "^tdr_md$",
+      "class-name": "TreeSitterTdrMd"
     },
     {
-      "name": "typedown_md_inline",
-      "camelcase": "TypedownMdInline",
-      "title": "Typedown Markdown Inline",
+      "name": "tdr_md_inline",
+      "camelcase": "TdrMdInline",
+      "title": "Typedown TDR Markdown Inline",
       "scope": "source.tdr.md.inline",
-      "path": "typedown-md-inline",
+      "path": "tdr-md-inline",
       "file-types": [],
-      "injection-regex": "^typedown_md_inline$",
-      "class-name": "TreeSitterTypedownMdInline"
+      "injection-regex": "^tdr_md_inline$",
+      "class-name": "TreeSitterTdrMdInline"
     }
   ],
   "metadata": {
     "version": "0.0.0",
     "license": "AGPL",
-    "description": "Typedown grammar for tree-sitter",
+    "description": "Typedown TDR grammar for tree-sitter",
     "authors": [
       {
         "name": "Huy-DNA",

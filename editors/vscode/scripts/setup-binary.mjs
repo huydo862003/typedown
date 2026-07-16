@@ -1,4 +1,4 @@
-// Sets up the typedown-lsp binary in bin/ based on TYPEDOWN_BINARY_SOURCE:
+// Sets up the tdr-lsp binary in bin/ based on TYPEDOWN_BINARY_SOURCE:
 //   local   - copies from local build
 //   staging - downloads the prerelease binary of the current version
 import { copyFileSync, createWriteStream, mkdirSync, chmodSync, readFileSync, renameSync, rmSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { platform, arch, env } from 'node:process';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const binName = platform === 'win32' ? 'typedown-lsp.exe' : 'typedown-lsp';
+const binName = platform === 'win32' ? 'tdr-lsp.exe' : 'tdr-lsp';
 const binDir = join(repoRoot, 'editors', 'vscode', 'bin');
 const binDest = join(binDir, binName);
 
@@ -30,10 +30,10 @@ if (mode === 'local') {
 
   // artifact name per platform as published on GitHub releases
   const releaseArtifacts = {
-    'linux-x64':    'typedown-lsp-linux-x86_64',
-    'darwin-x64':   'typedown-lsp-macos-x86_64',
-    'darwin-arm64': 'typedown-lsp-macos-aarch64',
-    'win32-x64':    'typedown-lsp-windows-x86_64.exe',
+    'linux-x64':    'tdr-lsp-linux-x86_64',
+    'darwin-x64':   'tdr-lsp-macos-x86_64',
+    'darwin-arm64': 'tdr-lsp-macos-aarch64',
+    'win32-x64':    'tdr-lsp-windows-x86_64.exe',
   };
 
   const platformArch = `${platform}-${arch === 'arm64' ? 'arm64' : 'x64'}`;

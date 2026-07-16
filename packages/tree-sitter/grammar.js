@@ -1,5 +1,5 @@
 /**
- * @file Typedown grammar for tree-sitter
+ * @file Typedown TDR grammar for tree-sitter
  * @author Huy-DNA <huydo862003@gmail.com>
  * @license AGPL
  */
@@ -9,7 +9,7 @@
 // @ts-check
 
 export default grammar({
-  name: 'typedown',
+  name: 'tdr',
 
   externals: ($) => [
     $.frontmatter_content,

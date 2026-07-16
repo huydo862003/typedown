@@ -15,13 +15,13 @@
     "lsp"
   ],
   "activationEvents": [
-    "onLanguage:typedown"
+    "onLanguage:tdr"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "typedown",
+        "id": "tdr",
         "aliases": [
           "Typedown",
           "tdr"
@@ -37,7 +37,7 @@
     ],
     "grammars": [
       {
-        "language": "typedown",
+        "language": "tdr",
         "scopeName": "source.tdr",
         "path": "./syntaxes/tdr.tmLanguage.json"
       },
@@ -375,7 +375,7 @@
   },
   "scripts": {
     "build:grammar": "json5 -o syntaxes/tdr.tmLanguage.json syntaxes/tdr.tmLanguage.json5",
-    "build:rust": "cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
+    "build:rust": "cargo build -p tdr-lsp && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
     "check-types": "tsc --noEmit",
     "fetch:staging": "TYPEDOWN_BINARY_SOURCE=staging node scripts/setup-binary.mjs",
 
@@ -390,7 +390,7 @@
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "watch:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
+    "watch:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p tdr-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
     "watch:dev": "npm-run-all -p watch:rust watch:esbuild watch:tsc",
     "watch:staging": "npm-run-all -p watch:esbuild watch:tsc",
     "watch-tests": "tsc -p . -w --outDir out",

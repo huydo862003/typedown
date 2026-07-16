@@ -1,0 +1,4 @@
+name = "TDR"
+# tree-sitter not supported yet
+# grammar = "tdr"
+path_suffixes = ["tdr"]

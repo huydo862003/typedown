@@ -1,5 +1,5 @@
 ((frontmatter_content) @injection.content
-  (#set! injection.language "typedown_yaml"))
+  (#set! injection.language "tdr_yaml"))
 
 ((body_content) @injection.content
-  (#set! injection.language "typedown_md"))
+  (#set! injection.language "tdr_md"))

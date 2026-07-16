@@ -1,6 +1,6 @@
 # Editor Extensions
 
-Typedown provides editor extensions for VS Code, Neovim, and Zed. All three share the same LSP binary (`typedown-lsp`) for language features (diagnostics, completions, hover, etc.).
+Typedown provides editor extensions for VS Code, Neovim, and Zed. All three share the same LSP binary (`tdr-lsp`) for language features (diagnostics, completions, hover, etc.).
 
 ## Highlighting
 

@@ -21,7 +21,7 @@ pnpm run compile:dev
 
 Then press `F5` in VSCode (or use the "Run Extension (local dev)" launch configuration).
 
-`compile:dev` builds `typedown-lsp` from source and copies the debug binary into `bin/` before bundling the extension.
+`compile:dev` builds `tdr-lsp` from source and copies the debug binary into `bin/` before bundling the extension.
 
 To watch for changes across both Rust and TypeScript:
 

@@ -44,17 +44,17 @@ To release:
 
 ## Dependency Graph
 
-- `typedown-macros` and `typedown-types` contain common utils, which are the lowest common denominator that everyone depends upon.
+- `tdr-macros` and `tdr-types` contain common utils, which are the lowest common denominator that everyone depends upon.
   - They can be depended upon by other crates.
   - They must not depend on any other crates.
-- `typedown-incremental` contains the incremental engine.
-  - It must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
-  - It can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types`.
-- `typedown-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
-  - It depends on `typedown-incremental`, `typedown-macros`, and `typedown-types`.
-  - It must not depend on `typedown-lsp`.
-  - It can only be depended upon by `typedown-lsp`.
-- `typedown-lsp` contains the LSP server for typedown.
+- `tdr-incremental` contains the incremental engine.
+  - It must not depend on any other crates, except for `tdr-macros` and `tdr-types`.
+  - It can be depended upon by everyone, EXCEPT FOR `tdr-macros` and `tdr-types`.
+- `tdr-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
+  - It depends on `tdr-incremental`, `tdr-macros`, and `tdr-types`.
+  - It must not depend on `tdr-lsp`.
+  - It can only be depended upon by `tdr-lsp`.
+- `tdr-lsp` contains the LSP server for typedown.
   - It can depend on any other crates.
   - It can not be depended upon by others.
 

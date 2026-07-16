@@ -1,8 +1,8 @@
 {
-  "name": "tree-sitter-typedown",
+  "name": "tree-sitter-tdr",
   "version": "0.0.0",
   "private": true,
-  "description": "Typedown grammar for tree-sitter",
+  "description": "Typedown TDR grammar for tree-sitter",
   "type": "module",
   "repository": {
     "type": "git",
@@ -19,16 +19,16 @@
     "incremental",
     "parsing",
     "tree-sitter",
-    "typedown"
+    "tdr"
   ],
   "files": [
     "tree-sitter.json",
     "grammar.js",
     "queries/*",
     "src/**",
-    "typedown-*/grammar.js",
-    "typedown-*/queries/*",
-    "typedown-*/src/**",
+    "tdr-*/grammar.js",
+    "tdr-*/queries/*",
+    "tdr-*/src/**",
     "*.wasm"
   ],
   "devDependencies": {

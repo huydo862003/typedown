@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GRAMMARS=(. typedown-yaml typedown-md typedown-md-inline)
-NAMES=(typedown typedown_yaml typedown_md typedown_md_inline)
+GRAMMARS=(. tdr-yaml tdr-md tdr-md-inline)
+NAMES=(tdr tdr_yaml tdr_md tdr_md_inline)
 
 MODE="${1:-all}"
 
 ROOT="$PWD"
 
 build_so() {
-  mkdir -p artifacts/tree-sitter-so
+  mkdir -p dist/tree-sitter-so
   for index in "${!GRAMMARS[@]}"; do
-    (cd "${GRAMMARS[$index]}" && tree-sitter build -o "$ROOT/artifacts/tree-sitter-so/${NAMES[$index]}.so")
+    (cd "${GRAMMARS[$index]}" && tree-sitter build -o "$ROOT/dist/tree-sitter-so/${NAMES[$index]}.so")
   done
 }
 
 build_wasm() {
-  mkdir -p artifacts/tree-sitter-wasm
+  mkdir -p dist/tree-sitter-wasm
   for index in "${!GRAMMARS[@]}"; do
-    (cd "${GRAMMARS[$index]}" && tree-sitter build --wasm -o "$ROOT/artifacts/tree-sitter-wasm/${NAMES[$index]}.wasm")
+    (cd "${GRAMMARS[$index]}" && tree-sitter build --wasm -o "$ROOT/dist/tree-sitter-wasm/${NAMES[$index]}.wasm")
   done
 }
 

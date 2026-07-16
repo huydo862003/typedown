@@ -32,7 +32,7 @@ jobs:
           VERSION=$(cat VERSION)
 
           # Cargo workspace version
-          CARGO_VERSION=$(cargo pkgid typedown-lsp | sed 's/.*#//')
+          CARGO_VERSION=$(cargo pkgid tdr-lsp | sed 's/.*#//')
           if [[ "$CARGO_VERSION" != "$VERSION" ]]; then
             echo "Cargo.toml version '$CARGO_VERSION' does not match VERSION '$VERSION'"
             exit 1

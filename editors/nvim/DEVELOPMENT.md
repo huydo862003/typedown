@@ -6,12 +6,12 @@ Build the debug binary, then launch with `local_init.lua`:
 
 ```bash
 pnpm build -r tree-sitter
-cargo build -p typedown-lsp
+cargo build -p tdr-lsp
 nvim -u editors/nvim/local_init.lua path/to/file.tdr
 ```
 
 `local_init.lua` sets `vim.g.typedown_dev = true`, which tells the plugin to use
-`target/debug/typedown-lsp` instead of downloading a binary.
+`target/debug/tdr-lsp` instead of downloading a binary.
 
 Run `:LspInfo` inside Neovim to confirm the server attached.
 

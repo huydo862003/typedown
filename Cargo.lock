@@ -1270,6 +1270,80 @@ dependencies = [
 ]
 
 [[package]]
+name = "tdr-incremental"
+version = "0.0.0"
+dependencies = [
+ "dashmap",
+ "fs2",
+ "inventory",
+ "memmap2",
+ "rand",
+ "rustc-stable-hash",
+ "tdr-macros",
+ "tdr-types",
+ "tempfile",
+]
+
+[[package]]
+name = "tdr-lang"
+version = "0.0.0"
+dependencies = [
+ "ambassador",
+ "bitflags 2.13.0",
+ "dashmap",
+ "derive_more",
+ "enum-as-inner",
+ "expect-test",
+ "hashbrown 0.17.1",
+ "inventory",
+ "proptest",
+ "regex",
+ "strum",
+ "tdr-incremental",
+ "tdr-macros",
+ "tdr-types",
+ "yaml-rust2",
+]
+
+[[package]]
+name = "tdr-lsp"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "crossbeam-channel",
+ "dashmap",
+ "filetime",
+ "log",
+ "lsp-server",
+ "lsp-types",
+ "ropey",
+ "serde",
+ "serde_json",
+ "tdr-incremental",
+ "tdr-lang",
+ "tdr-types",
+ "tempfile",
+ "threadpool",
+]
+
+[[package]]
+name = "tdr-macros"
+version = "0.0.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tdr-types"
+version = "0.0.0"
+dependencies = [
+ "html-escape",
+ "num_enum",
+ "unescaper",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1363,81 +1437,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
- "typedown-lang",
-]
-
-[[package]]
-name = "typedown-incremental"
-version = "0.0.0"
-dependencies = [
- "dashmap",
- "fs2",
- "inventory",
- "memmap2",
- "rand",
- "rustc-stable-hash",
- "tempfile",
- "typedown-macros",
- "typedown-types",
-]
-
-[[package]]
-name = "typedown-lang"
-version = "0.0.0"
-dependencies = [
- "ambassador",
- "bitflags 2.13.0",
- "dashmap",
- "derive_more",
- "enum-as-inner",
- "expect-test",
- "hashbrown 0.17.1",
- "inventory",
- "proptest",
- "regex",
- "strum",
- "typedown-incremental",
- "typedown-macros",
- "typedown-types",
- "yaml-rust2",
-]
-
-[[package]]
-name = "typedown-lsp"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "dashmap",
- "filetime",
- "log",
- "lsp-server",
- "lsp-types",
- "ropey",
- "serde",
- "serde_json",
- "tempfile",
- "threadpool",
- "typedown-incremental",
- "typedown-lang",
- "typedown-types",
-]
-
-[[package]]
-name = "typedown-macros"
-version = "0.0.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
-name = "typedown-types"
-version = "0.0.0"
-dependencies = [
- "html-escape",
- "num_enum",
- "unescaper",
+ "tdr-lang",
 ]
 
 [[package]]
