@@ -75,7 +75,7 @@
 (call_expression (access_expression (identifier) @function))
 
 ; Interpolation
-(interpolation "${" @punctuation.special)
+(interpolation "$" @punctuation.special)
 (interpolation "}" @punctuation.special)
 
 ; Punctuation
