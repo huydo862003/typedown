@@ -10,3 +10,4 @@ vim.g.typedown_dev = true
 
 vim.cmd("source " .. plugin_dir .. "/ftdetect/typedown.lua")
 vim.cmd("source " .. plugin_dir .. "/plugin/typedown-lsp.lua")
+vim.cmd("source " .. plugin_dir .. "/plugin/typedown-tree-sitter.lua")
