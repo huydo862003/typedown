@@ -37,18 +37,22 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact: typedown-lsp
             vsce-target: linux-x64
+            ts-target: linux-x64
           - os: macos-15
             target: x86_64-apple-darwin
             artifact: typedown-lsp
             vsce-target: darwin-x64
+            ts-target: darwin-x64
           - os: macos-15
             target: aarch64-apple-darwin
             artifact: typedown-lsp
             vsce-target: darwin-arm64
+            ts-target: darwin-arm64
           - os: windows-2025
             target: x86_64-pc-windows-msvc
             artifact: typedown-lsp.exe
             vsce-target: win32-x64
+            ts-target: win32-x64
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -58,9 +62,12 @@ jobs:
           toolchain: nightly
           targets: ${{ matrix.target }}
 
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.3
 
+      # LSP
       - name: Build
         run: cargo build --locked --release -p typedown-lsp --target ${{ matrix.target }}
 
@@ -68,11 +75,12 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '22'
+          node-version: "22"
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
+      # Vscode
+      - name: Install Vscode dependencies
         run: pnpm install --frozen-lockfile
         working-directory: editors/vscode
 
@@ -98,6 +106,35 @@ jobs:
         with:
           name: typedown-vscode-${{ matrix.vsce-target }}
           path: editors/vscode/typedown-${{ matrix.vsce-target }}.vsix
+          retention-days: 2
+
+      # Tree-sitter
+      - name: Install Tree-sitter dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: packages/tree-sitter
+
+      - name: Build parsers to so
+        working-directory: packages/tree-sitter
+        run: pnpm run build:so
+
+      - name: Upload SO artifacts
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: tree-sitter-so-${{ matrix.ts-target }}
+          path: packages/tree-sitter/artifacts/tree-sitter-so/*.so
+          retention-days: 2
+
+      - name: Build parsers to wasm (ubuntu only)
+        working-directory: packages/tree-sitter
+        if: matrix.os == 'ubuntu-24.04'
+        run: pnpm run build:wasm
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: matrix.os == 'ubuntu-24.04'
+        with:
+          name: tree-sitter-wasm
+          path: packages/tree-sitter/artifacts/tree-sitter-wasm/*.wasm
           retention-days: 2
 
   release:
@@ -130,7 +167,15 @@ jobs:
             artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
             artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
             artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
+
             artifacts/typedown-vscode-linux-x64/typedown-linux-x64.vsix
             artifacts/typedown-vscode-darwin-x64/typedown-darwin-x64.vsix
             artifacts/typedown-vscode-darwin-arm64/typedown-darwin-arm64.vsix
             artifacts/typedown-vscode-win32-x64/typedown-win32-x64.vsix
+
+            artifacts/tree-sitter-so-linux-x64/*.so
+            artifacts/tree-sitter-so-darwin-x64/*.so
+            artifacts/tree-sitter-so-darwin-arm64/*.so
+            artifacts/tree-sitter-so-win32-x64/*.so
+
+            artifacts/tree-sitter-wasm/*.wasm

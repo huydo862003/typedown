@@ -5,6 +5,7 @@
 Build the debug binary, then launch with `local_init.lua`:
 
 ```bash
+pnpm build -r tree-sitter
 cargo build -p typedown-lsp
 nvim -u editors/nvim/local_init.lua path/to/file.tdr
 ```
