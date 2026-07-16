@@ -1,15 +1,14 @@
--- Beware of changing folder structure
-local repo_root = vim.fn.fnamemodify(
-  debug.getinfo(1, "S").source:sub(2),
-  ":h:h:h:h"
-)
-
-require("typedown.theme").setup()
-
 -- Resolve the LSP binary once at plugin load, downloading it if necessary.
 -- Returns the binary path, or nil if it could not be resolved.
-local function resolve_binary()
+local function resolve_lsp_binary()
   -- Local dev: use the debug build when explicitly requested via local_init.lua.
+
+  --- Beware of changing folder structure
+  local repo_root = vim.fn.fnamemodify(
+    debug.getinfo(1, "S").source:sub(2),
+    ":h:h:h:h"
+  )
+
   if vim.g.typedown_dev then
     return repo_root .. "/target/debug/typedown-lsp"
   end
@@ -60,14 +59,14 @@ local function resolve_binary()
   return binary
 end
 
-local binary = resolve_binary()
+local binary = resolve_lsp_binary()
 
 local function start_lsp()
   if not binary then return end
   -- The server resolves the project root per-file via multiproject,
   -- so root_dir just needs to be a valid directory for the client.
   local root = vim.fs.root(0, { "typedown.yaml", "typedown.yml" })
-    or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
+      or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
   vim.lsp.start({
     name = "typedown-lsp",
     cmd = { binary },
