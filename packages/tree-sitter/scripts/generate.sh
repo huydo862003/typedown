@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GRAMMARS=(. tdr-yaml tdr-md tdr-md-inline)
+source "$(dirname "$0")/grammars.sh"
 
 for dir in "${GRAMMARS[@]}"; do
   (cd "$dir" && tree-sitter generate)

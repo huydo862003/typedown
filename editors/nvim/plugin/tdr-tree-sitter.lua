@@ -1,9 +1,15 @@
 require("typedown.theme").setup()
 
--- Resolve the LSP binary once at plugin load, downloading it if necessary.
--- Returns the binary path, or nil if it could not be resolved.
+local PARSERS = {
+  tdr = 'tdr.so',
+  tdr_md = 'tdr_md.so',
+  tdr_md_inline = 'tdr_md_inline.so',
+  tdr_yaml = 'tdr_yaml.so',
+}
+
+-- Resolve tree-sitter parser .so paths, downloading them if necessary.
+-- Returns a table mapping parser name to .so path, or nil on failure.
 local function resolve_tree_sitter_binaries()
-  -- Local dev: use the debug build when explicitly requested via local_init.lua.
   --- Beware of changing folder structure
   local repo_root = vim.fn.fnamemodify(
     debug.getinfo(1, "S").source:sub(2),
@@ -11,17 +17,15 @@ local function resolve_tree_sitter_binaries()
   )
 
   if vim.g.typedown_dev then
-    return {
-      tdr = repo_root .. "/packages/tree-sitter/artifacts/tree-sitter-so/tdr.so",
-      tdr_md = repo_root .. "/packages/tree-sitter/artifacts/tree-sitter-so/tdr_md.so",
-      tdr_md_inline = repo_root .. "/packages/tree-sitter/artifacts/tree-sitter-so/tdr_md_inline.so",
-      tdr_yaml = repo_root .. "/packages/tree-sitter/artifacts/tree-sitter-so/tdr_yaml.so",
-    }
+    local result = {}
+    for name, filename in pairs(PARSERS) do
+      result[name] = repo_root .. "/packages/tree-sitter/dist/tree-sitter-so/" .. filename
+    end
+    return result
   end
 
   local version = require("typedown.version")
 
-  -- Pre-release versions (e.g. "0.1.1-rc.0") use staging tags.
   local tag
   if version:find("-") then
     tag = "staging/v" .. version
@@ -30,62 +34,58 @@ local function resolve_tree_sitter_binaries()
   end
 
   local uname = vim.uv.os_uname()
-  local root_artifact_dir
+  local platform_dir
   if uname.sysname == "Linux" and uname.machine == "x86_64" then
-    root_artifact_dir = "tree-sitter-so-linux-x64"
+    platform_dir = "tree-sitter-so-linux-x64"
   elseif uname.sysname == "Darwin" and uname.machine == "arm64" then
-    root_artifact_dir = "tree-sitter-so-darwin-arm64"
+    platform_dir = "tree-sitter-so-darwin-arm64"
   elseif uname.sysname == "Darwin" and uname.machine == "x86_64" then
-    root_artifact_dir = "tree-sitter-so-darwin-x64"
+    platform_dir = "tree-sitter-so-darwin-x64"
   elseif uname.sysname:find("Windows") then
-    root_artifact_dir = "tree-sitter-so-win32-x64"
+    platform_dir = "tree-sitter-so-win32-x64"
   else
     vim.notify("[typedown] Unsupported platform: " .. uname.sysname .. " " .. uname.machine, vim.log.levels.ERROR)
     return nil
   end
 
   local cache_dir = vim.fn.stdpath("data") .. "/typedown/" .. version
+  local binary_dir = cache_dir .. "/" .. platform_dir
+  local base_url = "https://github.com/huydo862003/typedown/releases/download/" .. tag .. "/" .. platform_dir
 
-  local root_binary_dir = cache_dir .. "/" .. root_artifact_dir
-
-  local root_url = "https://github.com/huydo862003/typedown/releases/download/" .. tag .. "/" .. root_artifact_dir
-
-  if vim.uv.fs_stat(root_binary_dir) then
-    return nil
+  -- Return cached binaries if already downloaded
+  if vim.uv.fs_stat(binary_dir) then
+    local result = {}
+    for name, filename in pairs(PARSERS) do
+      result[name] = binary_dir .. "/" .. filename
+    end
+    return result
   end
 
-  vim.fn.mkdir(cache_dir, "p")
+  vim.fn.mkdir(binary_dir, "p")
 
-  vim.fn.mkdir(root_binary_dir)
+  vim.notify("[typedown] Downloading TDR tree-sitter " .. version .. "...", vim.log.levels.INFO)
 
-  local tree_sitter_binaries = {}
-
-  for filetype, binary_name in pairs({
-    tdr = 'tdr.so',
-    tdr_md = 'tdr_md.so',
-    tdr_md_inline = 'tdr_md_inline.so',
-    tdr_yaml = 'tdr_yaml.so',
-  }) do
-    vim.notify("[typedown] Downloading TDR tree-sitter " .. version .. "...", vim.log.levels.INFO)
-
-    local result = vim.system({ "curl", "-fsSL", "-o", root_binary_dir .. binary_name, root_url .. binary_name }):wait()
-    if result.code ~= 0 then
-      vim.fn.delete(root_binary_dir, 'rf')
-      vim.notify("[typedown] Download failed: " .. (result.stderr or ""), vim.log.levels.ERROR)
+  local result = {}
+  for name, filename in pairs(PARSERS) do
+    local dest = binary_dir .. "/" .. filename
+    local url = base_url .. "/" .. filename
+    local outcome = vim.system({ "curl", "-fsSL", "-o", dest, url }):wait()
+    if outcome.code ~= 0 then
+      vim.fn.delete(binary_dir, 'rf')
+      vim.notify("[typedown] Download failed: " .. (outcome.stderr or ""), vim.log.levels.ERROR)
       return nil
     end
-
-    tree_sitter_binaries[filetype] = root_binary_dir .. binary_name
+    result[name] = dest
   end
 
-  return tree_sitter_binaries
+  return result
 end
 
 local binaries = resolve_tree_sitter_binaries()
 
 if binaries then
-  for filetype, binary_path in pairs(binaries) do
-    vim.treesitter.language.add(filetype, { path = binary_path })
+  for parser_name, binary_path in pairs(binaries) do
+    vim.treesitter.language.add(parser_name, { path = binary_path })
   end
 
   vim.treesitter.language.register('tdr', 'tdr')

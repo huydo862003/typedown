@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GRAMMARS=(. tdr-yaml tdr-md tdr-md-inline)
-NAMES=(tdr tdr_yaml tdr_md tdr_md_inline)
+source "$(dirname "$0")/grammars.sh"
 
 MODE="${1:-all}"
 
