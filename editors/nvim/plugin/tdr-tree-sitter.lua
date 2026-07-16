@@ -1,78 +1,54 @@
 require("typedown.theme").setup()
 
-local PARSERS = {
-  tdr = 'tdr.so',
-  tdr_md = 'tdr_md.so',
-  tdr_md_inline = 'tdr_md_inline.so',
-  tdr_yaml = 'tdr_yaml.so',
-}
+local release = require("typedown.release")
+
+local PARSER_NAMES = { 'tdr', 'tdr_md', 'tdr_md_inline', 'tdr_yaml' }
 
 -- Resolve tree-sitter parser .so paths, downloading them if necessary.
 -- Returns a table mapping parser name to .so path, or nil on failure.
 local function resolve_tree_sitter_binaries()
-  --- Beware of changing folder structure
-  local repo_root = vim.fn.fnamemodify(
-    debug.getinfo(1, "S").source:sub(2),
-    ":h:h:h:h"
-  )
-
   if vim.g.typedown_dev then
+    local root = release.repo_root()
     local result = {}
-    for name, filename in pairs(PARSERS) do
-      result[name] = repo_root .. "/packages/tree-sitter/dist/tree-sitter-so/" .. filename
+    for _, name in ipairs(PARSER_NAMES) do
+      result[name] = root .. "/packages/tree-sitter/dist/tree-sitter-so/" .. name .. ".so"
     end
     return result
   end
 
-  local version = require("typedown.version")
+  local tag, version = release.release_tag()
 
-  local tag
-  if version:find("-") then
-    tag = "staging/v" .. version
-  else
-    tag = "v" .. version
-  end
-
-  local uname = vim.uv.os_uname()
-  local platform_dir
-  if uname.sysname == "Linux" and uname.machine == "x86_64" then
-    platform_dir = "tree-sitter-so-linux-x64"
-  elseif uname.sysname == "Darwin" and uname.machine == "arm64" then
-    platform_dir = "tree-sitter-so-darwin-arm64"
-  elseif uname.sysname == "Darwin" and uname.machine == "x86_64" then
-    platform_dir = "tree-sitter-so-darwin-x64"
-  elseif uname.sysname:find("Windows") then
-    platform_dir = "tree-sitter-so-win32-x64"
-  else
-    vim.notify("[typedown] Unsupported platform: " .. uname.sysname .. " " .. uname.machine, vim.log.levels.ERROR)
+  -- Artifact naming: tdr-parser-{grammar}-{version}-{os}-{arch}.so
+  local os_arch, err = release.os_arch()
+  if not os_arch then
+    vim.notify("[typedown] Unsupported platform: " .. err, vim.log.levels.ERROR)
     return nil
   end
 
-  local cache_dir = vim.fn.stdpath("data") .. "/typedown/" .. version
-  local binary_dir = cache_dir .. "/" .. platform_dir
-  local base_url = "https://github.com/huydo862003/typedown/releases/download/" .. tag .. "/" .. platform_dir
+  local cache_dir = release.cache_dir(version) .. "/parsers"
+  local base_url = release.release_base_url(tag)
 
   -- Return cached binaries if already downloaded
-  if vim.uv.fs_stat(binary_dir) then
+  if vim.uv.fs_stat(cache_dir) then
     local result = {}
-    for name, filename in pairs(PARSERS) do
-      result[name] = binary_dir .. "/" .. filename
+    for _, name in ipairs(PARSER_NAMES) do
+      result[name] = cache_dir .. "/tdr-parser-" .. name .. "-" .. version .. "-" .. os_arch .. ".so"
     end
     return result
   end
 
-  vim.fn.mkdir(binary_dir, "p")
-
+  vim.fn.mkdir(cache_dir, "p")
   vim.notify("[typedown] Downloading TDR tree-sitter " .. version .. "...", vim.log.levels.INFO)
 
   local result = {}
-  for name, filename in pairs(PARSERS) do
-    local dest = binary_dir .. "/" .. filename
+  for _, name in ipairs(PARSER_NAMES) do
+    local filename = "tdr-parser-" .. name .. "-" .. version .. "-" .. os_arch .. ".so"
+    local dest = cache_dir .. "/" .. filename
     local url = base_url .. "/" .. filename
-    local outcome = vim.system({ "curl", "-fsSL", "-o", dest, url }):wait()
-    if outcome.code ~= 0 then
-      vim.fn.delete(binary_dir, 'rf')
-      vim.notify("[typedown] Download failed: " .. (outcome.stderr or ""), vim.log.levels.ERROR)
+    local ok, download_err = release.download(url, dest)
+    if not ok then
+      vim.fn.delete(cache_dir, 'rf')
+      vim.notify("[typedown] Download failed: " .. download_err, vim.log.levels.ERROR)
       return nil
     end
     result[name] = dest

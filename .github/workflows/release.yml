@@ -1,3 +1,16 @@
+# Release artifact naming convention:
+#   tdr-lsp-{version}-{os}-{arch}[.exe]
+#   tdr-parser-{grammar}-{version}-{os}-{arch}.{so|wasm}
+#   typedown-vscode-{version}-{os}-{arch}.vsix
+#
+# Examples:
+#   tdr-lsp-0.1.0-linux-x86_64
+#   tdr-lsp-0.1.0-darwin-aarch64
+#   tdr-parser-tdr-0.1.0-linux-x86_64.so
+#   tdr-parser-tdr_md-0.1.0-linux-x86_64.so
+#   tdr-parser-tdr-0.1.0.wasm
+#   typedown-vscode-0.1.0-linux-x86_64.vsix
+
 name: Release
 
 on:
@@ -9,59 +22,58 @@ on:
 permissions:
   contents: write
 
-env:
-  ARTIFACT_LINUX_X86_64: tdr-lsp-linux-x86_64
-  ARTIFACT_MACOS_X86_64: tdr-lsp-macos-x86_64
-  ARTIFACT_MACOS_AARCH64: tdr-lsp-macos-aarch64
-  ARTIFACT_WINDOWS_X86_64: tdr-lsp-windows-x86_64.exe
-
 jobs:
   validate-tag:
     name: Validate Tag
     runs-on: ubuntu-24.04
     outputs:
       is_staging: ${{ steps.check.outputs.is_staging }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - name: Check tag format
         id: check
         run: |
           TAG="${{ github.ref_name }}"
-          if [[ "$TAG" =~ ^staging/v[0-9]+\.[0-9]+\.[0-9]+-[a-zA-Z\-]+\.[0-9]+$ ]]; then
+          if [[ "$TAG" =~ ^staging/v(.+)$ ]]; then
             echo "is_staging=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v(.+)$ ]]; then
             echo "is_staging=false" >> "$GITHUB_OUTPUT"
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
           else
             echo "Tag '$TAG' does not match expected format"
             exit 1
           fi
 
-  build-binaries:
-    name: Build ${{ matrix.target }}
+  build:
+    name: Build ${{ matrix.os-arch }}
     needs: validate-tag
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-24.04
+          - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-            artifact: tdr-lsp
+            os-arch: linux-x86_64
+            lsp-bin: tdr-lsp
             vsce-target: linux-x64
-            ts-target: linux-x64
-          - os: macos-15
+          - runner: macos-15
             target: x86_64-apple-darwin
-            artifact: tdr-lsp
+            os-arch: darwin-x86_64
+            lsp-bin: tdr-lsp
             vsce-target: darwin-x64
-            ts-target: darwin-x64
-          - os: macos-15
+          - runner: macos-15
             target: aarch64-apple-darwin
-            artifact: tdr-lsp
+            os-arch: darwin-aarch64
+            lsp-bin: tdr-lsp
             vsce-target: darwin-arm64
-            ts-target: darwin-arm64
-          - os: windows-2025
+          - runner: windows-2025
             target: x86_64-pc-windows-msvc
-            artifact: tdr-lsp.exe
+            os-arch: windows-x86_64
+            lsp-bin: tdr-lsp.exe
             vsce-target: win32-x64
-            ts-target: win32-x64
+    env:
+      VERSION: ${{ needs.validate-tag.outputs.version }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -77,17 +89,31 @@ jobs:
         uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # v2.7.3
 
       # LSP
-      - name: Build
+      - name: Build LSP
         run: cargo build --locked --release -p tdr-lsp --target ${{ matrix.target }}
 
+      - name: Rename LSP binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/${{ matrix.lsp-bin }} \
+             dist/tdr-lsp-${{ env.VERSION }}-${{ matrix.os-arch }}${{ matrix.lsp-bin == 'tdr-lsp.exe' && '.exe' || '' }}
+
+      - name: Upload LSP binary
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: tdr-lsp-${{ matrix.os-arch }}
+          path: dist/tdr-lsp-*
+          retention-days: 2
+
+      # VSCode
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      # Vscode
-      - name: Install Vscode dependencies
+      - name: Install VSCode dependencies
         run: pnpm install --frozen-lockfile
         working-directory: editors/vscode
 
@@ -95,58 +121,70 @@ jobs:
         shell: bash
         run: |
           mkdir -p editors/vscode/bin
-          cp target/${{ matrix.target }}/release/${{ matrix.artifact }} editors/vscode/bin/
+          cp target/${{ matrix.target }}/release/${{ matrix.lsp-bin }} editors/vscode/bin/
 
       - name: Package VSIX
-        run: pnpm exec vsce package --target ${{ matrix.vsce-target }} --out typedown-${{ matrix.vsce-target }}.vsix
+        run: pnpm exec vsce package --target ${{ matrix.vsce-target }} --out typedown-vscode-${{ env.VERSION }}-${{ matrix.os-arch }}.vsix
         working-directory: editors/vscode
-
-      - name: Upload binary
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        with:
-          name: tdr-lsp-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
-          retention-days: 2
 
       - name: Upload VSIX
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: typedown-vscode-${{ matrix.vsce-target }}
-          path: editors/vscode/typedown-${{ matrix.vsce-target }}.vsix
+          name: typedown-vscode-${{ matrix.os-arch }}
+          path: editors/vscode/typedown-vscode-*.vsix
           retention-days: 2
 
-      # Tree-sitter
+      # Tree-sitter (.so, platform-specific)
       - name: Install Tree-sitter dependencies
         run: pnpm install --frozen-lockfile
         working-directory: packages/tree-sitter
 
-      - name: Build parsers to so
+      - name: Build .so parsers
         working-directory: packages/tree-sitter
         run: pnpm run build:so
 
-      - name: Upload SO artifacts
+      - name: Rename .so parsers
+        shell: bash
+        run: |
+          mkdir -p dist/parsers
+          for so in packages/tree-sitter/dist/tree-sitter-so/*.so; do
+            grammar=$(basename "$so" .so)
+            cp "$so" "dist/parsers/tdr-parser-${grammar}-${{ env.VERSION }}-${{ matrix.os-arch }}.so"
+          done
+
+      - name: Upload .so parsers
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: tree-sitter-so-${{ matrix.ts-target }}
-          path: packages/tree-sitter/dist/tree-sitter-so/*.so
+          name: tdr-parsers-so-${{ matrix.os-arch }}
+          path: dist/parsers/*.so
           retention-days: 2
 
-      - name: Build parsers to wasm (ubuntu only)
+      # Tree-sitter (.wasm, platform-independent, ubuntu only)
+      - name: Build .wasm parsers
         working-directory: packages/tree-sitter
-        if: matrix.os == 'ubuntu-24.04'
+        if: matrix.runner == 'ubuntu-24.04'
         run: pnpm run build:wasm
 
-      - name: Upload WASM artifacts
+      - name: Rename .wasm parsers
+        if: matrix.runner == 'ubuntu-24.04'
+        run: |
+          mkdir -p dist/parsers-wasm
+          for wasm in packages/tree-sitter/dist/tree-sitter-wasm/*.wasm; do
+            grammar=$(basename "$wasm" .wasm)
+            cp "$wasm" "dist/parsers-wasm/tdr-parser-${grammar}-${{ env.VERSION }}.wasm"
+          done
+
+      - name: Upload .wasm parsers
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        if: matrix.os == 'ubuntu-24.04'
+        if: matrix.runner == 'ubuntu-24.04'
         with:
-          name: tree-sitter-wasm
-          path: packages/tree-sitter/dist/tree-sitter-wasm/*.wasm
+          name: tdr-parsers-wasm
+          path: dist/parsers-wasm/*.wasm
           retention-days: 2
 
   publish:
     name: ${{ needs.validate-tag.outputs.is_staging == 'true' && 'Publish Staging' || 'Publish Release' }}
-    needs: [validate-tag, build-binaries]
+    needs: [validate-tag, build]
     environment: ${{ needs.validate-tag.outputs.is_staging == 'true' && '' || 'release' }}
     runs-on: ubuntu-24.04
     steps:
@@ -157,13 +195,6 @@ jobs:
         with:
           path: artifacts
 
-      - name: Rename binary artifacts
-        run: |
-          mv artifacts/tdr-lsp-x86_64-unknown-linux-gnu/tdr-lsp artifacts/${{ env.ARTIFACT_LINUX_X86_64 }}
-          mv artifacts/tdr-lsp-x86_64-apple-darwin/tdr-lsp artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
-          mv artifacts/tdr-lsp-aarch64-apple-darwin/tdr-lsp artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
-          mv artifacts/tdr-lsp-x86_64-pc-windows-msvc/tdr-lsp.exe artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.1.0
         with:
@@ -172,19 +203,7 @@ jobs:
           prerelease: ${{ needs.validate-tag.outputs.is_staging == 'true' }}
           generate_release_notes: ${{ needs.validate-tag.outputs.is_staging != 'true' }}
           files: |
-            artifacts/${{ env.ARTIFACT_LINUX_X86_64 }}
-            artifacts/${{ env.ARTIFACT_MACOS_X86_64 }}
-            artifacts/${{ env.ARTIFACT_MACOS_AARCH64 }}
-            artifacts/${{ env.ARTIFACT_WINDOWS_X86_64 }}
-
-            artifacts/typedown-vscode-linux-x64/typedown-linux-x64.vsix
-            artifacts/typedown-vscode-darwin-x64/typedown-darwin-x64.vsix
-            artifacts/typedown-vscode-darwin-arm64/typedown-darwin-arm64.vsix
-            artifacts/typedown-vscode-win32-x64/typedown-win32-x64.vsix
-
-            artifacts/tree-sitter-so-linux-x64/*.so
-            artifacts/tree-sitter-so-darwin-x64/*.so
-            artifacts/tree-sitter-so-darwin-arm64/*.so
-            artifacts/tree-sitter-so-win32-x64/*.so
-
-            artifacts/tree-sitter-wasm/*.wasm
+            artifacts/tdr-lsp-*/*
+            artifacts/typedown-vscode-*/*
+            artifacts/tdr-parsers-so-*/*
+            artifacts/tdr-parsers-wasm/*

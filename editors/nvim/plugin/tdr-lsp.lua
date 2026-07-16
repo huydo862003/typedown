@@ -1,46 +1,25 @@
--- Resolve the LSP binary once at plugin load, downloading it if necessary.
+local release = require("typedown.release")
+
+-- Resolve the LSP binary, downloading it if necessary.
 -- Returns the binary path, or nil if it could not be resolved.
 local function resolve_lsp_binary()
-  -- Local dev: use the debug build when explicitly requested via local_init.lua.
-
-  --- Beware of changing folder structure
-  local repo_root = vim.fn.fnamemodify(
-    debug.getinfo(1, "S").source:sub(2),
-    ":h:h:h:h"
-  )
-
   if vim.g.typedown_dev then
-    return repo_root .. "/target/debug/tdr-lsp"
+    return release.repo_root() .. "/target/debug/tdr-lsp"
   end
 
-  local version = require("typedown.version")
+  local tag, version = release.release_tag()
 
-  -- Pre-release versions (e.g. "0.1.1-rc.0") use staging tags.
-  local tag
-  if version:find("-") then
-    tag = "staging/v" .. version
-  else
-    tag = "v" .. version
-  end
-
-  local uname = vim.uv.os_uname()
-  local artifact
-  if uname.sysname == "Linux" and uname.machine == "x86_64" then
-    artifact = "tdr-lsp-linux-x86_64"
-  elseif uname.sysname == "Darwin" and uname.machine == "arm64" then
-    artifact = "tdr-lsp-macos-aarch64"
-  elseif uname.sysname == "Darwin" and uname.machine == "x86_64" then
-    artifact = "tdr-lsp-macos-x86_64"
-  elseif uname.sysname:find("Windows") then
-    artifact = "tdr-lsp-windows-x86_64.exe"
-  else
-    vim.notify("[typedown] Unsupported platform: " .. uname.sysname .. " " .. uname.machine, vim.log.levels.ERROR)
+  -- Artifact naming: tdr-lsp-{version}-{os}-{arch}[.exe]
+  local os_arch, err = release.os_arch()
+  if not os_arch then
+    vim.notify("[typedown] Unsupported platform: " .. err, vim.log.levels.ERROR)
     return nil
   end
+  local ext = os_arch:find("^windows") and ".exe" or ""
+  local artifact = "tdr-lsp-" .. version .. "-" .. os_arch .. ext
 
-  local cache_dir = vim.fn.stdpath("data") .. "/typedown/" .. version
+  local cache_dir = release.cache_dir(version)
   local binary = cache_dir .. "/" .. artifact
-  local url = "https://github.com/huydo862003/typedown/releases/download/" .. tag .. "/" .. artifact
 
   if vim.uv.fs_stat(binary) then
     return binary
@@ -49,9 +28,10 @@ local function resolve_lsp_binary()
   vim.fn.mkdir(cache_dir, "p")
   vim.notify("[typedown] Downloading tdr-lsp " .. version .. "...", vim.log.levels.INFO)
 
-  local result = vim.system({ "curl", "-fsSL", "-o", binary, url }):wait()
-  if result.code ~= 0 then
-    vim.notify("[typedown] Download failed: " .. (result.stderr or ""), vim.log.levels.ERROR)
+  local url = release.release_base_url(tag) .. "/" .. artifact
+  local ok, download_err = release.download(url, binary)
+  if not ok then
+    vim.notify("[typedown] Download failed: " .. download_err, vim.log.levels.ERROR)
     return nil
   end
 
@@ -63,8 +43,6 @@ local binary = resolve_lsp_binary()
 
 local function start_lsp()
   if not binary then return end
-  -- The server resolves the project root per-file via multiproject,
-  -- so root_dir just needs to be a valid directory for the client.
   local root = vim.fs.root(0, { "typedown.yaml", "typedown.yml" })
       or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
   vim.lsp.start({
