@@ -1,2 +1,8 @@
 name = "TDR YAML"
 grammar = "tdr_yaml"
+
+brackets = [
+  { start = "(", end = ")", close = true, newline = false },
+  { start = "[", end = "]", close = true, newline = false },
+  { start = "{", end = "}", close = true, newline = false },
+]

@@ -80,7 +80,7 @@
 
 ; Interpolation
 (interpolation "$" @punctuation.special)
-(interpolation "}" @punctuation.special)
+(interpolation "}" @punctuation.bracket)
 
 ; Punctuation
 (parenthesized_expression "(" @punctuation.bracket)

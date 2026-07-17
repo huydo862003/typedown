@@ -53,7 +53,7 @@
 
 ; Interpolation
 (interpolation "$" @punctuation.special)
-(interpolation "}" @punctuation.special)
+(interpolation "}" @punctuation.bracket)
 
 ; Comments
 (comment) @comment
