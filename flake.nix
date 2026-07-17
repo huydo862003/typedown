@@ -29,7 +29,7 @@
             "clippy"
             "rustfmt"
           ];
-          targets = [ "wasm32-wasip1" ];
+          targets = [ "wasm32-wasip2" ];
         };
         # wasi-sdk does not exist :(
         # this is a standard nix derivation tho

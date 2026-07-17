@@ -5,7 +5,7 @@ For full project setup, see the [root DEVELOPMENT.md](../../DEVELOPMENT.md).
 ## Dependencies
 
 - **Rust nightly**: To build the extension WASM
-- **wasm32-wasip1 target**: WASM compilation target
+- **wasm32-wasip2 target**: WASM compilation target
 - **Zed**
 
 All provided automatically by `nix develop` from the repo root.
@@ -45,7 +45,7 @@ Zed's `install dev extension` requires `rustup`, which is not available on NixOS
    ```
    ~/.local/share/zed/extensions/installed/typedown/
      extension.toml          <- editors/zed/extension.toml
-     extension.wasm          <- target/wasm32-wasip1/debug/typedown_zed.wasm
+     extension.wasm          <- target/wasm32-wasip2/debug/typedown_zed.wasm
      languages/              <- editors/zed/languages/
      grammars/*.wasm         <- packages/tree-sitter/dist/tree-sitter-so/*.so (renamed to .wasm)
    ```

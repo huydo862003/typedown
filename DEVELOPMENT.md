@@ -9,7 +9,7 @@ Absolutely required dependencies to author the core crates (Rust) & packages (No
 - Rust
   - **Rust nightly** (1.99+): Compiler, LSP server, Zed extension
     > We can avoid Rust nightly technically, but it's a hobby project and I want to utilize some meta-programming, so I opted for Rust nightly
-  - **wasm32-wasip1 target**: Compile the Zed extension to WASM
+  - **wasm32-wasip2 target**: Compile the Zed extension to WASM
 - Node
   - **Node.js** (22+): Tree-sitter grammar build tooling
   - **pnpm** (11+): Node package manager
@@ -65,7 +65,7 @@ Install each dependency manually:
    rustup install nightly
    rustup default nightly
    rustup component add rust-src rust-analyzer clippy rustfmt
-   rustup target add wasm32-wasip1
+   rustup target add wasm32-wasip2
    ```
 
 2. **Node.js** (22+) and **pnpm**:
