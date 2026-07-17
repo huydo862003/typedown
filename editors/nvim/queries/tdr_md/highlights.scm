@@ -55,3 +55,7 @@
 
 ; Spell checking
 (inline) @spell
+(code_fence_content) @nospell
+(math_block_content) @nospell
+(language) @nospell
+(callout_type) @nospell

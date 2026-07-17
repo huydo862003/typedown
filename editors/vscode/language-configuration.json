@@ -1,0 +1,61 @@
+{
+  "brackets": [
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"]
+  ],
+  "autoClosingPairs": [
+    { "open": "(", "close": ")" },
+    { "open": "[", "close": "]" },
+    { "open": "{", "close": "}" },
+    { "open": "\"", "close": "\"", "notIn": ["string"] },
+    { "open": "'", "close": "'", "notIn": ["string"] }
+  ],
+  "surroundingPairs": [
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"],
+    ["\"", "\""],
+    ["'", "'"],
+    ["`", "`"],
+    ["*", "*"]
+  ],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*([-*]\\s|>\\s|\\w+:\\s*$)",
+    "decreaseIndentPattern": "^\\s*$"
+  },
+  "onEnterRules": [
+    {
+      "beforeText": "^\\s*>\\s.*$",
+      "action": { "indent": "none", "appendText": "> " }
+    },
+    {
+      "beforeText": "^\\s*>\\s*$",
+      "action": { "indent": "none", "removeText": 2 }
+    },
+    {
+      "beforeText": "^\\s*-\\s.+$",
+      "action": { "indent": "none", "appendText": "- " }
+    },
+    {
+      "beforeText": "^\\s*-\\s*$",
+      "action": { "indent": "outdent", "removeText": 2 }
+    },
+    {
+      "beforeText": "^\\s*\\*\\s.+$",
+      "action": { "indent": "none", "appendText": "* " }
+    },
+    {
+      "beforeText": "^\\s*\\*\\s*$",
+      "action": { "indent": "outdent", "removeText": 2 }
+    },
+    {
+      "beforeText": "^\\s*\\d+\\.\\s.+$",
+      "action": { "indent": "none", "appendText": "1. " }
+    },
+    {
+      "beforeText": "^\\s*\\d+\\.\\s*$",
+      "action": { "indent": "outdent", "removeText": 3 }
+    }
+  ]
+}

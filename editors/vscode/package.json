@@ -32,9 +32,16 @@
         "icon": {
           "light": "./icons/tdr.svg",
           "dark": "./icons/tdr.svg"
-        }
+        },
+        "configuration": "./language-configuration.json"
       }
     ],
+    "configurationDefaults": {
+      "[tdr]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+      }
+    },
     "grammars": [
       {
         "language": "tdr",

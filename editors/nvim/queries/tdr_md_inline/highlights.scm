@@ -97,6 +97,8 @@
 (link_destination) @nospell
 (citation_key) @nospell
 (footnote_label) @nospell
+(interpolation) @nospell
+(fref) @nospell
 
 ; Misc
 (hard_line_break) @string.escape

@@ -69,3 +69,6 @@
 ")" @punctuation.bracket
 ; Block scalars
 (block_scalar_content) @string
+
+; Spell checking
+(source_file) @nospell
