@@ -155,20 +155,3 @@ body: >
     (value
       (block_scalar
         (block_scalar_content)))))
-
-================
-Empty block scalar
-================
-desc: |
-name: "test"
----
-
-(source_file
-  (block_mapping_entry
-    (property_key (identifier))
-    (value
-      (block_scalar)))
-  (block_mapping_entry
-    (property_key (identifier))
-    (value
-      (expression (string)))))

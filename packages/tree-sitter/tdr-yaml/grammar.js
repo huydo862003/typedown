@@ -22,7 +22,6 @@ export default grammar({
     $._indent_sequence,
     $._block_end,
     $._seq_item_start,
-    $._block_scalar_start,
     $.block_scalar_content,
   ],
 
@@ -70,9 +69,9 @@ export default grammar({
     value: ($) =>
       choice(
         $.type_value,
-        $.expression,
-        $._block_value,
         $.block_scalar,
+        $._block_value,
+        $.expression,
       ),
 
     type_value: ($) =>
@@ -118,9 +117,15 @@ export default grammar({
         $._block_end,
       ),
 
+    // | and > are internal tokens so they don't conflict with || and > operators.
+    // The operators are infix (require left operand in binary_expression),
+    // while block scalar indicators only appear at the start of a value.
     block_scalar: ($) =>
       seq(
-        $._block_scalar_start,
+        field('indicator', choice(
+          token(seq('|', optional(choice('-', '+')))),
+          token(seq('>', optional(choice('-', '+')))),
+        )),
         optional($.block_scalar_content),
       ),
 

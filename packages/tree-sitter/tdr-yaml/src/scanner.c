@@ -14,7 +14,6 @@ enum TokenType {
   INDENT_SEQUENCE,
   BLOCK_END,
   SEQ_ITEM_START,
-  BLOCK_SCALAR_START,
   BLOCK_SCALAR_CONTENT,
 };
 
@@ -136,49 +135,48 @@ bool tree_sitter_tdr_yaml_external_scanner_scan(void *payload, TSLexer *lexer,
 
   uint16_t cur_ind = scanner->indent_len[scanner->depth];
 
-  // Block scalar content: consume all indented lines as a single token
-  if (valid_symbols[BLOCK_SCALAR_CONTENT] && scanner->in_block_scalar) {
-    if (lexer->eof(lexer) || !at_newline(lexer)) {
+  // Block scalar content: consume all indented lines after the indicator
+  // The grammar handles | and > as internal tokens; the scanner handles content
+  if (valid_symbols[BLOCK_SCALAR_CONTENT]) {
+    if (!scanner->in_block_scalar) {
+      scanner->in_block_scalar = true;
+      scanner->block_scalar_indent = BLOCK_SCALAR_INDENT_UNSET;
+    }
+
+    // Skip trailing whitespace and newline after the indicator
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+    }
+    if (at_newline(lexer)) {
+      consume_newline(lexer);
+    } else if (!lexer->eof(lexer)) {
       scanner->in_block_scalar = false;
       return false;
     }
 
     bool matched = false;
 
-    while (at_newline(lexer)) {
-      // Mark before newline so we can bail without consuming the last one
-      lexer->mark_end(lexer);
-      consume_newline(lexer);
-
-      if (lexer->eof(lexer)) {
-        scanner->in_block_scalar = false;
-        if (matched) {
-          lexer->result_symbol = BLOCK_SCALAR_CONTENT;
-          return true;
-        }
-        return false;
-      }
-
+    while (!lexer->eof(lexer)) {
       uint16_t indent = measure_indent(lexer);
 
       // Blank line: always part of the block scalar
-      if (at_newline(lexer) || lexer->eof(lexer)) {
+      if (at_newline(lexer)) {
+        consume_newline(lexer);
         lexer->mark_end(lexer);
         matched = true;
         continue;
       }
 
       if (scanner->block_scalar_indent == BLOCK_SCALAR_INDENT_UNSET) {
+        // First content line must be indented past the key
+        if (indent == 0 && cur_ind == 0) {
+          break;
+        }
         scanner->block_scalar_indent = indent;
       }
 
       if (indent < scanner->block_scalar_indent) {
-        scanner->in_block_scalar = false;
-        if (matched) {
-          lexer->result_symbol = BLOCK_SCALAR_CONTENT;
-          return true;
-        }
-        return false;
+        break;
       }
 
       // Consume rest of line
@@ -187,31 +185,16 @@ bool tree_sitter_tdr_yaml_external_scanner_scan(void *payload, TSLexer *lexer,
       }
       lexer->mark_end(lexer);
       matched = true;
+
+      // Consume newline to continue to next line
+      if (at_newline(lexer)) {
+        consume_newline(lexer);
+      }
     }
 
     scanner->in_block_scalar = false;
     if (matched) {
       lexer->result_symbol = BLOCK_SCALAR_CONTENT;
-      return true;
-    }
-    return false;
-  }
-
-  // Block scalar start: | or >
-  if (valid_symbols[BLOCK_SCALAR_START] &&
-      (lexer->lookahead == '|' || lexer->lookahead == '>')) {
-    lexer->advance(lexer, false);
-    lexer->mark_end(lexer);
-
-    // Skip trailing whitespace, must be followed by newline or EOF
-    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
-      lexer->advance(lexer, false);
-    }
-
-    if (at_newline(lexer) || lexer->eof(lexer)) {
-      scanner->in_block_scalar = true;
-      scanner->block_scalar_indent = BLOCK_SCALAR_INDENT_UNSET;
-      lexer->result_symbol = BLOCK_SCALAR_START;
       return true;
     }
     return false;
