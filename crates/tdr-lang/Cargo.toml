@@ -1,0 +1,29 @@
+[package]
+name = "tdr-lang"
+version.workspace = true
+edition = "2024"
+license = "AGPL"
+authors = ["Huy-DNA <huydo862003@gmail.com>"]
+
+[dependencies]
+tdr-incremental = { version = "0.0.0", path = "../tdr-incremental" }
+tdr-types = { version = "0.0.0", path = "../tdr-types" }
+tdr-macros = { version = "0.0.0", path = "../tdr-macros" }
+dashmap = "6.2.1"
+hashbrown = "0.17.1"
+inventory = "0.3.24"
+yaml-rust2 = "0.11.0"
+bitflags = "2.13.0"
+regex = "1.12.4"
+ambassador = "0.5.1"
+derive_more = { version = "2.1.1", features = ["from"] }
+enum-as-inner = "0.7.0"
+strum = { version = "0.28.0", features = ["derive"] }
+
+[features]
+default = []
+markdown = []
+
+[dev-dependencies]
+expect-test = "1.5.1"
+proptest = "1.11.0"

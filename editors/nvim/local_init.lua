@@ -1,4 +1,4 @@
--- Load the plugin against the local debug build (target/debug/typedown-lsp).
+-- Load the plugin against the local debug build (target/debug/tdr-lsp).
 -- Usage: nvim -u editors/nvim/local_init.lua path/to/file.tdr
 vim.cmd("source " .. vim.fn.stdpath("config") .. "/init.lua")
 
@@ -9,4 +9,5 @@ vim.opt.runtimepath:append(plugin_dir)
 vim.g.typedown_dev = true
 
 vim.cmd("source " .. plugin_dir .. "/ftdetect/typedown.lua")
-vim.cmd("source " .. plugin_dir .. "/plugin/typedown-lsp.lua")
+vim.cmd("source " .. plugin_dir .. "/plugin/tdr-lsp.lua")
+vim.cmd("source " .. plugin_dir .. "/plugin/tdr-tree-sitter.lua")

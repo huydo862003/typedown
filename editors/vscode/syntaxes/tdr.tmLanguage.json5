@@ -1,0 +1,466 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Typedown",
+  "scopeName": "source.tdr",
+  "patterns": [
+    {
+      "include": "#frontmatter"
+    },
+    {
+      "include": "#body"
+    }
+  ],
+  "repository": {
+    /* entrypoints */
+    "frontmatter": {
+      "comment": "YAML mode between --- delimiters",
+      "begin": "\\A(---)",
+      "end": "^(---)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.frontmatter.begin.tdr"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "keyword.control.frontmatter.end.tdr"
+        }
+      },
+      "patterns": [
+        { "include": "#yaml-comment" },
+        { "include": "#yaml-block-mapping" }
+      ]
+    },
+    "body": {
+      "comment": "Markdown mode after frontmatter",
+      "begin": "(?<=^---)\\s*$",
+      "end": "\\z",
+      "patterns": [
+        { "include": "#md-fenced-code" },
+        { "include": "#md-math-block" },
+        { "include": "#md-heading" },
+        { "include": "#md-callout" },
+        { "include": "#md-toggle-list" },
+        { "include": "#md-block-quote" },
+        { "include": "#md-table" },
+        { "include": "#md-list" },
+        { "include": "#md-inline" }
+      ]
+    },
+
+    /* yaml mode */
+    "yaml-comment": {
+      "match": "(#).*$",
+      "name": "comment.line.number-sign.tdr"
+    },
+    "yaml-block-mapping": {
+      "patterns": [
+        { "include": "#yaml-block-mapping-entry" }
+      ]
+    },
+    "yaml-block-mapping-entry": {
+      // Captures the indent level in group 1 and uses a backreference
+      // in the end pattern so that only a key at the same or lesser
+      // indent closes this entry.
+      "begin": "^(\\s*)(\\w+)\\s*(:)",
+      "beginCaptures": {
+        "2": { "name": "entity.name.tag.tdr" },
+        "3": { "name": "keyword.control.key-value.tdr" }
+      },
+      "end": "(?=^(?!\\1\\s)\\s*\\w+\\s*:|^---)",
+      "patterns": [
+        { "include": "#yaml-value" }
+      ]
+    },
+    "yaml-block-sequence": {
+      "patterns": [
+        { "include": "#yaml-block-sequence-entry" }
+      ]
+    },
+    "yaml-block-sequence-entry": {
+      "begin": "^(\\s*)(-)\\s",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.list.begin.tdr" }
+      },
+      "end": "(?=^\\s*-\\s|^(?!\\1\\s)\\s*\\w+\\s*:|^---)",
+      "patterns": [
+        { "include": "#yaml-value" }
+      ]
+    },
+    "yaml-value": {
+      // Order matters: expression before yaml-comment so strings containing # match before comment
+      "patterns": [
+        { "include": "#yaml-block-scalar" },
+        { "include": "#expression" },
+        { "include": "#yaml-comment" },
+        { "include": "#yaml-block-sequence" },
+        { "include": "#yaml-block-mapping" }
+      ]
+    },
+    "yaml-block-scalar": {
+      "begin": "([|>])[-+]?\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block-scalar.tdr" }
+      },
+      "end": "(?=^\\w+\\s*:|^---)",
+      "contentName": "string.unquoted.block.tdr"
+    },
+
+    /* markdown mode */
+    "md-heading": {
+      "match": "^(#{1,6})\\s+(.*)",
+      "captures": {
+        "1": { "name": "markup.heading.tdr" },
+        "2": {
+          "name": "markup.heading.tdr",
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-fenced-code": {
+      // Fenced code block with optional language label.
+      // Language-specific injection is handled by the *-codeblock.json grammars,
+      // which take priority over this rule for known languages.
+      "begin": "^(```+)(\\w+)?\\s*$",
+      "end": "^(\\1)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.code.begin.tdr" },
+        "2": { "name": "entity.name.tag.tdr" }
+      },
+      "endCaptures": { "1": { "name": "keyword.control.code.end.tdr" } },
+      "contentName": "markup.raw.block.tdr"
+    },
+    "md-math-block": {
+      "begin": "^(\\$\\$+)\\s*$",
+      "end": "^(\\1)\\s*$",
+      "beginCaptures": { "0": { "name": "keyword.control.math.begin.tdr" } },
+      "endCaptures": { "0": { "name": "keyword.control.math.end.tdr" } },
+      "contentName": "meta.embedded.math.tdr"
+    },
+    "md-callout": {
+      "begin": "^(:::)\\s*(\\w+)?",
+      "end": "^(:::)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.callout.begin.tdr" },
+        "2": { "name": "entity.name.tag.tdr" }
+      },
+      "endCaptures": {
+        "1": { "name": "keyword.control.callout.end.tdr" }
+      },
+      "patterns": [
+        { "include": "#md-fenced-code" },
+        { "include": "#md-math-block" },
+        { "include": "#md-list" },
+        { "include": "#md-inline" }
+      ]
+    },
+    "md-toggle-list": {
+      "match": "^(>-)(\\s+)(.*)",
+      "captures": {
+        "1": { "name": "keyword.control.toggle.tdr" },
+        "3": {
+          "name": "markup.list.tdr",
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-block-quote": {
+      "match": "^(>)\\s?(.*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.quote.begin.markdown" },
+        "2": {
+          "name": "markup.quote.tdr",
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-table": {
+      "comment": "Table: header row, then separator, then data rows",
+      "begin": "^(\\|)(.+)(\\|)\\s*$",
+      "beginCaptures": {
+        "0": { "name": "markup.bold.table.header.tdr" },
+        "1": { "name": "keyword.control.table.tdr" },
+        "2": {
+          "patterns": [
+            {
+              "match": "\\|",
+              "name": "keyword.control.table.tdr"
+            }
+          ]
+        },
+        "3": { "name": "keyword.control.table.tdr" }
+      },
+      "end": "(?=^\\s*$|^[^|])",
+      "patterns": [
+        {
+          "comment": "Separator row: |---|---|",
+          "match": "^\\|[-:\\| ]+\\s*$",
+          "name": "comment.line.table.separator.tdr"
+        },
+        {
+          "comment": "Data row: | cell | cell |",
+          "match": "^(\\|)(.+)(\\|)\\s*$",
+          "captures": {
+            "1": { "name": "keyword.control.table.tdr" },
+            "2": {
+              "patterns": [
+                {
+                  "match": "\\|",
+                  "name": "keyword.control.table.tdr"
+                },
+                { "include": "#md-inline" }
+              ]
+            },
+            "3": { "name": "keyword.control.table.tdr" }
+          }
+        }
+      ]
+    },
+    "md-list": {
+      "match": "^(\\s*)([-*]|\\d+\\.)(\\s+)(.*)",
+      "captures": {
+        "2": { "name": "punctuation.definition.list.begin.markdown" },
+        "4": {
+          "patterns": [{ "include": "#md-inline" }]
+        }
+      }
+    },
+    "md-inline": {
+      "patterns": [
+        { "include": "#md-code-span" },
+        { "include": "#md-math-span" },
+        { "include": "#md-strong" },
+        { "include": "#md-strikethrough" },
+        { "include": "#md-emphasis" },
+        { "include": "#md-image" },
+        { "include": "#md-link" },
+        { "include": "#md-footnote" },
+        { "include": "#md-citation" },
+        { "include": "#interpolation" },
+        { "include": "#md-escape" }
+      ]
+    },
+    "md-code-span": {
+      "match": "(`+)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "markup.inline.raw.tdr" },
+        "2": { "name": "markup.inline.raw.tdr" },
+        "3": { "name": "markup.inline.raw.tdr" }
+      }
+    },
+    "md-math-span": {
+      "match": "(\\$)([^$]+)(\\$)",
+      "captures": {
+        "1": { "name": "keyword.control.math.begin.tdr" },
+        "2": { "name": "meta.embedded.math.tdr" },
+        "3": { "name": "keyword.control.math.end.tdr" }
+      }
+    },
+    "md-strong": {
+      "match": "(\\*\\*|__)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "markup.bold.tdr" },
+        "2": { "name": "markup.bold.tdr" },
+        "3": { "name": "markup.bold.tdr" }
+      }
+    },
+    "md-strikethrough": {
+      "match": "(~~)(.+?)(~~)",
+      "captures": {
+        "1": { "name": "keyword.control.strikethrough.begin.tdr" },
+        "2": { "name": "markup.strikethrough.tdr" },
+        "3": { "name": "keyword.control.strikethrough.end.tdr" }
+      }
+    },
+    "md-emphasis": {
+      "match": "(\\*|_)(.+?)(\\1)",
+      "captures": {
+        "1": { "name": "markup.italic.tdr" },
+        "2": { "name": "markup.italic.tdr" },
+        "3": { "name": "markup.italic.tdr" }
+      }
+    },
+    "md-image": {
+      "match": "(!)\\[([^\\]]*)\\]\\(([^)]+)\\)",
+      "captures": {
+        "1": { "name": "punctuation.definition.image.tdr" },
+        "2": { "name": "string.other.link.description.tdr" },
+        "3": { "name": "markup.underline.link.tdr" }
+      }
+    },
+    "md-link": {
+      "match": "\\[([^\\]]*)\\]\\(([^)]+)\\)",
+      "captures": {
+        "1": { "name": "string.other.link.title.tdr" },
+        "2": { "name": "markup.underline.link.tdr" }
+      }
+    },
+    "md-footnote": {
+      "match": "(\\[)(\\^)([a-zA-Z_]\\w*)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.footnote.begin.tdr" },
+        "2": { "name": "punctuation.definition.footnote.tdr" },
+        "3": { "name": "entity.name.footnote.tdr" },
+        "4": { "name": "punctuation.definition.footnote.end.tdr" }
+      }
+    },
+    "md-citation": {
+      "match": "(\\[)(@)([a-zA-Z_]\\w*)(\\])",
+      "captures": {
+        "1": { "name": "punctuation.definition.citation.begin.tdr" },
+        "2": { "name": "punctuation.definition.citation.tdr" },
+        "3": { "name": "entity.name.citation.tdr" },
+        "4": { "name": "punctuation.definition.citation.end.tdr" }
+      }
+    },
+    "md-escape": {
+      "match": "\\\\[\\\\`*_\\[\\](){}#+\\-.!|$@^~>:]",
+      "name": "constant.character.escape.tdr"
+    },
+
+    /* expressions: inline values usable in both YAML and formula mode */
+    "expression": {
+      "patterns": [
+        { "include": "#dict" },
+        { "include": "#list" },
+        { "include": "#string-double" },
+        { "include": "#string-single" },
+        { "include": "#number" },
+        { "include": "#boolean" },
+        { "include": "#type-tag" },
+        { "include": "#self-keyword" },
+        { "include": "#fref" },
+        { "include": "#function-call" },
+        { "include": "#operator" },
+        { "include": "#comma" },
+        { "include": "#identifier" }
+      ]
+    },
+    "self-keyword": {
+      "match": "\\bself\\b",
+      "name": "variable.language.self.tdr"
+    },
+    "comma": {
+      "match": ",",
+      "name": "keyword.control.comma.tdr"
+    },
+
+    /* building blocks */
+    "dict": {
+      // { key: value, key: value }
+      "begin": "(\\{)",
+      "end": "(\\})",
+      "beginCaptures": { "1": { "name": "punctuation.definition.dict.begin.tdr" } },
+      "endCaptures": { "1": { "name": "punctuation.definition.dict.end.tdr" } },
+      "name": "meta.dict.tdr",
+      "patterns": [
+        { "include": "#dict-entry" },
+        { "include": "#comma" },
+        { "include": "#yaml-comment" }
+      ]
+    },
+    "dict-entry": {
+      // Uses begin/end so the value after the colon gets highlighted
+      "begin": "(\\w+)\\s*(:)",
+      "beginCaptures": {
+        "1": { "name": "entity.name.tag.tdr" },
+        "2": { "name": "keyword.control.key-value.tdr" }
+      },
+      "end": "(?=,|\\})",
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "list": {
+      // [ item, item ]
+      "begin": "(\\[)",
+      "end": "(\\])",
+      "beginCaptures": { "1": { "name": "punctuation.definition.list.begin.tdr" } },
+      "endCaptures": { "1": { "name": "punctuation.definition.list.end.tdr" } },
+      "name": "meta.list.tdr",
+      "patterns": [
+        { "include": "#expression" },
+        { "include": "#comma" }
+      ]
+    },
+    "string-double": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.tdr",
+      "patterns": [
+        { "include": "#interpolation" },
+        { "include": "#escape" }
+      ]
+    },
+    "string-single": {
+      "begin": "'",
+      "end": "'",
+      "name": "string.quoted.single.tdr",
+      "patterns": [
+        { "include": "#escape" }
+      ]
+    },
+    "escape": {
+      "match": "\\\\([\\\\\"'nt$rbfv/]|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[0-7]{1,3})",
+      "name": "constant.character.escape.tdr"
+    },
+    "interpolation": {
+      "begin": "(\\$\\{)",
+      "end": "(\\})",
+      "beginCaptures": { "1": { "name": "keyword.control.interpolation.begin.tdr" } },
+      "endCaptures": { "1": { "name": "keyword.control.interpolation.end.tdr" } },
+      "name": "meta.interpolation.tdr",
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "number": {
+      "match": "\\b\\d+(\\.\\d+)?\\b",
+      "name": "constant.numeric.tdr"
+    },
+    "boolean": {
+      "match": "\\b(true|false)\\b",
+      "name": "constant.language.boolean.tdr"
+    },
+    "type-tag": {
+      "match": "(![a-zA-Z_]+)",
+      "name": "storage.type.tag.tdr"
+    },
+    "fref": {
+      "begin": "(fref)(\\()",
+      "beginCaptures": {
+        "1": { "name": "support.function.builtin.tdr" },
+        "2": { "name": "keyword.control.paren.tdr" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "keyword.control.paren.tdr" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "function-call": {
+      "begin": "([a-zA-Z_]\\w*)(\\()",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.tdr" },
+        "2": { "name": "keyword.control.paren.tdr" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "keyword.control.paren.tdr" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "operator": {
+      "match": "(\\+|-|\\*\\*|\\*|/|%|==|!=|<=|>=|<|>|&&|\\|\\||~|\\.)",
+      "name": "keyword.operator.tdr"
+    },
+    "identifier": {
+      "match": "\\b[a-zA-Z_]\\w*\\b",
+      "name": "variable.other.tdr"
+    }
+  }
+}

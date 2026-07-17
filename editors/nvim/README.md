@@ -63,7 +63,7 @@ require("typedown").setup()
 ```lua
 require("typedown").setup({
   -- Override the binary path (disables auto-download)
-  -- cmd = { "/path/to/typedown-lsp" },
+  -- cmd = { "/path/to/tdr-lsp" },
 
   -- Extra capabilities to pass to the LSP
   -- capabilities = vim.lsp.protocol.make_client_capabilities(),
@@ -73,6 +73,6 @@ require("typedown").setup({
 ## How It Works
 
 On first use, the plugin detects your OS and architecture, downloads the matching
-`typedown-lsp` binary from the GitHub release that matches the plugin version, and
+`tdr-lsp` binary from the GitHub release that matches the plugin version, and
 caches it in `~/.local/share/nvim/typedown/`. The binary is re-downloaded only when
 the plugin version changes.

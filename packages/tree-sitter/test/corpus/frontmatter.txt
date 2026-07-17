@@ -1,0 +1,43 @@
+==============================
+Frontmatter with content
+==============================
+
+---
+_type: person
+---
+
+------------------------------
+
+(source_file
+  (frontmatter
+    (frontmatter_content)))
+
+==============================
+Frontmatter and body
+==============================
+
+---
+_type: person
+---
+Body text here
+
+------------------------------
+
+(source_file
+  (frontmatter
+    (frontmatter_content))
+  (body
+    (body_content)))
+
+==============================
+Empty frontmatter
+==============================
+
+---
+---
+
+------------------------------
+
+(source_file
+  (frontmatter
+    (frontmatter_content)))

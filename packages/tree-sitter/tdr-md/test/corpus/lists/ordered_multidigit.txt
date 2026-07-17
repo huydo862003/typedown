@@ -1,0 +1,20 @@
+================
+Multi-digit ordered list
+================
+
+10. tenth
+11. eleventh
+
+---
+
+(document
+  (section
+    (list
+      (list_item
+        (list_marker_dot)
+        (paragraph
+          (inline)))
+      (list_item
+        (list_marker_dot)
+        (paragraph
+          (inline))))))

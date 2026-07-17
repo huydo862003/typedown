@@ -32,7 +32,7 @@ jobs:
           VERSION=$(cat VERSION)
 
           # Cargo workspace version
-          CARGO_VERSION=$(cargo pkgid typedown-lsp | sed 's/.*#//')
+          CARGO_VERSION=$(cargo pkgid tdr-lsp | sed 's/.*#//')
           if [[ "$CARGO_VERSION" != "$VERSION" ]]; then
             echo "Cargo.toml version '$CARGO_VERSION' does not match VERSION '$VERSION'"
             exit 1
@@ -75,6 +75,27 @@ jobs:
 
       - name: Test
         run: cargo test --locked --workspace --exclude typedown-zed
+
+  tree-sitter:
+    name: Tree-sitter
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate and test
+        working-directory: packages/tree-sitter
+        run: |
+          pnpm run generate
+          pnpm run test
 
   build-zed:
     name: Build Zed Extension

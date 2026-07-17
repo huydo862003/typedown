@@ -1,0 +1,29 @@
+{
+  "scopeName": "tdr.r.codeblock",
+  "injectionSelector": "L:source.tdr",
+  "patterns": [
+    {
+      "begin": "(^```+)(r)\\s*$",
+      "end": "^(\\1)\\s*$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.code.begin.tdr"
+        },
+        "2": {
+          "name": "entity.name.tag.tdr"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.code.end.tdr"
+        }
+      },
+      "contentName": "meta.embedded.block.r",
+      "patterns": [
+        {
+          "include": "source.r"
+        }
+      ]
+    }
+  ]
+}

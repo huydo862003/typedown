@@ -10,27 +10,11 @@ A typed markdown language for structured content.
 
 The compiler design is researched and documented in the [dboxide](https://github.com/Huy-DNA/dboxide) repo. See the [design docs](https://github.com/Huy-DNA/dboxide/tree/main/doc/src/design) for details on the syntax, type system, and incremental compilation engine.
 
+The tree-sitter grammar research is documented in the [loupe](https://github.com/huydo862003/loupe) repo.
+
 ## Dev Setup
 
-Requirements: [Nix](https://nixos.org) with flakes enabled.
-
-```bash
-nix develop
-```
-
-This provides Rust (nightly), pnpm, cargo-edit, and all other tools needed for development and releasing.
-
-To build:
-
-```bash
-cargo build
-```
-
-To release:
-
-```bash
-./publish.sh
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions (Nix and non-Nix).
 
 ## Editor Integration
 
@@ -42,17 +26,17 @@ To release:
 
 ## Dependency Graph
 
-- `typedown-macros` and `typedown-types` contain common utils, which are the lowest common denominator that everyone depends upon.
+- `tdr-macros` and `tdr-types` contain common utils, which are the lowest common denominator that everyone depends upon.
   - They can be depended upon by other crates.
   - They must not depend on any other crates.
-- `typedown-incremental` contains the incremental engine.
-  - It must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
-  - It can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types`.
-- `typedown-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
-  - It depends on `typedown-incremental`, `typedown-macros`, and `typedown-types`.
-  - It must not depend on `typedown-lsp`.
-  - It can only be depended upon by `typedown-lsp`.
-- `typedown-lsp` contains the LSP server for typedown.
+- `tdr-incremental` contains the incremental engine.
+  - It must not depend on any other crates, except for `tdr-macros` and `tdr-types`.
+  - It can be depended upon by everyone, EXCEPT FOR `tdr-macros` and `tdr-types`.
+- `tdr-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
+  - It depends on `tdr-incremental`, `tdr-macros`, and `tdr-types`.
+  - It must not depend on `tdr-lsp`.
+  - It can only be depended upon by `tdr-lsp`.
+- `tdr-lsp` contains the LSP server for typedown.
   - It can depend on any other crates.
   - It can not be depended upon by others.
 

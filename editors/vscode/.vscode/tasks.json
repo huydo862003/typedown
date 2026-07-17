@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "dependsOn": ["npm: dev:rust", "npm: dev:esbuild", "npm: dev:tsc"],
+      "presentation": { "reveal": "never" },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "build:local",
+      "type": "npm",
+      "script": "build:local",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "build:staging",
+      "type": "npm",
+      "script": "build:staging",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "type": "npm",
+      "script": "dev:rust",
+      "group": "build",
+      "isBackground": true,
+      "label": "npm: dev:rust",
+      "presentation": { "group": "dev", "reveal": "never" }
+    },
+    {
+      "type": "npm",
+      "script": "dev:esbuild",
+      "group": "build",
+      "problemMatcher": [],
+      "isBackground": true,
+      "label": "npm: dev:esbuild",
+      "presentation": { "group": "dev", "reveal": "never" }
+    },
+    {
+      "type": "npm",
+      "script": "dev:tsc",
+      "group": "build",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "label": "npm: dev:tsc",
+      "presentation": { "group": "dev", "reveal": "never" }
+    }
+  ]
+}

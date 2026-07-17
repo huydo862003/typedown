@@ -1,0 +1,4 @@
+name = "TDR"
+grammar = "tdr"
+path_suffixes = ["tdr"]
+tab_size = 2

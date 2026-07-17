@@ -1,0 +1,61 @@
+================
+Body only
+================
+
+just some text
+
+------
+
+(source_file
+  (body
+    (body_content)))
+
+================
+Body with multiple lines
+================
+
+line one
+line two
+line three
+
+------
+
+(source_file
+  (body
+    (body_content)))
+
+================
+Body with special characters
+================
+
+hello *world* and _more_
+
+------
+
+(source_file
+  (body
+    (body_content)))
+
+================
+Body starting with dash
+================
+
+- list item
+
+------
+
+(source_file
+  (body
+    (body_content)))
+
+================
+Body starting with double dash
+================
+
+-- not frontmatter
+
+------
+
+(source_file
+  (body
+    (body_content)))

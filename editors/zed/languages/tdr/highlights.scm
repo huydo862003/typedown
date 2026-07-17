@@ -1,0 +1,2 @@
+; Frontmatter delimiters
+"---" @punctuation.special

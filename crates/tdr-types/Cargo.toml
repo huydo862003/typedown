@@ -1,0 +1,11 @@
+[package]
+name = "tdr-types"
+version.workspace = true
+edition = "2024"
+license = "AGPL"
+authors = ["Huy-DNA <huydo862003@gmail.com>"]
+
+[dependencies]
+unescaper = "0.1"
+html-escape = "0.2"
+num_enum = "0.7"

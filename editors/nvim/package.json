@@ -1,0 +1,10 @@
+{
+  "name": "typedown-nvim",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "pnpm --filter tree-sitter-tdr run build",
+    "build:local": "cargo build -p tdr-lsp && pnpm run build",
+    "build:staging": "pnpm run build"
+  }
+}

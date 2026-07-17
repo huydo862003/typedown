@@ -6,6 +6,12 @@
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "cargo build && pnpm -r run build",
+    "build:local": "cargo build && pnpm -r --if-present run build:local",
+    "build:staging": "pnpm -r --if-present run build:staging",
+    "dev": "pnpm -r --if-present run dev"
+  },
   "devDependencies": {
     "@hdnax/nuclint": "^0.17.4",
     "@stylistic/eslint-plugin": "^5.10.0",

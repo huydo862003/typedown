@@ -9,10 +9,16 @@ dist/
 build/
 output/
 
+# tree-sitter
+editors/tree-sitter/src
+
 # zed
+editors/zed/extension.toml
 editors/zed/extension.wasm
+editors/zed/grammars/
 
 # Added by typedown
 .typedown
 editors/vscode/bin/
 editors/vscode/*.vsix
+editors/vscode/syntaxes/tdr.tmLanguage.json

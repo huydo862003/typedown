@@ -124,14 +124,22 @@ Backslash `\` is the escape character. It works in quoted strings (both `"..."` 
 
 In quoted strings:
 
-| Sequence | Result                                 |
-| -------- | -------------------------------------- |
-| `\\`     | Literal `\`                            |
-| `\"`     | Literal `"` (in double-quoted strings) |
-| `\'`     | Literal `'` (in single-quoted strings) |
-| `\n`     | Newline                                |
-| `\t`     | Tab                                    |
-| `\$`     | Literal `$` (prevents interpolation)   |
+| Sequence      | Result                                 |
+| ------------- | -------------------------------------- |
+| `\\`          | Literal `\`                            |
+| `\"`          | Literal `"` (in double-quoted strings) |
+| `\'`          | Literal `'` (in single-quoted strings) |
+| `\/`          | Literal `/`                            |
+| `\n`          | Newline                                |
+| `\t`          | Tab                                    |
+| `\r`          | Carriage return                        |
+| `\b`          | Backspace                              |
+| `\f`          | Form feed                              |
+| `\v`          | Vertical tab                           |
+| `\$`          | Literal `$` (prevents interpolation)   |
+| `\uXXXX`      | Unicode escape (4 hex digits)          |
+| `\xXX`        | Hex byte escape (2 hex digits)         |
+| `\NNN`        | Octal escape (1-3 octal digits)        |
 
 In markdown body, we use HTML entities.
 
@@ -281,7 +289,7 @@ tags:
 
 Every value in TDR frontmatter is an expression. Each expression has a type. In most cases the type is inferred from the schema, so it does not need to be stated explicitly.
 
-Whether a value is an identifier or a literal is inferred from context in most cases. In ambiguous contexts, identifiers are preferred. To force a literal interpretation, wrap the value in single or double quotes (e.g. `'draft'`, `"published"`). Identifiers that contain special characters are wrapped in backticks.
+Whether a value is an identifier or a literal is inferred from context in most cases. In ambiguous contexts, identifiers are preferred. To force a literal interpretation, wrap the value in single or double quotes (e.g. `'draft'`, `"published"`).
 
 ### Scalars
 
@@ -600,8 +608,8 @@ Ordered lists use a number followed by `.`:
 Toggle lists use `>-`. The item is collapsed by default and can be expanded:
 
 ```markdown
-> - Summary line
->   Content shown when expanded.
+>- Summary line
+>  Content shown when expanded.
 ```
 
 ### Callout Blocks

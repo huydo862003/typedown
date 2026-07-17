@@ -1,0 +1,2 @@
+(frontmatter) @fold
+(body) @fold

@@ -1,3 +1,3 @@
 vim.filetype.add({
-  extension = { tdr = "typedown" },
+  extension = { tdr = "tdr" },
 })
