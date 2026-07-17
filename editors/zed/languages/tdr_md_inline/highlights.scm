@@ -76,6 +76,7 @@
 
 ; Interpolation
 (interpolation "$" @punctuation.special)
+(interpolation "{" @punctuation.bracket)
 (interpolation "}" @punctuation.bracket)
 
 ; Punctuation
