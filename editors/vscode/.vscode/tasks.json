@@ -2,50 +2,50 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "watch:dev",
-      "dependsOn": ["npm: watch:rust", "npm: watch:esbuild", "npm: watch:tsc"],
+      "label": "dev",
+      "dependsOn": ["npm: dev:rust", "npm: dev:esbuild", "npm: dev:tsc"],
       "presentation": { "reveal": "never" },
       "group": { "kind": "build", "isDefault": true }
     },
     {
-      "label": "compile:dev",
+      "label": "build:local",
       "type": "npm",
-      "script": "compile:dev",
+      "script": "build:local",
       "group": "build",
       "problemMatcher": "$tsc"
     },
     {
-      "label": "compile:staging",
+      "label": "build:staging",
       "type": "npm",
-      "script": "compile:staging",
+      "script": "build:staging",
       "group": "build",
       "problemMatcher": "$tsc"
     },
     {
       "type": "npm",
-      "script": "watch:rust",
+      "script": "dev:rust",
       "group": "build",
       "isBackground": true,
-      "label": "npm: watch:rust",
-      "presentation": { "group": "watch", "reveal": "never" }
+      "label": "npm: dev:rust",
+      "presentation": { "group": "dev", "reveal": "never" }
     },
     {
       "type": "npm",
-      "script": "watch:esbuild",
+      "script": "dev:esbuild",
       "group": "build",
       "problemMatcher": [],
       "isBackground": true,
-      "label": "npm: watch:esbuild",
-      "presentation": { "group": "watch", "reveal": "never" }
+      "label": "npm: dev:esbuild",
+      "presentation": { "group": "dev", "reveal": "never" }
     },
     {
       "type": "npm",
-      "script": "watch:tsc",
+      "script": "dev:tsc",
       "group": "build",
       "problemMatcher": "$tsc-watch",
       "isBackground": true,
-      "label": "npm: watch:tsc",
-      "presentation": { "group": "watch", "reveal": "never" }
+      "label": "npm: dev:tsc",
+      "presentation": { "group": "dev", "reveal": "never" }
     }
   ]
 }

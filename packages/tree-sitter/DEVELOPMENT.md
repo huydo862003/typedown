@@ -8,7 +8,7 @@ For full project setup, see the [root DEVELOPMENT.md](../../DEVELOPMENT.md).
 - **pnpm** (11+)
 - **tree-sitter CLI** (0.26+)
 - **clang** (21+): C compiler for external scanners
-- **wasi-sdk** (33+): Only needed for WASM builds. Set `TREE_SITTER_WASI_SDK_PATH` to the extracted directory.
+- **wasi-sdk** (25+): Only needed for WASM builds. Set `TREE_SITTER_WASI_SDK_PATH` to the extracted directory.
 
 All provided automatically by `nix develop` from the repo root.
 

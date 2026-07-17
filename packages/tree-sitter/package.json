@@ -39,6 +39,8 @@
     "build:so": "pnpm run generate && bash scripts/build.sh so",
     "build:wasm": "pnpm run generate && bash scripts/build.sh wasm",
     "build": "pnpm run generate && bash scripts/build.sh all",
+    "build:local": "pnpm run build",
+    "build:staging": "pnpm run build",
     "test": "bash scripts/test.sh",
     "prestart": "pnpm run build:wasm",
     "start": "tree-sitter playground"

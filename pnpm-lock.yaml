@@ -45,6 +45,8 @@ importers:
         specifier: ^8.63.0
         version: 8.63.0(eslint@9.39.4(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
 
+  editors/nvim: {}
+
   editors/vscode:
     dependencies:
       vscode-languageclient:
@@ -75,6 +77,8 @@ importers:
       shx:
         specifier: ^0.4.0
         version: 0.4.0
+
+  editors/zed: {}
 
   packages/ssg: {}
 

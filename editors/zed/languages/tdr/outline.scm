@@ -1,2 +1,2 @@
-(frontmatter) @item
+(frontmatter "---" @name) @item
 (body) @item

@@ -1,0 +1,10 @@
+{
+  "name": "typedown-zed",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cargo build -p typedown-zed --target wasm32-wasip1 --release",
+    "build:local": "bash scripts/install-dev.sh",
+    "build:staging": "cargo build -p typedown-zed --target wasm32-wasip1 --release"
+  }
+}

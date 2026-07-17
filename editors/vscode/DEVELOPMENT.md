@@ -19,30 +19,30 @@ pnpm install
 
 ## Development
 
-- Build LSP + bundle extension: `pnpm run compile:dev`
-- Watch mode (Rust + TypeScript): `pnpm run watch:dev`
+- Build LSP + bundle extension: `pnpm run build:local`
+- Watch mode (Rust + TypeScript): `pnpm run dev`
 - Build TextMate grammar: `pnpm run build:grammar`
 - Lint: `pnpm run lint`
 - Type check: `pnpm run check-types`
 
-- `compile:dev` builds `tdr-lsp` from source and copies the debug binary into `bin/` before bundling the extension
-- `watch:dev` runs `cargo watch` and esbuild/tsc in parallel. Relaunch the Extension Development Host after each Rust rebuild
+- `build:local` builds `tdr-lsp` from source and copies the debug binary into `bin/` before bundling the extension
+- `dev` runs `cargo watch` and esbuild/tsc in parallel. Relaunch the Extension Development Host after each Rust rebuild
 - `build:grammar` converts `syntaxes/tdr.tmLanguage.json5` (JSON5, supports comments) to `syntaxes/tdr.tmLanguage.json`. The generated `.json` file is gitignored
 
 ## Testing
 
 ### Local build
 
-Press `F5` in VS Code (or use the "Run Extension (local dev)" launch configuration) after running `compile:dev`.
+Press `F5` in VS Code (or use the "Run Extension (local)" launch configuration) after running `build:local`.
 
 ### Staging release
 
 1. Push a staging tag via `./publish.sh` from the repo root (choose a `pre*` bump type). CI builds and uploads the prerelease binaries automatically.
 
-2. Download the staging binary and compile:
+2. Download the staging binary and build:
 
    ```bash
-   pnpm run compile:staging
+   pnpm run build:staging
    ```
 
    Then press `F5` (or use the "Run Extension (staging binary)" launch configuration).

@@ -5,7 +5,7 @@ For full project setup, see the [root DEVELOPMENT.md](../../DEVELOPMENT.md).
 ## Dependencies
 
 - **Rust nightly**: To build the extension WASM
-- **wasm32-wasip2 target**: WASM compilation target
+- **wasm32-wasip1 target**: WASM compilation target
 - **Zed**
 
 All provided automatically by `nix develop` from the repo root.
@@ -34,7 +34,7 @@ Install the extension locally in Zed via `zed: install dev extension`, pointing 
 Zed's `install dev extension` requires `rustup`, which is not available on NixOS ([zed-industries/zed#42353](https://github.com/zed-industries/zed/issues/42353)). Use the install script instead:
 
 ```bash
-pnpm run build:zed
+pnpm run build:local
 ```
 
 This builds the extension WASM and grammar WASMs (using wasi-sdk clang, same pattern as [nix-zed-extensions](https://github.com/DuskSystems/nix-zed-extensions)) into `editors/zed/`. Then use `zed: install dev extension` pointing to `editors/zed/`.

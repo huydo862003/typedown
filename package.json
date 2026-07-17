@@ -8,7 +8,9 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "cargo build && pnpm -r run build",
-    "build:zed": "bash editors/zed/scripts/install-dev.sh"
+    "build:local": "cargo build && pnpm -r --if-present run build:local",
+    "build:staging": "pnpm -r --if-present run build:staging",
+    "dev": "pnpm -r --if-present run dev"
   },
   "devDependencies": {
     "@hdnax/nuclint": "^0.17.4",

@@ -392,21 +392,20 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
 
-    "compile": "pnpm run build:grammar && pnpm run check-types && pnpm run lint && node esbuild.js",
-    "compile:dev": "pnpm run build:rust && pnpm run compile",
-    "compile:staging": "pnpm run fetch:staging && pnpm run compile",
-    "compile-tests": "tsc -p . --outDir out",
+    "build": "pnpm run build:grammar && pnpm run check-types && pnpm run lint && node esbuild.js",
+    "build:local": "pnpm run build:rust && pnpm run build",
+    "build:staging": "pnpm run fetch:staging && pnpm run build",
+    "build:tests": "tsc -p . --outDir out",
 
-    "watch": "npm-run-all -p watch:*",
-    "watch:esbuild": "node esbuild.js --watch",
-    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "watch:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p tdr-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
-    "watch:dev": "npm-run-all -p watch:rust watch:esbuild watch:tsc",
-    "watch:staging": "npm-run-all -p watch:esbuild watch:tsc",
-    "watch-tests": "tsc -p . -w --outDir out",
+    "dev": "npm-run-all -p dev:rust dev:esbuild dev:tsc",
+    "dev:esbuild": "node esbuild.js --watch",
+    "dev:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "dev:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p tdr-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
+    "dev:staging": "npm-run-all -p dev:esbuild dev:tsc",
+    "dev:tests": "tsc -p . -w --outDir out",
 
     "test": "vscode-test",
-    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "pretest": "pnpm run build:tests && pnpm run build && pnpm run lint",
 
     "package": "pnpm run build:grammar && pnpm run check-types && pnpm run lint && node esbuild.js --production",
     "vscode:prepublish": "pnpm run package"

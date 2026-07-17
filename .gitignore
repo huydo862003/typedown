@@ -13,6 +13,7 @@ output/
 editors/tree-sitter/src
 
 # zed
+editors/zed/extension.toml
 editors/zed/extension.wasm
 editors/zed/grammars/
 

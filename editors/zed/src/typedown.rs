@@ -36,19 +36,24 @@ impl TypedownExtension {
       return Ok(path);
     }
 
-    // 2. Binary on PATH
+    // 2. Dev build (path embedded at compile time by build.rs when extension.toml has file:// URLs)
+    if let Some(dev_path) = option_env!("TDR_DEV_LSP_PATH") {
+      return Ok(dev_path.to_string());
+    }
+
+    // 3. Binary on $PATH
     if let Some(path) = worktree.which("tdr-lsp") {
       return Ok(path);
     }
 
-    // 3. Cached download
+    // 4. Cached download
     if let Some(path) = &self.cached_binary_path
       && fs::metadata(path).is_ok_and(|stat| stat.is_file())
     {
       return Ok(path.clone());
     }
 
-    // 4. Download from GitHub releases
+    // 5. Download from GitHub releases
     zed::set_language_server_installation_status(
       language_server_id,
       &zed::LanguageServerInstallationStatus::CheckingForUpdate,

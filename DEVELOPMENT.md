@@ -9,7 +9,7 @@ Absolutely required dependencies to author the core crates (Rust) & packages (No
 - Rust
   - **Rust nightly** (1.99+): Compiler, LSP server, Zed extension
     > We can avoid Rust nightly technically, but it's a hobby project and I want to utilize some meta-programming, so I opted for Rust nightly
-  - **wasm32-wasip2 target**: Compile the Zed extension to WASM
+  - **wasm32-wasip1 target**: Compile the Zed extension to WASM
 - Node
   - **Node.js** (22+): Tree-sitter grammar build tooling
   - **pnpm** (11+): Node package manager
@@ -31,7 +31,7 @@ Absolutely required dependencies to author the core crates (Rust) & packages (No
 
 - **tree-sitter CLI** (0.26+): Generate and test tree-sitter grammars
 - **clang** (21+): C compiler for tree-sitter external scanners
-- **wasi-sdk** (33+): Compile tree-sitter grammars to WASM
+- **wasi-sdk** (25+): Compile tree-sitter grammars to WASM. Must target wasm32-wasip1 (Zed requires this for grammar loading)
 
 ### Docs Authoring
 
@@ -65,7 +65,7 @@ Install each dependency manually:
    rustup install nightly
    rustup default nightly
    rustup component add rust-src rust-analyzer clippy rustfmt
-   rustup target add wasm32-wasip2
+   rustup target add wasm32-wasip1
    ```
 
 2. **Node.js** (22+) and **pnpm**:
@@ -100,7 +100,9 @@ Install each dependency manually:
 `pnpm` is the task runner for the entire project. All build commands are defined in the root `package.json` and delegate to cargo, tree-sitter, and sub-package scripts as needed.
 
 - `pnpm run build`: Build everything (Rust crates + Node packages)
-- `pnpm run build:zed`: Build the Zed extension WASM and grammar WASMs (NixOS workaround)
+- `pnpm run build:local`: Build everything using local sources
+- `pnpm run build:staging`: Build everything using staging release binaries
+- `pnpm run dev`: Watch mode for iterative development
 
 ## Per-package development
 
