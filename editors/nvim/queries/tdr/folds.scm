@@ -1,1 +1,2 @@
-../../../../packages/tree-sitter/queries/folds.scm
+(frontmatter) @fold
+(body) @fold

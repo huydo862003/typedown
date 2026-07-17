@@ -1,1 +1,10 @@
-../../../../packages/tree-sitter/tdr-md/queries/folds.scm
+(section) @fold
+(fenced_code_block) @fold
+(math_block) @fold
+(block_quote) @fold
+(toggle_list) @fold
+(toggle_list_item) @fold
+(list) @fold
+(list_item) @fold
+(callout_block) @fold
+(pipe_table) @fold

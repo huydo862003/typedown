@@ -11,7 +11,7 @@
 
 import {
   expr_rules,
-} from '../common/expressions.js';
+} from '../expressions.js';
 
 export default grammar({
   name: 'tdr_yaml',
@@ -22,6 +22,8 @@ export default grammar({
     $._indent_sequence,
     $._block_end,
     $._seq_item_start,
+    $._block_scalar_start,
+    $.block_scalar_content,
   ],
 
   extras: ($) => [
@@ -70,6 +72,7 @@ export default grammar({
         $.type_value,
         $.expression,
         $._block_value,
+        $.block_scalar,
       ),
 
     type_value: ($) =>
@@ -113,6 +116,12 @@ export default grammar({
           )),
         ),
         $._block_end,
+      ),
+
+    block_scalar: ($) =>
+      seq(
+        $._block_scalar_start,
+        optional($.block_scalar_content),
       ),
 
     // Type expressions

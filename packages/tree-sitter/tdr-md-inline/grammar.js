@@ -13,7 +13,7 @@
 
 import {
   expr_rules,
-} from '../common/expressions.js';
+} from '../expressions.js';
 
 export default grammar({
   name: 'tdr_md_inline',

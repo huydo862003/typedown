@@ -4,9 +4,9 @@
 
 #include "tree_sitter/parser.h"
 
-#include <string.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 
 enum TokenType {
   NEWLINE,
@@ -14,6 +14,8 @@ enum TokenType {
   INDENT_SEQUENCE,
   BLOCK_END,
   SEQ_ITEM_START,
+  BLOCK_SCALAR_START,
+  BLOCK_SCALAR_CONTENT,
 };
 
 enum IndentType {
@@ -23,11 +25,14 @@ enum IndentType {
 };
 
 #define MAX_INDENT_DEPTH 64
+#define BLOCK_SCALAR_INDENT_UNSET UINT16_MAX
 
 typedef struct {
   uint16_t indent_len[MAX_INDENT_DEPTH];
   uint8_t indent_typ[MAX_INDENT_DEPTH];
   uint16_t depth;
+  uint16_t block_scalar_indent;
+  bool in_block_scalar;
 } Scanner;
 
 void *tree_sitter_tdr_yaml_external_scanner_create(void) {
@@ -39,28 +44,38 @@ void tree_sitter_tdr_yaml_external_scanner_destroy(void *payload) {
 }
 
 unsigned tree_sitter_tdr_yaml_external_scanner_serialize(void *payload,
-                                                              char *buffer) {
+                                                         char *buffer) {
   Scanner *scanner = (Scanner *)payload;
   unsigned pos = 0;
+  uint16_t count = scanner->depth + 1;
+  unsigned needed = sizeof(uint16_t) + count * sizeof(uint16_t) +
+                    count * sizeof(uint8_t) + sizeof(uint16_t) + sizeof(bool);
+  if (needed > TREE_SITTER_SERIALIZATION_BUFFER_SIZE)
+    return 0;
   memcpy(buffer + pos, &scanner->depth, sizeof(uint16_t));
   pos += sizeof(uint16_t);
-  uint16_t count = scanner->depth + 1;
   memcpy(buffer + pos, scanner->indent_len, count * sizeof(uint16_t));
   pos += count * sizeof(uint16_t);
   memcpy(buffer + pos, scanner->indent_typ, count * sizeof(uint8_t));
   pos += count * sizeof(uint8_t);
+  memcpy(buffer + pos, &scanner->block_scalar_indent, sizeof(uint16_t));
+  pos += sizeof(uint16_t);
+  memcpy(buffer + pos, &scanner->in_block_scalar, sizeof(bool));
+  pos += sizeof(bool);
   return pos;
 }
 
 void tree_sitter_tdr_yaml_external_scanner_deserialize(void *payload,
-                                                            const char *buffer,
-                                                            unsigned length) {
+                                                       const char *buffer,
+                                                       unsigned length) {
   Scanner *scanner = (Scanner *)payload;
   memset(scanner, 0, sizeof(Scanner));
-  if (length == 0) return;
+  if (length == 0)
+    return;
 
   unsigned pos = 0;
-  if (pos + sizeof(uint16_t) > length) return;
+  if (pos + sizeof(uint16_t) > length)
+    return;
   memcpy(&scanner->depth, buffer + pos, sizeof(uint16_t));
   pos += sizeof(uint16_t);
 
@@ -70,12 +85,41 @@ void tree_sitter_tdr_yaml_external_scanner_deserialize(void *payload,
   }
 
   uint16_t count = scanner->depth + 1;
-  if (pos + count * sizeof(uint16_t) > length) return;
+  if (pos + count * sizeof(uint16_t) > length)
+    return;
   memcpy(scanner->indent_len, buffer + pos, count * sizeof(uint16_t));
   pos += count * sizeof(uint16_t);
 
-  if (pos + count * sizeof(uint8_t) > length) return;
+  if (pos + count * sizeof(uint8_t) > length)
+    return;
   memcpy(scanner->indent_typ, buffer + pos, count * sizeof(uint8_t));
+  pos += count * sizeof(uint8_t);
+
+  if (pos + sizeof(uint16_t) + sizeof(bool) <= length) {
+    memcpy(&scanner->block_scalar_indent, buffer + pos, sizeof(uint16_t));
+    pos += sizeof(uint16_t);
+    memcpy(&scanner->in_block_scalar, buffer + pos, sizeof(bool));
+  }
+}
+
+static bool at_newline(TSLexer *lexer) {
+  return lexer->lookahead == '\n' || lexer->lookahead == '\r';
+}
+
+static void consume_newline(TSLexer *lexer) {
+  if (lexer->lookahead == '\r')
+    lexer->advance(lexer, false);
+  if (lexer->lookahead == '\n')
+    lexer->advance(lexer, false);
+}
+
+static uint16_t measure_indent(TSLexer *lexer) {
+  uint16_t indent = 0;
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+    indent++;
+    lexer->advance(lexer, false);
+  }
+  return indent;
 }
 
 static void push_indent(Scanner *scanner, uint16_t col, uint8_t typ) {
@@ -86,11 +130,92 @@ static void push_indent(Scanner *scanner, uint16_t col, uint8_t typ) {
   }
 }
 
-bool tree_sitter_tdr_yaml_external_scanner_scan(
-    void *payload, TSLexer *lexer, const bool *valid_symbols) {
+bool tree_sitter_tdr_yaml_external_scanner_scan(void *payload, TSLexer *lexer,
+                                                const bool *valid_symbols) {
   Scanner *scanner = (Scanner *)payload;
 
   uint16_t cur_ind = scanner->indent_len[scanner->depth];
+
+  // Block scalar content: consume all indented lines as a single token
+  if (valid_symbols[BLOCK_SCALAR_CONTENT] && scanner->in_block_scalar) {
+    if (lexer->eof(lexer) || !at_newline(lexer)) {
+      scanner->in_block_scalar = false;
+      return false;
+    }
+
+    bool matched = false;
+
+    while (at_newline(lexer)) {
+      // Mark before newline so we can bail without consuming the last one
+      lexer->mark_end(lexer);
+      consume_newline(lexer);
+
+      if (lexer->eof(lexer)) {
+        scanner->in_block_scalar = false;
+        if (matched) {
+          lexer->result_symbol = BLOCK_SCALAR_CONTENT;
+          return true;
+        }
+        return false;
+      }
+
+      uint16_t indent = measure_indent(lexer);
+
+      // Blank line: always part of the block scalar
+      if (at_newline(lexer) || lexer->eof(lexer)) {
+        lexer->mark_end(lexer);
+        matched = true;
+        continue;
+      }
+
+      if (scanner->block_scalar_indent == BLOCK_SCALAR_INDENT_UNSET) {
+        scanner->block_scalar_indent = indent;
+      }
+
+      if (indent < scanner->block_scalar_indent) {
+        scanner->in_block_scalar = false;
+        if (matched) {
+          lexer->result_symbol = BLOCK_SCALAR_CONTENT;
+          return true;
+        }
+        return false;
+      }
+
+      // Consume rest of line
+      while (!lexer->eof(lexer) && !at_newline(lexer)) {
+        lexer->advance(lexer, false);
+      }
+      lexer->mark_end(lexer);
+      matched = true;
+    }
+
+    scanner->in_block_scalar = false;
+    if (matched) {
+      lexer->result_symbol = BLOCK_SCALAR_CONTENT;
+      return true;
+    }
+    return false;
+  }
+
+  // Block scalar start: | or >
+  if (valid_symbols[BLOCK_SCALAR_START] &&
+      (lexer->lookahead == '|' || lexer->lookahead == '>')) {
+    lexer->advance(lexer, false);
+    lexer->mark_end(lexer);
+
+    // Skip trailing whitespace, must be followed by newline or EOF
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, false);
+    }
+
+    if (at_newline(lexer) || lexer->eof(lexer)) {
+      scanner->in_block_scalar = true;
+      scanner->block_scalar_indent = BLOCK_SCALAR_INDENT_UNSET;
+      lexer->result_symbol = BLOCK_SCALAR_START;
+      return true;
+    }
+    return false;
+  }
 
   // EOF: close blocks
   if (lexer->eof(lexer)) {
@@ -106,8 +231,7 @@ bool tree_sitter_tdr_yaml_external_scanner_scan(
   if (valid_symbols[SEQ_ITEM_START] && lexer->lookahead == '-') {
     lexer->advance(lexer, false);
     if (lexer->lookahead == ' ' || lexer->lookahead == '\t' ||
-        lexer->lookahead == '\n' || lexer->lookahead == '\r' ||
-        lexer->eof(lexer)) {
+        at_newline(lexer) || lexer->eof(lexer)) {
       if (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
         lexer->advance(lexer, false);
       }
@@ -120,29 +244,20 @@ bool tree_sitter_tdr_yaml_external_scanner_scan(
     }
   }
 
-  // Newline: consume and measure next line's indent
-  if (lexer->lookahead != '\n' && lexer->lookahead != '\r') {
+  if (!at_newline(lexer)) {
     return false;
   }
 
   // Mark before newline for zero-width _block_end
   lexer->mark_end(lexer);
-
-  if (lexer->lookahead == '\r') lexer->advance(lexer, false);
-  if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+  consume_newline(lexer);
 
   // Skip blank lines
-  while (lexer->lookahead == '\n' || lexer->lookahead == '\r') {
-    if (lexer->lookahead == '\r') lexer->advance(lexer, false);
-    if (lexer->lookahead == '\n') lexer->advance(lexer, false);
+  while (at_newline(lexer)) {
+    consume_newline(lexer);
   }
 
-  // Measure indent
-  uint16_t indent = 0;
-  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
-    indent++;
-    lexer->advance(lexer, false);
-  }
+  uint16_t indent = measure_indent(lexer);
 
   // EOF after newline
   if (lexer->eof(lexer)) {
@@ -159,7 +274,7 @@ bool tree_sitter_tdr_yaml_external_scanner_scan(
     return false;
   }
 
-  // Indent dropped: emit _block_end (zero-width, before newline)
+  // Indent dropped: emit _block_end (zero-width and right before the newline)
   if (indent < cur_ind && valid_symbols[BLOCK_END] && scanner->depth > 0) {
     scanner->depth--;
     // Zero-width: don't mark_end, tree-sitter restores to before newline
@@ -167,7 +282,7 @@ bool tree_sitter_tdr_yaml_external_scanner_scan(
     return true;
   }
 
-  // Mark_end after all consumed content (newline + indent)
+  // Mark_end after all consumed content
   lexer->mark_end(lexer);
 
   // Deeper indent

@@ -1,1 +1,2 @@
-../../../../packages/tree-sitter/tdr-md/queries/injections.scm
+((inline) @injection.content
+  (#set! injection.language "tdr_md_inline"))
