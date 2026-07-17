@@ -14,25 +14,7 @@ The tree-sitter grammar research is documented in the [loupe](https://github.com
 
 ## Dev Setup
 
-Requirements: [Nix](https://nixos.org) with flakes enabled.
-
-```bash
-nix develop
-```
-
-This provides Rust (nightly), pnpm, cargo-edit, and all other tools needed for development and releasing.
-
-To build:
-
-```bash
-cargo build
-```
-
-To release:
-
-```bash
-./publish.sh
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions (Nix and non-Nix).
 
 ## Editor Integration
 

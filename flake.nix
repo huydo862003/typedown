@@ -29,6 +29,7 @@
             "clippy"
             "rustfmt"
           ];
+          targets = [ "wasm32-wasip1" ];
         };
         # wasi-sdk does not exist :(
         # this is a standard nix derivation tho
@@ -63,8 +64,8 @@
             rust-nightly
             nodejs
             pnpm
-            wasm-pack
             clang
+            clang-tools
             zed-editor
             vscodium
             neovim

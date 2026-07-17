@@ -1,42 +1,45 @@
 # Development
 
-## Requirements
+For full project setup, see the [root DEVELOPMENT.md](../../DEVELOPMENT.md).
 
-- [Nix](https://nixos.org) with flakes enabled (provides Node.js, pnpm, cargo-watch, and Rust nightly)
+## Dependencies
+
+- **Node.js** (22+)
+- **pnpm** (11+)
+- **Rust nightly**: To build `tdr-lsp`
+- **VS Code** or **VSCodium**
+
+All provided automatically by `nix develop` from the repo root.
 
 ## Setup
 
 ```bash
-nix develop
 pnpm install
 ```
 
-## Testing Against a Local Build
+## Development
 
-Build the Rust LSP binary and compile the extension, then launch the Extension Development Host:
+- Build LSP + bundle extension: `pnpm run compile:dev`
+- Watch mode (Rust + TypeScript): `pnpm run watch:dev`
+- Build TextMate grammar: `pnpm run build:grammar`
+- Lint: `pnpm run lint`
+- Type check: `pnpm run check-types`
 
-```bash
-pnpm run compile:dev
-```
+- `compile:dev` builds `tdr-lsp` from source and copies the debug binary into `bin/` before bundling the extension
+- `watch:dev` runs `cargo watch` and esbuild/tsc in parallel. Relaunch the Extension Development Host after each Rust rebuild
+- `build:grammar` converts `syntaxes/tdr.tmLanguage.json5` (JSON5, supports comments) to `syntaxes/tdr.tmLanguage.json`. The generated `.json` file is gitignored
 
-Then press `F5` in VSCode (or use the "Run Extension (local dev)" launch configuration).
+## Testing
 
-`compile:dev` builds `tdr-lsp` from source and copies the debug binary into `bin/` before bundling the extension.
+### Local build
 
-To watch for changes across both Rust and TypeScript:
+Press `F5` in VS Code (or use the "Run Extension (local dev)" launch configuration) after running `compile:dev`.
 
-```bash
-pnpm run watch:dev
-```
+### Staging release
 
-This runs `cargo watch` on the Rust crates and esbuild/tsc in parallel. Relaunch the Extension Development Host after each Rust rebuild.
+1. Push a staging tag via `./publish.sh` from the repo root (choose a `pre*` bump type). CI builds and uploads the prerelease binaries automatically.
 
-## Testing a Staging Release
-
-1. Push a staging tag via `./publish.sh` from the repo root (choose a `pre*` bump type).
-   CI builds and uploads the prerelease binaries automatically.
-
-2. Download the staging binary matching the current version and compile:
+2. Download the staging binary and compile:
 
    ```bash
    pnpm run compile:staging
@@ -46,22 +49,15 @@ This runs `cargo watch` on the Rust crates and esbuild/tsc in parallel. Relaunch
 
    `fetch:staging` reads the version from `VERSION` at the repo root, constructs the `staging/vX.Y.Z-label.N` GitHub release URL, and downloads the matching binary into `bin/`.
 
-## Lint and Type Check
-
-```bash
-pnpm run lint
-pnpm run check-types
-```
-
 ## Release
 
 Releases are handled by `publish.sh` from the repo root. It bumps the version in `VERSION` alongside all other packages and pushes the tag that triggers CI to build and publish the VSIX.
 
-## Authoring Textmate Grammar
+## Authoring TextMate Grammar
 
 The grammar source is `syntaxes/tdr.tmLanguage.json5` (JSON5, supports comments). It is converted to `syntaxes/tdr.tmLanguage.json` at build time via `pnpm run build:grammar`. The generated `.json` file is gitignored.
 
-In this section, I will document my personal experiences with Textmate grammar, maybe some pitfalls or high-level concepts to know.
+In this section, I will document my personal experiences with TextMate grammar, maybe some pitfalls or high-level concepts to know.
 
 ### High-level structure
 
@@ -102,7 +98,7 @@ Top-level fields:
 ```
 
 - `$schema`: Normal JSON schema declaration.
-- `name`: The name of the Textmate grammar, no functional effects.
+- `name`: The name of the TextMate grammar, no functional effects.
 - `scopeName: "source.tdr"`: The unique identifier for your grammar.
   1. How themes target your language: Rules can match broadly (`source`) or specifically (`source.tdr`)
   2. How other grammars embed yours: They reference `source.tdr` to include your grammar
