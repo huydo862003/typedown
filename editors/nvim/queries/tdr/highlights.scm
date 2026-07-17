@@ -1,1 +1,2 @@
-; TODO: Add capture patterns once grammar is implemented
+; Frontmatter delimiters
+"---" @punctuation.delimiter

@@ -88,6 +88,7 @@
 (dict_expression "}" @punctuation.bracket)
 (index_expression "[" @punctuation.bracket)
 (index_expression "]" @punctuation.bracket)
+"," @punctuation.delimiter
 
 ; Misc
 (hard_line_break) @string.escape

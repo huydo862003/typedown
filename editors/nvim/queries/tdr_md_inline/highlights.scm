@@ -92,6 +92,7 @@
 (dict_expression "}" @punctuation.bracket)
 (index_expression "[" @punctuation.bracket)
 (index_expression "]" @punctuation.bracket)
+"," @punctuation.delimiter
 
 ; Spell checking
 (code_span) @nospell
