@@ -18,12 +18,12 @@
       "end": "^(---)",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.definition.frontmatter.begin.tdr"
+          "name": "keyword.control.frontmatter.begin.tdr"
         }
       },
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.frontmatter.end.tdr"
+          "name": "keyword.control.frontmatter.end.tdr"
         }
       },
       "patterns": [
@@ -65,7 +65,7 @@
       "begin": "^(\\s*)(\\w+)\\s*(:)",
       "beginCaptures": {
         "2": { "name": "entity.name.tag.tdr" },
-        "3": { "name": "punctuation.separator.key-value.tdr" }
+        "3": { "name": "keyword.control.key-value.tdr" }
       },
       "end": "(?=^(?!\\1\\s)\\s*\\w+\\s*:|^---)",
       "patterns": [
@@ -90,18 +90,27 @@
     "yaml-value": {
       // Order matters: expression before yaml-comment so strings containing # match before comment
       "patterns": [
+        { "include": "#yaml-block-scalar" },
         { "include": "#expression" },
         { "include": "#yaml-comment" },
         { "include": "#yaml-block-sequence" },
         { "include": "#yaml-block-mapping" }
       ]
     },
+    "yaml-block-scalar": {
+      "begin": "([|>])[-+]?\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block-scalar.tdr" }
+      },
+      "end": "(?=^\\w+\\s*:|^---)",
+      "contentName": "string.unquoted.block.tdr"
+    },
 
     /* markdown mode */
     "md-heading": {
       "match": "^(#{1,6})\\s+(.*)",
       "captures": {
-        "1": { "name": "punctuation.definition.heading.tdr" },
+        "1": { "name": "markup.heading.tdr" },
         "2": {
           "name": "markup.heading.tdr",
           "patterns": [{ "include": "#md-inline" }]
@@ -115,28 +124,28 @@
       "begin": "^(```+)(\\w+)?\\s*$",
       "end": "^(\\1)\\s*$",
       "beginCaptures": {
-        "1": { "name": "punctuation.definition.code.begin.tdr" },
+        "1": { "name": "keyword.control.code.begin.tdr" },
         "2": { "name": "entity.name.tag.tdr" }
       },
-      "endCaptures": { "1": { "name": "punctuation.definition.code.end.tdr" } },
+      "endCaptures": { "1": { "name": "keyword.control.code.end.tdr" } },
       "contentName": "markup.raw.block.tdr"
     },
     "md-math-block": {
       "begin": "^(\\$\\$+)\\s*$",
       "end": "^(\\1)\\s*$",
-      "beginCaptures": { "0": { "name": "punctuation.definition.math.begin.tdr" } },
-      "endCaptures": { "0": { "name": "punctuation.definition.math.end.tdr" } },
-      "contentName": "markup.math.block.tdr"
+      "beginCaptures": { "0": { "name": "keyword.control.math.begin.tdr" } },
+      "endCaptures": { "0": { "name": "keyword.control.math.end.tdr" } },
+      "contentName": "meta.embedded.math.tdr"
     },
     "md-callout": {
       "begin": "^(:::)\\s*(\\w+)?",
       "end": "^(:::)\\s*$",
       "beginCaptures": {
-        "1": { "name": "punctuation.definition.callout.begin.tdr" },
+        "1": { "name": "keyword.control.callout.begin.tdr" },
         "2": { "name": "entity.name.tag.tdr" }
       },
       "endCaptures": {
-        "1": { "name": "punctuation.definition.callout.end.tdr" }
+        "1": { "name": "keyword.control.callout.end.tdr" }
       },
       "patterns": [
         { "include": "#md-fenced-code" },
@@ -148,7 +157,7 @@
     "md-toggle-list": {
       "match": "^(>-)(\\s+)(.*)",
       "captures": {
-        "1": { "name": "punctuation.definition.toggle.tdr" },
+        "1": { "name": "keyword.control.toggle.tdr" },
         "3": {
           "name": "markup.list.tdr",
           "patterns": [{ "include": "#md-inline" }]
@@ -158,7 +167,7 @@
     "md-block-quote": {
       "match": "^(>)\\s?(.*)",
       "captures": {
-        "1": { "name": "punctuation.definition.quote.tdr" },
+        "1": { "name": "punctuation.definition.quote.begin.markdown" },
         "2": {
           "name": "markup.quote.tdr",
           "patterns": [{ "include": "#md-inline" }]
@@ -166,22 +175,51 @@
       }
     },
     "md-table": {
-      "match": "^(\\|)(.+)(\\|)\\s*$",
-      "captures": {
-        "1": { "name": "punctuation.definition.table.tdr" },
+      "comment": "Table: header row, then separator, then data rows",
+      "begin": "^(\\|)(.+)(\\|)\\s*$",
+      "beginCaptures": {
+        "0": { "name": "markup.bold.table.header.tdr" },
+        "1": { "name": "keyword.control.table.tdr" },
         "2": {
-          "patterns": [{
-            "match": "\\|",
-            "name": "punctuation.definition.table.tdr"
-          }]
+          "patterns": [
+            {
+              "match": "\\|",
+              "name": "keyword.control.table.tdr"
+            }
+          ]
         },
-        "3": { "name": "punctuation.definition.table.tdr" }
-      }
+        "3": { "name": "keyword.control.table.tdr" }
+      },
+      "end": "(?=^\\s*$|^[^|])",
+      "patterns": [
+        {
+          "comment": "Separator row: |---|---|",
+          "match": "^\\|[-:\\| ]+\\s*$",
+          "name": "comment.line.table.separator.tdr"
+        },
+        {
+          "comment": "Data row: | cell | cell |",
+          "match": "^(\\|)(.+)(\\|)\\s*$",
+          "captures": {
+            "1": { "name": "keyword.control.table.tdr" },
+            "2": {
+              "patterns": [
+                {
+                  "match": "\\|",
+                  "name": "keyword.control.table.tdr"
+                },
+                { "include": "#md-inline" }
+              ]
+            },
+            "3": { "name": "keyword.control.table.tdr" }
+          }
+        }
+      ]
     },
     "md-list": {
       "match": "^(\\s*)([-*]|\\d+\\.)(\\s+)(.*)",
       "captures": {
-        "2": { "name": "punctuation.definition.list.tdr" },
+        "2": { "name": "punctuation.definition.list.begin.markdown" },
         "4": {
           "patterns": [{ "include": "#md-inline" }]
         }
@@ -192,6 +230,7 @@
         { "include": "#md-code-span" },
         { "include": "#md-math-span" },
         { "include": "#md-strong" },
+        { "include": "#md-strikethrough" },
         { "include": "#md-emphasis" },
         { "include": "#md-image" },
         { "include": "#md-link" },
@@ -204,33 +243,41 @@
     "md-code-span": {
       "match": "(`+)(.+?)(\\1)",
       "captures": {
-        "1": { "name": "punctuation.definition.raw.begin.tdr" },
-        "2": { "name": "markup.raw.inline.tdr" },
-        "3": { "name": "punctuation.definition.raw.end.tdr" }
+        "1": { "name": "markup.inline.raw.tdr" },
+        "2": { "name": "markup.inline.raw.tdr" },
+        "3": { "name": "markup.inline.raw.tdr" }
       }
     },
     "md-math-span": {
-      "match": "(\\$+)(.+?)(\\1)",
+      "match": "(\\$)([^$]+)(\\$)",
       "captures": {
-        "1": { "name": "punctuation.definition.math.begin.tdr" },
-        "2": { "name": "markup.math.inline.tdr" },
-        "3": { "name": "punctuation.definition.math.end.tdr" }
+        "1": { "name": "keyword.control.math.begin.tdr" },
+        "2": { "name": "meta.embedded.math.tdr" },
+        "3": { "name": "keyword.control.math.end.tdr" }
       }
     },
     "md-strong": {
       "match": "(\\*\\*|__)(.+?)(\\1)",
       "captures": {
-        "1": { "name": "punctuation.definition.bold.begin.tdr" },
+        "1": { "name": "markup.bold.tdr" },
         "2": { "name": "markup.bold.tdr" },
-        "3": { "name": "punctuation.definition.bold.end.tdr" }
+        "3": { "name": "markup.bold.tdr" }
+      }
+    },
+    "md-strikethrough": {
+      "match": "(~~)(.+?)(~~)",
+      "captures": {
+        "1": { "name": "keyword.control.strikethrough.begin.tdr" },
+        "2": { "name": "markup.strikethrough.tdr" },
+        "3": { "name": "keyword.control.strikethrough.end.tdr" }
       }
     },
     "md-emphasis": {
       "match": "(\\*|_)(.+?)(\\1)",
       "captures": {
-        "1": { "name": "punctuation.definition.italic.begin.tdr" },
+        "1": { "name": "markup.italic.tdr" },
         "2": { "name": "markup.italic.tdr" },
-        "3": { "name": "punctuation.definition.italic.end.tdr" }
+        "3": { "name": "markup.italic.tdr" }
       }
     },
     "md-image": {
@@ -281,9 +328,21 @@
         { "include": "#number" },
         { "include": "#boolean" },
         { "include": "#type-tag" },
+        { "include": "#self-keyword" },
+        { "include": "#fref" },
+        { "include": "#function-call" },
         { "include": "#operator" },
+        { "include": "#comma" },
         { "include": "#identifier" }
       ]
+    },
+    "self-keyword": {
+      "match": "\\bself\\b",
+      "name": "variable.language.self.tdr"
+    },
+    "comma": {
+      "match": ",",
+      "name": "keyword.control.comma.tdr"
     },
 
     /* building blocks */
@@ -296,6 +355,7 @@
       "name": "meta.dict.tdr",
       "patterns": [
         { "include": "#dict-entry" },
+        { "include": "#comma" },
         { "include": "#yaml-comment" }
       ]
     },
@@ -304,7 +364,7 @@
       "begin": "(\\w+)\\s*(:)",
       "beginCaptures": {
         "1": { "name": "entity.name.tag.tdr" },
-        "2": { "name": "punctuation.separator.key-value.tdr" }
+        "2": { "name": "keyword.control.key-value.tdr" }
       },
       "end": "(?=,|\\})",
       "patterns": [
@@ -319,7 +379,8 @@
       "endCaptures": { "1": { "name": "punctuation.definition.list.end.tdr" } },
       "name": "meta.list.tdr",
       "patterns": [
-        { "include": "#expression" }
+        { "include": "#expression" },
+        { "include": "#comma" }
       ]
     },
     "string-double": {
@@ -346,8 +407,8 @@
     "interpolation": {
       "begin": "(\\$\\{)",
       "end": "(\\})",
-      "beginCaptures": { "1": { "name": "punctuation.section.interpolation.begin.tdr" } },
-      "endCaptures": { "1": { "name": "punctuation.section.interpolation.end.tdr" } },
+      "beginCaptures": { "1": { "name": "keyword.control.interpolation.begin.tdr" } },
+      "endCaptures": { "1": { "name": "keyword.control.interpolation.end.tdr" } },
       "name": "meta.interpolation.tdr",
       "patterns": [
         { "include": "#expression" }
@@ -364,6 +425,34 @@
     "type-tag": {
       "match": "(![a-zA-Z_]+)",
       "name": "storage.type.tag.tdr"
+    },
+    "fref": {
+      "begin": "(fref)(\\()",
+      "beginCaptures": {
+        "1": { "name": "support.function.builtin.tdr" },
+        "2": { "name": "keyword.control.paren.tdr" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "keyword.control.paren.tdr" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "function-call": {
+      "begin": "([a-zA-Z_]\\w*)(\\()",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.tdr" },
+        "2": { "name": "keyword.control.paren.tdr" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "keyword.control.paren.tdr" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
     },
     "operator": {
       "match": "(\\+|-|\\*\\*|\\*|/|%|==|!=|<=|>=|<|>|&&|\\|\\||~|\\.)",

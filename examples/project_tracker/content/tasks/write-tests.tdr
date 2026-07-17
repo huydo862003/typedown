@@ -5,11 +5,22 @@ status: "todo"
 priority: "medium"
 project: fref("content/projects/website-redesign.tdr")
 assignee: fref("content/people/alice.tdr")
+description: >
+  Integration tests for the authentication flow,
+  covering login, session management, and password
+  reset. Must pass before auth can be merged.
+notes: |
+  Run with:
+    cargo test --test auth_integration
+  Requires a running PostgreSQL instance.
 ---
 
 Depends on the auth implementation being merged first.
 Tests should cover login success, login failure, session expiry, and password reset flow.
 Use the existing test harness in `tests/integration/`.
+
+> **Note**: These tests require a running database.
+> See the setup instructions below.
 
 ## Test Cases
 
@@ -21,9 +32,52 @@ Use the existing test harness in `tests/integration/`.
 | Password reset request | 200, email sent |
 | Rate limit exceeded | 429 |
 
+## Setup
+
+```bash
+docker compose up -d postgres
+export DATABASE_URL="postgres://test:test@localhost:5432/auth_test"
+cargo test --test auth_integration
+```
+
+The test harness automatically runs migrations on startup:
+
+```rust
+#[tokio::test]
+async fn test_login_success() {
+    let app = TestApp::spawn().await;
+    let response = app.post_login("alice@example.com", "correct-password").await;
+    assert_eq!(response.status(), 200);
+    assert!(response.json::<LoginResponse>().access_token.len() > 0);
+}
+```
+
 ## Checklist
 
 - [ ] Set up test database fixtures
 - [ ] Write happy path tests
 - [ ] Write failure and edge case tests
 - [ ] Assert token expiry behavior
+- [x] Choose test framework
+
+## FAQ
+
+>- Why not use mocks?
+  We want to test the full stack including database queries.
+  Mocks would hide integration bugs.
+
+>- What about flaky tests?
+  Retry up to 3 times before marking as failed.
+  Track flake rate in CI dashboard.
+
+## Metrics
+
+Total test count: ${len(self.checklist)}
+
+::: warning
+Flaky tests must be fixed before merge. Do not use `#[ignore]` to skip them.
+:::
+
+## Math
+
+Expected coverage: $\frac{\text{covered lines}}{\text{total lines}} \geq 0.80$

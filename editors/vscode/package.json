@@ -46,7 +46,10 @@
       {
         "language": "tdr",
         "scopeName": "source.tdr",
-        "path": "./syntaxes/tdr.tmLanguage.json"
+        "path": "./syntaxes/tdr.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.math.tdr": "latex"
+        }
       },
       {
         "scopeName": "tdr.javascript.codeblock",
