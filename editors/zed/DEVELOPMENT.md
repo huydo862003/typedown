@@ -31,28 +31,15 @@ Install the extension locally in Zed via `zed: install dev extension`, pointing 
 
 ### NixOS
 
-Zed's `install dev extension` requires `rustup`, which is not available on NixOS ([zed-industries/zed#42353](https://github.com/zed-industries/zed/issues/42353)). Build and install manually instead:
+Zed's `install dev extension` requires `rustup`, which is not available on NixOS ([zed-industries/zed#42353](https://github.com/zed-industries/zed/issues/42353)). Use the install script instead:
 
-1. Build the extension WASM:
+```bash
+pnpm run build:zed
+```
 
-   ```bash
-   cd editors/zed
-   cargo build
-   ```
+This builds the extension WASM and grammar WASMs (using wasi-sdk clang, same pattern as [nix-zed-extensions](https://github.com/DuskSystems/nix-zed-extensions)) into `editors/zed/`. Then use `zed: install dev extension` pointing to `editors/zed/`.
 
-2. Copy files to Zed's extension directory:
-
-   ```
-   ~/.local/share/zed/extensions/installed/typedown/
-     extension.toml          <- editors/zed/extension.toml
-     extension.wasm          <- target/wasm32-wasip2/debug/typedown_zed.wasm
-     languages/              <- editors/zed/languages/
-     grammars/*.wasm         <- packages/tree-sitter/dist/tree-sitter-so/*.so (renamed to .wasm)
-   ```
-
-3. Restart Zed to pick up changes.
-
-See also [nix-zed-extensions](https://github.com/DuskSystems/nix-zed-extensions) for a Nix-native approach to building and installing Zed extensions.
+For a release build, pass `--release`.
 
 ## Release
 

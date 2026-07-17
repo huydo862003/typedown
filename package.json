@@ -7,7 +7,8 @@
   "packageManager": "pnpm@11.9.0",
   "license": "AGPL-3.0-only",
   "scripts": {
-    "build": "pnpm -r run build"
+    "build": "cargo build && pnpm -r run build",
+    "build:zed": "bash editors/zed/scripts/install-dev.sh"
   },
   "devDependencies": {
     "@hdnax/nuclint": "^0.17.4",

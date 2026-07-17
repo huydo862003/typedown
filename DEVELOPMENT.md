@@ -97,9 +97,10 @@ Install each dependency manually:
 
 ## Building
 
-```bash
-cargo build
-```
+`pnpm` is the task runner for the entire project. All build commands are defined in the root `package.json` and delegate to cargo, tree-sitter, and sub-package scripts as needed.
+
+- `pnpm run build`: Build everything (Rust crates + Node packages)
+- `pnpm run build:zed`: Build the Zed extension WASM and grammar WASMs (NixOS workaround)
 
 ## Per-package development
 
