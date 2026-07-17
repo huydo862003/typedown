@@ -1,5 +1,5 @@
 ((inline) @content
-  (#set! "language" "tdr_md_inline"))
+  (#set! "language" "tdr-markdown-inline"))
 
 (fenced_code_block
   (language) @language

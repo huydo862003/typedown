@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use tempfile::TempDir;
 use tdr_incremental::{CacheSession, SerializableQueryDatabase};
 use tdr_lang::db::{QueryStorage, TypedownDatabase};
+use tempfile::TempDir;
 
 /// Verify that the cache session creates files on disk and can be loaded back.
 #[test]

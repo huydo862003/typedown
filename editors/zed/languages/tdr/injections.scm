@@ -1,5 +1,5 @@
 ((frontmatter_content) @content
-  (#set! "language" "tdr_yaml"))
+  (#set! "language" "tdr-yaml"))
 
 ((body_content) @content
-  (#set! "language" "tdr_md"))
+  (#set! "language" "tdr-markdown"))

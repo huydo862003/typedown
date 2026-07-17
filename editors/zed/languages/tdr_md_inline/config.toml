@@ -1,4 +1,4 @@
-name = "TDR Markdown Inline"
+name = "tdr-markdown-inline"
 grammar = "tdr_md_inline"
 
 brackets = [

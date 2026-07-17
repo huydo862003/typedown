@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
-use tempfile::TempDir;
 use tdr_incremental::{CacheSession, InputId, SerializableQueryDatabase};
 use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::derived::evaluate::evaluate_resource::evaluate_resource;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::parse_file::parse_file;
 use tdr_lang::db::types::Project;
+use tempfile::TempDir;
 
 use super::utils::{
   copy_dir_recursive, example_vault, run_child_test, setup_db_cached, setup_db_fresh,

@@ -13,5 +13,3 @@
 (toggle_list_item) @function.around
 (callout_block) @function.around
 (pipe_table) @function.around
-
-(comment)+ @comment.around

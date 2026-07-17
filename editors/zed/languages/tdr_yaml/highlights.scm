@@ -48,8 +48,6 @@
 (unary_expression "~" @operator)
 
 ; Function calls
-
-; Function calls
 (call_expression (expression (identifier) @function))
 (call_expression (expression (access_expression (identifier) @function)))
 
@@ -72,4 +70,4 @@
 "(" @punctuation.bracket
 ")" @punctuation.bracket
 ; Block scalars
-(block_scalar_content) @string
+(block_scalar) @string

@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Error;
 use ropey::Rope;
-use threadpool::ThreadPool;
 use tdr_incremental::Cancelled;
+use threadpool::ThreadPool;
 
 use lsp_server::{Connection, Message, Notification, Request, RequestId, Response};
 use lsp_types::notification::{

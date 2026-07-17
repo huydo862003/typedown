@@ -19,21 +19,19 @@
   (#set! "priority" 110)) @title
 
 ; Code blocks
-(fenced_code_block) @text.literal
-(fenced_code_block_delimiter) @punctuation.embedded.markup
+(fenced_code_block_delimiter) @punctuation.special
 (language) @label
 (code_fence_content) @text.literal
 
 ; Math blocks
-(math_block) @text.literal
-(math_block_delimiter) @punctuation.delimiter
+(math_block_delimiter) @punctuation.special
 (math_block_content) @text.literal
 
 ; Block quotes
-(block_quote_marker) @punctuation.markup
+(block_quote_marker) @punctuation.special
 
 ; Toggle lists
-(toggle_list_marker) @punctuation.markup
+(toggle_list_marker) @punctuation.special
 
 ; Lists
 (list_marker_minus) @punctuation.list_marker
@@ -47,6 +45,4 @@
 ; Tables
 (pipe_table_header) @title
 (pipe_table_delimiter_row) @punctuation.delimiter
-(pipe_table_row) @text.literal
-(pipe_table_cell) @text.literal
-(pipe_table "|" @punctuation.markup)
+(pipe_table_cell) @text

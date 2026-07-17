@@ -1,12 +1,10 @@
 ; Emphasis
-(emphasis) @emphasis.markup
-(strong_emphasis) @emphasis.strong.markup
+(emphasis) @emphasis
+(strong_emphasis) @emphasis.strong
 
 ; Code and math spans
-(code_span) @text.literal.markup
 (code_span_delimiter) @punctuation.delimiter
-(code_span_content) @text.literal.markup
-(math_span) @text.literal
+(code_span_content) @text.literal
 (math_span_delimiter) @punctuation.delimiter
 (math_span_content) @text.literal
 
@@ -15,8 +13,8 @@
 (inline_link "]" @punctuation.delimiter)
 (inline_link "(" @punctuation.delimiter)
 (inline_link ")" @punctuation.delimiter)
-(link_text) @link_text.markup
-(link_destination) @link_uri.markup
+(link_text) @link_text
+(link_destination) @link_uri
 
 ; Images
 (image "!" @punctuation.special)
@@ -24,19 +22,19 @@
 (image "]" @punctuation.delimiter)
 (image "(" @punctuation.delimiter)
 (image ")" @punctuation.delimiter)
-(image_alt) @link_text.markup
+(image_alt) @link_text
 
 ; Footnotes
 (footnote_reference "[" @punctuation.delimiter)
 (footnote_reference "^" @punctuation.special)
 (footnote_reference "]" @punctuation.delimiter)
-(footnote_label) @link_text.markup
+(footnote_label) @link_text
 
 ; Citations
 (citation "[" @punctuation.delimiter)
 (citation "@" @punctuation.special)
 (citation "]" @punctuation.delimiter)
-(citation_key) @link_text.markup
+(citation_key) @link_text
 
 ; Expressions
 (identifier) @variable

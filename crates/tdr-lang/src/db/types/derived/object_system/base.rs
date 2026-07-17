@@ -18,11 +18,7 @@ use tdr_macros::query_derived;
 pub trait TdrObjectLike: Id {
   fn get_type(&self, db: &::tdr_lang::db::TypedownDatabase) -> TdrTypeEnum;
 
-  fn lookup_method(
-    &self,
-    db: &::tdr_lang::db::TypedownDatabase,
-    key: &str,
-  ) -> Option<TdrFuncObj> {
+  fn lookup_method(&self, db: &::tdr_lang::db::TypedownDatabase, key: &str) -> Option<TdrFuncObj> {
     let mut current = self.get_type(db);
     loop {
       if let Some(func_obj) = current.get_vtable(db).remove(key) {
@@ -119,11 +115,8 @@ pub trait TdrTypeLike: TdrObjectLike {
     args: Vec<TdrTypeEnum>,
   ) -> ::tdr_lang::db::types::InstResult;
 
-  fn is_compatible_with(
-    &self,
-    db: &::tdr_lang::db::TypedownDatabase,
-    actual: &TdrTypeEnum,
-  ) -> bool;
+  fn is_compatible_with(&self, db: &::tdr_lang::db::TypedownDatabase, actual: &TdrTypeEnum)
+  -> bool;
 
   fn get_type_args(&self, db: &::tdr_lang::db::TypedownDatabase) -> Vec<TdrTypeEnum>;
 

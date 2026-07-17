@@ -21,13 +21,13 @@ use lsp_types::{
 };
 use serde::Serialize;
 use serde_json::Value;
-use tempfile::TempDir;
 use tdr_lang::db::{QueryStorage, TypedownDatabase};
 use tdr_lsp::server::Server as LspServer;
 use tdr_lsp::{
   analysis_host::AnalysisHost,
   multiproject::{self, Multiproject},
 };
+use tempfile::TempDir;
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 

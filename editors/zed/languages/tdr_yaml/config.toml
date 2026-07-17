@@ -1,4 +1,4 @@
-name = "TDR YAML"
+name = "tdr-yaml"
 grammar = "tdr_yaml"
 tab_size = 2
 line_comments = ["# "]

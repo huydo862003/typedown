@@ -1,5 +1,5 @@
-use tempfile::TempDir;
 use tdr_lsp::multiproject::Multiproject;
+use tempfile::TempDir;
 
 use super::utils::{copy_dir_recursive, example_vault};
 

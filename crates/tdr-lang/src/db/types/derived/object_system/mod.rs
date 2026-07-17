@@ -296,9 +296,7 @@ impl tdr_incremental::StableHash for TdrObjectEnum {
 
 use strum::FromRepr;
 
-use tdr_incremental::{
-  Decodable, Decoder, Encodable, Encoder, FieldDecodable, FieldEncodable,
-};
+use tdr_incremental::{Decodable, Decoder, Encodable, Encoder, FieldDecodable, FieldEncodable};
 
 #[derive(FromRepr)]
 #[repr(u8)]
