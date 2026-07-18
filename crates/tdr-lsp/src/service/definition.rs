@@ -123,6 +123,7 @@ mod tests {
   use tdr_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::analysis::Analysis;
+  use crate::utils::uri::path_to_uri;
 
   use super::definition;
 
@@ -177,9 +178,9 @@ age: 30
   // Project to test against
   // Accept a `content` as the current editing content
   fn setup(content: &str) -> (Analysis, Uri) {
-    let root = PathBuf::from("/vault");
+    let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
     let content_path = root.join("content/file.tdr");
-    let uri: Uri = "file:///vault/content/file.tdr".parse().unwrap();
+    let uri = path_to_uri(&content_path, "file");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),

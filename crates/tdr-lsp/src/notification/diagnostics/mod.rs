@@ -12,7 +12,7 @@ use crate::analysis::Analysis;
 use crate::utils::position::text_offset_to_lsp_position;
 
 pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
-  let mut notifications = tdr::publish_diagnostics(analysis);
+  let mut notifications = tdr::publish_diagnostics_for_project(analysis);
   notifications.extend(config::publish_diagnostics(analysis));
   notifications
 }

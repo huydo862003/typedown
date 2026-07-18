@@ -80,11 +80,14 @@ impl CacheSession {
   }
 
   /// Write the serialized data and rename the working directory to finalized.
-  pub fn finalize(self, data: &SerializedQueryStorage, revision: u64) -> io::Result<()> {
+  pub fn finalize(mut self, data: &SerializedQueryStorage, revision: u64) -> io::Result<()> {
     if self.lock_file.is_none() {
       return Ok(());
     }
     save_to_dir(&self.working_dir, data)?;
+
+    // Windows requires all handles closed before renaming a directory
+    drop(self.lock_file.take());
 
     // Rename working -> finalized
     let parent = self

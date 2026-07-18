@@ -232,7 +232,7 @@ fn parse_all_project_tracker_files() {
   let project = Project::new(&db, project_dir, file_map.clone());
 
   let mut sorted_files: Vec<_> = file_map.iter().collect();
-  sorted_files.sort_by_key(|(p, _)| p.clone());
+  sorted_files.sort_by_key(|(p, _)| *p);
   for (path, file) in sorted_files {
     if path.extension().and_then(|e| e.to_str()) != Some("tdr") {
       continue;
