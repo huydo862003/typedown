@@ -7,7 +7,7 @@ use super::func::TdrFuncObj;
 use super::{TdrObjectEnum, TdrTypeEnum};
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::{
-  get_bool_type, get_schema_property_type, get_type_type,
+  get_bool_type, get_num_type, get_schema_property_type, get_str_type, get_type_type,
 };
 use crate::db::types::{InstResult, MemberType, TypeMember, TypeMemberDescriptors};
 
@@ -41,10 +41,75 @@ impl TdrTypeLike for TdrSchemaPropertyType {
     HashMap::new()
   }
   fn get_owned_field_type_member(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+    let base_type_members = vec![
+      // type: string
+      TypeMember::new(
+        db,
+        MemberType::Simple(get_type_type(db).into()),
+        TypeMemberDescriptors::empty(),
+      ),
+      // type: 'literal'
+      TypeMember::new(
+        db,
+        MemberType::Simple(get_str_type(db).into()),
+        TypeMemberDescriptors::empty(),
+      ),
+      // type: false
+      TypeMember::new(
+        db,
+        MemberType::Simple(get_bool_type(db).into()),
+        TypeMemberDescriptors::empty(),
+      ),
+      // type: 0
+      TypeMember::new(
+        db,
+        MemberType::Simple(get_num_type(db).into()),
+        TypeMemberDescriptors::empty(),
+      ),
+    ];
     match name {
       "type" => Some(TypeMember::new(
         db,
-        MemberType::Simple(get_type_type(db).into()),
+        MemberType::Sum(
+          vec![
+            base_type_members.clone(),
+            vec![
+              // type: [string, 0, 'literal']
+              TypeMember::new(
+                db,
+                MemberType::ListOfSum(
+                  vec![
+                    base_type_members.clone(),
+                    vec![TypeMember::new(
+                      db,
+                      MemberType::Simple((*self).into()),
+                      TypeMemberDescriptors::empty(),
+                    )],
+                  ]
+                  .concat(),
+                ),
+                TypeMemberDescriptors::empty(),
+              ),
+              // type: {}
+              TypeMember::new(
+                db,
+                MemberType::DictOfSum(
+                  vec![
+                    base_type_members.clone(),
+                    vec![TypeMember::new(
+                      db,
+                      MemberType::Simple((*self).into()),
+                      TypeMemberDescriptors::empty(),
+                    )],
+                  ]
+                  .concat(),
+                ),
+                TypeMemberDescriptors::empty(),
+              ),
+            ],
+          ]
+          .concat(),
+        ),
         TypeMemberDescriptors::empty(),
       )),
       "optional" => Some(TypeMember::new(
