@@ -16,8 +16,8 @@ use crate::db::types::derived::object_system::{
   is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
 };
 use crate::db::types::{
-  BuiltinMacroKind, HirValue, HirValueKind, MemberType, SymbolKind, TdrProductType, TdrStrType,
-  TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
+  BuiltinMacroKind, HirValue, HirValueKind, LiteralValue, MemberType, SymbolKind, TdrProductType,
+  TdrStrType, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors, TypeResult,
 };
 use crate::db::utils::lower_file;
 use crate::syntax::diagnostic::Diagnostic;
@@ -64,6 +64,50 @@ pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   }
 }
 
+/// Collect narrowed member types from a list of HIR values into TypeMember arms
+fn collect_narrowed_arms(
+  db: &TypedownDatabase,
+  values: impl Iterator<Item = HirValue>,
+) -> Vec<TypeMember> {
+  values
+    .filter_map(|val| {
+      let typ = infer_node_type(db, val).typ(db)?;
+      let member = narrow_field_member_type(db, &val, typ);
+      Some(TypeMember::new(db, member, TypeMemberDescriptors::empty()))
+    })
+    .collect()
+}
+
+/// Narrow a TdrTypeEnum to the most specific MemberType based on the value's HIR kind
+fn narrow_field_member_type(db: &TypedownDatabase, hir: &HirValue, typ: TdrTypeEnum) -> MemberType {
+  match hir.kind(db) {
+    HirValueKind::Str(val) => MemberType::Literal(LiteralValue::Str(val)),
+    HirValueKind::Num(val) => MemberType::Literal(LiteralValue::Num(val)),
+    HirValueKind::Bool(val) => MemberType::Literal(LiteralValue::Bool(val)),
+    HirValueKind::Sequence(items) => {
+      let arms = collect_narrowed_arms(db, items.into_iter());
+      if arms.is_empty() {
+        MemberType::Simple(typ)
+      } else {
+        MemberType::ListOfSum(arms)
+      }
+    }
+    HirValueKind::Mapping(inner_entries) => {
+      if typ.as_tdr_product_type().is_some() {
+        MemberType::Simple(typ)
+      } else {
+        let arms = collect_narrowed_arms(db, inner_entries.into_iter().map(|(_, val)| val));
+        if arms.is_empty() {
+          MemberType::Simple(typ)
+        } else {
+          MemberType::DictOfSum(arms)
+        }
+      }
+    }
+    _ => MemberType::Simple(typ),
+  }
+}
+
 /// Helper to get the type of a mapping
 /// NOTE: Always return a product type, if _type is not given
 /// Can be generalized to a dict type
@@ -99,9 +143,10 @@ fn get_mapping_type(
     let field_result = infer_node_type(db, value_hir);
     diagnostics.extend(field_result.diagnostics(db).iter().cloned());
     if let Some(typ) = field_result.typ(db) {
+      let member_type = narrow_field_member_type(db, &value_hir, typ);
       fields.insert(
         key,
-        TypeMember::new(db, MemberType::Simple(typ), TypeMemberDescriptors::empty()),
+        TypeMember::new(db, member_type, TypeMemberDescriptors::empty()),
       );
     }
   }
@@ -459,6 +504,69 @@ mod tests {
 
   fn vault_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/evaluate_schema/my_vault")
+  }
+
+  use crate::db::{
+    fixtures::load_vault_fixture,
+    types::{LiteralValue, MemberType},
+  };
+
+  #[test]
+  fn infer_anonymous_mapping_narrows_literal_fields() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/anonymous_mapping.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should parse");
+    let type_result = infer_node_type(&db, hir);
+    let typ = type_result.typ(&db).expect("should infer a type");
+    let product = typ.as_tdr_product_type().expect("should be a product type");
+    let fields = product.fields(&db);
+
+    // String literal narrows to Literal(Str)
+    let name_member = fields.get("name").expect("should have name field");
+    assert!(
+      matches!(name_member.typ(&db), MemberType::Literal(LiteralValue::Str(s)) if s == "Alice"),
+      "name should be Literal(Str(\"Alice\")), got: {:?}",
+      name_member.typ(&db)
+    );
+
+    // Num literal narrows to Literal(Num)
+    let age_member = fields.get("age").expect("should have age field");
+    assert!(
+      matches!(age_member.typ(&db), MemberType::Literal(LiteralValue::Num(n)) if n == "30"),
+      "age should be Literal(Num(\"30\")), got: {:?}",
+      age_member.typ(&db)
+    );
+
+    // Bool literal narrows to Literal(Bool)
+    let active_member = fields.get("active").expect("should have active field");
+    assert!(
+      matches!(
+        active_member.typ(&db),
+        MemberType::Literal(LiteralValue::Bool(true))
+      ),
+      "active should be Literal(Bool(true)), got: {:?}",
+      active_member.typ(&db)
+    );
+
+    // Sequence ["a", 3] narrows to ListOfSum with 2 arms
+    let tags_member = fields.get("tags").expect("should have tags field");
+    match tags_member.typ(&db) {
+      MemberType::ListOfSum(arms) => {
+        assert_eq!(arms.len(), 2, "tags should have 2 arms, got {}", arms.len());
+        assert!(
+          matches!(arms[0].typ(&db), MemberType::Literal(LiteralValue::Str(s)) if s == "a"),
+          "first arm should be Literal(Str(\"a\")), got: {:?}",
+          arms[0].typ(&db)
+        );
+        assert!(
+          matches!(arms[1].typ(&db), MemberType::Literal(LiteralValue::Num(n)) if n == "3"),
+          "second arm should be Literal(Num(\"3\")), got: {:?}",
+          arms[1].typ(&db)
+        );
+      }
+      other => panic!("tags should be ListOfSum, got: {:?}", other),
+    }
   }
 
   #[test]

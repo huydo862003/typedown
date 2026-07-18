@@ -8,6 +8,7 @@ use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
 use tdr_incremental::QueryDatabase;
 use tdr_macros::query_derived;
+
 #[query_derived]
 pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
   let project = hir.project(db);

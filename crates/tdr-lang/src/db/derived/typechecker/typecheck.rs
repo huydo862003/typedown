@@ -518,14 +518,15 @@ fn value_matches_member_type(
         };
       }
       if let Some(product) = actual.as_tdr_product_type() {
-        return product.fields(db).values().all(|field_member| {
-          match field_member.typ(db) {
+        return product
+          .fields(db)
+          .values()
+          .all(|field_member| match field_member.typ(db) {
             MemberType::Simple(field_type) => members
               .iter()
               .any(|member| value_matches_member_type(db, &member.typ(db), &field_type, value_hir)),
             _ => false,
-          }
-        });
+          });
       }
       false
     }
@@ -932,6 +933,56 @@ mod tests {
       result.diagnostics(&db).is_empty(),
       "missing type in property descriptor is caught by evaluate_type, not typechecker: {:?}",
       result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_valid_list_sum_no_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/valid_list_sum.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "list[string | number] should accept [\"hello\", 42]: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_invalid_list_sum_has_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/invalid_list_sum.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "list[string | number] should reject [true, false]"
+    );
+  }
+
+  #[test]
+  fn typecheck_valid_dict_sum_no_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/valid_dict_sum.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "dict with string and number values should match product {{ author: string, version: number }}: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_invalid_dict_sum_has_errors() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/invalid_dict_sum.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "product {{ author: string, version: number }} should reject boolean value"
     );
   }
 }

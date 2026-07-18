@@ -83,7 +83,9 @@ mod tests {
     };
 
     let resolved = referee(&db, friend_hir);
-    let symbol = resolved.value(&db).expect("fref should resolve to a symbol");
+    let symbol = resolved
+      .value(&db)
+      .expect("fref should resolve to a symbol");
     assert!(
       matches!(symbol.kind(&db), SymbolKind::UserDefinedResource(..)),
       "fref target should be a resource"
@@ -127,7 +129,10 @@ mod tests {
     );
 
     let resolved = referee(&db, call_hir);
-    assert!(resolved.value(&db).is_none(), "nonexistent path should not resolve");
+    assert!(
+      resolved.value(&db).is_none(),
+      "nonexistent path should not resolve"
+    );
   }
 }
 
