@@ -1,6 +1,7 @@
 pub mod completion;
 pub mod definition;
 pub mod hover;
+pub mod rename;
 pub mod semantic_tokens;
 
 use lsp_server::{ErrorCode, Request, Response};
