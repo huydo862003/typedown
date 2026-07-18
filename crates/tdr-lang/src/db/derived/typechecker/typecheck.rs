@@ -495,6 +495,40 @@ fn value_matches_member_type(
     MemberType::Sum(members) => members
       .iter()
       .any(|member| value_matches_member_type(db, &member.typ(db), actual, value_hir)),
+    MemberType::ListOfSum(members) => {
+      // Actual must be a list type, and its elem must match some arm
+      match actual.as_tdr_list_type() {
+        Some(list) => match list.elem(db) {
+          Some(elem) => members
+            .iter()
+            .any(|member| value_matches_member_type(db, &member.typ(db), &elem, value_hir)),
+          None => true,
+        },
+        None => false,
+      }
+    }
+    MemberType::DictOfSum(members) => {
+      // Actual must be a dict or product type, and its values must match some arm
+      if let Some(dict) = actual.as_tdr_dict_type() {
+        return match dict.value(db) {
+          Some(value) => members
+            .iter()
+            .any(|member| value_matches_member_type(db, &member.typ(db), &value, value_hir)),
+          None => true,
+        };
+      }
+      if let Some(product) = actual.as_tdr_product_type() {
+        return product.fields(db).values().all(|field_member| {
+          match field_member.typ(db) {
+            MemberType::Simple(field_type) => members
+              .iter()
+              .any(|member| value_matches_member_type(db, &member.typ(db), &field_type, value_hir)),
+            _ => false,
+          }
+        });
+      }
+      false
+    }
     MemberType::Literal(literal) => match (literal, value_hir.kind(db)) {
       (LiteralValue::Str(expected_val), HirValueKind::Str(actual_val)) => {
         *expected_val == actual_val
