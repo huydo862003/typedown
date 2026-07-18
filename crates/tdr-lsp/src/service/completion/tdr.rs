@@ -359,9 +359,19 @@ properties:
 
   /// Build an in-memory vault with Person and Event schemas, plus the given content file.
   fn setup(content: &str) -> (Analysis, Uri) {
-    let root = PathBuf::from("/vault");
+    #[cfg(not(windows))]
+    let (root, uri) = {
+      let root = PathBuf::from("/vault");
+      let uri: Uri = "file:///vault/content/file.tdr".parse().unwrap();
+      (root, uri)
+    };
+    #[cfg(windows)]
+    let (root, uri) = {
+      let root = PathBuf::from("C:\\vault");
+      let uri: Uri = "file:///C:/vault/content/file.tdr".parse().unwrap();
+      (root, uri)
+    };
     let content_path = root.join("content/file.tdr");
-    let uri: Uri = "file:///vault/content/file.tdr".parse().unwrap();
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
@@ -604,9 +614,19 @@ date: 2024-01-01
 
   /// Build a vault with Person, Event, Directory schemas plus two content files.
   fn setup_with_content(content: &str) -> (Analysis, Uri) {
-    let root = PathBuf::from("/vault");
+    #[cfg(not(windows))]
+    let (root, uri) = {
+      let root = PathBuf::from("/vault");
+      let uri: Uri = "file:///vault/content/file.tdr".parse().unwrap();
+      (root, uri)
+    };
+    #[cfg(windows)]
+    let (root, uri) = {
+      let root = PathBuf::from("C:\\vault");
+      let uri: Uri = "file:///C:/vault/content/file.tdr".parse().unwrap();
+      (root, uri)
+    };
     let content_path = root.join("content/file.tdr");
-    let uri: Uri = "file:///vault/content/file.tdr".parse().unwrap();
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),

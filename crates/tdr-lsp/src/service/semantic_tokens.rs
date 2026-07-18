@@ -142,11 +142,14 @@ mod tests {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
-    let path = PathBuf::from("/test.tdr");
+    #[cfg(not(windows))]
+    let (path, root) = (PathBuf::from("/test.tdr"), PathBuf::from("/"));
+    #[cfg(windows)]
+    let (path, root) = (PathBuf::from("C:\\test.tdr"), PathBuf::from("C:\\"));
     let file = File::new(&db, FileHandle::Content(content.to_string()));
     let project = Project::new(
       &db,
-      PathBuf::from("/"),
+      root,
       HashMap::from([(path.clone(), file)]),
     );
     let ast = parse_file(&db, project, file).ast(&db);
