@@ -103,7 +103,7 @@ pub trait TdrTypeLike: TdrObjectLike {
     &self,
     db: &::tdr_lang::db::TypedownDatabase,
   ) -> std::collections::HashMap<String, TdrFuncObj>;
-  fn get_owned_field_type(
+  fn get_owned_field_type_member(
     &self,
     db: &::tdr_lang::db::TypedownDatabase,
     name: &str,
@@ -128,7 +128,7 @@ pub trait TdrTypeLike: TdrObjectLike {
     args: Vec<TdrObjectEnum>,
   ) -> Option<TdrObjectEnum>;
 
-  fn get_field_type(
+  fn get_field_type_member(
     &self,
     db: &::tdr_lang::db::TypedownDatabase,
     name: &str,
@@ -136,14 +136,14 @@ pub trait TdrTypeLike: TdrObjectLike {
     if let Some(field) = get_builtin_field(db, name) {
       return Some(field);
     }
-    if let Some(field) = self.get_owned_field_type(db, name) {
+    if let Some(field) = self.get_owned_field_type_member(db, name) {
       return Some(field);
     }
     let supertype = self.get_supertype(db);
     if supertype.as_id() == self.as_id() {
       return None;
     }
-    supertype.get_field_type(db, name)
+    supertype.get_field_type_member(db, name)
   }
 
   fn lookup_instance_method(
@@ -159,21 +159,6 @@ pub trait TdrTypeLike: TdrObjectLike {
       return None;
     }
     supertype.lookup_instance_method(db, key)
-  }
-
-  fn lookup_field_type(
-    &self,
-    db: &::tdr_lang::db::TypedownDatabase,
-    name: &str,
-  ) -> Option<TdrTypeEnum> {
-    if let Some(member) = self.get_field_type(db, name)
-      && let MemberType::Simple(typ) = member.typ(db)
-    {
-      return Some(typ);
-    }
-    self
-      .lookup_instance_method(db, name)
-      .map(|func_obj| func_obj.get_type(db))
   }
 }
 
@@ -211,7 +196,7 @@ impl TdrTypeLike for TdrTypeType {
   ) -> std::collections::HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(
+  fn get_owned_field_type_member(
     &self,
     _db: &::tdr_lang::db::TypedownDatabase,
     _name: &str,
@@ -240,7 +225,6 @@ impl TdrTypeLike for TdrTypeType {
     _db: &::tdr_lang::db::TypedownDatabase,
     _args: Vec<TdrObjectEnum>,
   ) -> Option<TdrObjectEnum> {
-    // HIR-level construction (ident/mapping paths) lives in utils.rs
     None
   }
   fn display_name(&self, _db: &::tdr_lang::db::TypedownDatabase) -> String {
@@ -295,7 +279,7 @@ impl TdrTypeLike for TdrObjectType {
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
-  fn get_owned_field_type(
+  fn get_owned_field_type_member(
     &self,
     _db: &::tdr_lang::db::TypedownDatabase,
     _name: &str,

@@ -66,7 +66,7 @@ impl TdrTypeLike for TdrProductType {
   fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type_member(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     self.fields(db).get(name).cloned()
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
@@ -88,7 +88,7 @@ impl TdrTypeLike for TdrProductType {
       if !is_required {
         continue;
       }
-      let actual_member = match actual.get_owned_field_type(db, field_name) {
+      let actual_member = match actual.get_owned_field_type_member(db, field_name) {
         Some(member) => member,
         None => return false,
       };

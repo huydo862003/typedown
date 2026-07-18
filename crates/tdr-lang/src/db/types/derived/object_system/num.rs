@@ -44,7 +44,7 @@ impl TdrTypeLike for TdrNumType {
     );
     HashMap::from([("to_string".to_string(), func_obj)])
   }
-  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type_member(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {

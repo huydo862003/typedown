@@ -40,7 +40,7 @@ impl TdrTypeLike for TdrSchemaPropertyType {
   fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type_member(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     match name {
       "type" => Some(TypeMember::new(
         db,

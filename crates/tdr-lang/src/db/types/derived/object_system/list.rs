@@ -41,7 +41,7 @@ impl TdrTypeLike for TdrListType {
   fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type_member(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
