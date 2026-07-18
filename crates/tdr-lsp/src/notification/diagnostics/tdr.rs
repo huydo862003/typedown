@@ -19,7 +19,7 @@ use crate::utils::uri::path_to_uri;
 
 use super::to_lsp_diagnostic;
 
-pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
+pub fn publish_diagnostics_for_project(analysis: &Analysis) -> Vec<Notification> {
   let db = &analysis.db;
   let project = analysis.project;
   let files = project.files(db);
@@ -33,7 +33,7 @@ pub fn publish_diagnostics(analysis: &Analysis) -> Vec<Notification> {
       Some(rope) => rope,
       None => continue,
     };
-    notifications.push(diagnostics_for_one(
+    notifications.push(get_diagnostics_for_file(
       analysis, db, project, path, *file, &rope,
     ));
   }
@@ -51,12 +51,12 @@ pub fn publish_diagnostics_for_file(analysis: &Analysis, target: &Path) -> Vec<N
   let Some(rope) = analysis.file_rope(target) else {
     return vec![];
   };
-  vec![diagnostics_for_one(
+  vec![get_diagnostics_for_file(
     analysis, db, project, target, *file, &rope,
   )]
 }
 
-fn diagnostics_for_one(
+fn get_diagnostics_for_file(
   analysis: &Analysis,
   db: &TypedownDatabase,
   project: Project,
@@ -116,7 +116,7 @@ mod tests {
 
   use crate::analysis::Analysis;
 
-  use super::publish_diagnostics;
+  use super::publish_diagnostics_for_project;
 
   const VAULT_CONFIG: &str = r#"version: "1"
 vault:
@@ -171,7 +171,7 @@ age: 30
 ---
 "#,
     );
-    let notifications = publish_diagnostics(&analysis);
+    let notifications = publish_diagnostics_for_project(&analysis);
     // Only the content file should have a notification; it must be empty.
     let content_notif = notifications
       .iter()
@@ -196,7 +196,7 @@ name: "Alice"
 ---
 "#,
     );
-    let notifications = publish_diagnostics(&analysis);
+    let notifications = publish_diagnostics_for_project(&analysis);
     let content_notif = notifications
       .iter()
       .find(|notif| notif.params.to_string().contains("content/file.tdr"));
@@ -227,7 +227,7 @@ name: "Alice"
 ---
 "#,
     );
-    let notifications = publish_diagnostics(&analysis);
+    let notifications = publish_diagnostics_for_project(&analysis);
     let content_notif = notifications
       .iter()
       .find(|notif| notif.params.to_string().contains("content/file.tdr"));
