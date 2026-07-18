@@ -6,7 +6,8 @@ pub mod semantic_tokens;
 
 use lsp_server::{ErrorCode, Request, Response};
 use lsp_types::request::{
-  Completion, GotoDefinition, HoverRequest, Request as _, SemanticTokensFullRequest,
+  Completion, GotoDefinition, HoverRequest, PrepareRenameRequest, Rename, Request as _,
+  SemanticTokensFullRequest,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -23,6 +24,8 @@ pub fn dispatch(analysis: &Analysis, req: Request) -> Response {
     SemanticTokensFullRequest::METHOD => {
       try_handle(&req, |p| semantic_tokens::semantic_tokens_full(analysis, p))
     }
+    PrepareRenameRequest::METHOD => try_handle(&req, |p| rename::prepare_rename(analysis, p)),
+    Rename::METHOD => try_handle(&req, |p| rename::rename(analysis, p)),
     _ => Response::new_err(
       req.id,
       ErrorCode::MethodNotFound as i32,
