@@ -134,10 +134,7 @@ properties:
 "#;
 
   fn setup(content: &str) -> Analysis {
-    #[cfg(not(windows))]
-    let root = PathBuf::from("/vault");
-    #[cfg(windows)]
-    let root = PathBuf::from("C:\\vault");
+    let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
     let content_path = root.join("content/file.tdr");
 
     let db = TypedownDatabase {
