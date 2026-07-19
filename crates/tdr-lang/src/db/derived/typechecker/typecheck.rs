@@ -10,9 +10,10 @@ use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type};
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::actual_node_type::actual_node_type;
 use crate::db::types::{
-  HirValue, HirValueKind, InterpolatedPart, LiteralValue, MemberType, TdrTypeEnum, TdrTypeLike,
-  TypeMember, TypeMemberDescriptors, TypecheckResult, member_type_display_name,
+  HirValue, HirValueKind, InterpolatedPart, TdrTypeEnum, TdrTypeLike, TypeMember,
+  TypeMemberDescriptors, TypecheckResult, member_type_display_name,
 };
+use crate::db::utils::typecheck::value_matches_member_type;
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
@@ -482,68 +483,6 @@ fn check_sequence(
   }
 
   diagnostics
-}
-
-fn value_matches_member_type(
-  db: &TypedownDatabase,
-  expected: &MemberType,
-  actual: &TdrTypeEnum,
-  value_hir: HirValue,
-) -> bool {
-  match expected {
-    MemberType::Simple(exp_type) => exp_type.is_compatible_with(db, actual),
-    MemberType::Sum(members) => members
-      .iter()
-      .any(|member| value_matches_member_type(db, &member.typ(db), actual, value_hir)),
-    MemberType::ListOfSum(members) => {
-      // Actual must be a list type, and its elem must match some arm
-      match actual.as_tdr_list_type() {
-        Some(list) => match list.elem(db) {
-          Some(elem) => members
-            .iter()
-            .any(|member| value_matches_member_type(db, &member.typ(db), &elem, value_hir)),
-          None => true,
-        },
-        None => false,
-      }
-    }
-    MemberType::DictOfSum(members) => {
-      // Actual must be a dict or product type, and its values must match some arm
-      if let Some(dict) = actual.as_tdr_dict_type() {
-        return match dict.value(db) {
-          Some(value) => members
-            .iter()
-            .any(|member| value_matches_member_type(db, &member.typ(db), &value, value_hir)),
-          None => true,
-        };
-      }
-      if let Some(product) = actual.as_tdr_product_type() {
-        return product
-          .fields(db)
-          .values()
-          .all(|field_member| match field_member.typ(db) {
-            MemberType::Simple(field_type) => members
-              .iter()
-              .any(|member| value_matches_member_type(db, &member.typ(db), &field_type, value_hir)),
-            _ => false,
-          });
-      }
-      false
-    }
-    MemberType::Literal(literal) => match (literal, value_hir.kind(db)) {
-      (LiteralValue::Str(expected_val), HirValueKind::Str(actual_val)) => {
-        *expected_val == actual_val
-      }
-      (LiteralValue::Num(expected_val), HirValueKind::Num(actual_val)) => {
-        *expected_val == actual_val
-      }
-      (LiteralValue::Bool(expected_val), HirValueKind::Bool(actual_val)) => {
-        *expected_val == actual_val
-      }
-      _ => false,
-    },
-    MemberType::Never => false,
-  }
 }
 
 #[cfg(test)]

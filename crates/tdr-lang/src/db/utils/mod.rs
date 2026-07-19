@@ -1,5 +1,7 @@
 //! Shared utilities for derived queries
 
+pub mod typecheck;
+
 use crate::syntax::ast::{AstNode, SourceFile};
 use crate::syntax::diagnostic::Diagnostic;
 
