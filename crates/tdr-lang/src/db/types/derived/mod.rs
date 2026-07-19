@@ -2,9 +2,11 @@
 
 pub mod hir;
 pub mod object_system;
+pub mod symbol;
 
 pub use hir::*;
 pub use object_system::*;
+pub use symbol::*;
 
 use std::collections::HashMap;
 use std::path::PathBuf;

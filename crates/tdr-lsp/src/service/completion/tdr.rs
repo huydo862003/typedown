@@ -8,7 +8,7 @@ use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::name_resolver::members::members;
 use tdr_lang::db::derived::parse_file::parse_file;
 use tdr_lang::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
-use tdr_lang::db::derived::typechecker::get_symbol_type::get_symbol_type_member;
+use tdr_lang::db::derived::typechecker::get_symbol_type_member::get_symbol_type_member;
 use tdr_lang::db::types::{
   File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMember, TypeMemberDescriptors,
 };

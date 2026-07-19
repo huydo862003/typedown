@@ -11,7 +11,7 @@ use crate::db::derived::get_builtin_types::{
 };
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::derived::typechecker::get_symbol_type::get_symbol_type_member;
+use crate::db::derived::typechecker::get_symbol_type_member::get_symbol_type_member;
 use crate::db::types::derived::object_system::{
   is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
 };
