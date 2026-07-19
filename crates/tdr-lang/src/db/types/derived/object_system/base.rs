@@ -6,8 +6,8 @@ use super::func::TdrFuncObj;
 use super::native_fn::NativeFnKind;
 use super::str::TdrStrType;
 use super::{TdrObjectEnum, TdrTypeEnum};
-use crate::db::derived::get_builtin_types::{get_object_type, get_str_type, get_type_type};
-use crate::db::types::{FuncSignature, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
+use crate::db::derived::get_builtin_types::{get_object_type, get_type_type};
+use crate::db::types::{FuncSignature, InstResult, TypeMember};
 use tdr_incremental::Id;
 use tdr_macros::query_derived;
 
