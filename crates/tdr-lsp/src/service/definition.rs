@@ -12,7 +12,9 @@ use tdr_lang::syntax::red::RedNode;
 use tdr_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{find_ancestor, nearest_expr_ancestor, node_at_offset};
+use crate::utils::ast::{
+  containing_fref_expr, find_ancestor, nearest_expr_ancestor, node_at_offset,
+};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::{path_to_uri, uri_to_path};
 
@@ -83,17 +85,8 @@ pub fn definition(
 
 /// If the cursor is inside a fref() string argument, return the resolved target path.
 fn fref_target(db: &TypedownDatabase, project: Project, node: &RedNode) -> Option<PathBuf> {
-  let str_lit = find_ancestor(node, SyntaxKind::StrLit);
-  let call = match str_lit {
-    Some(ref lit) => find_ancestor(lit, SyntaxKind::CallExpr),
-    None => find_ancestor(node, SyntaxKind::CallExpr),
-  }?;
-  let callee = call.children().next()?;
-  if callee.text().trim() != "fref" {
-    return None;
-  }
-  // Lower the call expression to extract the path string from the HIR.
-  let call_expr = Expr::cast(call)?;
+  let call_expr = containing_fref_expr(node)?;
+
   let dummy_file = *project.files(db).values().next()?;
   let hir = lower_node(db, project, dummy_file, call_expr.syntax().clone());
   if let HirValueKind::Call { args, .. } = hir.kind(db)
