@@ -24,6 +24,9 @@ use crate::syntax::diagnostic::Diagnostic;
 use tdr_incremental::QueryDatabase;
 use tdr_macros::query_derived;
 
+// Infer the type of an HIR
+// This function never relies on the declared type of the hir (it can rely on the declared type of the referenced hir)
+// It always guesses based on the structure of the hir alone
 #[query_derived]
 pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   match hir.kind(db) {
@@ -64,82 +67,84 @@ pub fn infer_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeResult {
   }
 }
 
-/// Collect narrowed member types from a list of HIR values into TypeMember arms
-fn collect_narrowed_arms(
-  db: &TypedownDatabase,
-  values: impl Iterator<Item = HirValue>,
-) -> Vec<TypeMember> {
-  values
-    .filter_map(|val| {
-      let typ = infer_node_type(db, val).typ(db)?;
-      let member = narrow_field_member_type(db, &val, typ);
-      Some(TypeMember::new(db, member, TypeMemberDescriptors::empty()))
-    })
-    .collect()
-}
-
 /// Narrow a TdrTypeEnum to the most specific MemberType based on the value's HIR kind
 fn narrow_field_member_type(db: &TypedownDatabase, hir: &HirValue, typ: TdrTypeEnum) -> MemberType {
+  /// Collect narrowed member types from a list of HIR values into TypeMember arms
+  fn collect_narrowed_arms(
+    db: &TypedownDatabase,
+    values: impl Iterator<Item = HirValue>,
+  ) -> Vec<TypeMember> {
+    values
+      .filter_map(|val| {
+        // Extract the loose type
+        let typ = infer_node_type(db, val).typ(db)?;
+        // Narrow the loose type into a type member
+        let member = narrow_field_member_type(db, &val, typ);
+        Some(TypeMember::new(db, member, TypeMemberDescriptors::empty()))
+      })
+      .collect()
+  }
+
   match hir.kind(db) {
+    // String literals -> the literal string member type
     HirValueKind::Str(val) => MemberType::Literal(LiteralValue::Str(val)),
+    // Number literals -> the literal number member type
     HirValueKind::Num(val) => MemberType::Literal(LiteralValue::Num(val)),
+    // Boolean literals -> the literal boolean member type
     HirValueKind::Bool(val) => MemberType::Literal(LiteralValue::Bool(val)),
+
+    // Sequence literals -> narrow down the items and collect into ListOfSum
     HirValueKind::Sequence(items) => {
       let arms = collect_narrowed_arms(db, items.into_iter());
       if arms.is_empty() {
-        MemberType::Simple(typ)
+        // No arms -> List of Never so it can match any list
+        MemberType::ListOfSum(vec![TypeMember::new(
+          db,
+          MemberType::Never,
+          TypeMemberDescriptors::empty(),
+        )])
       } else {
         MemberType::ListOfSum(arms)
       }
     }
+
+    // Mapping literals -> narrow down the items and collect into DictOfSum
     HirValueKind::Mapping(inner_entries) => {
+      // Product is already most narrow, so no need to narrow further
       if typ.as_tdr_product_type().is_some() {
         MemberType::Simple(typ)
       } else {
         let arms = collect_narrowed_arms(db, inner_entries.into_iter().map(|(_, val)| val));
         if arms.is_empty() {
-          MemberType::Simple(typ)
+          // No arms -> Dict of Never so it can match any dict
+          MemberType::DictOfSum(vec![TypeMember::new(
+            db,
+            MemberType::Never,
+            TypeMemberDescriptors::empty(),
+          )])
         } else {
           MemberType::DictOfSum(arms)
         }
       }
     }
+
     _ => MemberType::Simple(typ),
   }
 }
 
 /// Helper to get the type of a mapping
-/// NOTE: Always return a product type, if _type is not given
-/// Can be generalized to a dict type
+/// NOTE: Always return a product type because they can be generalized to a dict type
 fn get_mapping_type(
   db: &TypedownDatabase,
   _hir: HirValue,
   entries: Vec<(String, HirValue)>,
 ) -> TypeResult {
-  // If _type is present, resolve and evaluate the schema
-  for (key, value_hir) in &entries {
-    if key == "_type" {
-      let resolved = referee(db, *value_hir);
-      if let Some(symbol) = resolved.value(db) {
-        return evaluate_type(db, symbol);
-      }
-      let node = value_hir.node(db);
-      return TypeResult::new(
-        db,
-        None,
-        vec![Diagnostic::UnresolvedSchema {
-          name: node.text(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
-        }],
-      );
-    }
-  }
-
-  // No _type: infer a product type from the entries
   let mut diagnostics = vec![];
   let mut fields = HashMap::new();
   for (key, value_hir) in entries {
+    if key == "_type" {
+      continue;
+    }
     let field_result = infer_node_type(db, value_hir);
     diagnostics.extend(field_result.diagnostics(db).iter().cloned());
     if let Some(typ) = field_result.typ(db) {
