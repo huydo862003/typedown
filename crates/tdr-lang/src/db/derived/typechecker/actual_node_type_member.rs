@@ -221,7 +221,7 @@ fn get_binary_type(
       HirValueKind::Ident(name) => name,
       _ => return TypeMemberResult::new(db, None, diagnostics),
     };
-    return match left_type.get_owned_field_type_member(db, &field_name) {
+    return match left_type.lookup_field_type_member(db, &field_name) {
       Some(member) => TypeMemberResult::new(db, Some(member), diagnostics),
       None => {
         let node = right.node(db);

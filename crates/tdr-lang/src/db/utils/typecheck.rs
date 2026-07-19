@@ -8,7 +8,7 @@ use crate::db::types::{
   HirValue, HirValueKind, LiteralValue, MemberType, TdrTypeEnum, TdrTypeLike, TypeMemberResult,
 };
 
-/// Extract a TdrTypeEnum from a TypeMemberResult, lifting if needed
+/// Extract a TdrTypeEnum from a TypeMemberResult
 pub fn lift_type_member_result(
   db: &TypedownDatabase,
   result: &TypeMemberResult,
@@ -17,7 +17,8 @@ pub fn lift_type_member_result(
   lift_member_type(db, &member.typ(db))
 }
 
-/// Lift a MemberType to a TdrTypeEnum, losing specificity
+/// Lift a MemberType to a TdrTypeEnum
+/// NOTE: This causes loss of specificity
 pub fn lift_member_type(db: &TypedownDatabase, member_type: &MemberType) -> Option<TdrTypeEnum> {
   match member_type {
     MemberType::Simple(typ) => Some(typ.clone()),

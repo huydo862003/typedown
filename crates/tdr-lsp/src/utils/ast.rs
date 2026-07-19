@@ -21,8 +21,8 @@ pub fn node_at_offset(root: RedNode, offset: usize) -> Option<RedNode> {
   Some(root)
 }
 
-/// Returns true if the cursor is in a value position rather than a key position.
-pub fn is_in_value_position(node: &RedNode) -> bool {
+/// Returns true if the cursor is in a mapping value position rather than a key position.
+pub fn is_in_mapping_value_position(node: &RedNode) -> bool {
   let mut current = node.parent();
   while let Some(ref cur) = current {
     match cur.kind() {

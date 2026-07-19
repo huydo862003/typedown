@@ -1,3 +1,7 @@
+//! We follow a simple system for supertypes
+//! - Only owned fields can be accessed via the object
+//! - Methods can be inheritted via supertypes
+
 use std::collections::HashMap;
 
 use ambassador::delegatable_trait;
@@ -7,7 +11,7 @@ use super::native_fn::NativeFnKind;
 use super::str::TdrStrType;
 use super::{TdrObjectEnum, TdrTypeEnum};
 use crate::db::derived::get_builtin_types::{get_object_type, get_type_type};
-use crate::db::types::{FuncSignature, InstResult, TypeMember};
+use crate::db::types::{FuncSignature, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
 use tdr_incremental::Id;
 use tdr_macros::query_derived;
 
@@ -87,6 +91,19 @@ pub trait TdrTypeLike: TdrObjectLike {
     db: &::tdr_lang::db::TypedownDatabase,
     name: &str,
   ) -> Option<::tdr_lang::db::types::TypeMember>;
+  fn lookup_field_type_member(
+    &self,
+    db: &::tdr_lang::db::TypedownDatabase,
+    name: &str,
+  ) -> Option<::tdr_lang::db::types::TypeMember> {
+    self.get_owned_field_type_member(db, name).or_else(|| {
+      Some(TypeMember::new(
+        db,
+        MemberType::Simple(self.lookup_method(db, name)?.get_type(db)),
+        TypeMemberDescriptors::empty(),
+      ))
+    })
+  }
 
   fn instantiate(
     &self,
@@ -112,8 +129,8 @@ pub trait TdrTypeLike: TdrObjectLike {
     db: &::tdr_lang::db::TypedownDatabase,
     key: &str,
   ) -> Option<TdrFuncObj> {
-    if let Some(func_obj) = self.get_vtable(db).remove(key) {
-      return Some(func_obj);
+    if let Some(func_obj) = self.get_vtable(db).get(key) {
+      return Some(*func_obj);
     }
     let supertype = self.get_supertype(db);
     if supertype.as_id() == self.as_id() {
