@@ -130,7 +130,7 @@ pub trait TdrTypeLike: TdrObjectLike {
     key: &str,
   ) -> Option<TdrFuncObj> {
     if let Some(func_obj) = self.get_vtable(db).get(key) {
-      return Some(func_obj.clone());
+      return Some(*func_obj);
     }
     let supertype = self.get_supertype(db);
     if supertype.as_id() == self.as_id() {
