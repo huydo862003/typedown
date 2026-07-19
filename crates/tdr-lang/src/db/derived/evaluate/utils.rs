@@ -7,7 +7,7 @@ use crate::db::derived::evaluate::evaluate_type::resolve_property_descriptor;
 use crate::db::derived::get_builtin_types::get_schema_type;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::derived::typechecker::actual_node_type::actual_node_type;
+use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
 use crate::db::types::{
   BuiltinMacroKind, HirValue, HirValueKind, InterpolatedPart, MemberType, SymbolKind, TdrBoolObj,
   TdrDictObj, TdrListObj, TdrMathObj, TdrNumObj, TdrObjectEnum, TdrObjectLike, TdrProductObj,
@@ -92,7 +92,7 @@ pub(crate) fn construct_from_hir(
   }
 
   // Normal construction: convert HIR to args, then call construct
-  let type_result = actual_node_type(db, hir);
+  let type_result = actual_node_type_member(db, hir);
   let typ = lift_type_member_result(db, &type_result)?;
   match hir.kind(db) {
     HirValueKind::Str(val) => typ.construct(db, vec![TdrStrObj::new(db, val).into()]),

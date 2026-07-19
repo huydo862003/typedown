@@ -5,7 +5,7 @@ use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_type::evaluate_type;
 use crate::db::derived::hir::lower_node;
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::derived::typechecker::actual_node_type::actual_node_type;
+use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
 use crate::db::types::{
   File, HirValue, MemberType, Project, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors,
   TypeMemberResult,
@@ -26,14 +26,14 @@ enum PathStep {
 }
 
 #[query_derived]
-pub fn expected_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
+pub fn expected_node_type_member(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
   let project = hir.project(db);
   let file = hir.file(db);
   let node = hir.node(db);
 
   // "Non-top-level expression nodes" (our fabricated concept) fall back to actual type
   if !is_top_level(&node) {
-    return actual_node_type(db, hir);
+    return actual_node_type_member(db, hir);
   }
 
   let (anchor_type, path) = match collect_path_to_anchor(db, project, file, &node) {
@@ -52,7 +52,7 @@ pub fn expected_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberRes
     let step_hir = lower_node(db, project, file, step_node.clone());
     let member_type = current_member.typ(db);
 
-    // Resolve Sum ambiguity using actual_node_type
+    // Resolve Sum ambiguity using actual_node_type_member
     let resolved = resolve_member_type(db, &member_type, step_hir);
 
     current_member = match step {
@@ -256,7 +256,7 @@ fn pick_most_specific_arm(
   arms: &[TypeMember],
   hir: HirValue,
 ) -> Option<MemberType> {
-  let actual_type = lift_type_member_result(db, &actual_node_type(db, hir))?;
+  let actual_type = lift_type_member_result(db, &actual_node_type_member(db, hir))?;
 
   let matching: Vec<_> = arms
     .iter()
@@ -341,7 +341,7 @@ mod tests {
   use crate::db::TypedownDatabase;
   use crate::db::types::TdrTypeLike;
   use crate::db::{
-    derived::typechecker::expected_node_type::expected_node_type,
+    derived::typechecker::expected_node_type_member::expected_node_type_member,
     fixtures::load_vault_fixture,
     types::{File, HirValue, HirValueKind, MemberType, Project},
     utils::lower_file,
@@ -366,12 +366,12 @@ mod tests {
   }
 
   #[test]
-  fn expected_node_type_known_field_returns_member() {
+  fn expected_node_type_member_known_field_returns_member() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
     let name_hir = get_field_hir(&db, project, file, "name")
       .expect("valid_person.tdr should have a 'name' field");
 
-    let result = expected_node_type(&db, name_hir);
+    let result = expected_node_type_member(&db, name_hir);
 
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -393,12 +393,12 @@ mod tests {
   }
 
   #[test]
-  fn expected_node_type_untyped_mapping_returns_none() {
+  fn expected_node_type_member_untyped_mapping_returns_none() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("literal_value.tdr should have parseable frontmatter");
 
-    let result = expected_node_type(&db, hir);
+    let result = expected_node_type_member(&db, hir);
 
     assert!(
       result.member(&db).is_none(),
@@ -430,13 +430,13 @@ mod tests {
 
   // Nested field inside a schema property descriptor
   #[test]
-  fn expected_node_type_nested_schema_property_field() {
+  fn expected_node_type_member_nested_schema_property_field() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/WithUnion.tdr");
     // WithUnion has: properties: { status: { type: ['draft', 'published', 'archived'] } }
     // The 'type' field inside the status property descriptor should have expected type from SchemaProperty
     let type_hir = get_nested_field_hir(&db, project, file, &["properties", "status", "type"]);
     let type_hir = type_hir.expect("should find nested type field");
-    let result = expected_node_type(&db, type_hir);
+    let result = expected_node_type_member(&db, type_hir);
 
     // The expected type should exist (from SchemaProperty's declared type for 'type')
     assert!(
@@ -447,11 +447,11 @@ mod tests {
 
   // Schema with union: the 'status' field value should have expected type Sum
   #[test]
-  fn expected_node_type_union_field_value() {
+  fn expected_node_type_member_union_field_value() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_status.tdr");
     // valid_status.tdr has: _type: Status, state: "draft"
     let state_hir = get_field_hir(&db, project, file, "state").expect("should have 'state' field");
-    let result = expected_node_type(&db, state_hir);
+    let result = expected_node_type_member(&db, state_hir);
 
     let member = result.member(&db).expect("state should have expected type");
     // Status schema declares state: "draft" (Literal type)
@@ -463,7 +463,7 @@ mod tests {
 
   // Sequence item inside a list field should have expected type
   #[test]
-  fn expected_node_type_sequence_item() {
+  fn expected_node_type_member_sequence_item() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_event.tdr");
     // valid_event.tdr has _type: Event with a list field
     let (hir, _) = lower_file(&db, project, file);
@@ -474,7 +474,7 @@ mod tests {
       for (key, value) in entries {
         if let HirValueKind::Sequence(items) = value.kind(&db) {
           if let Some(first_item) = items.first() {
-            let result = expected_node_type(&db, *first_item);
+            let result = expected_node_type_member(&db, *first_item);
             // Should have some expected type from the schema's list element type
             // (or None if schema doesn't constrain elements)
             // Just verify it doesn't panic

@@ -9,8 +9,8 @@ use tdr_macros::query_derived;
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type};
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::derived::typechecker::actual_node_type::actual_node_type;
-use crate::db::derived::typechecker::expected_node_type::expected_node_type;
+use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
+use crate::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
 use crate::db::types::{
   HirValue, HirValueKind, InterpolatedPart, MemberType, TdrTypeEnum, TdrTypeLike, TypeMember,
   TypeMemberDescriptors, TypecheckResult, member_type_display_name,
@@ -20,11 +20,11 @@ use tdr_incremental::QueryDatabase;
 
 #[query_derived]
 pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
-  let type_result = actual_node_type(db, hir);
+  let type_result = actual_node_type_member(db, hir);
   let mut diagnostics = type_result.diagnostics(db).clone();
 
   // Use expected type from schema if available, otherwise fall back to inferred type
-  let declared_type = if let Some(member) = expected_node_type(db, hir).member(db)
+  let declared_type = if let Some(member) = expected_node_type_member(db, hir).member(db)
     && let MemberType::Simple(typ) = member.typ(db)
   {
     typ
@@ -111,7 +111,7 @@ fn check_mapping_fields(
       diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
       // Check synthesized type against expected field type
-      let value_result = actual_node_type(db, *value_hir);
+      let value_result = actual_node_type_member(db, *value_hir);
       let is_optional = member
         .descriptors(db)
         .contains(TypeMemberDescriptors::OPTIONAL);
@@ -186,7 +186,7 @@ fn check_tag(
   inner: HirValue,
 ) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
-  let inner_result = actual_node_type(db, inner);
+  let inner_result = actual_node_type_member(db, inner);
   diagnostics.extend(inner_result.diagnostics(db).iter().cloned());
   if let Some(actual_type) = lift_type_member_result(db, &inner_result)
     && !expected_type.is_compatible_with(db, &actual_type)
@@ -204,7 +204,7 @@ fn check_tag(
 fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
-  let callee_result = actual_node_type(db, callee);
+  let callee_result = actual_node_type_member(db, callee);
   diagnostics.extend(callee_result.diagnostics(db).iter().cloned());
 
   let callee_type = match lift_type_member_result(db, &callee_result) {
@@ -236,7 +236,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
   }
 
   for (param, arg_hir) in params.iter().zip(args.iter()) {
-    let arg_result = actual_node_type(db, *arg_hir);
+    let arg_result = actual_node_type_member(db, *arg_hir);
     diagnostics.extend(arg_result.diagnostics(db).iter().cloned());
     if let Some(arg_type) = lift_type_member_result(db, &arg_result)
       && !param.is_compatible_with(db, &arg_type)
@@ -256,7 +256,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
 fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
-  let expr_result = actual_node_type(db, expr);
+  let expr_result = actual_node_type_member(db, expr);
   diagnostics.extend(expr_result.diagnostics(db).iter().cloned());
 
   let expr_type = match lift_type_member_result(db, &expr_result) {
@@ -272,7 +272,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   // List element access: index must be a number
   if expr_type.is_tdr_list_type() {
     for idx_hir in &indices {
-      let idx_result = actual_node_type(db, *idx_hir);
+      let idx_result = actual_node_type_member(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
       if let Some(idx_type) = lift_type_member_result(db, &idx_result) {
         let num_type = get_num_type(db);
@@ -293,7 +293,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   if let TdrTypeEnum::TdrDictType(dict) = &expr_type {
     if let Some(key_type) = dict.key(db) {
       for idx_hir in &indices {
-        let idx_result = actual_node_type(db, *idx_hir);
+        let idx_result = actual_node_type_member(db, *idx_hir);
         diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
         if let Some(idx_type) = lift_type_member_result(db, &idx_result)
           && !key_type.is_compatible_with(db, &idx_type)
@@ -313,7 +313,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   // String indexing is valid: index must be a number
   if expr_type.is_tdr_str_type() {
     for idx_hir in &indices {
-      let idx_result = actual_node_type(db, *idx_hir);
+      let idx_result = actual_node_type_member(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
       if let Some(idx_type) = lift_type_member_result(db, &idx_result) {
         let num_type = get_num_type(db);
@@ -346,7 +346,7 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
   let tc_result = typecheck(db, operand);
   diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
-  let operand_result = actual_node_type(db, operand);
+  let operand_result = actual_node_type_member(db, operand);
   let operand_type = match lift_type_member_result(db, &operand_result) {
     Some(typ) => typ,
     None => return diagnostics,
@@ -385,8 +385,8 @@ fn check_binary(
   let tc_right = typecheck(db, right);
   diagnostics.extend(tc_right.diagnostics(db).iter().cloned());
 
-  let left_type = lift_type_member_result(db, &actual_node_type(db, left));
-  let right_type = lift_type_member_result(db, &actual_node_type(db, right));
+  let left_type = lift_type_member_result(db, &actual_node_type_member(db, left));
+  let right_type = lift_type_member_result(db, &actual_node_type_member(db, right));
 
   match op {
     // Arithmetic: both operands must be number
@@ -475,7 +475,7 @@ fn check_sequence(
     diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
     // Check item type against element type
-    let item_result = actual_node_type(db, item);
+    let item_result = actual_node_type_member(db, item);
     if let Some(item_type) = lift_type_member_result(db, &item_result)
       && !elem_type.is_compatible_with(db, &item_type)
     {
@@ -700,7 +700,7 @@ mod tests {
   }
 
   // Quoted string values for date/time/datetime fields should pass typechecking
-  // because actual_node_type deduces the specific subtype from ISO format
+  // because actual_node_type_member deduces the specific subtype from ISO format
   #[test]
   fn typecheck_literal_type_valid() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_status.tdr");

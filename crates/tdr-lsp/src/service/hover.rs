@@ -4,8 +4,8 @@ use tdr_lang::db::types::TdrTypeLike;
 use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::parse_file::parse_file;
-use tdr_lang::db::derived::typechecker::actual_node_type::actual_node_type;
-use tdr_lang::db::derived::typechecker::expected_node_type::expected_node_type;
+use tdr_lang::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
+use tdr_lang::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
 use tdr_lang::db::types::{LiteralValue, MemberType, TypeMember, TypeMemberDescriptors};
 use tdr_lang::db::utils::typecheck::lift_type_member_result;
 use tdr_lang::syntax::ast::{AstNode, Expr};
@@ -37,7 +37,7 @@ pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
     let expr_node = nearest_expr_ancestor(&node)?;
     let hir = lower_node(db, project, file, expr_node);
     let typ = {
-      let r = actual_node_type(db, hir);
+      let r = actual_node_type_member(db, hir);
       lift_type_member_result(db, &r)?
     };
     typ.display_name(db)
@@ -50,7 +50,7 @@ pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
       .find(|c| c.kind() == SyntaxKind::YamlMappingEntryValue)?;
     let value_expr = entry_value.children().find_map(Expr::cast)?;
     let hir = lower_node(db, project, file, value_expr.syntax().clone());
-    let member = expected_node_type(db, hir).member(db)?;
+    let member = expected_node_type_member(db, hir).member(db)?;
     let key_text = entry_key.text().trim().to_string();
     format!("{key_text}: {}", member_type_label(db, &member))
   } else {

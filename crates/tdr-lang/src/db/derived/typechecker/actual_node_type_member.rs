@@ -11,7 +11,7 @@ use crate::db::derived::get_builtin_types::{
 };
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::derived::typechecker::get_symbol_type::get_symbol_type;
+use crate::db::derived::typechecker::get_symbol_type::get_symbol_type_member;
 use crate::db::types::derived::object_system::{
   is_valid_iso_date, is_valid_iso_datetime, is_valid_iso_time,
 };
@@ -29,7 +29,7 @@ use tdr_macros::query_derived;
 // This function never relies on the declared type of the hir (it can rely on the declared type of the referenced hir)
 // It always guesses based on the structure of the hir alone
 #[query_derived]
-pub fn actual_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
+pub fn actual_node_type_member(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
   match hir.kind(db) {
     HirValueKind::Str(ref val) => {
       // Date/time subtypes are more specific than string literals
@@ -82,7 +82,7 @@ pub fn actual_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResul
     HirValueKind::Ident(_) => {
       let resolved = referee(db, hir);
       match resolved.value(db) {
-        Some(symbol) => get_symbol_type(db, symbol),
+        Some(symbol) => get_symbol_type_member(db, symbol),
         None => TypeMemberResult::new(db, None, vec![]),
       }
     }
@@ -153,7 +153,7 @@ fn get_mapping_type(
   let mut diagnostics = vec![];
   let mut fields = HashMap::new();
   for (key, value_hir) in entries {
-    let field_result = actual_node_type(db, value_hir);
+    let field_result = actual_node_type_member(db, value_hir);
     diagnostics.extend(field_result.diagnostics(db).iter().cloned());
     if let Some(member) = field_result.member(db) {
       fields.insert(key, member);
@@ -188,7 +188,7 @@ fn get_tag_type(db: &TypedownDatabase, tag: HirValue) -> TypeMemberResult {
 
 /// Helper to get the return type of a unary expression
 fn get_unary_type(db: &TypedownDatabase, op: &str, operand: HirValue) -> TypeMemberResult {
-  let operand_result = actual_node_type(db, operand);
+  let operand_result = actual_node_type_member(db, operand);
   let diagnostics = operand_result.diagnostics(db).clone();
 
   match op {
@@ -207,7 +207,7 @@ fn get_binary_type(
 ) -> TypeMemberResult {
   // Field access such as `obj.field`
   if op == "." {
-    let left_result = actual_node_type(db, left);
+    let left_result = actual_node_type_member(db, left);
     let mut diagnostics = left_result.diagnostics(db).clone();
     let left_member = match left_result.member(db) {
       Some(member) => member,
@@ -236,8 +236,8 @@ fn get_binary_type(
     };
   }
 
-  let left_result = actual_node_type(db, left);
-  let right_result = actual_node_type(db, right);
+  let left_result = actual_node_type_member(db, left);
+  let right_result = actual_node_type_member(db, right);
   let mut diagnostics = left_result.diagnostics(db).clone();
   diagnostics.extend(right_result.diagnostics(db).iter().cloned());
 
@@ -259,7 +259,7 @@ fn get_sequence_type(db: &TypedownDatabase, items: Vec<HirValue>) -> TypeMemberR
   let mut arms = vec![];
 
   for item in items {
-    let item_result = actual_node_type(db, item);
+    let item_result = actual_node_type_member(db, item);
     diagnostics.extend(item_result.diagnostics(db).iter().cloned());
     if let Some(member) = item_result.member(db) {
       arms.push(member);
@@ -288,7 +288,7 @@ fn get_call_type(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -
     return get_macro_call_type(db, kind, args);
   }
 
-  let callee_result = actual_node_type(db, callee);
+  let callee_result = actual_node_type_member(db, callee);
   let diagnostics = callee_result.diagnostics(db).clone();
 
   let callee_member = match callee_result.member(db) {
@@ -372,7 +372,7 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeMemberResult
   let target_symbol = file_symbol(db, project, target_file);
 
   match target_symbol.value(db) {
-    Some(sym) => get_symbol_type(db, sym),
+    Some(sym) => get_symbol_type_member(db, sym),
     None => TypeMemberResult::new(
       db,
       None,
@@ -391,7 +391,7 @@ fn get_index_type(
   expr: HirValue,
   indices: Vec<HirValue>,
 ) -> TypeMemberResult {
-  let expr_result = actual_node_type(db, expr);
+  let expr_result = actual_node_type_member(db, expr);
   let mut diagnostics = expr_result.diagnostics(db).clone();
 
   let expr_member = match expr_result.member(db) {
@@ -498,7 +498,7 @@ mod tests {
     types::{HirValueKind, LiteralValue, MemberType, TdrTypeLike},
   };
 
-  use super::actual_node_type;
+  use super::actual_node_type_member;
   use crate::db::utils::typecheck::lift_type_member_result;
 
   fn vault_root() -> PathBuf {
@@ -511,7 +511,7 @@ mod tests {
       load_vault_fixture("typecheck/narrow_vault", "content/anonymous_mapping.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("should parse");
-    let result = actual_node_type(&db, hir);
+    let result = actual_node_type_member(&db, hir);
     let member = result.member(&db).expect("should infer a type");
     let MemberType::Simple(typ) = member.typ(&db) else {
       panic!("top-level mapping should be Simple");
@@ -560,7 +560,7 @@ mod tests {
   }
 
   #[test]
-  fn actual_node_type_of_schema_file_top_level_mapping_is_schema_type() {
+  fn actual_node_type_member_of_schema_file_top_level_mapping_is_schema_type() {
     let vault = vault_root();
     let schema_file_path = vault.join("schemas/Person.tdr");
 
@@ -577,7 +577,7 @@ mod tests {
 
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("schema file should have parseable frontmatter");
-    let result = actual_node_type(&db, hir);
+    let result = actual_node_type_member(&db, hir);
 
     let typ = lift_type_member_result(&db, &result);
     let expected = Some(TdrTypeEnum::from(get_schema_type(&db)));
@@ -593,7 +593,7 @@ mod tests {
   }
 
   #[test]
-  fn actual_node_type_string_literal_returns_literal() {
+  fn actual_node_type_member_string_literal_returns_literal() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("should parse");
@@ -601,7 +601,7 @@ mod tests {
     if let HirValueKind::Mapping(entries) = hir.kind(&db) {
       let name_hir = entries.iter().find(|(k, _)| k == "name").map(|(_, v)| *v);
       let name_hir = name_hir.expect("should have name field");
-      let result = actual_node_type(&db, name_hir);
+      let result = actual_node_type_member(&db, name_hir);
       let member = result.member(&db).expect("should have a type");
       assert!(
         matches!(member.typ(&db), MemberType::Literal(LiteralValue::Str(s)) if s == "Alice"),
@@ -611,7 +611,7 @@ mod tests {
   }
 
   #[test]
-  fn actual_node_type_bool_returns_literal() {
+  fn actual_node_type_member_bool_returns_literal() {
     let (db, project, file) =
       load_vault_fixture("typecheck/narrow_vault", "content/anonymous_mapping.tdr");
     let (hir, _) = lower_file(&db, project, file);
@@ -619,7 +619,7 @@ mod tests {
     if let HirValueKind::Mapping(entries) = hir.kind(&db) {
       let active_hir = entries.iter().find(|(k, _)| k == "active").map(|(_, v)| *v);
       let active_hir = active_hir.expect("should have active field");
-      let result = actual_node_type(&db, active_hir);
+      let result = actual_node_type_member(&db, active_hir);
       let member = result.member(&db).expect("should have a type");
       assert!(
         matches!(
@@ -632,7 +632,7 @@ mod tests {
   }
 
   #[test]
-  fn actual_node_type_sequence_returns_list_of_sum() {
+  fn actual_node_type_member_sequence_returns_list_of_sum() {
     let (db, project, file) =
       load_vault_fixture("typecheck/narrow_vault", "content/anonymous_mapping.tdr");
     let (hir, _) = lower_file(&db, project, file);
@@ -640,7 +640,7 @@ mod tests {
     if let HirValueKind::Mapping(entries) = hir.kind(&db) {
       let tags_hir = entries.iter().find(|(k, _)| k == "tags").map(|(_, v)| *v);
       let tags_hir = tags_hir.expect("should have tags field");
-      let result = actual_node_type(&db, tags_hir);
+      let result = actual_node_type_member(&db, tags_hir);
       let member = result.member(&db).expect("should have a type");
       assert!(
         matches!(member.typ(&db), MemberType::ListOfSum(_)),
@@ -651,14 +651,14 @@ mod tests {
 
   // Date strings narrow to Simple(date), not Literal
   #[test]
-  fn actual_node_type_date_string_returns_simple_date() {
+  fn actual_node_type_member_date_string_returns_simple_date() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_event.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("should parse");
     if let HirValueKind::Mapping(entries) = hir.kind(&db) {
       let date_hir = entries.iter().find(|(k, _)| k == "date").map(|(_, v)| *v);
       let date_hir = date_hir.expect("should have date field");
-      let result = actual_node_type(&db, date_hir);
+      let result = actual_node_type_member(&db, date_hir);
       let member = result.member(&db).expect("should have a type");
       assert!(
         matches!(member.typ(&db), MemberType::Simple(typ) if typ.display_name(&db) == "date"),
@@ -669,7 +669,7 @@ mod tests {
 
   // Fref returns the resource's schema type, not type_type
   #[test]
-  fn actual_node_type_fref_returns_resource_type() {
+  fn actual_node_type_member_fref_returns_resource_type() {
     let (db, project, file) =
       load_vault_fixture("typecheck/narrow_vault", "content/article_fref_status.tdr");
     let (hir, _) = lower_file(&db, project, file);
@@ -678,7 +678,7 @@ mod tests {
       // status: fref("content/summary.tdr").status
       let status_hir = entries.iter().find(|(k, _)| k == "status").map(|(_, v)| *v);
       let status_hir = status_hir.expect("should have status field");
-      let result = actual_node_type(&db, status_hir);
+      let result = actual_node_type_member(&db, status_hir);
       // Should resolve to something (not None), and not be type_type
       if let Some(member) = result.member(&db) {
         if let MemberType::Simple(typ) = member.typ(&db) {
@@ -694,14 +694,14 @@ mod tests {
 
   // Num literal returns Literal(Num)
   #[test]
-  fn actual_node_type_num_returns_literal() {
+  fn actual_node_type_member_num_returns_literal() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("should parse");
     if let HirValueKind::Mapping(entries) = hir.kind(&db) {
       let age_hir = entries.iter().find(|(k, _)| k == "age").map(|(_, v)| *v);
       let age_hir = age_hir.expect("should have age field");
-      let result = actual_node_type(&db, age_hir);
+      let result = actual_node_type_member(&db, age_hir);
       let member = result.member(&db).expect("should have a type");
       assert!(
         matches!(member.typ(&db), MemberType::Literal(LiteralValue::Num(n)) if n == "30"),

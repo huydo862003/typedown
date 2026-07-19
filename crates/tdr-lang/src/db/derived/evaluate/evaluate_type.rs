@@ -265,7 +265,7 @@ mod tests {
     derived::evaluate::utils::construct_from_hir,
     derived::get_builtin_types::*,
     derived::name_resolver::file_symbol::file_symbol,
-    derived::typechecker::actual_node_type::actual_node_type,
+    derived::typechecker::actual_node_type_member::actual_node_type_member,
     fixtures::load_vault_fixture,
     types::{
       BuiltinSchemaKind, File, FileHandle, HirValue, HirValueKind, LiteralValue, MemberType,
@@ -647,7 +647,7 @@ age: 42
       _ => panic!("expected mapping"),
     };
 
-    let type_result = actual_node_type(&db, friend_hir);
+    let type_result = actual_node_type_member(&db, friend_hir);
     let member = type_result.member(&db).expect("fref should return a type");
     let MemberType::Simple(typ) = member.typ(&db) else {
       panic!("expected Simple type");

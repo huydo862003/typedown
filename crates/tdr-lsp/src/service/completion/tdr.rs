@@ -7,8 +7,8 @@ use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::name_resolver::members::members;
 use tdr_lang::db::derived::parse_file::parse_file;
-use tdr_lang::db::derived::typechecker::expected_node_type::expected_node_type;
-use tdr_lang::db::derived::typechecker::get_symbol_type::get_symbol_type;
+use tdr_lang::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
+use tdr_lang::db::derived::typechecker::get_symbol_type::get_symbol_type_member;
 use tdr_lang::db::types::{
   File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMember, TypeMemberDescriptors,
 };
@@ -125,7 +125,7 @@ fn fref_completions(
         Some(sym) => sym,
         None => return false,
       };
-      let file_type = match lift_type_member_result(db, &get_symbol_type(db, sym)) {
+      let file_type = match lift_type_member_result(db, &get_symbol_type_member(db, sym)) {
         Some(typ) => typ,
         None => return false,
       };
@@ -162,7 +162,7 @@ fn enclosing_mapping_product(
   // No explicit _type. Try resolving via the parent field's declared type.
   let mapping_expr = Expr::cast(mapping.clone())?;
   let hir = lower_node(db, project, file, mapping_expr.syntax().clone());
-  let member = expected_node_type(db, hir).member(db)?;
+  let member = expected_node_type_member(db, hir).member(db)?;
   let typ = match member.typ(db) {
     MemberType::Simple(typ) => typ,
     _ => return None,
@@ -210,7 +210,7 @@ fn declared_field(
   let entry_value = find_ancestor(node, SyntaxKind::YamlMappingEntryValue)?;
   let value_expr = entry_value.children().find_map(Expr::cast)?;
   let hir = lower_node(db, project, file, value_expr.syntax().clone());
-  expected_node_type(db, hir).member(db)
+  expected_node_type_member(db, hir).member(db)
 }
 
 /// Build a keyword completion item (true, false, null).
