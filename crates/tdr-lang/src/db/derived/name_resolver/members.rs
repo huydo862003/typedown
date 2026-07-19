@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use tdr_macros::query_derived;
 
 use crate::db::TypedownDatabase;
-use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::derived::name_resolver::builtin_scope::builtin_scope;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::types::{FileHandle, MembersResult, Scope, ScopeKind};
@@ -34,8 +33,6 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
       MembersResult::new(db, members)
     }
     ScopeKind::Project(project) => {
-      let config = get_vault_config(db, project);
-      let _schema_dir = config.schema_dir(db);
       let proj_files = project.files(db);
 
       let mut members = HashMap::new();

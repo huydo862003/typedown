@@ -63,7 +63,6 @@ mod tests {
   use crate::db::fixtures::load_vault_fixture;
   use crate::db::types::{HirValue, HirValueKind, SymbolKind};
   use crate::db::utils::lower_file;
-  use tdr_incremental::QueryDatabase;
 
   use super::referee;
 

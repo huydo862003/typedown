@@ -118,8 +118,6 @@ mod tests {
   use super::{references, resolution_index};
   use crate::db::derived::name_resolver::file_symbol::file_symbol;
   use crate::db::fixtures::load_vault_fixture;
-  use crate::db::utils::lower_file;
-  use tdr_incremental::QueryDatabase;
 
   // resolution_index finds schema references in a typed content file
   #[test]
