@@ -19,7 +19,7 @@ use tdr_lang::syntax::red::RedNode;
 use tdr_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{find_ancestor, is_in_value_position, node_at_offset};
+use crate::utils::ast::{find_ancestor, is_in_mapping_value_position, node_at_offset};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
 
@@ -170,24 +170,23 @@ fn enclosing_mapping_product(
   typ.as_tdr_product_type().cloned()
 }
 
-/// If the cursor is in a field value, return value completions.
-/// Always suggests `true`/`false` (valid in any expression),
-/// suggests `null` for optional fields.
+/// If the cursor is in a field value, return value completions
+/// Also suggests `null` for optional fields
 fn value_completions(
   db: &TypedownDatabase,
   project: Project,
   file: File,
   node: &RedNode,
 ) -> Option<Vec<CompletionItem>> {
-  // Must be directly inside a value position (not a key that happens to be nested in a value).
-  if !is_in_value_position(node) {
+  // Must be directly inside a value position (not a key that happens to be nested in a value)
+  if !is_in_mapping_value_position(node) {
     return None;
   }
 
-  // true and false are keywords usable in any value/expression position.
+  // Suggest true + false
   let mut items = vec![keyword_item("true"), keyword_item("false")];
 
-  // Suggest null only for optional fields.
+  // Suggest null only for optional fields
   if let Some(field) = declared_field(db, project, file, node)
     && field
       .descriptors(db)

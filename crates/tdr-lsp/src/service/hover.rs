@@ -13,37 +13,40 @@ use tdr_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
 use crate::utils::ast::{
-  find_ancestor, is_in_value_position, nearest_expr_ancestor, node_at_offset,
+  find_ancestor, is_in_mapping_value_position, nearest_expr_ancestor, node_at_offset,
 };
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::uri_to_path;
 
 pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
   let db = &analysis.db;
-  let project = analysis.project;
 
+  // Get the current file that requests hover information
   let uri = &params.text_document_position_params.text_document.uri;
   let path = uri_to_path(uri)?;
-  let rope = analysis.file_rope(&path)?;
-  let offset = lsp_position_to_text_offset(&rope, params.text_document_position_params.position)?;
 
+  // Parse the current file
+  let project = analysis.project;
   let file = *project.files(db).get(&path)?;
-  let root = parse_file(db, project, file).ast(db);
-  let lookup = offset.saturating_sub(1);
-  let node = node_at_offset(root, lookup)?;
+  let root_node = parse_file(db, project, file).ast(db);
+  let rope = analysis.file_rope(&path)?;
 
-  let text = if is_in_value_position(&node) {
+  // Get the hovered node
+  let hovered_offset =
+    lsp_position_to_text_offset(&rope, params.text_document_position_params.position)?
+      .saturating_sub(1);
+  let hovered_node = node_at_offset(root_node, hovered_offset)?;
+
+  let text = if is_in_mapping_value_position(&hovered_node) {
     // Value position: show the resolved type of the expression.
-    let expr_node = nearest_expr_ancestor(&node)?;
+    let expr_node = nearest_expr_ancestor(&hovered_node)?;
     let hir = lower_node(db, project, file, expr_node);
-    let typ = {
-      let r = actual_node_type_member(db, hir);
-      lift_type_member_result(db, &r)?
-    };
+
+    let typ = lift_type_member_result(db, &actual_node_type_member(db, hir))?;
     typ.display_name(db)
-  } else if find_ancestor(&node, SyntaxKind::YamlMappingEntryKey).is_some() {
+  } else if find_ancestor(&hovered_node, SyntaxKind::YamlMappingEntryKey).is_some() {
     // Key position: show the field name with its declared type.
-    let entry_key = find_ancestor(&node, SyntaxKind::YamlMappingEntryKey)?;
+    let entry_key = find_ancestor(&hovered_node, SyntaxKind::YamlMappingEntryKey)?;
     let entry = entry_key.parent()?;
     let entry_value = entry
       .children()
@@ -52,6 +55,7 @@ pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
     let hir = lower_node(db, project, file, value_expr.syntax().clone());
     let member = expected_node_type_member(db, hir).member(db)?;
     let key_text = entry_key.text().trim().to_string();
+
     format!("{key_text}: {}", member_type_label(db, &member))
   } else {
     return None;
@@ -234,7 +238,7 @@ properties:
     let (content, offset) = cursor(
       r#"---
 _type: Person
-name: Ali|ce
+name: "Ali|ce"
 ---
 "#,
     );
