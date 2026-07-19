@@ -10,32 +10,7 @@ use tdr_incremental::Id;
 use tdr_types::either::Either;
 
 use crate::db::types::{HirValue, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
-
-fn member_types_compatible(
-  db: &TypedownDatabase,
-  expected: &MemberType,
-  actual: &MemberType,
-) -> bool {
-  match (expected, actual) {
-    (MemberType::Simple(exp_type), MemberType::Simple(act_type)) => {
-      exp_type.is_compatible_with(db, act_type)
-    }
-    (MemberType::Sum(exp_arms), MemberType::Sum(act_arms)) => {
-      // Two union types must have the same number of arms
-      // each must be pairwise compatible
-      if exp_arms.len() != act_arms.len() {
-        return false;
-      }
-      exp_arms
-        .iter()
-        .zip(act_arms.iter())
-        .all(|(exp_arm, act_arm)| member_types_compatible(db, &exp_arm.typ(db), &act_arm.typ(db)))
-    }
-    (MemberType::Literal(exp_val), MemberType::Literal(act_val)) => exp_val == act_val,
-    (MemberType::Never, _) | (_, MemberType::Never) => false,
-    _ => false,
-  }
-}
+use crate::db::utils::typecheck::member_types_compatible;
 
 #[query_derived]
 pub struct TdrProductType {
@@ -66,7 +41,7 @@ impl TdrTypeLike for TdrProductType {
   fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type_member(&self, db: &TypedownDatabase, name: &str) -> Option<TypeMember> {
     self.fields(db).get(name).cloned()
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
@@ -88,7 +63,7 @@ impl TdrTypeLike for TdrProductType {
       if !is_required {
         continue;
       }
-      let actual_member = match actual.get_owned_field_type(db, field_name) {
+      let actual_member = match actual.get_owned_field_type_member(db, field_name) {
         Some(member) => member,
         None => return false,
       };
@@ -133,6 +108,22 @@ pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberTyp
       .map(|m| member_type_display_name(db, &m.typ(db)))
       .collect::<Vec<_>>()
       .join(" | "),
+    MemberType::ListOfSum(members) => {
+      let inner = members
+        .iter()
+        .map(|m| member_type_display_name(db, &m.typ(db)))
+        .collect::<Vec<_>>()
+        .join(" | ");
+      format!("list[{}]", inner)
+    }
+    MemberType::DictOfSum(members) => {
+      let inner = members
+        .iter()
+        .map(|m| member_type_display_name(db, &m.typ(db)))
+        .collect::<Vec<_>>()
+        .join(" | ");
+      format!("dict[{}]", inner)
+    }
     MemberType::Literal(val) => format!("{:?}", val),
     MemberType::Never => "never".to_string(),
   }

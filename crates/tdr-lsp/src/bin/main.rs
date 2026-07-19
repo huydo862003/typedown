@@ -1,9 +1,9 @@
 use lsp_server::Connection;
 use lsp_types::{
   CompletionOptions, HoverProviderCapability, InitializeParams, InitializeResult, OneOf,
-  SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+  RenameOptions, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
   SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo, TextDocumentSyncCapability,
-  TextDocumentSyncKind,
+  TextDocumentSyncKind, WorkDoneProgressOptions,
 };
 use tdr_lsp::logger;
 use tdr_lsp::multiproject::Multiproject;
@@ -18,6 +18,12 @@ pub fn main() -> anyhow::Result<()> {
   logger::init_file();
 
   let capabilities = ServerCapabilities {
+    rename_provider: Some(OneOf::Right(RenameOptions {
+      prepare_provider: Some(true),
+      work_done_progress_options: WorkDoneProgressOptions {
+        work_done_progress: None,
+      },
+    })),
     text_document_sync: Some(TextDocumentSyncCapability::Kind(
       TextDocumentSyncKind::INCREMENTAL,
     )),

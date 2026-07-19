@@ -218,69 +218,29 @@ impl Hash for TdrObjectEnum {
   }
 }
 
-// Dispatch macro for implementing traits on both enums
-macro_rules! dispatch_type_enum {
-  ($self:ident, $method:ident($($arg:expr),*)) => {
-    match $self {
-      TdrTypeEnum::TdrTypeType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrObjectType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrBoolType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrStrType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrNumType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrMathType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrFuncType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrListType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrDictType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrDateTimeType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrDateType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrTimeType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrSchemaType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrSchemaPropertyType(v) => v.$method($($arg),*),
-      TdrTypeEnum::TdrProductType(v) => v.$method($($arg),*),
-    }
-  };
-}
-
-macro_rules! dispatch_object_enum {
-  ($self:ident, $method:ident($($arg:expr),*)) => {
-    match $self {
-      TdrObjectEnum::TdrTypeType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrObjectType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrBoolType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrStrType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrNumType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrMathType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrFuncType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrListType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrDictType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrDateTimeType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrDateType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrTimeType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrSchemaType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrSchemaPropertyType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrProductType(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrBoolObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrStrObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrNumObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrMathObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrFuncObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrListObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrDictObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrDateTimeObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrDateObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrTimeObj(v) => v.$method($($arg),*),
-      TdrObjectEnum::TdrProductObj(v) => v.$method($($arg),*),
-    }
-  };
-}
-
 impl tdr_incremental::StableHash for TdrTypeEnum {
   fn stable_hash<DB: tdr_incremental::QueryDatabase + ?Sized>(
     &self,
     db: &DB,
     hasher: &mut tdr_incremental::StableHasher,
   ) {
-    dispatch_type_enum!(self, stable_hash(db, hasher));
+    match self {
+      TdrTypeEnum::TdrTypeType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrObjectType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrBoolType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrStrType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrNumType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrMathType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrFuncType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrListType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrDictType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrDateTimeType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrDateType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrTimeType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrSchemaType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrSchemaPropertyType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrProductType(v) => v.stable_hash(db, hasher),
+    }
   }
 }
 
@@ -290,7 +250,34 @@ impl tdr_incremental::StableHash for TdrObjectEnum {
     db: &DB,
     hasher: &mut tdr_incremental::StableHasher,
   ) {
-    dispatch_object_enum!(self, stable_hash(db, hasher));
+    match self {
+      TdrObjectEnum::TdrTypeType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrObjectType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrBoolType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrStrType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrNumType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrMathType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrFuncType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrListType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrDictType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrDateTimeType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrDateType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrTimeType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrSchemaType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrSchemaPropertyType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrProductType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrBoolObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrStrObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrNumObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrMathObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrFuncObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrListObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrDictObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrDateTimeObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrDateObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrTimeObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrProductObj(v) => v.stable_hash(db, hasher),
+    }
   }
 }
 

@@ -2,14 +2,16 @@
 
 pub mod hir;
 pub mod object_system;
+pub mod symbol;
 
 pub use hir::*;
 pub use object_system::*;
+pub use symbol::*;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::syntax::diagnostic::Diagnostic;
+use crate::{db::types::TypeMember, syntax::diagnostic::Diagnostic};
 use tdr_macros::query_derived;
 
 use crate::syntax::red::RedNode;
@@ -57,7 +59,7 @@ pub struct TypeResult {
 
 #[query_derived]
 pub struct TypeMemberResult {
-  member: Option<super::interned::TypeMember>,
+  member: Option<TypeMember>,
   diagnostics: Vec<Diagnostic>,
 }
 

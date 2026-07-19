@@ -1,0 +1,488 @@
+//! Tracked query for the expected (top-down) type of a HIR value
+// I think this is the idea of bidirectional typechecking
+
+use crate::db::TypedownDatabase;
+use crate::db::derived::evaluate::evaluate_type::evaluate_type;
+use crate::db::derived::hir::lower_node;
+use crate::db::derived::name_resolver::referee::referee;
+use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
+use crate::db::types::{
+  File, HirValue, MemberType, Project, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors,
+  TypeMemberResult,
+};
+use crate::db::utils::typecheck::{
+  lift_type_member_result, member_types_compatible, value_matches_member_type,
+};
+use crate::syntax::ast::{AstNode, Expr};
+use crate::syntax::red::RedNode;
+use crate::syntax::syntax_kind::SyntaxKind;
+use tdr_incremental::QueryDatabase;
+use tdr_macros::query_derived;
+
+/// A step in the path from anchor to target node
+enum PathStep {
+  Field(String),
+  Index,
+}
+
+#[query_derived]
+pub fn expected_node_type_member(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
+  let project = hir.project(db);
+  let file = hir.file(db);
+  let node = hir.node(db);
+
+  // "Non-top-level expression nodes" (our fabricated concept) fall back to actual type
+  if !is_top_level(&node) {
+    return actual_node_type_member(db, hir);
+  }
+
+  let (anchor_type, path) = match collect_path_to_anchor(db, project, file, &node) {
+    Some(result) => result,
+    None => return TypeMemberResult::new(db, None, vec![]),
+  };
+
+  // Traverse down the type structure following the path
+  let mut current_member = TypeMember::new(
+    db,
+    MemberType::Simple(anchor_type),
+    TypeMemberDescriptors::empty(),
+  );
+
+  for (step, step_node) in &path {
+    let step_hir = lower_node(db, project, file, step_node.clone());
+    let member_type = current_member.typ(db);
+
+    // Resolve Sum ambiguity using actual_node_type_member
+    let resolved = resolve_member_type(db, &member_type, step_hir);
+
+    current_member = match step {
+      PathStep::Field(name) => match traverse_field(db, &resolved, name) {
+        Some(member) => member,
+        None => return TypeMemberResult::new(db, None, vec![]),
+      },
+      PathStep::Index => match traverse_index(db, &resolved) {
+        Some(member) => member,
+        None => return TypeMemberResult::new(db, None, vec![]),
+      },
+    };
+  }
+
+  TypeMemberResult::new(db, Some(current_member), vec![])
+}
+
+/// Check if a node is top-level in the YAML structure
+fn is_top_level(node: &RedNode) -> bool {
+  let parent = match node.parent() {
+    Some(parent) => parent,
+    None => return true,
+  };
+  match parent.kind() {
+    SyntaxKind::YamlFrontmatter | SyntaxKind::SourceFile => true,
+    SyntaxKind::YamlMapping
+    | SyntaxKind::YamlMappingEntry
+    | SyntaxKind::YamlMappingEntryValue
+    | SyntaxKind::YamlMappingEntryKey
+    | SyntaxKind::YamlSequence
+    | SyntaxKind::YamlSequenceItem
+    | SyntaxKind::ListLit
+    | SyntaxKind::ListItem
+    | SyntaxKind::DictLit
+    | SyntaxKind::DictEntry
+    | SyntaxKind::DictEntryKey
+    | SyntaxKind::DictEntryValue => is_top_level(&parent),
+    _ => false,
+  }
+}
+
+/// Walk up from target to the nearest _type anchor, collecting path steps
+fn collect_path_to_anchor(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  target: &RedNode,
+) -> Option<(TdrTypeEnum, Vec<(PathStep, RedNode)>)> {
+  let mut path = vec![];
+  let mut current = target.clone();
+
+  loop {
+    let parent = match current.parent() {
+      Some(parent) => parent,
+      None => {
+        return None;
+      }
+    };
+
+    match parent.kind() {
+      SyntaxKind::YamlMappingEntryValue => {
+        let entry = parent.parent()?;
+        if entry.kind() != SyntaxKind::YamlMappingEntry {
+          return None;
+        }
+        let key_name = entry
+          .children()
+          .find(|child| child.kind() == SyntaxKind::YamlMappingEntryKey)?
+          .text()
+          .trim()
+          .to_string();
+
+        if key_name == "_type" {
+          return None;
+        }
+
+        path.push((PathStep::Field(key_name.clone()), current.clone()));
+
+        let mapping = entry.parent()?;
+        if mapping.kind() != SyntaxKind::YamlMapping {
+          return None;
+        }
+
+        // Anchor found
+        if let Some(schema_type) = resolve_type_anchor(db, project, file, &mapping) {
+          path.reverse();
+          return Some((schema_type, path));
+        }
+
+        current = mapping;
+      }
+      SyntaxKind::YamlSequenceItem => {
+        let sequence = parent.parent()?;
+        if sequence.kind() != SyntaxKind::YamlSequence {
+          return None;
+        }
+        path.push((PathStep::Index, current.clone()));
+        current = sequence;
+      }
+      SyntaxKind::ListItem => {
+        let list = parent.parent()?;
+        if list.kind() != SyntaxKind::ListLit {
+          return None;
+        }
+        path.push((PathStep::Index, current.clone()));
+        current = list;
+      }
+      SyntaxKind::DictEntryValue => {
+        let entry = parent.parent()?;
+        if entry.kind() != SyntaxKind::DictEntry {
+          return None;
+        }
+        let key_name = entry
+          .children()
+          .find(|child| child.kind() == SyntaxKind::DictEntryKey)?
+          .text()
+          .trim()
+          .to_string();
+
+        if key_name == "_type" {
+          return None;
+        }
+
+        path.push((PathStep::Field(key_name), current.clone()));
+
+        let dict = entry.parent()?;
+        if dict.kind() != SyntaxKind::DictLit {
+          return None;
+        }
+
+        // Anchor found
+        if let Some(schema_type) = resolve_type_anchor(db, project, file, &dict) {
+          path.reverse();
+          return Some((schema_type, path));
+        }
+
+        current = dict;
+      }
+      SyntaxKind::YamlFrontmatter | SyntaxKind::SourceFile => {
+        return None;
+      }
+      _ => {
+        current = parent;
+      }
+    }
+  }
+}
+
+/// Resolve the _type field in a mapping to a TdrTypeEnum via referee + evaluate_type
+fn resolve_type_anchor(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  mapping: &RedNode,
+) -> Option<TdrTypeEnum> {
+  // Find the _type entry's value node
+  for entry in mapping.children() {
+    let entry_kind = entry.kind();
+    if entry_kind != SyntaxKind::YamlMappingEntry && entry_kind != SyntaxKind::DictEntry {
+      continue;
+    }
+    let key_kind = if entry_kind == SyntaxKind::YamlMappingEntry {
+      SyntaxKind::YamlMappingEntryKey
+    } else {
+      SyntaxKind::DictEntryKey
+    };
+    let value_kind = if entry_kind == SyntaxKind::YamlMappingEntry {
+      SyntaxKind::YamlMappingEntryValue
+    } else {
+      SyntaxKind::DictEntryValue
+    };
+
+    let key = entry.children().find(|child| child.kind() == key_kind)?;
+    if key.text().trim() != "_type" {
+      continue;
+    }
+    let entry_value = entry.children().find(|child| child.kind() == value_kind)?;
+    let value_expr = entry_value.children().find_map(Expr::cast)?;
+    let value_hir = lower_node(db, project, file, value_expr.syntax().clone());
+    let symbol = referee(db, value_hir).value(db)?;
+    return evaluate_type(db, symbol).typ(db);
+  }
+  None
+}
+
+/// Resolve a Sum MemberType by picking the most specific matching arm
+fn resolve_member_type(
+  db: &TypedownDatabase,
+  member_type: &MemberType,
+  hir: HirValue,
+) -> MemberType {
+  match member_type {
+    MemberType::Sum(arms) => pick_most_specific_arm(db, arms, hir).unwrap_or(member_type.clone()),
+    _ => member_type.clone(),
+  }
+}
+
+/// Pick the most specific arm that matches the actual value
+fn pick_most_specific_arm(
+  db: &TypedownDatabase,
+  arms: &[TypeMember],
+  hir: HirValue,
+) -> Option<MemberType> {
+  let actual_type = lift_type_member_result(db, &actual_node_type_member(db, hir))?;
+
+  let matching: Vec<_> = arms
+    .iter()
+    .filter(|arm| value_matches_member_type(db, &arm.typ(db), &actual_type, hir))
+    .collect();
+
+  if matching.is_empty() {
+    return None;
+  }
+  if matching.len() == 1 {
+    return Some(matching[0].typ(db));
+  }
+
+  // If candidate is compatible with best, candidate is more specific
+  let mut best = matching[0];
+  for candidate in &matching[1..] {
+    let candidate_typ = candidate.typ(db);
+    let best_typ = best.typ(db);
+    if member_types_compatible(db, &best_typ, &candidate_typ) {
+      best = candidate;
+    }
+  }
+
+  Some(best.typ(db))
+}
+
+/// Look up a field in the resolved type
+fn traverse_field(
+  db: &TypedownDatabase,
+  member_type: &MemberType,
+  field_name: &str,
+) -> Option<TypeMember> {
+  match member_type {
+    MemberType::Simple(typ) => {
+      if let Some(member) = typ.get_owned_field_type_member(db, field_name) {
+        return Some(member);
+      }
+      // Dict: any key maps to the value type
+      if let Some(dict) = typ.as_tdr_dict_type()
+        && let Some(value_type) = dict.value(db)
+      {
+        return Some(TypeMember::new(
+          db,
+          MemberType::Simple(value_type),
+          TypeMemberDescriptors::empty(),
+        ));
+      }
+      None
+    }
+    MemberType::DictOfSum(arms) => Some(TypeMember::new(
+      db,
+      MemberType::Sum(arms.clone()),
+      TypeMemberDescriptors::empty(),
+    )),
+    _ => None,
+  }
+}
+
+/// Get the element type from a list or ListOfSum
+fn traverse_index(db: &TypedownDatabase, member_type: &MemberType) -> Option<TypeMember> {
+  match member_type {
+    MemberType::Simple(typ) => {
+      let list = typ.as_tdr_list_type()?;
+      let elem = list.elem(db)?;
+      Some(TypeMember::new(
+        db,
+        MemberType::Simple(elem),
+        TypeMemberDescriptors::empty(),
+      ))
+    }
+    MemberType::ListOfSum(arms) => Some(TypeMember::new(
+      db,
+      MemberType::Sum(arms.clone()),
+      TypeMemberDescriptors::empty(),
+    )),
+    _ => None,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::db::TypedownDatabase;
+  use crate::db::types::TdrTypeLike;
+  use crate::db::{
+    derived::typechecker::expected_node_type_member::expected_node_type_member,
+    fixtures::load_vault_fixture,
+    types::{File, HirValue, HirValueKind, MemberType, Project},
+    utils::lower_file,
+  };
+
+  fn get_field_hir(
+    db: &TypedownDatabase,
+    project: Project,
+    file: File,
+    field: &str,
+  ) -> Option<HirValue> {
+    let (hir, _) = lower_file(db, project, file);
+    let hir = hir?;
+    if let HirValueKind::Mapping(entries) = hir.kind(db) {
+      entries
+        .into_iter()
+        .find(|(key, _)| key == field)
+        .map(|(_, value)| value)
+    } else {
+      None
+    }
+  }
+
+  #[test]
+  fn expected_node_type_member_known_field_returns_member() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
+    let name_hir = get_field_hir(&db, project, file, "name")
+      .expect("valid_person.tdr should have a 'name' field");
+
+    let result = expected_node_type_member(&db, name_hir);
+
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "expected no diagnostics, got: {:?}",
+      result.diagnostics(&db)
+    );
+    let member = result
+      .member(&db)
+      .expect("'name' field should have a declared TypeMember");
+    match member.typ(&db) {
+      MemberType::Simple(typ) => assert_eq!(
+        typ.display_name(&db),
+        "string",
+        "expected declared type 'string', got '{}'",
+        typ.display_name(&db)
+      ),
+      _other => panic!("expected Simple member type"),
+    }
+  }
+
+  #[test]
+  fn expected_node_type_member_untyped_mapping_returns_none() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("literal_value.tdr should have parseable frontmatter");
+
+    let result = expected_node_type_member(&db, hir);
+
+    assert!(
+      result.member(&db).is_none(),
+      "untyped mapping root should have no declared member"
+    );
+  }
+
+  /// Get the HIR for a nested field value: top[field1][field2]
+  fn get_nested_field_hir(
+    db: &TypedownDatabase,
+    project: Project,
+    file: File,
+    fields: &[&str],
+  ) -> Option<HirValue> {
+    let (hir, _) = lower_file(db, project, file);
+    let mut current = hir?;
+    for field in fields {
+      if let HirValueKind::Mapping(entries) = current.kind(db) {
+        current = entries
+          .into_iter()
+          .find(|(key, _)| key == field)
+          .map(|(_, value)| value)?;
+      } else {
+        return None;
+      }
+    }
+    Some(current)
+  }
+
+  // Nested field inside a schema property descriptor
+  #[test]
+  fn expected_node_type_member_nested_schema_property_field() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/WithUnion.tdr");
+    // WithUnion has: properties: { status: { type: ['draft', 'published', 'archived'] } }
+    // The 'type' field inside the status property descriptor should have expected type from SchemaProperty
+    let type_hir = get_nested_field_hir(&db, project, file, &["properties", "status", "type"]);
+    let type_hir = type_hir.expect("should find nested type field");
+    let result = expected_node_type_member(&db, type_hir);
+
+    // The expected type should exist (from SchemaProperty's declared type for 'type')
+    assert!(
+      result.member(&db).is_some(),
+      "nested 'type' field should have an expected type from SchemaProperty"
+    );
+  }
+
+  // Schema with union: the 'status' field value should have expected type Sum
+  #[test]
+  fn expected_node_type_member_union_field_value() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_status.tdr");
+    // valid_status.tdr has: _type: Status, state: "draft"
+    let state_hir = get_field_hir(&db, project, file, "state").expect("should have 'state' field");
+    let result = expected_node_type_member(&db, state_hir);
+
+    let member = result.member(&db).expect("state should have expected type");
+    // Status schema declares state: "draft" (Literal type)
+    assert!(
+      matches!(member.typ(&db), MemberType::Literal(_)),
+      "expected Literal type for state field"
+    );
+  }
+
+  // Sequence item inside a list field should have expected type
+  #[test]
+  fn expected_node_type_member_sequence_item() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_event.tdr");
+    // valid_event.tdr has _type: Event with a list field
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("should parse");
+
+    // Find the first sequence item if any
+    if let HirValueKind::Mapping(entries) = hir.kind(&db) {
+      for (key, value) in entries {
+        if let HirValueKind::Sequence(items) = value.kind(&db) {
+          if let Some(first_item) = items.first() {
+            let result = expected_node_type_member(&db, *first_item);
+            // Should have some expected type from the schema's list element type
+            // (or None if schema doesn't constrain elements)
+            // Just verify it doesn't panic
+            let _ = result.member(&db);
+            return;
+          }
+        }
+      }
+    }
+  }
+}

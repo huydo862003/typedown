@@ -37,6 +37,10 @@ pub enum MemberType {
   Sum(Vec<TypeMember>),
   /// A literal value constraint (e.g. `"foo"`, `42`, `true`)
   Literal(LiteralValue),
+  /// A list whose members are of the sum type
+  ListOfSum(Vec<TypeMember>),
+  /// A dict whose values are of the sum type
+  DictOfSum(Vec<TypeMember>),
   /// The bottom type: no value can be assigned to this field
   Never,
 }
@@ -105,7 +109,9 @@ enum MemberTypeTag {
   Simple = 0,
   Sum = 1,
   Literal = 2,
-  Never = 3,
+  ListOfSum = 3,
+  DictOfSum = 4,
+  Never = 5,
 }
 
 impl Encodable for MemberType {
@@ -123,6 +129,14 @@ impl Encodable for MemberType {
         encoder.emit_u8(buf, MemberTypeTag::Literal as u8);
         value.encode(buf, encoder);
       }
+      MemberType::ListOfSum(value) => {
+        encoder.emit_u8(buf, MemberTypeTag::ListOfSum as u8);
+        value.encode(buf, encoder);
+      }
+      MemberType::DictOfSum(value) => {
+        encoder.emit_u8(buf, MemberTypeTag::DictOfSum as u8);
+        value.encode(buf, encoder);
+      }
       MemberType::Never => {
         encoder.emit_u8(buf, MemberTypeTag::Never as u8);
       }
@@ -137,6 +151,8 @@ impl Decodable for MemberType {
       MemberTypeTag::Simple => MemberType::Simple(TdrTypeEnum::decode(data, decoder)),
       MemberTypeTag::Sum => MemberType::Sum(Vec::decode(data, decoder)),
       MemberTypeTag::Literal => MemberType::Literal(LiteralValue::decode(data, decoder)),
+      MemberTypeTag::ListOfSum => MemberType::ListOfSum(Vec::decode(data, decoder)),
+      MemberTypeTag::DictOfSum => MemberType::DictOfSum(Vec::decode(data, decoder)),
       MemberTypeTag::Never => MemberType::Never,
     }
   }
@@ -149,6 +165,8 @@ impl StableHash for MemberType {
       MemberType::Simple(typ) => typ.stable_hash(db, hasher),
       MemberType::Sum(members) => members.stable_hash(db, hasher),
       MemberType::Literal(value) => value.stable_hash(db, hasher),
+      MemberType::ListOfSum(members) => members.stable_hash(db, hasher),
+      MemberType::DictOfSum(members) => members.stable_hash(db, hasher),
       MemberType::Never => {}
     }
   }

@@ -7,11 +7,13 @@ use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::name_resolver::members::members;
 use tdr_lang::db::derived::parse_file::parse_file;
-use tdr_lang::db::derived::typechecker::declared_node_type::declared_node_type;
-use tdr_lang::db::derived::typechecker::get_symbol_type::get_symbol_type;
+use tdr_lang::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
+use tdr_lang::db::derived::typechecker::get_symbol_type_member::get_symbol_type_member;
 use tdr_lang::db::types::{
   File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMember, TypeMemberDescriptors,
 };
+use tdr_lang::db::utils::schema_name_in_mapping;
+use tdr_lang::db::utils::typecheck::lift_type_member_result;
 use tdr_lang::syntax::ast::{AstNode, Expr};
 use tdr_lang::syntax::red::RedNode;
 use tdr_lang::syntax::syntax_kind::SyntaxKind;
@@ -123,7 +125,7 @@ fn fref_completions(
         Some(sym) => sym,
         None => return false,
       };
-      let file_type = match get_symbol_type(db, sym).typ(db) {
+      let file_type = match lift_type_member_result(db, &get_symbol_type_member(db, sym)) {
         Some(typ) => typ,
         None => return false,
       };
@@ -160,7 +162,7 @@ fn enclosing_mapping_product(
   // No explicit _type. Try resolving via the parent field's declared type.
   let mapping_expr = Expr::cast(mapping.clone())?;
   let hir = lower_node(db, project, file, mapping_expr.syntax().clone());
-  let member = declared_node_type(db, hir).member(db)?;
+  let member = expected_node_type_member(db, hir).member(db)?;
   let typ = match member.typ(db) {
     MemberType::Simple(typ) => typ,
     _ => return None,
@@ -208,24 +210,7 @@ fn declared_field(
   let entry_value = find_ancestor(node, SyntaxKind::YamlMappingEntryValue)?;
   let value_expr = entry_value.children().find_map(Expr::cast)?;
   let hir = lower_node(db, project, file, value_expr.syntax().clone());
-  declared_node_type(db, hir).member(db)
-}
-
-/// Return the declared schema name from a `_type` entry in a mapping node.
-fn schema_name_in_mapping(mapping: &RedNode) -> Option<String> {
-  for entry in mapping.children() {
-    if entry.kind() != SyntaxKind::YamlMappingEntry {
-      continue;
-    }
-    let mut children = entry.children();
-    let key = children.find(|child| child.kind() == SyntaxKind::YamlMappingEntryKey)?;
-    if key.text().trim() != "_type" {
-      continue;
-    }
-    let value = children.find(|child| child.kind() == SyntaxKind::YamlMappingEntryValue)?;
-    return Some(value.text().trim().to_string());
-  }
-  None
+  expected_node_type_member(db, hir).member(db)
 }
 
 /// Build a keyword completion item (true, false, null).

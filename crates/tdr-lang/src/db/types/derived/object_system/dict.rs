@@ -9,6 +9,7 @@ use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use crate::db::derived::get_builtin_types::get_dict_type;
 use crate::db::types::{HirValue, InstResult, MemberType, TypeMember};
+use crate::db::utils::typecheck::member_types_compatible;
 use tdr_incremental::Id;
 
 #[query_derived]
@@ -49,7 +50,7 @@ impl TdrTypeLike for TdrDictType {
   fn get_vtable(&self, _db: &TypedownDatabase) -> HashMap<String, TdrFuncObj> {
     HashMap::new()
   }
-  fn get_owned_field_type(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+  fn get_owned_field_type_member(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
     None
   }
   fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdrTypeEnum>) -> InstResult {
@@ -69,13 +70,10 @@ impl TdrTypeLike for TdrDictType {
         Some(vt) => vt,
         None => return true,
       };
-      return product
-        .fields(db)
-        .values()
-        .all(|member| match member.typ(db) {
-          MemberType::Simple(field_type) => value_type.is_compatible_with(db, &field_type),
-          _ => false,
-        });
+      return product.fields(db).values().all(|member| {
+        let value_member = MemberType::Simple(value_type.clone());
+        member_types_compatible(db, &value_member, &member.typ(db))
+      });
     }
 
     if self.as_id().0 != actual.as_id().0 {

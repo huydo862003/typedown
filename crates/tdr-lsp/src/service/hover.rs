@@ -4,9 +4,10 @@ use tdr_lang::db::types::TdrTypeLike;
 use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::parse_file::parse_file;
-use tdr_lang::db::derived::typechecker::declared_node_type::declared_node_type;
-use tdr_lang::db::derived::typechecker::resolved_node_type::resolved_node_type;
+use tdr_lang::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
+use tdr_lang::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
 use tdr_lang::db::types::{LiteralValue, MemberType, TypeMember, TypeMemberDescriptors};
+use tdr_lang::db::utils::typecheck::lift_type_member_result;
 use tdr_lang::syntax::ast::{AstNode, Expr};
 use tdr_lang::syntax::syntax_kind::SyntaxKind;
 
@@ -35,7 +36,10 @@ pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
     // Value position: show the resolved type of the expression.
     let expr_node = nearest_expr_ancestor(&node)?;
     let hir = lower_node(db, project, file, expr_node);
-    let typ = resolved_node_type(db, hir).typ(db)?;
+    let typ = {
+      let r = actual_node_type_member(db, hir);
+      lift_type_member_result(db, &r)?
+    };
     typ.display_name(db)
   } else if find_ancestor(&node, SyntaxKind::YamlMappingEntryKey).is_some() {
     // Key position: show the field name with its declared type.
@@ -46,7 +50,7 @@ pub fn hover(analysis: &Analysis, params: HoverParams) -> Option<Hover> {
       .find(|c| c.kind() == SyntaxKind::YamlMappingEntryValue)?;
     let value_expr = entry_value.children().find_map(Expr::cast)?;
     let hir = lower_node(db, project, file, value_expr.syntax().clone());
-    let member = declared_node_type(db, hir).member(db)?;
+    let member = expected_node_type_member(db, hir).member(db)?;
     let key_text = entry_key.text().trim().to_string();
     format!("{key_text}: {}", member_type_label(db, &member))
   } else {
@@ -74,6 +78,30 @@ fn member_type_label(db: &TypedownDatabase, member: &TypeMember) -> String {
       })
       .collect::<Vec<_>>()
       .join(" | "),
+    MemberType::ListOfSum(arms) => {
+      let inner = arms
+        .iter()
+        .map(|arm| match arm.typ(db) {
+          MemberType::Simple(typ) => typ.display_name(db),
+          MemberType::Literal(lit) => literal_label(&lit),
+          _ => "?".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+      format!("list[{}]", inner)
+    }
+    MemberType::DictOfSum(arms) => {
+      let inner = arms
+        .iter()
+        .map(|arm| match arm.typ(db) {
+          MemberType::Simple(typ) => typ.display_name(db),
+          MemberType::Literal(lit) => literal_label(&lit),
+          _ => "?".to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+      format!("dict[{}]", inner)
+    }
     MemberType::Literal(lit) => literal_label(&lit),
     MemberType::Never => "never".to_string(),
   };
