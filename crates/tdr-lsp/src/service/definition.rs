@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse, Location, Range};
 
 use tdr_lang::db::TypedownDatabase;
@@ -80,11 +82,7 @@ pub fn definition(
 }
 
 /// If the cursor is inside a fref() string argument, return the resolved target path.
-fn fref_target(
-  db: &TypedownDatabase,
-  project: Project,
-  node: &RedNode,
-) -> Option<std::path::PathBuf> {
+fn fref_target(db: &TypedownDatabase, project: Project, node: &RedNode) -> Option<PathBuf> {
   let str_lit = find_ancestor(node, SyntaxKind::StrLit);
   let call = match str_lit {
     Some(ref lit) => find_ancestor(lit, SyntaxKind::CallExpr),
