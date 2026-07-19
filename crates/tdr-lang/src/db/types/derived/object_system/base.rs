@@ -72,27 +72,6 @@ pub trait TdrObjectLike: Id {
   }
 }
 
-fn get_builtin_field(db: &::tdr_lang::db::TypedownDatabase, name: &str) -> Option<TypeMember> {
-  match name {
-    "_type" => Some(TypeMember::new(
-      db,
-      MemberType::Simple(TdrTypeType::get(db).into()),
-      TypeMemberDescriptors::empty(),
-    )),
-    "_label" => Some(TypeMember::new(
-      db,
-      MemberType::Simple(get_str_type(db).into()),
-      TypeMemberDescriptors::OPTIONAL,
-    )),
-    "_content" => Some(TypeMember::new(
-      db,
-      MemberType::Simple(get_str_type(db).into()),
-      TypeMemberDescriptors::OPTIONAL,
-    )),
-    _ => None,
-  }
-}
-
 // This need not be object-safe
 // We access via the enum, not via dyn trait
 #[delegatable_trait]
@@ -127,24 +106,6 @@ pub trait TdrTypeLike: TdrObjectLike {
     db: &::tdr_lang::db::TypedownDatabase,
     args: Vec<TdrObjectEnum>,
   ) -> Option<TdrObjectEnum>;
-
-  fn get_field_type_member(
-    &self,
-    db: &::tdr_lang::db::TypedownDatabase,
-    name: &str,
-  ) -> Option<::tdr_lang::db::types::TypeMember> {
-    if let Some(field) = get_builtin_field(db, name) {
-      return Some(field);
-    }
-    if let Some(field) = self.get_owned_field_type_member(db, name) {
-      return Some(field);
-    }
-    let supertype = self.get_supertype(db);
-    if supertype.as_id() == self.as_id() {
-      return None;
-    }
-    supertype.get_field_type_member(db, name)
-  }
 
   fn lookup_instance_method(
     &self,

@@ -105,7 +105,7 @@ fn check_mapping_fields(
       }
       continue;
     }
-    if let Some(member) = expected_type.get_field_type_member(db, key) {
+    if let Some(member) = expected_type.get_owned_field_type_member(db, key) {
       // Recursively typecheck the field value
       let tc_result = typecheck(db, *value_hir);
       diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
