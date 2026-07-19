@@ -1,4 +1,4 @@
-pub mod declared_node_type;
+pub mod actual_node_type;
+pub mod expected_node_type;
 pub mod get_symbol_type;
-pub mod infer_node_type;
 pub mod typecheck;

@@ -10,7 +10,7 @@ use tdr_incremental::QueryDatabase;
 use tdr_macros::query_derived;
 
 #[query_derived]
-pub fn declared_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
+pub fn expected_node_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
   let project = hir.project(db);
   let node = hir.node(db);
 
@@ -70,7 +70,7 @@ mod tests {
   use crate::db::types::TdrTypeLike;
   use crate::db::{
     TypedownDatabase,
-    derived::typechecker::declared_node_type::declared_node_type,
+    derived::typechecker::expected_node_type::expected_node_type,
     fixtures::load_vault_fixture,
     types::{File, HirValue, HirValueKind, MemberType, Project},
     utils::lower_file,
@@ -96,12 +96,12 @@ mod tests {
 
   // declared type for a known field returns the schema member
   #[test]
-  fn declared_node_type_known_field_returns_member() {
+  fn expected_node_type_known_field_returns_member() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_person.tdr");
     let name_hir = get_field_hir(&db, project, file, "name")
       .expect("valid_person.tdr should have a 'name' field");
 
-    let result = declared_node_type(&db, name_hir);
+    let result = expected_node_type(&db, name_hir);
 
     assert!(
       result.diagnostics(&db).is_empty(),
@@ -125,13 +125,13 @@ mod tests {
 
   // declared type for a field not in any schema returns None
   #[test]
-  fn declared_node_type_untyped_mapping_returns_none() {
+  fn expected_node_type_untyped_mapping_returns_none() {
     // literal_value.tdr has no _type field, so no schema to look up
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/literal_value.tdr");
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("literal_value.tdr should have parseable frontmatter");
 
-    let result = declared_node_type(&db, hir);
+    let result = expected_node_type(&db, hir);
 
     assert!(
       result.member(&db).is_none(),

@@ -8,7 +8,7 @@ use tdr_macros::query_derived;
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type};
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::derived::typechecker::infer_node_type::infer_node_type;
+use crate::db::derived::typechecker::actual_node_type::actual_node_type;
 use crate::db::types::{
   HirValue, HirValueKind, InterpolatedPart, LiteralValue, MemberType, TdrTypeEnum, TdrTypeLike,
   TypeMember, TypeMemberDescriptors, TypecheckResult, member_type_display_name,
@@ -18,7 +18,7 @@ use tdr_incremental::QueryDatabase;
 #[query_derived]
 pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
   // Synthesize the type of the node
-  let type_result = infer_node_type(db, hir);
+  let type_result = actual_node_type(db, hir);
   let mut diagnostics = type_result.diagnostics(db).clone();
 
   // If type is None (any), nothing to check
@@ -103,7 +103,7 @@ fn check_mapping_fields(
       diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
       // Check synthesized type against expected field type
-      let value_result = infer_node_type(db, *value_hir);
+      let value_result = actual_node_type(db, *value_hir);
       let is_optional = member
         .descriptors(db)
         .contains(TypeMemberDescriptors::OPTIONAL);
@@ -179,7 +179,7 @@ fn check_tag(
   inner: HirValue,
 ) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
-  let inner_result = infer_node_type(db, inner);
+  let inner_result = actual_node_type(db, inner);
   diagnostics.extend(inner_result.diagnostics(db).iter().cloned());
   if let Some(actual_type) = inner_result.typ(db)
     && !expected_type.is_compatible_with(db, &actual_type)
@@ -197,7 +197,7 @@ fn check_tag(
 fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
-  let callee_result = infer_node_type(db, callee);
+  let callee_result = actual_node_type(db, callee);
   diagnostics.extend(callee_result.diagnostics(db).iter().cloned());
 
   let callee_type = match callee_result.typ(db) {
@@ -229,7 +229,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
   }
 
   for (param, arg_hir) in params.iter().zip(args.iter()) {
-    let arg_result = infer_node_type(db, *arg_hir);
+    let arg_result = actual_node_type(db, *arg_hir);
     diagnostics.extend(arg_result.diagnostics(db).iter().cloned());
     if let Some(arg_type) = arg_result.typ(db)
       && !param.is_compatible_with(db, &arg_type)
@@ -249,7 +249,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
 fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) -> Vec<Diagnostic> {
   let mut diagnostics = vec![];
 
-  let expr_result = infer_node_type(db, expr);
+  let expr_result = actual_node_type(db, expr);
   diagnostics.extend(expr_result.diagnostics(db).iter().cloned());
 
   let expr_type = match expr_result.typ(db) {
@@ -265,7 +265,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   // List element access: index must be a number
   if expr_type.is_tdr_list_type() {
     for idx_hir in &indices {
-      let idx_result = infer_node_type(db, *idx_hir);
+      let idx_result = actual_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
       if let Some(idx_type) = idx_result.typ(db) {
         let num_type = get_num_type(db);
@@ -286,7 +286,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   if let TdrTypeEnum::TdrDictType(dict) = &expr_type {
     if let Some(key_type) = dict.key(db) {
       for idx_hir in &indices {
-        let idx_result = infer_node_type(db, *idx_hir);
+        let idx_result = actual_node_type(db, *idx_hir);
         diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
         if let Some(idx_type) = idx_result.typ(db)
           && !key_type.is_compatible_with(db, &idx_type)
@@ -306,7 +306,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   // String indexing is valid: index must be a number
   if expr_type.is_tdr_str_type() {
     for idx_hir in &indices {
-      let idx_result = infer_node_type(db, *idx_hir);
+      let idx_result = actual_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
       if let Some(idx_type) = idx_result.typ(db) {
         let num_type = get_num_type(db);
@@ -339,7 +339,7 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
   let tc_result = typecheck(db, operand);
   diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
-  let operand_result = infer_node_type(db, operand);
+  let operand_result = actual_node_type(db, operand);
   let operand_type = match operand_result.typ(db) {
     Some(typ) => typ,
     None => return diagnostics,
@@ -378,8 +378,8 @@ fn check_binary(
   let tc_right = typecheck(db, right);
   diagnostics.extend(tc_right.diagnostics(db).iter().cloned());
 
-  let left_type = infer_node_type(db, left).typ(db);
-  let right_type = infer_node_type(db, right).typ(db);
+  let left_type = actual_node_type(db, left).typ(db);
+  let right_type = actual_node_type(db, right).typ(db);
 
   match op {
     // Arithmetic: both operands must be number
@@ -468,7 +468,7 @@ fn check_sequence(
     diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
     // Check item type against element type
-    let item_result = infer_node_type(db, item);
+    let item_result = actual_node_type(db, item);
     if let Some(item_type) = item_result.typ(db)
       && !elem_type.is_compatible_with(db, &item_type)
     {
@@ -755,7 +755,7 @@ mod tests {
   }
 
   // Quoted string values for date/time/datetime fields should pass typechecking
-  // because infer_node_type deduces the specific subtype from ISO format
+  // because actual_node_type deduces the specific subtype from ISO format
   #[test]
   fn typecheck_literal_type_valid() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/valid_status.tdr");
