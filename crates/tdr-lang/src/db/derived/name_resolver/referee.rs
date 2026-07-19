@@ -43,17 +43,15 @@ fn resolve_call(
   callee: HirValue,
   args: Vec<HirValue>,
 ) -> MaybeSymbol {
-  if let HirValueKind::Ident(name) = callee.kind(db) {
-    if name == "fref" {
-      if let Some(first_arg) = args.first() {
-        if let HirValueKind::Str(path) = first_arg.kind(db) {
-          let project = hir.project(db);
-          let target_path = project.root_dir(db).join(&path);
-          if let Some(&target_file) = project.files(db).get(&target_path) {
-            return file_symbol(db, project, target_file);
-          }
-        }
-      }
+  if let HirValueKind::Ident(name) = callee.kind(db)
+    && name == "fref"
+    && let Some(first_arg) = args.first()
+    && let HirValueKind::Str(path) = first_arg.kind(db)
+  {
+    let project = hir.project(db);
+    let target_path = project.root_dir(db).join(&path);
+    if let Some(&target_file) = project.files(db).get(&target_path) {
+      return file_symbol(db, project, target_file);
     }
   }
   MaybeSymbol::new(db, None)

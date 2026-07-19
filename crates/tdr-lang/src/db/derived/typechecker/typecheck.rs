@@ -1,4 +1,5 @@
 //! Tracked query for typechecking
+// I think this is the idea of bidirectional typechecking
 
 use std::collections::HashSet;
 
@@ -9,23 +10,29 @@ use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type};
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::actual_node_type::actual_node_type;
+use crate::db::derived::typechecker::expected_node_type::expected_node_type;
 use crate::db::types::{
-  HirValue, HirValueKind, InterpolatedPart, TdrTypeEnum, TdrTypeLike, TypeMember,
+  HirValue, HirValueKind, InterpolatedPart, MemberType, TdrTypeEnum, TdrTypeLike, TypeMember,
   TypeMemberDescriptors, TypecheckResult, member_type_display_name,
 };
-use crate::db::utils::typecheck::value_matches_member_type;
+use crate::db::utils::typecheck::{lift_type_member_result, member_types_compatible};
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
 pub fn typecheck(db: &TypedownDatabase, hir: HirValue) -> TypecheckResult {
-  // Synthesize the type of the node
   let type_result = actual_node_type(db, hir);
   let mut diagnostics = type_result.diagnostics(db).clone();
 
-  // If type is None (any), nothing to check
-  let declared_type = match type_result.typ(db) {
-    Some(typ) => typ,
-    None => return TypecheckResult::new(db, diagnostics),
+  // Use expected type from schema if available, otherwise fall back to inferred type
+  let declared_type = if let Some(member) = expected_node_type(db, hir).member(db)
+    && let MemberType::Simple(typ) = member.typ(db)
+  {
+    typ
+  } else {
+    match lift_type_member_result(db, &type_result) {
+      Some(typ) => typ,
+      None => return TypecheckResult::new(db, diagnostics),
+    }
   };
 
   // Validate structure based on the node kind
@@ -108,10 +115,9 @@ fn check_mapping_fields(
       let is_optional = member
         .descriptors(db)
         .contains(TypeMemberDescriptors::OPTIONAL);
-      match value_result.typ(db) {
-        Some(actual_type) => {
-          let matches = value_matches_member_type(db, &member.typ(db), &actual_type, *value_hir);
-          if !matches {
+      match value_result.member(db) {
+        Some(actual_member) => {
+          if !member_types_compatible(db, &member.typ(db), &actual_member.typ(db)) {
             let node = value_hir.node(db);
             diagnostics.push(Diagnostic::FieldTypeMismatch {
               field: key.clone(),
@@ -182,7 +188,7 @@ fn check_tag(
   let mut diagnostics = vec![];
   let inner_result = actual_node_type(db, inner);
   diagnostics.extend(inner_result.diagnostics(db).iter().cloned());
-  if let Some(actual_type) = inner_result.typ(db)
+  if let Some(actual_type) = lift_type_member_result(db, &inner_result)
     && !expected_type.is_compatible_with(db, &actual_type)
   {
     let node = inner.node(db);
@@ -201,7 +207,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
   let callee_result = actual_node_type(db, callee);
   diagnostics.extend(callee_result.diagnostics(db).iter().cloned());
 
-  let callee_type = match callee_result.typ(db) {
+  let callee_type = match lift_type_member_result(db, &callee_result) {
     Some(typ) => typ,
     None => return diagnostics,
   };
@@ -232,7 +238,7 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
   for (param, arg_hir) in params.iter().zip(args.iter()) {
     let arg_result = actual_node_type(db, *arg_hir);
     diagnostics.extend(arg_result.diagnostics(db).iter().cloned());
-    if let Some(arg_type) = arg_result.typ(db)
+    if let Some(arg_type) = lift_type_member_result(db, &arg_result)
       && !param.is_compatible_with(db, &arg_type)
     {
       let node = arg_hir.node(db);
@@ -253,7 +259,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
   let expr_result = actual_node_type(db, expr);
   diagnostics.extend(expr_result.diagnostics(db).iter().cloned());
 
-  let expr_type = match expr_result.typ(db) {
+  let expr_type = match lift_type_member_result(db, &expr_result) {
     Some(typ) => typ,
     None => return diagnostics,
   };
@@ -268,7 +274,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
     for idx_hir in &indices {
       let idx_result = actual_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
-      if let Some(idx_type) = idx_result.typ(db) {
+      if let Some(idx_type) = lift_type_member_result(db, &idx_result) {
         let num_type = get_num_type(db);
         if !num_type.is_compatible_with(db, &idx_type) {
           let node = idx_hir.node(db);
@@ -289,7 +295,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
       for idx_hir in &indices {
         let idx_result = actual_node_type(db, *idx_hir);
         diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
-        if let Some(idx_type) = idx_result.typ(db)
+        if let Some(idx_type) = lift_type_member_result(db, &idx_result)
           && !key_type.is_compatible_with(db, &idx_type)
         {
           let node = idx_hir.node(db);
@@ -309,7 +315,7 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
     for idx_hir in &indices {
       let idx_result = actual_node_type(db, *idx_hir);
       diagnostics.extend(idx_result.diagnostics(db).iter().cloned());
-      if let Some(idx_type) = idx_result.typ(db) {
+      if let Some(idx_type) = lift_type_member_result(db, &idx_result) {
         let num_type = get_num_type(db);
         if !num_type.is_compatible_with(db, &idx_type) {
           let node = idx_hir.node(db);
@@ -341,7 +347,7 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
   diagnostics.extend(tc_result.diagnostics(db).iter().cloned());
 
   let operand_result = actual_node_type(db, operand);
-  let operand_type = match operand_result.typ(db) {
+  let operand_type = match lift_type_member_result(db, &operand_result) {
     Some(typ) => typ,
     None => return diagnostics,
   };
@@ -379,8 +385,8 @@ fn check_binary(
   let tc_right = typecheck(db, right);
   diagnostics.extend(tc_right.diagnostics(db).iter().cloned());
 
-  let left_type = actual_node_type(db, left).typ(db);
-  let right_type = actual_node_type(db, right).typ(db);
+  let left_type = lift_type_member_result(db, &actual_node_type(db, left));
+  let right_type = lift_type_member_result(db, &actual_node_type(db, right));
 
   match op {
     // Arithmetic: both operands must be number
@@ -470,7 +476,7 @@ fn check_sequence(
 
     // Check item type against element type
     let item_result = actual_node_type(db, item);
-    if let Some(item_type) = item_result.typ(db)
+    if let Some(item_type) = lift_type_member_result(db, &item_result)
       && !elem_type.is_compatible_with(db, &item_type)
     {
       let node = item.node(db);
@@ -883,7 +889,7 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     assert!(
       result.diagnostics(&db).is_empty(),
-      "list[string | number] should accept [\"hello\", 42]: {:?}",
+      "string | number should accept \"hello\": {:?}",
       result.diagnostics(&db)
     );
   }
@@ -896,7 +902,7 @@ mod tests {
     let result = typecheck(&db, hir.unwrap());
     assert!(
       !result.diagnostics(&db).is_empty(),
-      "list[string | number] should reject [true, false]"
+      "string | number should reject true"
     );
   }
 
@@ -922,6 +928,169 @@ mod tests {
     assert!(
       !result.diagnostics(&db).is_empty(),
       "product {{ author: string, version: number }} should reject boolean value"
+    );
+  }
+
+  // Mixed union: string | number | 'special'
+  #[test]
+  fn typecheck_mixed_union_accepts_string() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/mixed_union_string.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "string | number | 'special' should accept \"hello\": {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_mixed_union_accepts_literal() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/mixed_union_literal.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "string | number | 'special' should accept \"special\": {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_mixed_union_accepts_number() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/mixed_union_number.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "string | number | 'special' should accept 42: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_mixed_union_rejects_bool() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/mixed_union_invalid.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "string | number | 'special' should reject true"
+    );
+  }
+
+  // Nested product type
+  #[test]
+  fn typecheck_nested_product_valid() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/nested_valid.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "nested product with valid fields should pass: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_nested_product_wrong_field_type() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/nested_wrong_type.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "nested product with number in string field should fail"
+    );
+  }
+
+  // Contrived schema: literal types, mixed union, nested with optional
+  #[test]
+  fn typecheck_contrived_valid() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/contrived_valid.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "contrived valid should pass: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
+  fn typecheck_contrived_wrong_literal_num() {
+    let (db, project, file) = load_vault_fixture(
+      "typecheck/narrow_vault",
+      "content/contrived_wrong_literal.tdr",
+    );
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "literal_num: 99 should fail when schema expects 42"
+    );
+  }
+
+  #[test]
+  fn typecheck_contrived_missing_required_nested() {
+    let (db, project, file) = load_vault_fixture(
+      "typecheck/narrow_vault",
+      "content/contrived_missing_required.tdr",
+    );
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      !result.diagnostics(&db).is_empty(),
+      "missing required_field in nested product should fail"
+    );
+  }
+
+  // Mixed union [string, 0, true]: literal num 0 should match
+  #[test]
+  fn typecheck_contrived_mixed_accepts_literal_num() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/contrived_mixed_num.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "[string, 0, true] should accept 0: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Mixed union [string, 0, true]: literal bool true should match
+  #[test]
+  fn typecheck_contrived_mixed_accepts_literal_bool() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/contrived_mixed_bool.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "[string, 0, true] should accept true: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  // Fref with narrower union: Article.status is 'draft'|'published'|'archived',
+  // Summary.status is 'draft'|'published'. Fref-ing the narrower field should be valid
+  #[test]
+  fn typecheck_fref_narrower_union_field() {
+    let (db, project, file) =
+      load_vault_fixture("typecheck/narrow_vault", "content/article_fref_status.tdr");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "fref to narrower union field should be valid: {:?}",
+      result.diagnostics(&db)
     );
   }
 }

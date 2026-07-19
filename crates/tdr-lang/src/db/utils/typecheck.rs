@@ -1,10 +1,37 @@
 //! Shared type compatibility utilities for typechecking
 
 use crate::db::TypedownDatabase;
-use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type, get_str_type};
-use crate::db::types::{
-  HirValue, HirValueKind, LiteralValue, MemberType, TdrTypeEnum, TdrTypeLike,
+use crate::db::derived::get_builtin_types::{
+  get_bool_type, get_dict_type, get_list_type, get_num_type, get_str_type,
 };
+use crate::db::types::{
+  HirValue, HirValueKind, LiteralValue, MemberType, TdrTypeEnum, TdrTypeLike, TypeMemberResult,
+};
+
+/// Extract a TdrTypeEnum from a TypeMemberResult, lifting if needed
+pub fn lift_type_member_result(
+  db: &TypedownDatabase,
+  result: &TypeMemberResult,
+) -> Option<TdrTypeEnum> {
+  let member = result.member(db)?;
+  lift_member_type(db, &member.typ(db))
+}
+
+/// Lift a MemberType to a TdrTypeEnum, losing specificity
+pub fn lift_member_type(db: &TypedownDatabase, member_type: &MemberType) -> Option<TdrTypeEnum> {
+  match member_type {
+    MemberType::Simple(typ) => Some(typ.clone()),
+    MemberType::Literal(lit) => Some(literal_base_type(db, lit)),
+    MemberType::ListOfSum(_) => Some(get_list_type(db).into()),
+    MemberType::DictOfSum(_) => Some(get_dict_type(db).into()),
+    MemberType::Sum(arms) => {
+      // Return the first arm's type as a rough approximation
+      let first = arms.first()?;
+      lift_member_type(db, &first.typ(db))
+    }
+    MemberType::Never => None,
+  }
+}
 
 /// Get the base TdrTypeEnum for a literal value
 pub fn literal_base_type(db: &TypedownDatabase, lit: &LiteralValue) -> TdrTypeEnum {
@@ -202,5 +229,249 @@ pub fn value_matches_member_type(
       _ => false,
     },
     MemberType::Never => false,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::db::derived::get_builtin_types::{get_bool_type, get_num_type, get_str_type};
+  use crate::db::types::{TypeMember, TypeMemberDescriptors};
+  use crate::db::{QueryStorage, TypedownDatabase};
+
+  fn db() -> TypedownDatabase {
+    TypedownDatabase {
+      storage: QueryStorage::default(),
+    }
+  }
+
+  fn simple(db: &TypedownDatabase, typ: TdrTypeEnum) -> MemberType {
+    MemberType::Simple(typ)
+  }
+
+  fn literal_str(val: &str) -> MemberType {
+    MemberType::Literal(LiteralValue::Str(val.to_string()))
+  }
+
+  fn literal_num(val: &str) -> MemberType {
+    MemberType::Literal(LiteralValue::Num(val.to_string()))
+  }
+
+  fn arm(db: &TypedownDatabase, member_type: MemberType) -> TypeMember {
+    TypeMember::new(db, member_type, TypeMemberDescriptors::empty())
+  }
+
+  // Simple vs Simple
+  #[test]
+  fn compatible_simple_same_type() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    assert!(member_types_compatible(&db, &string, &string));
+  }
+
+  #[test]
+  fn incompatible_simple_different_type() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    let number = simple(&db, get_num_type(&db).into());
+    assert!(!member_types_compatible(&db, &string, &number));
+  }
+
+  // Literal vs Simple
+  #[test]
+  fn literal_compatible_with_base_simple() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    let lit = literal_str("hello");
+    assert!(member_types_compatible(&db, &string, &lit));
+  }
+
+  #[test]
+  fn literal_incompatible_with_wrong_simple() {
+    let db = db();
+    let number = simple(&db, get_num_type(&db).into());
+    let lit = literal_str("hello");
+    assert!(!member_types_compatible(&db, &number, &lit));
+  }
+
+  // Literal vs Literal
+  #[test]
+  fn literal_compatible_same_value() {
+    let db = db();
+    let lit1 = literal_str("draft");
+    let lit2 = literal_str("draft");
+    assert!(member_types_compatible(&db, &lit1, &lit2));
+  }
+
+  #[test]
+  fn literal_incompatible_different_value() {
+    let db = db();
+    let lit1 = literal_str("draft");
+    let lit2 = literal_str("published");
+    assert!(!member_types_compatible(&db, &lit1, &lit2));
+  }
+
+  // Sum compatibility
+  #[test]
+  fn literal_compatible_with_sum_containing_base() {
+    let db = db();
+    let sum = MemberType::Sum(vec![
+      arm(&db, simple(&db, get_str_type(&db).into())),
+      arm(&db, simple(&db, get_num_type(&db).into())),
+    ]);
+    let lit = literal_str("hello");
+    assert!(member_types_compatible(&db, &sum, &lit));
+  }
+
+  #[test]
+  fn simple_incompatible_with_sum_no_match() {
+    let db = db();
+    let sum = MemberType::Sum(vec![
+      arm(&db, simple(&db, get_str_type(&db).into())),
+      arm(&db, simple(&db, get_num_type(&db).into())),
+    ]);
+    let boolean = simple(&db, get_bool_type(&db).into());
+    assert!(!member_types_compatible(&db, &sum, &boolean));
+  }
+
+  // ListOfSum compatibility
+  #[test]
+  fn list_of_sum_compatible_with_matching_arms() {
+    let db = db();
+    let expected = MemberType::ListOfSum(vec![
+      arm(&db, simple(&db, get_str_type(&db).into())),
+      arm(&db, simple(&db, get_num_type(&db).into())),
+    ]);
+    // Actual has literal arms that match base types
+    let actual = MemberType::ListOfSum(vec![
+      arm(&db, literal_str("hello")),
+      arm(&db, literal_num("42")),
+    ]);
+    assert!(member_types_compatible(&db, &expected, &actual));
+  }
+
+  #[test]
+  fn list_of_sum_incompatible_with_wrong_arm() {
+    let db = db();
+    let expected = MemberType::ListOfSum(vec![arm(&db, simple(&db, get_str_type(&db).into()))]);
+    let actual = MemberType::ListOfSum(vec![arm(&db, simple(&db, get_num_type(&db).into()))]);
+    assert!(!member_types_compatible(&db, &expected, &actual));
+  }
+
+  // Never
+  #[test]
+  fn never_incompatible_with_anything() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    assert!(!member_types_compatible(&db, &MemberType::Never, &string));
+    assert!(!member_types_compatible(&db, &string, &MemberType::Never));
+  }
+
+  // lift_member_type
+  #[test]
+  fn lift_simple_returns_type() {
+    let db = db();
+    let typ: TdrTypeEnum = get_str_type(&db).into();
+    let member = simple(&db, typ.clone());
+    assert!(lift_member_type(&db, &member) == Some(typ));
+  }
+
+  #[test]
+  fn lift_literal_returns_base_type() {
+    let db = db();
+    let member = literal_str("hello");
+    let expected: TdrTypeEnum = get_str_type(&db).into();
+    assert!(lift_member_type(&db, &member) == Some(expected));
+  }
+
+  #[test]
+  fn lift_never_returns_none() {
+    let db = db();
+    assert!(lift_member_type(&db, &MemberType::Never).is_none());
+  }
+
+  // DictOfSum compatibility
+  #[test]
+  fn dict_of_sum_compatible_with_matching_arms() {
+    let db = db();
+    let expected = MemberType::DictOfSum(vec![
+      arm(&db, simple(&db, get_str_type(&db).into())),
+      arm(&db, simple(&db, get_num_type(&db).into())),
+    ]);
+    let actual = MemberType::DictOfSum(vec![
+      arm(&db, literal_str("hello")),
+      arm(&db, literal_num("42")),
+    ]);
+    assert!(member_types_compatible(&db, &expected, &actual));
+  }
+
+  #[test]
+  fn dict_of_sum_incompatible_with_wrong_arm() {
+    let db = db();
+    let expected = MemberType::DictOfSum(vec![arm(&db, simple(&db, get_str_type(&db).into()))]);
+    let actual = MemberType::DictOfSum(vec![arm(&db, simple(&db, get_num_type(&db).into()))]);
+    assert!(!member_types_compatible(&db, &expected, &actual));
+  }
+
+  // Cross-variant: Sum vs Literal
+  #[test]
+  fn sum_compatible_with_literal_matching_arm() {
+    let db = db();
+    let sum = MemberType::Sum(vec![
+      arm(&db, literal_str("draft")),
+      arm(&db, literal_str("published")),
+    ]);
+    let lit = literal_str("draft");
+    assert!(member_types_compatible(&db, &sum, &lit));
+  }
+
+  #[test]
+  fn sum_incompatible_with_literal_no_match() {
+    let db = db();
+    let sum = MemberType::Sum(vec![
+      arm(&db, literal_str("draft")),
+      arm(&db, literal_str("published")),
+    ]);
+    let lit = literal_str("archived");
+    assert!(!member_types_compatible(&db, &sum, &lit));
+  }
+
+  // Cross-variant: Simple vs Sum
+  #[test]
+  fn simple_compatible_with_sum_all_arms_match() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    let sum = MemberType::Sum(vec![arm(&db, literal_str("a")), arm(&db, literal_str("b"))]);
+    // Sum assignable to Simple if every arm is compatible
+    assert!(member_types_compatible(&db, &string, &sum));
+  }
+
+  #[test]
+  fn simple_incompatible_with_sum_mixed_arms() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    let sum = MemberType::Sum(vec![
+      arm(&db, literal_str("a")),
+      arm(&db, simple(&db, get_num_type(&db).into())),
+    ]);
+    // Number arm not compatible with string
+    assert!(!member_types_compatible(&db, &string, &sum));
+  }
+
+  // Literal num
+  #[test]
+  fn literal_num_compatible_with_number() {
+    let db = db();
+    let number = simple(&db, get_num_type(&db).into());
+    let lit = literal_num("42");
+    assert!(member_types_compatible(&db, &number, &lit));
+  }
+
+  #[test]
+  fn literal_num_incompatible_with_string() {
+    let db = db();
+    let string = simple(&db, get_str_type(&db).into());
+    let lit = literal_num("42");
+    assert!(!member_types_compatible(&db, &string, &lit));
   }
 }

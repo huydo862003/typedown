@@ -13,6 +13,7 @@ use crate::db::types::{
   TdrDictObj, TdrListObj, TdrMathObj, TdrNumObj, TdrObjectEnum, TdrObjectLike, TdrProductObj,
   TdrProductType, TdrStrObj, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors,
 };
+use crate::db::utils::typecheck::lift_type_member_result;
 use crate::syntax::diagnostic::Diagnostic;
 use tdr_types::either::Either;
 
@@ -92,7 +93,7 @@ pub(crate) fn construct_from_hir(
 
   // Normal construction: convert HIR to args, then call construct
   let type_result = actual_node_type(db, hir);
-  let typ = type_result.typ(db)?;
+  let typ = lift_type_member_result(db, &type_result)?;
   match hir.kind(db) {
     HirValueKind::Str(val) => typ.construct(db, vec![TdrStrObj::new(db, val).into()]),
     HirValueKind::Num(val) => {

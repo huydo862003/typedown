@@ -71,14 +71,14 @@ impl TdrTypeLike for TdrSchemaPropertyType {
       "type" => Some(TypeMember::new(
         db,
         MemberType::Sum(
-          vec![
+          [
             base_type_members.clone(),
             vec![
               // type: [string, 0, 'literal']
               TypeMember::new(
                 db,
                 MemberType::ListOfSum(
-                  vec![
+                  [
                     base_type_members.clone(),
                     vec![TypeMember::new(
                       db,
@@ -94,7 +94,7 @@ impl TdrTypeLike for TdrSchemaPropertyType {
               TypeMember::new(
                 db,
                 MemberType::DictOfSum(
-                  vec![
+                  [
                     base_type_members.clone(),
                     vec![TypeMember::new(
                       db,

@@ -648,7 +648,10 @@ age: 42
     };
 
     let type_result = actual_node_type(&db, friend_hir);
-    let typ = type_result.typ(&db).expect("fref should return a type");
+    let member = type_result.member(&db).expect("fref should return a type");
+    let MemberType::Simple(typ) = member.typ(&db) else {
+      panic!("expected Simple type");
+    };
     assert_eq!(typ.display_name(&db), "Person");
   }
 

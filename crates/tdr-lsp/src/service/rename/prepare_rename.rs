@@ -3,8 +3,8 @@ use lsp_types::{PrepareRenameResponse, TextDocumentPositionParams};
 use crate::analysis::Analysis;
 
 pub fn prepare_rename(
-  analysis: &Analysis,
-  params: TextDocumentPositionParams,
+  _analysis: &Analysis,
+  _params: TextDocumentPositionParams,
 ) -> Option<PrepareRenameResponse> {
   todo!()
 }

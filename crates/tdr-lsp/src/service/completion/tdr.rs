@@ -12,6 +12,8 @@ use tdr_lang::db::derived::typechecker::get_symbol_type::get_symbol_type;
 use tdr_lang::db::types::{
   File, MemberType, Project, Scope, SymbolKind, TdrProductType, TypeMember, TypeMemberDescriptors,
 };
+use tdr_lang::db::utils::schema_name_in_mapping;
+use tdr_lang::db::utils::typecheck::lift_type_member_result;
 use tdr_lang::syntax::ast::{AstNode, Expr};
 use tdr_lang::syntax::red::RedNode;
 use tdr_lang::syntax::syntax_kind::SyntaxKind;
@@ -123,7 +125,7 @@ fn fref_completions(
         Some(sym) => sym,
         None => return false,
       };
-      let file_type = match get_symbol_type(db, sym).typ(db) {
+      let file_type = match lift_type_member_result(db, &get_symbol_type(db, sym)) {
         Some(typ) => typ,
         None => return false,
       };
@@ -209,23 +211,6 @@ fn declared_field(
   let value_expr = entry_value.children().find_map(Expr::cast)?;
   let hir = lower_node(db, project, file, value_expr.syntax().clone());
   expected_node_type(db, hir).member(db)
-}
-
-/// Return the declared schema name from a `_type` entry in a mapping node.
-fn schema_name_in_mapping(mapping: &RedNode) -> Option<String> {
-  for entry in mapping.children() {
-    if entry.kind() != SyntaxKind::YamlMappingEntry {
-      continue;
-    }
-    let mut children = entry.children();
-    let key = children.find(|child| child.kind() == SyntaxKind::YamlMappingEntryKey)?;
-    if key.text().trim() != "_type" {
-      continue;
-    }
-    let value = children.find(|child| child.kind() == SyntaxKind::YamlMappingEntryValue)?;
-    return Some(value.text().trim().to_string());
-  }
-  None
 }
 
 /// Build a keyword completion item (true, false, null).
