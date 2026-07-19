@@ -40,10 +40,8 @@ pub fn find_rename_symbol(
 
 fn find_rename_symbol_as_fref(node: &RedNode) -> Option<RenameSymbol> {
   let call_expr = containing_fref_expr(node)?;
-  call_expr.arg(0).and_then(|a| {
-    Some(RenameSymbol::Fref {
-      string_node: a.try_into().ok()?,
-    })
+  Some(RenameSymbol::Fref {
+    call_node: call_expr,
   })
 }
 

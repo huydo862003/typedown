@@ -59,7 +59,6 @@ fn resolve_call(
 
 #[cfg(test)]
 mod tests {
-  use crate::db::derived::name_resolver::file_symbol::file_symbol;
   use crate::db::derived::parse_file::parse_file;
   use crate::db::fixtures::load_vault_fixture;
   use crate::db::types::{HirValue, HirValueKind, SymbolKind};

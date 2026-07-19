@@ -24,5 +24,5 @@ pub fn prepare_rename(
   // Find the symbol that is requested a rename + qualifying information
   let rename_symbol = find_rename_symbol(&analysis.db, project, file, offset)?;
 
-  todo!();
+  Some(PrepareRenameResponse::Range(rename_symbol.get_range(&rope)))
 }
