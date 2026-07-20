@@ -1,4 +1,4 @@
-use lsp_types::{DocumentChangeOperation, RenameParams, WorkspaceEdit};
+use lsp_types::{DocumentChangeOperation, DocumentChanges, RenameParams, WorkspaceEdit};
 use tdr_lang::{
   db::derived::{
     hir::lower_node,
@@ -48,5 +48,13 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
 
   let changes: Vec<DocumentChangeOperation> = vec![];
 
-  todo!()
+  for reference in references {
+
+  }
+
+  Some(WorkspaceEdit {
+    changes: None,
+    document_changes: Some(DocumentChanges::Operations(changes)),
+    change_annotations: None,
+  })
 }
