@@ -1,7 +1,7 @@
 pub mod completion;
 pub mod definition;
 pub mod hover;
-pub mod rename;
+pub mod rename_symbol;
 pub mod semantic_tokens;
 
 use lsp_server::{ErrorCode, Request, Response};
@@ -24,8 +24,10 @@ pub fn dispatch(analysis: &Analysis, req: Request) -> Response {
     SemanticTokensFullRequest::METHOD => {
       try_handle(&req, |p| semantic_tokens::semantic_tokens_full(analysis, p))
     }
-    PrepareRenameRequest::METHOD => try_handle(&req, |p| rename::prepare_rename(analysis, p)),
-    Rename::METHOD => try_handle(&req, |p| rename::rename(analysis, p)),
+    PrepareRenameRequest::METHOD => {
+      try_handle(&req, |p| rename_symbol::prepare_rename(analysis, p))
+    }
+    Rename::METHOD => try_handle(&req, |p| rename_symbol::rename(analysis, p)),
     _ => Response::new_err(
       req.id,
       ErrorCode::MethodNotFound as i32,

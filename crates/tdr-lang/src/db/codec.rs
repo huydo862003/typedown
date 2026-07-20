@@ -146,7 +146,8 @@ impl StableHash for FileHandle {
         path.stable_hash(db, hasher);
         content.stable_hash(db, hasher);
       }
-      FileHandle::Content(content) => {
+      FileHandle::Content(path, content) => {
+        path.stable_hash(db, hasher);
         content.stable_hash(db, hasher);
       }
     }

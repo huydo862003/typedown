@@ -2,7 +2,7 @@ use lsp_types::{PrepareRenameResponse, TextDocumentPositionParams};
 
 use crate::{
   analysis::Analysis,
-  service::rename::utils::find_rename_symbol,
+  service::rename_symbol::utils::find_rename_symbol,
   utils::{position::lsp_position_to_text_offset, uri::uri_to_path},
 };
 

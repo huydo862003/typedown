@@ -7,14 +7,11 @@ use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::referee::referee;
 use tdr_lang::db::derived::parse_file::parse_file;
 use tdr_lang::db::types::{FileHandle, HirValueKind, Project, SymbolKind};
-use tdr_lang::syntax::ast::{AstNode, Expr};
+use tdr_lang::syntax::ast::AstNode;
 use tdr_lang::syntax::red::RedNode;
-use tdr_lang::syntax::syntax_kind::SyntaxKind;
 
 use crate::analysis::Analysis;
-use crate::utils::ast::{
-  containing_fref_expr, find_ancestor, nearest_expr_ancestor, node_at_offset,
-};
+use crate::utils::ast::{containing_fref_expr, nearest_expr_ancestor, node_at_offset};
 use crate::utils::position::lsp_position_to_text_offset;
 use crate::utils::uri::{path_to_uri, uri_to_path};
 
@@ -63,7 +60,7 @@ pub fn definition(
 
   let target_path = match target_file.handle(db) {
     FileHandle::Path(path, _) => path,
-    FileHandle::Content(_) => project
+    FileHandle::Content(_, _) => project
       .files(db)
       .iter()
       .find(|(_, f)| **f == target_file)
@@ -170,23 +167,38 @@ age: 30
   // Accept a `content` as the current editing content
   fn setup(content: &str) -> (Analysis, Uri) {
     let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
-    let content_path = root.join("content/file.tdr");
-    let uri = path_to_uri(&content_path, "file");
+    let content_root = root.join("content");
+    let schema_root = root.join("schemas");
+
+    let test_path = root.join("content/file.tdr");
+    let uri = path_to_uri(&test_path, "file");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
 
-    let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
-    let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
-    let alice_file = File::new(&db, FileHandle::Content(CONTENT_ALICE.to_string()));
-    let editing_file = File::new(&db, FileHandle::Content(content.to_string()));
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let alice_file = File::new(
+      &db,
+      FileHandle::Content(content_root.join("alice.tdr"), CONTENT_ALICE.to_string()),
+    );
+    let editing_file = File::new(
+      &db,
+      FileHandle::Content(test_path.clone(), content.to_string()),
+    );
 
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
       (root.join("schemas/Person.tdr"), person_file),
       (root.join("content/alice.tdr"), alice_file),
-      (content_path, editing_file),
+      (test_path, editing_file),
     ]);
 
     let project = Project::new(&db, root, files);

@@ -13,10 +13,10 @@ use tdr_incremental::{Decodable, Decoder, Encodable, Encoder};
 /// Types of file-handle: path-based (with mtime for invalidation) or editor-managed content.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum FileHandle {
-  /// A file on disk. `mtime` is used to detect changes without reading content eagerly.
+  /// A file on disk, `mtime` is used to detect changes without reading content eagerly
   Path(PathBuf, SystemTime),
-  /// Content provided directly by the editor buffer.
-  Content(String),
+  /// Content provided directly by the editor buffer, with a virtual file path
+  Content(PathBuf, String),
 }
 
 impl FileHandle {
@@ -26,18 +26,18 @@ impl FileHandle {
         let file = fs::File::open(path)?;
         Ok(Box::new(FileStream::new(file)))
       }
-      FileHandle::Content(content) => {
+      FileHandle::Content(_, content) => {
         let cursor = io::Cursor::new(content.as_bytes().to_vec());
         Ok(Box::new(FileStream::new(cursor)))
       }
     }
   }
 
-  /// Return the path for a disk-backed handle, if any.
+  /// Return the path for this handle
   pub fn path(&self) -> Option<&PathBuf> {
     match self {
       FileHandle::Path(path, _) => Some(path),
-      FileHandle::Content(_) => None,
+      FileHandle::Content(path, _) => Some(path),
     }
   }
 }
@@ -67,8 +67,9 @@ impl Encodable for FileHandle {
         duration.as_secs().encode(buf, encoder);
         duration.subsec_nanos().encode(buf, encoder);
       }
-      FileHandle::Content(content) => {
+      FileHandle::Content(path, content) => {
         encoder.emit_u8(buf, FileHandleTag::Content as u8);
+        path.encode(buf, encoder);
         content.encode(buf, encoder);
       }
     }
@@ -86,7 +87,11 @@ impl Decodable for FileHandle {
         let mtime = SystemTime::UNIX_EPOCH + std::time::Duration::new(secs, nanos);
         FileHandle::Path(path, mtime)
       }
-      FileHandleTag::Content => FileHandle::Content(String::decode(data, decoder)),
+      FileHandleTag::Content => {
+        let path = PathBuf::decode(data, decoder);
+        let content = String::decode(data, decoder);
+        FileHandle::Content(path, content)
+      }
     }
   }
 }

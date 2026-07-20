@@ -92,102 +92,102 @@ pub fn get_schema_type(db: &TypedownDatabase) -> TdrSchemaType {
   TdrSchemaType::new(db)
 }
 
-#[query_derived]
 pub fn get_type_type_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::TypeType),
     "type".to_string(),
+    "@builtin::type".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_schema_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema),
     "schema".to_string(),
+    "@builtin::schema".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_str_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Str),
     "string".to_string(),
+    "@builtin::string".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_num_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Num),
     "number".to_string(),
+    "@builtin::number".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_bool_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Bool),
     "boolean".to_string(),
+    "@builtin::boolean".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_date_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Date),
     "date".to_string(),
+    "@builtin::date".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_datetime_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::DateTime),
     "datetime".to_string(),
+    "@builtin::datetime".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_time_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Time),
     "time".to_string(),
+    "@builtin::time".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_math_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Math),
     "math".to_string(),
+    "@builtin::math".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_list_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::List),
     "list".to_string(),
+    "@builtin::list".to_string(),
   )
 }
 
-#[query_derived]
 pub fn get_dict_symbol(db: &TypedownDatabase) -> Symbol {
   Symbol::new(
     db,
     SymbolKind::BuiltinSchema(BuiltinSchemaKind::Dict),
     "dict".to_string(),
+    "@builtin::dict".to_string(),
   )
 }
 

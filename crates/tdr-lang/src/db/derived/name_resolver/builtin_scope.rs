@@ -36,6 +36,7 @@ pub fn builtin_scope(db: &TypedownDatabase) -> BuiltinScopeMembers {
         db,
         SymbolKind::BuiltinMacro(BuiltinMacroKind::Fref),
         "fref".to_string(),
+        "@builtin::fref".to_string(),
       ),
     ),
   ]);

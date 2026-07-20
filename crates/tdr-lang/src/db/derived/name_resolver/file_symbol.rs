@@ -2,7 +2,7 @@ use tdr_macros::query_derived;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_vault_config::get_vault_config;
-use crate::db::types::{File, FileHandle, Project, Symbol, SymbolKind};
+use crate::db::types::{File, Project, Symbol, SymbolKind};
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
@@ -20,14 +20,13 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
     .iter()
     .any(|(path, proj_file)| *proj_file == file && path.starts_with(&schema_dir));
 
-  let name = match file.handle(db) {
-    FileHandle::Path(path, _) => path
-      .file_stem()
-      .and_then(|s| s.to_str())
-      .unwrap_or_default()
-      .to_string(),
-    FileHandle::Content(_) => String::new(),
-  };
+  let path = file.handle(db).path().cloned().unwrap_or_default();
+
+  let name = path
+    .file_stem()
+    .and_then(|s| s.to_str())
+    .unwrap_or_default()
+    .to_string();
 
   let kind = if is_schema_file {
     SymbolKind::UserDefinedSchema(project, file)
@@ -35,5 +34,9 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
     SymbolKind::UserDefinedResource(project, file)
   };
 
-  MaybeSymbol::new(db, Some(Symbol::new(db, kind, name)))
+  let root = project.root_dir(db);
+  let relative = path.strip_prefix(&root).unwrap_or(&path).to_string_lossy();
+  let def_id = format!("@vault/{}", relative);
+
+  MaybeSymbol::new(db, Some(Symbol::new(db, kind, name, def_id)))
 }

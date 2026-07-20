@@ -135,20 +135,29 @@ properties:
 
   fn setup(content: &str) -> Analysis {
     let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
-    let content_path = root.join("content/file.tdr");
+    let test_path = root.join("content/file.tdr");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
 
-    let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
-    let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
-    let content_file = File::new(&db, FileHandle::Content(content.to_string()));
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(root.join("schemas/Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let test_file = File::new(
+      &db,
+      FileHandle::Content(test_path.clone(), content.to_string()),
+    );
 
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
       (root.join("schemas/Person.tdr"), person_file),
-      (content_path, content_file),
+      (test_path, test_file),
     ]);
 
     let project = Project::new(&db, root, files);

@@ -110,7 +110,10 @@ impl AnalysisHost {
       .map(|path| (path.clone(), disk_handle(path)))
       .collect();
     for (path, rope) in self.open_files.iter() {
-      desired.insert(path.clone(), FileHandle::Content(rope.to_string()));
+      desired.insert(
+        path.clone(),
+        FileHandle::Content(path.clone(), rope.to_string()),
+      );
     }
 
     let project = self.project;
@@ -154,7 +157,7 @@ impl AnalysisHost {
 
   /// Called on textDocument/didChange.
   pub fn on_editor_change_file(&mut self, path: PathBuf, rope: Rope) {
-    let handle = FileHandle::Content(rope.to_string());
+    let handle = FileHandle::Content(path.clone(), rope.to_string());
     Arc::make_mut(&mut self.open_files).insert(path.clone(), rope);
     let file_map = &self.file_map;
 

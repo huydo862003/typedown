@@ -12,7 +12,7 @@ use tdr_lang::{
 };
 
 use crate::{
-  service::rename::types::RenameSymbol,
+  service::rename_symbol::types::RenameSymbol,
   utils::ast::{containing_fref_expr, find_ancestor, node_at_offset},
 };
 

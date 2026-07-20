@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use tdr_types::either::Either;
 
 use crate::persist::serialized::dep_graph::DepNodeIndex;
+use crate::persist::stable::StableCompare;
 use crate::persist::unstable::{FieldDecodable, FieldEncodable};
 use crate::{DepId, QueryDatabase, QueryStorage};
 
@@ -615,11 +616,11 @@ impl<A: FieldDecodable, B: FieldDecodable> Decodable for (A, B) {
 }
 
 // HashMap
-impl<K: FieldEncodable + Ord, V: FieldEncodable> Encodable for HashMap<K, V> {
+impl<K: FieldEncodable + StableCompare, V: FieldEncodable> Encodable for HashMap<K, V> {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     encoder.emit_u32(buf, self.len() as u32);
     let mut entries: Vec<(&K, &V)> = self.iter().collect();
-    entries.sort_by_key(|(k1, _)| *k1);
+    entries.sort_by(|(k1, _), (k2, _)| k1.stable_cmp(encoder.db(), k2));
     for (key, value) in entries {
       key.encode_field(buf, encoder);
       value.encode_field(buf, encoder);
