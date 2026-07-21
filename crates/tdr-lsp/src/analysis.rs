@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 
 use ropey::Rope;
-use tdr_lang::db::types::Project;
 use tdr_lang::db::TypedownDatabase;
+use tdr_lang::db::types::Project;
 
 pub struct Analysis {
   pub(crate) db: TypedownDatabase,

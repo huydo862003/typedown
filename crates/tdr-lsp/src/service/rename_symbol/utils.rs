@@ -43,7 +43,7 @@ pub fn find_rename_symbol(
   }
 
   find_ancestor(&node, SyntaxKind::IdentLit)
-    .and_then(|node| IdentLit::cast(node))
+    .and_then(IdentLit::cast)
     .map(|ident_node| RenameSymbol::Identifier { ident_node })
 }
 
