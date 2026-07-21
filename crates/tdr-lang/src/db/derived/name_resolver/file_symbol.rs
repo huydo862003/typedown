@@ -1,4 +1,5 @@
 use tdr_macros::query_derived;
+use tdr_types::path::normalize_path;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_vault_config::get_vault_config;
@@ -35,8 +36,8 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
   };
 
   let root = project.root_dir(db);
-  let relative = path.strip_prefix(&root).unwrap_or(&path).to_string_lossy();
-  let def_id = format!("@vault/{}", relative);
+  let relative = path.strip_prefix(&root).unwrap_or(&path);
+  let def_id = format!("@vault::{}", normalize_path(relative));
 
   MaybeSymbol::new(db, Some(Symbol::new(db, kind, name, def_id)))
 }

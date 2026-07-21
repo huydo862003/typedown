@@ -1,7 +1,9 @@
 //! Per-file index mapping each symbol to the HIR nodes that reference it
 
 use std::collections::HashMap;
+use std::hash::Hasher;
 
+use strum::FromRepr;
 use tdr_incremental::{
   Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher,
 };
@@ -9,11 +11,14 @@ use tdr_macros::query_derived;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::name_resolver::referee::referee;
-use crate::db::types::{File, HirValue, HirValueKind, InterpolatedPart, Project, Symbol};
+use crate::db::types::{
+  File, HirValue, HirValueKind, InterpolatedPart, Project, Symbol, SymbolKind,
+};
 use crate::db::utils::lower_file;
 
 /// How a symbol is referenced at a particular site
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, FromRepr)]
+#[repr(u8)]
 pub enum ReferenceKind {
   /// An identifier that resolves to the symbol (e.g. `_type: Person`)
   Ident = 0,
@@ -29,16 +34,13 @@ impl Encodable for ReferenceKind {
 
 impl Decodable for ReferenceKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    match u8::decode(data, decoder) {
-      0 => ReferenceKind::Ident,
-      _ => ReferenceKind::Fref,
-    }
+    let tag = u8::decode(data, decoder);
+    ReferenceKind::from_repr(tag).expect("unknown ReferenceKind tag")
   }
 }
 
 impl StableHash for ReferenceKind {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, _db: &DB, hasher: &mut StableHasher) {
-    use std::hash::Hasher;
     hasher.write_u8(*self as u8);
   }
 }
@@ -139,10 +141,13 @@ fn collect_references(
       collect_references(db, *left, map);
       collect_references(db, *right, map);
     }
-    // Call nodes can resolve (e.g. fref)
+    // Only fref calls produce file references
     HirValueKind::Call { callee, args } => {
-      if let Some(symbol) = referee(db, hir).value(db) {
-        map.entry(symbol).or_default().push(Reference {
+      if let Some(callee_symbol) = referee(db, *callee).value(db)
+        && matches!(callee_symbol.kind(db), SymbolKind::BuiltinMacro(_))
+        && let Some(target_symbol) = referee(db, hir).value(db)
+      {
+        map.entry(target_symbol).or_default().push(Reference {
           hir,
           kind: ReferenceKind::Fref,
         });
@@ -286,7 +291,7 @@ mod tests {
     // Fref references content/summary.tdr
     let summary_path = schema_files
       .keys()
-      .find(|path| path.to_string_lossy().contains("content/summary.tdr"))
+      .find(|path| path.ends_with("content/summary.tdr"))
       .expect("should have content/summary.tdr");
     let summary_file = schema_files[summary_path];
     let summary_symbol = file_symbol(&db, project, summary_file)

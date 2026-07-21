@@ -7,8 +7,8 @@ use crate::db::derived::hir::lower_node;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
 use crate::db::types::{
-  File, HirValue, MemberType, Project, TdrTypeEnum, TdrTypeLike, TypeMember, TypeMemberDescriptors,
-  TypeMemberResult,
+  File, HirValue, MemberType, Project, StaticAccessPath, Symbol, TdrTypeEnum, TdrTypeLike,
+  TypeMember, TypeMemberDescriptors, TypeMemberResult,
 };
 use crate::db::utils::typecheck::{
   lift_type_member_result, member_types_compatible, value_matches_member_type,
@@ -19,10 +19,13 @@ use crate::syntax::syntax_kind::SyntaxKind;
 use tdr_incremental::QueryDatabase;
 use tdr_macros::query_derived;
 
-/// A step in the path from anchor to target node
-enum PathStep {
-  Field(String),
-  Index,
+use crate::db::types::PathStep;
+
+/// Result of walking up from a node to the nearest _type anchor
+struct AnchorResult {
+  symbol: Symbol,
+  typ: TdrTypeEnum,
+  path: Vec<(PathStep, RedNode)>,
 }
 
 #[query_derived]
@@ -36,7 +39,7 @@ pub fn expected_node_type_member(db: &TypedownDatabase, hir: HirValue) -> TypeMe
     return actual_node_type_member(db, hir);
   }
 
-  let (anchor_type, path) = match collect_path_to_anchor(db, project, file, &node) {
+  let anchor = match collect_path_to_anchor(db, project, file, &node) {
     Some(result) => result,
     None => return TypeMemberResult::new(db, None, vec![]),
   };
@@ -44,11 +47,11 @@ pub fn expected_node_type_member(db: &TypedownDatabase, hir: HirValue) -> TypeMe
   // Traverse down the type structure following the path
   let mut current_member = TypeMember::new(
     db,
-    MemberType::Simple(anchor_type),
+    MemberType::Simple(anchor.typ),
     TypeMemberDescriptors::empty(),
   );
 
-  for (step, step_node) in &path {
+  for (step, step_node) in &anchor.path {
     let step_hir = lower_node(db, project, file, step_node.clone());
     let member_type = current_member.typ(db);
 
@@ -94,13 +97,28 @@ fn is_top_level(node: &RedNode) -> bool {
   }
 }
 
+/// Get the static access path from the nearest _type anchor to the target node
+pub fn static_access_path(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  node: &RedNode,
+) -> Option<StaticAccessPath> {
+  let anchor = collect_path_to_anchor(db, project, file, node)?;
+  let steps = anchor.path.into_iter().map(|(step, _)| step).collect();
+  Some(StaticAccessPath {
+    owner: anchor.symbol,
+    steps,
+  })
+}
+
 /// Walk up from target to the nearest _type anchor, collecting path steps
 fn collect_path_to_anchor(
   db: &TypedownDatabase,
   project: Project,
   file: File,
   target: &RedNode,
-) -> Option<(TdrTypeEnum, Vec<(PathStep, RedNode)>)> {
+) -> Option<AnchorResult> {
   let mut path = vec![];
   let mut current = target.clone();
 
@@ -137,9 +155,13 @@ fn collect_path_to_anchor(
         }
 
         // Anchor found
-        if let Some(schema_type) = resolve_type_anchor(db, project, file, &mapping) {
+        if let Some((symbol, schema_type)) = resolve_type_anchor(db, project, file, &mapping) {
           path.reverse();
-          return Some((schema_type, path));
+          return Some(AnchorResult {
+            symbol,
+            typ: schema_type,
+            path,
+          });
         }
 
         current = mapping;
@@ -184,9 +206,13 @@ fn collect_path_to_anchor(
         }
 
         // Anchor found
-        if let Some(schema_type) = resolve_type_anchor(db, project, file, &dict) {
+        if let Some((symbol, schema_type)) = resolve_type_anchor(db, project, file, &dict) {
           path.reverse();
-          return Some((schema_type, path));
+          return Some(AnchorResult {
+            symbol,
+            typ: schema_type,
+            path,
+          });
         }
 
         current = dict;
@@ -201,14 +227,13 @@ fn collect_path_to_anchor(
   }
 }
 
-/// Resolve the _type field in a mapping to a TdrTypeEnum via referee + evaluate_type
+/// Resolve the _type field in a mapping to its symbol and type
 fn resolve_type_anchor(
   db: &TypedownDatabase,
   project: Project,
   file: File,
   mapping: &RedNode,
-) -> Option<TdrTypeEnum> {
-  // Find the _type entry's value node
+) -> Option<(Symbol, TdrTypeEnum)> {
   for entry in mapping.children() {
     let entry_kind = entry.kind();
     if entry_kind != SyntaxKind::YamlMappingEntry && entry_kind != SyntaxKind::DictEntry {
@@ -233,7 +258,8 @@ fn resolve_type_anchor(
     let value_expr = entry_value.children().find_map(Expr::cast)?;
     let value_hir = lower_node(db, project, file, value_expr.syntax().clone());
     let symbol = referee(db, value_hir).value(db)?;
-    return evaluate_type(db, symbol).typ(db);
+    let typ = evaluate_type(db, symbol).typ(db)?;
+    return Some((symbol, typ));
   }
   None
 }
