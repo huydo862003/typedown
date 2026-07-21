@@ -13,10 +13,43 @@ use dep_graph::DepGraph;
 use interned_blobs::InternedBlobs;
 use query_cache::QueryCache;
 
-/// The serialized form of the entire query storage.
-/// Produced by `dump`, consumed by `load`.
+use crate::dep_graph::DepNode;
+
+/// The serialized form of the entire query storage
 pub struct SerializedQueryStorage {
   pub dep_graph: DepGraph,
   pub query_cache: QueryCache,
   pub interned_blobs: InternedBlobs,
+}
+
+/// Cache entry counts by node type
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheStats {
+  pub derived_queries: usize,
+  pub derived_fields: usize,
+  pub input_fields: usize,
+  pub interned: usize,
+  pub intern_blobs: usize,
+}
+
+impl SerializedQueryStorage {
+  /// Count entries by node type
+  pub fn stats(&self) -> CacheStats {
+    let mut stats = CacheStats {
+      derived_queries: 0,
+      derived_fields: 0,
+      input_fields: 0,
+      interned: 0,
+      intern_blobs: self.interned_blobs.records.len(),
+    };
+    for node in &self.dep_graph.nodes {
+      match node {
+        DepNode::DerivedQuery { .. } => stats.derived_queries += 1,
+        DepNode::DerivedField { .. } => stats.derived_fields += 1,
+        DepNode::InputField { .. } => stats.input_fields += 1,
+        DepNode::Interned { .. } => stats.interned += 1,
+      }
+    }
+    stats
+  }
 }

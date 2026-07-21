@@ -12,10 +12,10 @@ pub use fingerprint::*;
 #[cfg(feature = "session")]
 pub use fs::CacheSession;
 pub use serde::*;
-pub use serialized::SerializedQueryStorage;
 pub use serialized::dep_graph;
 pub use serialized::dep_graph::DepNodeIndex;
 pub use serialized::interned_blobs;
 pub use serialized::query_cache;
+pub use serialized::{CacheStats, SerializedQueryStorage};
 pub use stable::*;
 pub use unstable::*;
