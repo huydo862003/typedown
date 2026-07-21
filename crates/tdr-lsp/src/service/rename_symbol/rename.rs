@@ -104,8 +104,9 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
 
     match r.kind {
       ReferenceKind::Ident => {
-        let start = text_offset_to_lsp_position(&ref_rope, node.offset());
-        let end = text_offset_to_lsp_position(&ref_rope, node.offset() + node.text_len());
+        let (offset, len) = node.trimmed_range();
+        let start = text_offset_to_lsp_position(&ref_rope, offset);
+        let end = text_offset_to_lsp_position(&ref_rope, offset + len);
         edits_by_path.entry(ref_path).or_default().push(TextEdit {
           range: lsp_types::Range { start, end },
           new_text: new_stem.to_string(),
@@ -119,8 +120,9 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
           let new_relative = new_absolute.strip_prefix(&root_dir).ok()?;
           let normalized = normalize_path(new_relative);
           let arg_node = arg.node(db);
-          let start = text_offset_to_lsp_position(&ref_rope, arg_node.offset());
-          let end = text_offset_to_lsp_position(&ref_rope, arg_node.offset() + arg_node.text_len());
+          let (offset, len) = arg_node.trimmed_range();
+          let start = text_offset_to_lsp_position(&ref_rope, offset);
+          let end = text_offset_to_lsp_position(&ref_rope, offset + len);
           edits_by_path.entry(ref_path).or_default().push(TextEdit {
             range: lsp_types::Range { start, end },
             new_text: format!("\"{}\"", normalized),

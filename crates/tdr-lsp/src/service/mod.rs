@@ -7,7 +7,7 @@ pub mod semantic_tokens;
 use lsp_server::{ErrorCode, Request, Response};
 use lsp_types::request::{
   Completion, GotoDefinition, HoverRequest, PrepareRenameRequest, Rename, Request as _,
-  SemanticTokensFullRequest,
+  SemanticTokensFullRequest, WillRenameFiles,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -28,6 +28,7 @@ pub fn dispatch(analysis: &Analysis, req: Request) -> Response {
       try_handle(&req, |p| rename_symbol::prepare_rename(analysis, p))
     }
     Rename::METHOD => try_handle(&req, |p| rename_symbol::rename(analysis, p)),
+    WillRenameFiles::METHOD => try_handle(&req, |p| rename_symbol::will_rename_files(analysis, p)),
     _ => Response::new_err(
       req.id,
       ErrorCode::MethodNotFound as i32,

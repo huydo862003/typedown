@@ -1,9 +1,11 @@
 use lsp_server::Connection;
 use lsp_types::{
-  CompletionOptions, HoverProviderCapability, InitializeParams, InitializeResult, OneOf,
-  RenameOptions, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+  CompletionOptions, FileOperationFilter, FileOperationPattern, FileOperationRegistrationOptions,
+  HoverProviderCapability, InitializeParams, InitializeResult, OneOf, RenameOptions,
+  SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
   SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo, TextDocumentSyncCapability,
-  TextDocumentSyncKind, WorkDoneProgressOptions,
+  TextDocumentSyncKind, WorkDoneProgressOptions, WorkspaceFileOperationsServerCapabilities,
+  WorkspaceServerCapabilities,
 };
 use tdr_lsp::logger;
 use tdr_lsp::multiproject::Multiproject;
@@ -40,6 +42,21 @@ pub fn main() -> anyhow::Result<()> {
         ..Default::default()
       },
     )),
+    workspace: Some(WorkspaceServerCapabilities {
+      file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+        will_rename: Some(FileOperationRegistrationOptions {
+          filters: vec![FileOperationFilter {
+            scheme: None,
+            pattern: FileOperationPattern {
+              glob: "**/*.tdr".to_string(),
+              ..Default::default()
+            },
+          }],
+        }),
+        ..Default::default()
+      }),
+      ..Default::default()
+    }),
     ..Default::default()
   };
 

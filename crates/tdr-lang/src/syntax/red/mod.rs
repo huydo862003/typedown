@@ -118,16 +118,37 @@ impl RedNode {
     self.0.green.text_len()
   }
 
+  /// Leading trivia nodes (whitespace, indent, comment before content)
+  pub fn leading_trivia(&self) -> Vec<RedNode> {
+    self
+      .children()
+      .take_while(|c| c.kind().is_trivia())
+      .collect()
+  }
+
+  /// Trailing trivia nodes (whitespace, newline, comment after content)
+  pub fn trailing_trivia(&self) -> Vec<RedNode> {
+    let children: Vec<_> = self.children().collect();
+    children
+      .into_iter()
+      .rev()
+      .take_while(|c| c.kind().is_trivia())
+      .collect::<Vec<_>>()
+      .into_iter()
+      .rev()
+      .collect()
+  }
+
   /// Offset and length excluding leading/trailing trivia tokens
   pub fn trimmed_range(&self) -> (usize, usize) {
     let children: Vec<_> = self.children().collect();
-    // Find first non-trivia child
+    // Find first non-trivia children
     let start = children
       .iter()
       .find(|c| !c.kind().is_trivia())
       .map(|c| c.offset())
       .unwrap_or(self.offset());
-    // Find last non-trivia child
+    // Find last non-trivia children
     let end = children
       .iter()
       .rfind(|c| !c.kind().is_trivia())
