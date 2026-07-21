@@ -143,7 +143,7 @@ mod tests {
       storage: QueryStorage::default(),
     };
     let path = PathBuf::from("/test.tdr");
-    let file = File::new(&db, FileHandle::Content(content.to_string()));
+    let file = File::new(&db, FileHandle::Content(path.clone(), content.to_string()));
     let project = Project::new(
       &db,
       PathBuf::from("/"),

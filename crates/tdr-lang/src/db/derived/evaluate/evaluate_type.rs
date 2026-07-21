@@ -288,6 +288,7 @@ mod tests {
       &db,
       SymbolKind::BuiltinSchema(BuiltinSchemaKind::Schema),
       "schema".to_string(),
+      "@builtin::schema".to_string(),
     );
 
     let result = evaluate_type(&db, symbol);
@@ -467,7 +468,10 @@ mod tests {
 
   // Helper to create an HirValue from a frontmatter string
   fn make_hir(db: &TypedownDatabase, content: &str) -> HirValue {
-    let file = File::new(db, FileHandle::Content(content.to_string()));
+    let file = File::new(
+      db,
+      FileHandle::Content(PathBuf::from("test.tdr"), content.to_string()),
+    );
     let project = Project::new(db, PathBuf::new(), HashMap::new());
     let (hir, _) = lower_file(db, project, file);
     hir.unwrap()

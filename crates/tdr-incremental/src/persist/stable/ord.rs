@@ -1,3 +1,5 @@
+use crate::QueryDatabase;
+
 /// https://github.com/rust-lang/rust/blob/63f05e3635171e7ac3f9ca78bad6c71052cda5a3/compiler/rustc_data_structures/src/stable_hash.rs#L117-L132
 /// Their original comment:
 /// '''
@@ -59,13 +61,13 @@ impl<T: StableOrd> StableOrd for &T {
 pub trait StableCompare {
   const CAN_USE_UNSTABLE_SORT: bool;
 
-  fn stable_cmp(&self, other: &Self) -> std::cmp::Ordering;
+  fn stable_cmp<DB: QueryDatabase + ?Sized>(&self, db: &DB, other: &Self) -> std::cmp::Ordering;
 }
 
 impl<T: StableOrd> StableCompare for T {
   const CAN_USE_UNSTABLE_SORT: bool = T::CAN_USE_UNSTABLE_SORT;
 
-  fn stable_cmp(&self, other: &Self) -> std::cmp::Ordering {
+  fn stable_cmp<DB: QueryDatabase + ?Sized>(&self, _db: &DB, other: &Self) -> std::cmp::Ordering {
     self.cmp(other)
   }
 }

@@ -109,7 +109,7 @@ impl<T: StableHash + Encodable + Decodable + Eq + Hash + Clone + Send + Sync + '
     // Encode the value to register it in the encoder's intern table
     let mut buf = vec![];
     entry.value().encode(&mut buf, &mut ctx.encoder);
-    let blob_index = ctx.encoder.intern_blob(buf, Some(entry_id));
+    let blob_index = ctx.encoder.intern_blob::<T>(buf, Some(entry_id));
 
     let dep_id = (self.ingredient_index, entry_id);
     let node_index = ctx.encoder.add_dep_id(dep_id);

@@ -5,8 +5,10 @@ use lsp_types::notification::{Notification as _, PublishDiagnostics};
 use lsp_types::{Diagnostic, PublishDiagnosticsParams};
 use ropey::Rope;
 use tdr_lang::db::TypedownDatabase;
+use tdr_lang::db::derived::check_schema_dir::check_schema_dir;
 use tdr_lang::db::derived::evaluate::evaluate_resource::evaluate_resource;
 use tdr_lang::db::derived::evaluate::evaluate_type::evaluate_type;
+use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::parse_file::parse_file;
@@ -37,6 +39,39 @@ pub fn publish_diagnostics_for_project(analysis: &Analysis) -> Vec<Notification>
       analysis, db, project, path, *file, &rope,
     ));
   }
+
+  // Check for nested schema files
+  let schema_check = check_schema_dir(db, project);
+  for diag in schema_check.diagnostics(db) {
+    if let TdrDiagnostic::NestedSchemaFile { ref path } = diag {
+      let schema_dir = get_vault_config(db, project).schema_dir(db);
+      let full_path = schema_dir.join(path);
+      let scheme = analysis
+        .scheme_map
+        .get(&full_path)
+        .map(|s| s.as_str())
+        .unwrap_or("file");
+      let uri = path_to_uri(&full_path, scheme);
+      notifications.push(Notification::new(
+        PublishDiagnostics::METHOD.to_string(),
+        PublishDiagnosticsParams {
+          uri,
+          diagnostics: vec![Diagnostic {
+            range: lsp_types::Range::default(),
+            severity: Some(lsp_types::DiagnosticSeverity::ERROR),
+            code: Some(lsp_types::NumberOrString::String(
+              diag.code().as_str().into(),
+            )),
+            source: Some("typedown".into()),
+            message: diag.message(),
+            ..Default::default()
+          }],
+          version: None,
+        },
+      ));
+    }
+  }
+
   notifications
 }
 
@@ -135,20 +170,29 @@ properties:
 
   fn setup(content: &str) -> Analysis {
     let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
-    let content_path = root.join("content/file.tdr");
+    let test_path = root.join("content/file.tdr");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
 
-    let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
-    let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
-    let content_file = File::new(&db, FileHandle::Content(content.to_string()));
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(root.join("schemas/Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let test_file = File::new(
+      &db,
+      FileHandle::Content(test_path.clone(), content.to_string()),
+    );
 
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
       (root.join("schemas/Person.tdr"), person_file),
-      (content_path, content_file),
+      (test_path, test_file),
     ]);
 
     let project = Project::new(&db, root, files);

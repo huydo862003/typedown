@@ -1,0 +1,233 @@
+use lsp_types::{RenameFilesParams, WorkspaceEdit};
+use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
+use tdr_lang::db::derived::name_resolver::resolution_index::references;
+use tdr_lang::db::types::SymbolKind;
+
+use crate::analysis::Analysis;
+use crate::service::rename_symbol::utils::{build_workspace_edit, collect_reference_edits};
+use crate::utils::uri::uri_to_path;
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+use lsp_types::TextEdit;
+
+/// Handle workspace/willRenameFiles: update references when files are renamed via explorer
+pub fn will_rename_files(analysis: &Analysis, params: RenameFilesParams) -> Option<WorkspaceEdit> {
+  let db = &analysis.db;
+  let project = analysis.project;
+  let root_dir = project.root_dir(db);
+  let mut all_edits: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
+
+  for file_rename in &params.files {
+    let old_uri: lsp_types::Uri = file_rename.old_uri.parse().ok()?;
+    let new_uri: lsp_types::Uri = file_rename.new_uri.parse().ok()?;
+    let old_path = uri_to_path(&old_uri)?;
+    let new_path = uri_to_path(&new_uri)?;
+
+    let file = *project.files(db).get(&old_path)?;
+    let symbol = file_symbol(db, project, file).value(db)?;
+
+    // Schema rename to nested dir: skip (schemas must be flat)
+    if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) {
+      let schema_dir =
+        tdr_lang::db::derived::get_vault_config::get_vault_config(db, project).schema_dir(db);
+      if new_path.parent() != Some(&schema_dir) {
+        continue;
+      }
+    }
+
+    let new_stem = new_path
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or_default();
+
+    let refs = references(db, project, symbol);
+    let edits = collect_reference_edits(analysis, &refs, new_stem, &new_path, &root_dir)?;
+    for (path, file_edits) in edits {
+      all_edits.entry(path).or_default().extend(file_edits);
+    }
+  }
+
+  build_workspace_edit(analysis, all_edits, vec![])
+}
+
+#[cfg(test)]
+mod tests {
+  use std::collections::HashMap;
+  use std::path::PathBuf;
+  use std::sync::{Arc, Condvar, Mutex};
+
+  use lsp_types::{DocumentChangeOperation, DocumentChanges, FileRename, RenameFilesParams};
+  use tdr_lang::db::types::{File, FileHandle, Project};
+  use tdr_lang::db::{QueryStorage, TypedownDatabase};
+
+  use super::will_rename_files;
+  use crate::analysis::Analysis;
+  use crate::utils::uri::path_to_uri;
+
+  const VAULT_CONFIG: &str = r#"
+version: "1"
+vault:
+  content_dir: content
+  schema_dir: schemas
+"#;
+  const SCHEMA_PERSON: &str = r#"---
+_type: schema
+properties:
+  name:
+    type: string
+  age:
+    type: number
+---
+"#;
+  const CONTENT_ALICE: &str = r#"---
+_type: Person
+name: Alice
+age: 30
+---
+"#;
+  const CONTENT_WITH_FREF: &str = r#"---
+_type: Person
+friend: fref("content/alice.tdr")
+---
+"#;
+
+  fn setup(editing_content: &str) -> Analysis {
+    let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
+    let content_root = root.join("content");
+    let schema_root = root.join("schemas");
+
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let alice_file = File::new(
+      &db,
+      FileHandle::Content(content_root.join("alice.tdr"), CONTENT_ALICE.to_string()),
+    );
+    let editing_file = File::new(
+      &db,
+      FileHandle::Content(content_root.join("file.tdr"), editing_content.to_string()),
+    );
+
+    let files = HashMap::from([
+      (root.join("typedown.yaml"), config_file),
+      (root.join("schemas/Person.tdr"), person_file),
+      (root.join("content/alice.tdr"), alice_file),
+      (content_root.join("file.tdr"), editing_file),
+    ]);
+
+    let project = Project::new(&db, root, files);
+    Analysis::new(
+      db,
+      project,
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
+      Arc::new((Mutex::new(1), Condvar::new())),
+    )
+  }
+
+  fn snapshot(edit: &lsp_types::WorkspaceEdit) -> String {
+    let mut lines = vec![];
+    if let Some(DocumentChanges::Operations(ops)) = &edit.document_changes {
+      for op in ops {
+        if let DocumentChangeOperation::Edit(doc_edit) = op {
+          let uri = doc_edit.text_document.uri.as_str();
+          let short = uri.rfind("/vault/").map_or(uri, |i| &uri[i..]);
+          for edit in &doc_edit.edits {
+            if let lsp_types::OneOf::Left(text_edit) = edit {
+              let r = &text_edit.range;
+              lines.push(format!(
+                "EDIT {} [{}:{}-{}:{}] -> {:?}",
+                short,
+                r.start.line,
+                r.start.character,
+                r.end.line,
+                r.end.character,
+                text_edit.new_text
+              ));
+            }
+          }
+        }
+      }
+    }
+    lines.sort();
+    lines.join("\n")
+  }
+
+  fn make_params(old_path: &str, new_path: &str) -> RenameFilesParams {
+    RenameFilesParams {
+      files: vec![FileRename {
+        old_uri: path_to_uri(&PathBuf::from(old_path), "file").to_string(),
+        new_uri: path_to_uri(&PathBuf::from(new_path), "file").to_string(),
+      }],
+    }
+  }
+
+  // Renaming a schema file updates _type references
+  #[test]
+  fn will_rename_schema_updates_type_refs() {
+    let analysis = setup(CONTENT_ALICE);
+    let params = make_params("/vault/schemas/Person.tdr", "/vault/schemas/Human.tdr");
+    let edit = will_rename_files(&analysis, params).expect("should produce edits");
+    let snap = snapshot(&edit);
+
+    assert!(
+      snap.contains("\"Human\""),
+      "should rename idents to Human:\n{}",
+      snap
+    );
+    assert_eq!(
+      snap.matches("EDIT").count(),
+      2,
+      "should edit 2 files:\n{}",
+      snap
+    );
+  }
+
+  // Renaming a content file updates fref references
+  #[test]
+  fn will_rename_content_updates_fref() {
+    let analysis = setup(CONTENT_WITH_FREF);
+    let params = make_params("/vault/content/alice.tdr", "/vault/content/bob.tdr");
+    let edit = will_rename_files(&analysis, params).expect("should produce edits");
+    let snap = snapshot(&edit);
+
+    assert!(snap.contains("bob"), "should update fref to bob:\n{}", snap);
+  }
+
+  // Renaming schema to nested dir produces no edits
+  #[test]
+  fn will_rename_schema_to_nested_skips_edits() {
+    let analysis = setup(CONTENT_ALICE);
+    let params = make_params(
+      "/vault/schemas/Person.tdr",
+      "/vault/schemas/nested/Person.tdr",
+    );
+    let result = will_rename_files(&analysis, params);
+
+    assert!(
+      result.is_none(),
+      "should produce no edits for nested schema rename"
+    );
+  }
+
+  // Renaming a file not in the project returns None
+  #[test]
+  fn will_rename_unknown_file_returns_none() {
+    let analysis = setup(CONTENT_ALICE);
+    let params = make_params("/vault/content/unknown.tdr", "/vault/content/other.tdr");
+    let result = will_rename_files(&analysis, params);
+
+    assert!(result.is_none(), "unknown file should return None");
+  }
+}

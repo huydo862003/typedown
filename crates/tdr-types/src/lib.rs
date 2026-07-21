@@ -2,6 +2,7 @@
 
 pub mod either;
 pub mod file_stream;
+pub mod path;
 pub mod stream;
 pub mod string_stream;
 pub mod text_range;

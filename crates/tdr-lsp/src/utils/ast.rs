@@ -1,4 +1,4 @@
-use tdr_lang::syntax::ast::{AstNode, Expr};
+use tdr_lang::syntax::ast::{AstNode, CallExpr, Expr};
 use tdr_lang::syntax::red::RedNode;
 use tdr_lang::syntax::syntax_kind::SyntaxKind;
 
@@ -128,4 +128,24 @@ pub fn nearest_expr_ancestor(node: &RedNode) -> Option<RedNode> {
     }
     current = current.parent()?;
   }
+}
+
+/// Check whether we're in the fref reference
+/// fref("...")
+///       ^^^
+pub fn containing_fref_expr(node: &RedNode) -> Option<CallExpr> {
+  let str_lit = find_ancestor(node, SyntaxKind::StrLit);
+
+  let call = match str_lit {
+    Some(ref lit) => find_ancestor(lit, SyntaxKind::CallExpr),
+    None => find_ancestor(node, SyntaxKind::CallExpr),
+  }?;
+
+  let callee = call.children().next()?;
+
+  if callee.text().trim() != "fref" {
+    return None;
+  }
+
+  CallExpr::cast(call)
 }

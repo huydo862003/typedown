@@ -27,7 +27,7 @@ fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
     for idx in &child_indices {
       blob.extend_from_slice(&idx.to_le_bytes());
     }
-    encoder.intern_blob(blob, hint)
+    encoder.intern_blob::<GreenNode>(blob, hint)
   } else {
     let token = node.as_token().unwrap();
     let mut blob = Vec::new();
@@ -36,7 +36,7 @@ fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
     let bytes = token.bytes();
     blob.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
     blob.extend_from_slice(bytes);
-    encoder.intern_blob(blob, hint)
+    encoder.intern_blob::<GreenNode>(blob, hint)
   }
 }
 
@@ -146,7 +146,8 @@ impl StableHash for FileHandle {
         path.stable_hash(db, hasher);
         content.stable_hash(db, hasher);
       }
-      FileHandle::Content(content) => {
+      FileHandle::Content(path, content) => {
+        path.stable_hash(db, hasher);
         content.stable_hash(db, hasher);
       }
     }
@@ -613,6 +614,9 @@ impl Encodable for Diagnostic {
         length.encode(buf, encoder);
         start_offset.encode(buf, encoder);
         end_offset.encode(buf, encoder);
+      }
+      Diagnostic::NestedSchemaFile { path } => {
+        path.encode(buf, encoder);
       }
     }
   }
@@ -1111,6 +1115,10 @@ impl Decodable for Diagnostic {
           end_offset,
         }
       }
+      DiagnosticCode::NestedSchemaFile => {
+        let path = String::decode(data, decoder);
+        Diagnostic::NestedSchemaFile { path }
+      }
     }
   }
 }
@@ -1483,6 +1491,9 @@ impl StableHash for Diagnostic {
       } => {
         start_offset.stable_hash(db, hasher);
         end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::NestedSchemaFile { path } => {
+        path.stable_hash(db, hasher);
       }
     }
   }

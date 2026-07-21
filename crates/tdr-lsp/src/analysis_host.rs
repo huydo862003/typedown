@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::SystemTime;
 use std::{fs, io};
 
 use lsp_types::Uri;
@@ -43,7 +42,9 @@ impl AnalysisHost {
     let mut file_map = HashMap::new();
     let mut files = HashMap::new();
     for path in &project_files {
-      let handle = disk_handle(path);
+      let Some(handle) = disk_handle(path) else {
+        continue;
+      };
       let file = if let Some(&cached) = cached_files.get(path) {
         cached.set_handle(&mut db, handle);
         cached
@@ -103,14 +104,30 @@ impl AnalysisHost {
   }
 
   fn sync_files(&mut self) {
-    // Compute desired handles for all tracked paths
-    let mut desired: HashMap<PathBuf, FileHandle> = self
-      .project_files
-      .iter()
-      .map(|path| (path.clone(), disk_handle(path)))
-      .collect();
+    // Editor-opened files are always tracked
+    for path in self.open_files.keys() {
+      self.project_files.insert(path.clone());
+    }
+
+    // Build desired handles, pruning files that no longer exist on disk
+    let mut desired: HashMap<PathBuf, FileHandle> = HashMap::new();
+    self.project_files.retain(|path| {
+      if self.open_files.contains_key(path) {
+        return true; // editor-owned files handled below
+      }
+      match disk_handle(path) {
+        Some(handle) => {
+          desired.insert(path.clone(), handle);
+          true
+        }
+        None => false,
+      }
+    });
     for (path, rope) in self.open_files.iter() {
-      desired.insert(path.clone(), FileHandle::Content(rope.to_string()));
+      desired.insert(
+        path.clone(),
+        FileHandle::Content(path.clone(), rope.to_string()),
+      );
     }
 
     let project = self.project;
@@ -142,19 +159,16 @@ impl AnalysisHost {
   /// Called on textDocument/didOpen.
   pub fn on_editor_open_file(&mut self, uri: &Uri, content: String) {
     if let Some(path) = uri_to_path(uri) {
-      log::debug!("Editor opened: {}", path.display());
       let scheme = uri_scheme(uri).to_string();
       Arc::make_mut(&mut self.scheme_map).insert(path.clone(), scheme);
       Arc::make_mut(&mut self.open_files).insert(path, Rope::from(content));
       self.sync_files();
-    } else {
-      log::warn!("Could not convert URI to path: {}", uri.as_str());
     }
   }
 
   /// Called on textDocument/didChange.
   pub fn on_editor_change_file(&mut self, path: PathBuf, rope: Rope) {
-    let handle = FileHandle::Content(rope.to_string());
+    let handle = FileHandle::Content(path.clone(), rope.to_string());
     Arc::make_mut(&mut self.open_files).insert(path.clone(), rope);
     let file_map = &self.file_map;
 
@@ -170,7 +184,6 @@ impl AnalysisHost {
 
   /// Called on textDocument/didClose. Falls back to disk version.
   pub fn on_close_file(&mut self, path: &PathBuf) {
-    log::debug!("Editor closed: {}", path.display());
     Arc::make_mut(&mut self.open_files).remove(path);
     self.sync_files();
   }
@@ -186,6 +199,43 @@ impl AnalysisHost {
       self.project_files.insert(path);
       self.sync_files();
     }
+  }
+
+  /// Moves the old path entry to the new path
+  pub fn on_did_rename_file(&mut self, old_path: PathBuf, new_path: PathBuf) {
+    self.project_files.remove(&old_path);
+    self.project_files.insert(new_path.clone());
+
+    if let Some(rope) = Arc::make_mut(&mut self.open_files).remove(&old_path) {
+      Arc::make_mut(&mut self.open_files).insert(new_path.clone(), rope);
+    }
+    if let Some(scheme) = Arc::make_mut(&mut self.scheme_map).remove(&old_path) {
+      Arc::make_mut(&mut self.scheme_map).insert(new_path.clone(), scheme);
+    }
+
+    // Reuse the File ID, just update its handle path
+    let Some(file) = self.file_map.remove(&old_path) else {
+      return;
+    };
+
+    let content = match file.handle(&self.db) {
+      FileHandle::Content(_, content) => content.clone(),
+      FileHandle::Path(path, _) => fs::read_to_string(&path).unwrap_or_default(),
+    };
+
+    let handle = FileHandle::Content(new_path.clone(), content);
+
+    let project = self.project;
+
+    self.write(|db| {
+      file.set_handle(db, handle);
+      let mut files = project.files(db).clone();
+      files.remove(&old_path);
+      files.insert(new_path.clone(), file);
+      project.set_files(db, files);
+    });
+
+    self.file_map.insert(new_path, file);
   }
 
   /// Called by the file watcher when a file is deleted.
@@ -211,11 +261,9 @@ impl AnalysisHost {
   }
 }
 
-fn disk_handle(path: &PathBuf) -> FileHandle {
-  let mtime = fs::metadata(path)
-    .and_then(|meta| meta.modified())
-    .unwrap_or(SystemTime::UNIX_EPOCH);
-  FileHandle::Path(path.clone(), mtime)
+fn disk_handle(path: &PathBuf) -> Option<FileHandle> {
+  let mtime = fs::metadata(path).and_then(|meta| meta.modified()).ok()?;
+  Some(FileHandle::Path(path.clone(), mtime))
 }
 
 /// Read all relevant project files

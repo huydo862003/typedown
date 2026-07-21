@@ -59,6 +59,7 @@ pub enum DiagnosticCode {
   UnresolvedFileRef = 51,
   UnknownField = 52,
   IndexOutOfBounds = 53,
+  NestedSchemaFile = 54,
 }
 
 impl DiagnosticCode {
@@ -120,6 +121,7 @@ impl DiagnosticCode {
       DiagnosticCode::UnresolvedFileRef => "unresolved-file-ref",
       DiagnosticCode::UnknownField => "unknown-field",
       DiagnosticCode::IndexOutOfBounds => "index-out-of-bounds",
+      DiagnosticCode::NestedSchemaFile => "nested-schema-file",
     }
   }
 }
@@ -477,6 +479,8 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+  /// Schema file is nested in a subdirectory of schema_dir
+  NestedSchemaFile { path: String },
 }
 
 impl Diagnostic {
@@ -709,7 +713,8 @@ impl Diagnostic {
       Diagnostic::MissingVaultConfig { .. }
       | Diagnostic::VaultConfigReadError { .. }
       | Diagnostic::VaultConfigEmpty { .. }
-      | Diagnostic::WrongTypeArgCount { .. } => None,
+      | Diagnostic::WrongTypeArgCount { .. }
+      | Diagnostic::NestedSchemaFile { .. } => None,
     }
   }
 
@@ -855,6 +860,9 @@ impl Diagnostic {
       Diagnostic::UnknownField { field, on_type, .. } => {
         format!("unknown field '{field}' on type '{on_type}'")
       }
+      Diagnostic::NestedSchemaFile { path } => {
+        format!("unsupported nested schema file: {}", path)
+      }
       Diagnostic::IndexOutOfBounds { index, length, .. } => {
         format!("index {index} is out of bounds for length {length}")
       }
@@ -922,6 +930,7 @@ impl Diagnostic {
       Diagnostic::UnresolvedFileRef { .. } => DiagnosticCode::UnresolvedFileRef,
       Diagnostic::UnknownField { .. } => DiagnosticCode::UnknownField,
       Diagnostic::IndexOutOfBounds { .. } => DiagnosticCode::IndexOutOfBounds,
+      Diagnostic::NestedSchemaFile { .. } => DiagnosticCode::NestedSchemaFile,
     }
   }
 }

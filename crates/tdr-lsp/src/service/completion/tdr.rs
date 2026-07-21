@@ -345,21 +345,40 @@ properties:
   /// Build an in-memory vault with Person and Event schemas, plus the given content file.
   fn setup(content: &str) -> (Analysis, Uri) {
     let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
-    let content_path = root.join("content/file.tdr");
-    let uri = path_to_uri(&content_path, "file");
+
+    let content_root = root.join("content");
+    let schema_root = root.join("schemas");
+
+    let test_path = content_root.join("file.tdr");
+    let uri = path_to_uri(&test_path, "file");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
 
-    let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
-    let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
-    let event_file = File::new(&db, FileHandle::Content(SCHEMA_EVENT.to_string()));
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let event_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Event.tdr"), SCHEMA_EVENT.to_string()),
+    );
     let person_with_address_file = File::new(
       &db,
-      FileHandle::Content(SCHEMA_PERSON_WITH_ADDRESS.to_string()),
+      FileHandle::Content(
+        schema_root.join("PersonWithAddress.tdr"),
+        SCHEMA_PERSON_WITH_ADDRESS.to_string(),
+      ),
     );
-    let content_file = File::new(&db, FileHandle::Content(content.to_string()));
+    let test_file = File::new(
+      &db,
+      FileHandle::Content(test_path.clone(), content.to_string()),
+    );
 
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
@@ -369,7 +388,7 @@ properties:
         root.join("schemas/PersonWithAddress.tdr"),
         person_with_address_file,
       ),
-      (content_path, content_file),
+      (test_path, test_file),
     ]);
 
     let project = Project::new(&db, root, files);
@@ -590,20 +609,51 @@ date: 2024-01-01
   /// Build a vault with Person, Event, Directory schemas plus two content files.
   fn setup_with_content(content: &str) -> (Analysis, Uri) {
     let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
-    let content_path = root.join("content/file.tdr");
-    let uri = path_to_uri(&content_path, "file");
+
+    let content_root = root.join("content");
+    let schema_root = root.join("schema");
+
+    let test_path = content_root.join("file.tdr");
+    let uri = path_to_uri(&test_path, "file");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
 
-    let config_file = File::new(&db, FileHandle::Content(VAULT_CONFIG.to_string()));
-    let person_file = File::new(&db, FileHandle::Content(SCHEMA_PERSON.to_string()));
-    let event_file = File::new(&db, FileHandle::Content(SCHEMA_EVENT.to_string()));
-    let directory_file = File::new(&db, FileHandle::Content(SCHEMA_DIRECTORY.to_string()));
-    let alice_file = File::new(&db, FileHandle::Content(CONTENT_ALICE.to_string()));
-    let birthday_file = File::new(&db, FileHandle::Content(CONTENT_BIRTHDAY.to_string()));
-    let editing_file = File::new(&db, FileHandle::Content(content.to_string()));
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let event_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Event.tdr"), SCHEMA_EVENT.to_string()),
+    );
+    let directory_file = File::new(
+      &db,
+      FileHandle::Content(
+        schema_root.join("Directory.tdr"),
+        SCHEMA_DIRECTORY.to_string(),
+      ),
+    );
+    let alice_file = File::new(
+      &db,
+      FileHandle::Content(content_root.join("alice.tdr"), CONTENT_ALICE.to_string()),
+    );
+    let birthday_file = File::new(
+      &db,
+      FileHandle::Content(
+        content_root.join("birthday.tdr"),
+        CONTENT_BIRTHDAY.to_string(),
+      ),
+    );
+    let editing_file = File::new(
+      &db,
+      FileHandle::Content(test_path.clone(), content.to_string()),
+    );
 
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
@@ -612,7 +662,7 @@ date: 2024-01-01
       (root.join("schemas/Directory.tdr"), directory_file),
       (root.join("content/alice.tdr"), alice_file),
       (root.join("content/birthday.tdr"), birthday_file),
-      (content_path, editing_file),
+      (test_path, editing_file),
     ]);
 
     let project = Project::new(&db, root, files);

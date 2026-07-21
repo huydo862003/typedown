@@ -3,10 +3,9 @@ use std::collections::HashMap;
 use tdr_macros::query_derived;
 
 use crate::db::TypedownDatabase;
-use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::derived::name_resolver::builtin_scope::builtin_scope;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
-use crate::db::types::{FileHandle, MembersResult, Scope, ScopeKind};
+use crate::db::types::{MembersResult, Scope, ScopeKind};
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
@@ -17,14 +16,13 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
       let mut members = HashMap::new();
 
       if let Some(sym) = file_symbol(db, project, file).value(db) {
-        let name = match file.handle(db) {
-          FileHandle::Path(path, _) => path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or_default()
-            .to_string(),
-          FileHandle::Content(_) => String::new(),
-        };
+        let name = file
+          .handle(db)
+          .path()
+          .and_then(|p| p.file_stem())
+          .and_then(|s| s.to_str())
+          .unwrap_or_default()
+          .to_string();
 
         if !name.is_empty() {
           members.insert(name, sym);
@@ -34,8 +32,6 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
       MembersResult::new(db, members)
     }
     ScopeKind::Project(project) => {
-      let config = get_vault_config(db, project);
-      let _schema_dir = config.schema_dir(db);
       let proj_files = project.files(db);
 
       let mut members = HashMap::new();

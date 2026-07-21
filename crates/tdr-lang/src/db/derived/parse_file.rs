@@ -59,7 +59,10 @@ mod tests {
 
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
 
-    let file = File::new(&db, FileHandle::Content(fixture.contents.clone()));
+    let file = File::new(
+      &db,
+      FileHandle::Content(PathBuf::from("test.tdr"), fixture.contents.clone()),
+    );
     let result = parse_file(&db, project, file);
 
     assert!(
@@ -118,7 +121,10 @@ mod tests {
     };
 
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
-    let file = File::new(&db, FileHandle::Content(fixture.contents.clone()));
+    let file = File::new(
+      &db,
+      FileHandle::Content(PathBuf::from("test.tdr"), fixture.contents.clone()),
+    );
     let result = parse_file(&db, project, file);
 
     assert!(

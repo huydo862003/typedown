@@ -4,6 +4,8 @@
 use rustc_stable_hash::StableSipHasher128;
 use std::hash::{Hash, Hasher};
 
+use super::StableCompare;
+
 use super::ord::StableOrd;
 
 use crate::QueryDatabase;
@@ -287,11 +289,11 @@ impl<T1: StableHash, T2: StableHash, T3: StableHash, T4: StableHash> StableHash
   }
 }
 
-impl<K: StableHash + StableOrd, V: StableHash> StableHash for std::collections::HashMap<K, V> {
+impl<K: StableHash + StableCompare, V: StableHash> StableHash for std::collections::HashMap<K, V> {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     self.len().stable_hash(db, hasher);
     let mut entries: Vec<(&K, &V)> = self.iter().collect();
-    entries.sort_by_key(|(k1, _)| *k1);
+    entries.sort_by(|(k1, _), (k2, _)| k1.stable_cmp(db, k2));
     for (key, value) in entries {
       key.stable_hash(db, hasher);
       value.stable_hash(db, hasher);
@@ -299,11 +301,11 @@ impl<K: StableHash + StableOrd, V: StableHash> StableHash for std::collections::
   }
 }
 
-impl<K: StableHash + StableOrd> StableHash for std::collections::HashSet<K> {
+impl<K: StableHash + StableCompare> StableHash for std::collections::HashSet<K> {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     self.len().stable_hash(db, hasher);
     let mut entries: Vec<&K> = self.iter().collect();
-    entries.sort();
+    entries.sort_by(|a, b| a.stable_cmp(db, b));
     for key in entries {
       key.stable_hash(db, hasher);
     }

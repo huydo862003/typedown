@@ -50,6 +50,20 @@ local function start_lsp()
     cmd = { binary },
     root_dir = root,
     capabilities = vim.lsp.protocol.make_client_capabilities(),
+    handlers = {
+      -- After applying a workspace edit
+      -- save all modified buffers so the LSP sees the changes via didChange/didOpen
+      ["textDocument/rename"] = function(err, result, ctx, config)
+        vim.lsp.handlers["textDocument/rename"](err, result, ctx, config)
+        if result then
+          for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].modified then
+              vim.api.nvim_buf_call(buf, function() vim.cmd("silent! write") end)
+            end
+          end
+        end
+      end,
+    },
   })
 end
 

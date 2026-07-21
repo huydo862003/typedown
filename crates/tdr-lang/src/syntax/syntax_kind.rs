@@ -114,3 +114,16 @@ pub enum SyntaxKind {
   // Error
   Error,
 }
+
+impl SyntaxKind {
+  /// Whether this token is trivia (whitespace, newline, indent, comment)
+  pub fn is_trivia(self) -> bool {
+    matches!(
+      self,
+      SyntaxKind::Whitespace
+        | SyntaxKind::Newline
+        | SyntaxKind::YamlIndent
+        | SyntaxKind::YamlComment
+    )
+  }
+}

@@ -7,12 +7,13 @@ use dashmap::DashMap;
 use tdr_types::either::Either;
 
 use crate::persist::serialized::dep_graph::DepNodeIndex;
+use crate::persist::stable::StableCompare;
 use crate::persist::unstable::{FieldDecodable, FieldEncodable};
 use crate::{DepId, QueryDatabase, QueryStorage};
 
 pub struct Encoder<'a> {
   db: &'a dyn QueryDatabase,
-  intern_hints: HashMap<usize, u32>,
+  intern_hints: HashMap<(std::any::TypeId, usize), u32>,
   intern_blobs: Vec<Vec<u8>>,
   intern_table: HashMap<Vec<u8>, u32>,
   dep_id_table: HashMap<DepId, DepNodeIndex>,
@@ -54,7 +55,8 @@ impl<'a> Encoder<'a> {
     self.intern_blobs
   }
 
-  pub fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
+  pub fn intern_blob<T: 'static>(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
+    let hint = hint.map(|id| (std::any::TypeId::of::<T>(), id));
     if let Some(key) = hint
       && let Some(&index) = self.intern_hints.get(&key)
     {
@@ -615,11 +617,11 @@ impl<A: FieldDecodable, B: FieldDecodable> Decodable for (A, B) {
 }
 
 // HashMap
-impl<K: FieldEncodable + Ord, V: FieldEncodable> Encodable for HashMap<K, V> {
+impl<K: FieldEncodable + StableCompare, V: FieldEncodable> Encodable for HashMap<K, V> {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
     encoder.emit_u32(buf, self.len() as u32);
     let mut entries: Vec<(&K, &V)> = self.iter().collect();
-    entries.sort_by_key(|(k1, _)| *k1);
+    entries.sort_by(|(k1, _), (k2, _)| k1.stable_cmp(encoder.db(), k2));
     for (key, value) in entries {
       key.encode_field(buf, encoder);
       value.encode_field(buf, encoder);

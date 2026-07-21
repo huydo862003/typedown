@@ -1,0 +1,473 @@
+use std::path::Path;
+
+use lsp_types::{RenameParams, WorkspaceEdit};
+use tdr_lang::db::derived::get_vault_config::get_vault_config;
+use tdr_lang::db::derived::hir::lower_node;
+use tdr_lang::db::derived::name_resolver::referee::referee;
+use tdr_lang::db::derived::name_resolver::resolution_index::references;
+use tdr_lang::db::types::SymbolKind;
+use tdr_lang::syntax::ast::AstNode;
+
+use crate::analysis::Analysis;
+use crate::service::rename_symbol::types::RenameSymbol;
+use crate::service::rename_symbol::utils::{
+  build_workspace_edit, collect_reference_edits, find_rename_symbol, symbol_file_path,
+};
+use crate::utils::position::lsp_position_to_text_offset;
+use crate::utils::uri::uri_to_path;
+
+pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit> {
+  let db = &analysis.db;
+  let project = analysis.project;
+  let new_name = params.new_name.trim();
+
+  // Locate the file and offset of the rename request
+  let path = uri_to_path(&params.text_document_position.text_document.uri)?;
+  let file = *project.files(db).get(&path)?;
+  let rope = analysis.file_rope(&path)?;
+  let offset = lsp_position_to_text_offset(&rope, params.text_document_position.position)?;
+
+  // Find the renameable symbol at the cursor (fref or ident)
+  let rename_symbol = find_rename_symbol(db, project, file, offset)?;
+
+  // Resolve to the underlying symbol
+  let syntax = match &rename_symbol {
+    RenameSymbol::Fref { call_node } => call_node.syntax().clone(),
+    RenameSymbol::Identifier { ident_node } => ident_node.syntax().clone(),
+  };
+  let symbol = referee(db, lower_node(db, project, file, syntax)).value(db)?;
+
+  // Builtins cannot be renamed
+  if matches!(
+    symbol.kind(db),
+    SymbolKind::BuiltinMacro(_) | SymbolKind::BuiltinSchema(_)
+  ) {
+    return None;
+  }
+
+  let old_path = symbol_file_path(db, symbol)?;
+  let root_dir = project.root_dir(db);
+
+  // Compute new file path and identifier stem based on rename kind
+  let (new_path, new_stem) = match &rename_symbol {
+    RenameSymbol::Fref { .. } => {
+      let content_dir = get_vault_config(db, project).content_dir(db);
+      compute_fref_target(new_name, &content_dir)
+    }
+    RenameSymbol::Identifier { .. } => compute_ident_target(db, new_name, symbol, &old_path)?,
+  };
+
+  // Collect text edits for all references + file rename
+  let refs = references(db, project, symbol);
+  let edits = collect_reference_edits(analysis, &refs, &new_stem, &new_path, &root_dir)?;
+
+  build_workspace_edit(analysis, edits, vec![(old_path, new_path)])
+}
+
+fn compute_fref_target(new_name: &str, content_dir: &Path) -> (std::path::PathBuf, String) {
+  let relative = new_name.strip_suffix(".tdr").unwrap_or(new_name);
+  let absolute = content_dir.join(format!("{}.tdr", relative));
+  let stem = Path::new(relative)
+    .file_stem()
+    .and_then(|s| s.to_str())
+    .unwrap_or(relative)
+    .to_string();
+  (absolute, stem)
+}
+
+fn compute_ident_target(
+  db: &dyn tdr_incremental::QueryDatabase,
+  new_name: &str,
+  symbol: tdr_lang::db::types::Symbol,
+  old_path: &Path,
+) -> Option<(std::path::PathBuf, String)> {
+  let stem = new_name.strip_suffix(".tdr").unwrap_or(new_name);
+  if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) && stem.contains('/') {
+    return None;
+  }
+  let absolute = old_path.parent()?.join(format!("{}.tdr", stem));
+  Some((absolute, stem.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+  use std::collections::HashMap;
+  use std::path::PathBuf;
+  use std::sync::{Arc, Condvar, Mutex};
+
+  use lsp_types::{
+    DocumentChangeOperation, DocumentChanges, Position, RenameParams, ResourceOp,
+    TextDocumentIdentifier, TextDocumentPositionParams,
+  };
+  use ropey::Rope;
+  use tdr_lang::db::types::{File, FileHandle, Project};
+  use tdr_lang::db::{QueryStorage, TypedownDatabase};
+
+  use super::rename;
+  use crate::analysis::Analysis;
+  use crate::utils::uri::path_to_uri;
+
+  const VAULT_CONFIG: &str = r#"
+version: "1"
+vault:
+  content_dir: content
+  schema_dir: schemas
+"#;
+  const SCHEMA_PERSON: &str = r#"---
+_type: schema
+properties:
+  name:
+    type: string
+  age:
+    type: number
+---
+"#;
+  const CONTENT_ALICE: &str = r#"---
+_type: Person
+name: Alice
+age: 30
+---
+"#;
+
+  fn cursor(content: &str) -> (String, usize) {
+    let offset = content
+      .find('|')
+      .expect("content must have a cursor marker");
+    (content.replacen('|', "", 1), offset)
+  }
+
+  fn make_params(
+    uri: lsp_types::Uri,
+    content: &str,
+    offset: usize,
+    new_name: &str,
+  ) -> RenameParams {
+    let rope = Rope::from(content);
+    let line = rope.char_to_line(offset);
+    let character = offset - rope.line_to_char(line);
+    RenameParams {
+      text_document_position: TextDocumentPositionParams {
+        text_document: TextDocumentIdentifier { uri },
+        position: Position {
+          line: line as u32,
+          character: character as u32,
+        },
+      },
+      new_name: new_name.to_string(),
+      work_done_progress_params: Default::default(),
+    }
+  }
+
+  fn setup(content: &str) -> (Analysis, lsp_types::Uri) {
+    let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
+    let content_root = root.join("content");
+    let schema_root = root.join("schemas");
+    let test_path = content_root.join("file.tdr");
+    let uri = path_to_uri(&test_path, "file");
+
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let person_file = File::new(
+      &db,
+      FileHandle::Content(schema_root.join("Person.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let alice_file = File::new(
+      &db,
+      FileHandle::Content(content_root.join("alice.tdr"), CONTENT_ALICE.to_string()),
+    );
+    let editing_file = File::new(
+      &db,
+      FileHandle::Content(test_path.clone(), content.to_string()),
+    );
+
+    let files = HashMap::from([
+      (root.join("typedown.yaml"), config_file),
+      (root.join("schemas/Person.tdr"), person_file),
+      (root.join("content/alice.tdr"), alice_file),
+      (test_path, editing_file),
+    ]);
+
+    let project = Project::new(&db, root, files);
+    let analysis = Analysis::new(
+      db,
+      project,
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
+      Arc::new((Mutex::new(1), Condvar::new())),
+    );
+    (analysis, uri)
+  }
+
+  /// Serialize a WorkspaceEdit to a deterministic snapshot string
+  fn snapshot(edit: &lsp_types::WorkspaceEdit) -> String {
+    let mut lines = vec![];
+    if let Some(DocumentChanges::Operations(ops)) = &edit.document_changes {
+      for op in ops {
+        match op {
+          DocumentChangeOperation::Edit(doc_edit) => {
+            let uri = doc_edit.text_document.uri.as_str();
+            let short = uri.rfind("/vault/").map_or(uri, |i| &uri[i..]);
+            for edit in &doc_edit.edits {
+              if let lsp_types::OneOf::Left(text_edit) = edit {
+                let r = &text_edit.range;
+                lines.push(format!(
+                  "EDIT {} [{}:{}-{}:{}] -> {:?}",
+                  short,
+                  r.start.line,
+                  r.start.character,
+                  r.end.line,
+                  r.end.character,
+                  text_edit.new_text
+                ));
+              }
+            }
+          }
+          DocumentChangeOperation::Op(ResourceOp::Rename(rename_file)) => {
+            let old = rename_file.old_uri.as_str();
+            let new = rename_file.new_uri.as_str();
+            let old_short = old.rfind("/vault/").map_or(old, |i| &old[i..]);
+            let new_short = new.rfind("/vault/").map_or(new, |i| &new[i..]);
+            lines.push(format!("RENAME {} -> {}", old_short, new_short));
+          }
+          _ => {}
+        }
+      }
+    }
+    lines.sort();
+    lines.join("\n")
+  }
+
+  // Rename an identifier in _type position
+  #[test]
+  fn rename_ident_in_type_field() {
+    let (raw, offset) = cursor(
+      r#"---
+_type: |Person
+name: Alice
+---
+"#,
+    );
+    let (analysis, uri) = setup(&raw);
+    let edit =
+      rename(&analysis, make_params(uri, &raw, offset, "Human")).expect("should produce edits");
+    let snap = snapshot(&edit);
+
+    assert!(snap.contains("EDIT"), "should have text edits");
+    assert!(snap.contains("RENAME"), "should have file rename");
+    assert_eq!(
+      snap.matches("EDIT").count(),
+      2,
+      "should have 2 text edits:\n{}",
+      snap
+    );
+    assert!(
+      snap
+        .lines()
+        .filter(|l| l.starts_with("EDIT"))
+        .all(|l| l.contains("\"Human\"")),
+      "all text edits should rename to Human:\n{}",
+      snap
+    );
+    assert!(
+      snap.contains("Human.tdr"),
+      "file rename should use Human.tdr:\n{}",
+      snap
+    );
+  }
+
+  // Rename a fref target
+  #[test]
+  fn rename_fref_snapshot() {
+    let (raw, offset) = cursor(
+      r#"---
+_type: Person
+friend: fref("|content/alice.tdr")
+---
+"#,
+    );
+    let (analysis, uri) = setup(&raw);
+    let edit =
+      rename(&analysis, make_params(uri, &raw, offset, "bob")).expect("should produce edits");
+    let snap = snapshot(&edit);
+
+    assert!(snap.contains("EDIT"), "should have text edits:\n{}", snap);
+    assert!(
+      snap.contains("RENAME"),
+      "should have file rename:\n{}",
+      snap
+    );
+    assert!(
+      snap.contains("bob"),
+      "edits should reference new name:\n{}",
+      snap
+    );
+  }
+
+  // Edits are ordered: text edits before file renames
+  #[test]
+  fn rename_edits_before_renames() {
+    let (raw, offset) = cursor(
+      r#"---
+_type: Person
+friend: fref("|content/alice.tdr")
+---
+"#,
+    );
+    let (analysis, uri) = setup(&raw);
+    let edit =
+      rename(&analysis, make_params(uri, &raw, offset, "bob")).expect("should produce edits");
+
+    if let Some(DocumentChanges::Operations(ops)) = &edit.document_changes {
+      let mut seen_rename = false;
+      for op in ops {
+        match op {
+          DocumentChangeOperation::Edit(_) => {
+            assert!(!seen_rename, "text edit found after file rename");
+          }
+          DocumentChangeOperation::Op(ResourceOp::Rename(_)) => {
+            seen_rename = true;
+          }
+          _ => {}
+        }
+      }
+      assert!(seen_rename, "should have a file rename");
+    }
+  }
+
+  // Simulates rename Person->Human, then Human->Person by rebuilding the analysis
+  // with the first rename's edits applied
+  #[test]
+  fn rename_ident_roundtrip() {
+    // First rename: Person -> Human
+    let (raw, offset) = cursor(
+      r#"---
+_type: |Person
+name: Alice
+---
+"#,
+    );
+    let (analysis, uri) = setup(&raw);
+    let edit = rename(&analysis, make_params(uri, &raw, offset, "Human")).expect("first rename");
+    let snap = snapshot(&edit);
+    assert!(snap.contains("\"Human\""), "first rename:\n{}", snap);
+
+    // Apply the rename: rebuild with Human schema and updated content
+    let human_content = raw.replace("Person", "Human");
+    let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let config_file = File::new(
+      &db,
+      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+    );
+    let schema_file = File::new(
+      &db,
+      FileHandle::Content(root.join("schemas/Human.tdr"), SCHEMA_PERSON.to_string()),
+    );
+    let alice_file = File::new(
+      &db,
+      FileHandle::Content(
+        root.join("content/alice.tdr"),
+        CONTENT_ALICE.replace("Person", "Human"),
+      ),
+    );
+    let test_file = File::new(
+      &db,
+      FileHandle::Content(root.join("content/file.tdr"), human_content.clone()),
+    );
+    let files = HashMap::from([
+      (root.join("typedown.yaml"), config_file),
+      (root.join("schemas/Human.tdr"), schema_file),
+      (root.join("content/alice.tdr"), alice_file),
+      (root.join("content/file.tdr"), test_file),
+    ]);
+    let project = Project::new(&db, root.clone(), files);
+    let analysis2 = Analysis::new(
+      db,
+      project,
+      Arc::new(HashMap::new()),
+      Arc::new(HashMap::new()),
+      Arc::new((Mutex::new(1), Condvar::new())),
+    );
+    let uri2 = path_to_uri(&root.join("content/file.tdr"), "file");
+
+    // Second rename: Human -> Person (cursor on the first "Human" which is the _type value)
+    let (raw2, offset2) = cursor(&human_content.replacen("Human", "|Human", 1));
+    let edit2 =
+      rename(&analysis2, make_params(uri2, &raw2, offset2, "Person")).expect("second rename");
+    let snap2 = snapshot(&edit2);
+    assert!(snap2.contains("\"Person\""), "second rename:\n{}", snap2);
+    assert!(
+      snap2.contains("Person.tdr"),
+      "should rename back to Person.tdr:\n{}",
+      snap2
+    );
+  }
+
+  // Verify the file rename operation contains correct old/new URIs
+  #[test]
+  fn rename_produces_correct_file_rename() {
+    let (raw, offset) = cursor(
+      r#"---
+_type: |Person
+name: Alice
+---
+"#,
+    );
+    let (analysis, uri) = setup(&raw);
+    let edit =
+      rename(&analysis, make_params(uri, &raw, offset, "Human")).expect("should produce edits");
+
+    let rename_ops: Vec<_> = edit
+      .document_changes
+      .as_ref()
+      .and_then(|dc| match dc {
+        DocumentChanges::Operations(ops) => Some(ops),
+        _ => None,
+      })
+      .unwrap()
+      .iter()
+      .filter_map(|op| match op {
+        DocumentChangeOperation::Op(ResourceOp::Rename(r)) => Some(r),
+        _ => None,
+      })
+      .collect();
+
+    assert_eq!(rename_ops.len(), 1, "should have exactly 1 file rename");
+    let rename_op = rename_ops[0];
+    assert!(
+      rename_op.old_uri.as_str().contains("Person.tdr"),
+      "old URI should contain Person.tdr: {:?}",
+      rename_op.old_uri.as_str()
+    );
+    assert!(
+      rename_op.new_uri.as_str().contains("Human.tdr"),
+      "new URI should contain Human.tdr: {:?}",
+      rename_op.new_uri.as_str()
+    );
+  }
+
+  // Cursor on a non-renameable position returns None
+  #[test]
+  fn rename_on_value_returns_none() {
+    let (raw, offset) = cursor(
+      r#"---
+_type: Person
+name: |Alice
+---
+"#,
+    );
+    let (analysis, uri) = setup(&raw);
+    assert!(
+      rename(&analysis, make_params(uri, &raw, offset, "Bob")).is_none(),
+      "renaming a string value should return None"
+    );
+  }
+}
