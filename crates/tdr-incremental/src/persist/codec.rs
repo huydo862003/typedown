@@ -13,7 +13,7 @@ use crate::{DepId, QueryDatabase, QueryStorage};
 
 pub struct Encoder<'a> {
   db: &'a dyn QueryDatabase,
-  intern_hints: HashMap<usize, u32>,
+  intern_hints: HashMap<(std::any::TypeId, usize), u32>,
   intern_blobs: Vec<Vec<u8>>,
   intern_table: HashMap<Vec<u8>, u32>,
   dep_id_table: HashMap<DepId, DepNodeIndex>,
@@ -55,7 +55,8 @@ impl<'a> Encoder<'a> {
     self.intern_blobs
   }
 
-  pub fn intern_blob(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
+  pub fn intern_blob<T: 'static>(&mut self, blob: Vec<u8>, hint: Option<usize>) -> u32 {
+    let hint = hint.map(|id| (std::any::TypeId::of::<T>(), id));
     if let Some(key) = hint
       && let Some(&index) = self.intern_hints.get(&key)
     {

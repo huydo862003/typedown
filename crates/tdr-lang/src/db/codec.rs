@@ -27,7 +27,7 @@ fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
     for idx in &child_indices {
       blob.extend_from_slice(&idx.to_le_bytes());
     }
-    encoder.intern_blob(blob, hint)
+    encoder.intern_blob::<GreenNode>(blob, hint)
   } else {
     let token = node.as_token().unwrap();
     let mut blob = Vec::new();
@@ -36,7 +36,7 @@ fn encode_green_node(node: &GreenNode, encoder: &mut Encoder) -> u32 {
     let bytes = token.bytes();
     blob.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
     blob.extend_from_slice(bytes);
-    encoder.intern_blob(blob, hint)
+    encoder.intern_blob::<GreenNode>(blob, hint)
   }
 }
 
