@@ -118,6 +118,24 @@ impl RedNode {
     self.0.green.text_len()
   }
 
+  /// Offset and length excluding leading/trailing trivia tokens
+  pub fn trimmed_range(&self) -> (usize, usize) {
+    let children: Vec<_> = self.children().collect();
+    // Find first non-trivia child
+    let start = children
+      .iter()
+      .find(|c| !c.kind().is_trivia())
+      .map(|c| c.offset())
+      .unwrap_or(self.offset());
+    // Find last non-trivia child
+    let end = children
+      .iter()
+      .rfind(|c| !c.kind().is_trivia())
+      .map(|c| c.offset() + c.text_len())
+      .unwrap_or(self.offset() + self.text_len());
+    (start, end - start)
+  }
+
   pub fn children(&self) -> RedNodeChildren {
     let green_node = self.0.green.as_node();
     RedNodeChildren {

@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use lsp_types::{
   DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier, RenameFile,
   RenameParams, ResourceOp, TextDocumentEdit, TextEdit, WorkspaceEdit,
 };
-use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::referee::referee;
 use tdr_lang::db::derived::name_resolver::resolution_index::{ReferenceKind, references};
-use tdr_lang::db::types::{HirValueKind, SymbolKind};
+use tdr_lang::db::types::{HirValueKind, Symbol, SymbolKind};
 use tdr_lang::syntax::ast::AstNode;
+use tdr_types::path::normalize_path;
 
 use crate::{
   analysis::Analysis,
@@ -35,7 +35,7 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
   // Find the symbol at the cursor
   let rename_symbol = find_rename_symbol(db, project, file, offset)?;
 
-  let original_symbol = match rename_symbol {
+  let symbol = match &rename_symbol {
     RenameSymbol::Fref { call_node } => referee(
       db,
       lower_node(db, project, file, call_node.syntax().clone()),
@@ -47,15 +47,54 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
   }
   .value(db)?;
 
-  let refs = references(db, project, original_symbol);
-  if refs.is_empty() {
+  // Builtins cannot be renamed
+  if matches!(
+    symbol.kind(db),
+    SymbolKind::BuiltinMacro(_) | SymbolKind::BuiltinSchema(_)
+  ) {
     return None;
   }
 
+  let trimmed = new_name.trim();
+  let old_absolute = symbol_file_path(db, symbol)?;
   let root_dir = project.root_dir(db);
+  let is_fref = matches!(rename_symbol, RenameSymbol::Fref { .. });
+
+  // Compute new absolute path and new identifier name
+  let (new_absolute, new_stem) = if is_fref {
+    // Fref: new_name is a path relative to vault root (uses `/`)
+    let new_relative = trimmed.strip_suffix(".tdr").unwrap_or(trimmed);
+    let new_path = root_dir.join(format!("{}.tdr", new_relative));
+    let stem = std::path::Path::new(new_relative)
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or(new_relative)
+      .to_string();
+    (new_path, stem)
+  } else {
+    // Ident: new_name is a plain identifier
+    let stem = trimmed.strip_suffix(".tdr").unwrap_or(trimmed);
+    // Block renaming schemas to a nested path
+    if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) && stem.contains('/') {
+      return None;
+    }
+    let new_path = old_absolute.parent()?.join(format!("{}.tdr", stem));
+    (new_path, stem.to_string())
+  };
+
+  let refs = references(db, project, symbol);
   let mut changes: Vec<DocumentChangeOperation> = vec![];
   let mut edits_by_path: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
-  let mut file_rename_map = HashSet::<PathBuf>::new();
+  let mut renamed_files: HashSet<PathBuf> = HashSet::new();
+
+  // Rename the symbol's own file
+  add_file_rename(
+    analysis,
+    &mut changes,
+    &mut renamed_files,
+    &old_absolute,
+    &new_absolute,
+  );
 
   for r in &refs {
     let ref_file = r.hir.file(db);
@@ -69,75 +108,22 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
         let end = text_offset_to_lsp_position(&ref_rope, node.offset() + node.text_len());
         edits_by_path.entry(ref_path).or_default().push(TextEdit {
           range: lsp_types::Range { start, end },
-          new_text: new_name.clone(),
+          new_text: new_stem.to_string(),
         });
       }
       ReferenceKind::Fref => {
-        // The fref target file needs renaming
-        // Compute old and new paths relative to the vault root
-        let target_file_handle = original_symbol.kind(db);
-        let target_file = match target_file_handle {
-          SymbolKind::UserDefinedResource(_, file) | SymbolKind::UserDefinedSchema(_, file) => file,
-          _ => continue,
-        };
-        let old_absolute = target_file.handle(db).path()?.clone();
-        let old_relative = old_absolute.strip_prefix(&root_dir).ok()?;
-
-        // New path: same directory, new file stem, same extension
-        let parent = old_relative.parent().unwrap_or(Path::new(""));
-        let extension = old_relative
-          .extension()
-          .and_then(|e| e.to_str())
-          .unwrap_or("tdr");
-        let new_relative = parent.join(format!(
-          "{}.{}",
-          new_name.strip_suffix(".tdr").unwrap_or(new_name),
-          extension
-        ));
-        let new_absolute = root_dir.join(&new_relative);
-
-        let content_dir = get_vault_config(db, project).content_dir(db);
-        let schema_dir = get_vault_config(db, project).schema_dir(db);
-
-        // Validate: new path must stay within the content/schema directory (depend on the original path)
-        if (old_absolute.starts_with(&content_dir) && !new_absolute.starts_with(&content_dir))
-          || (old_absolute.starts_with(&schema_dir) && !new_absolute.starts_with(&schema_dir))
-        {
-          continue;
-        }
-
-        // Add file rename operation (only once)
-        if !file_rename_map.contains(&old_absolute) {
-          let scheme = analysis
-            .scheme_map
-            .get(&old_absolute)
-            .map(|s| s.as_str())
-            .unwrap_or("file");
-          let old_uri = path_to_uri(&old_absolute, scheme);
-          let new_uri = path_to_uri(&new_absolute, scheme);
-          changes.push(DocumentChangeOperation::Op(ResourceOp::Rename(
-            RenameFile {
-              old_uri,
-              new_uri,
-              options: None,
-              annotation_id: None,
-            },
-          )));
-          file_rename_map.insert(old_absolute);
-        }
-
-        // Update the fref string argument
-        // Find the string arg inside the call node
+        // Update the fref string argument with the new relative path
         if let HirValueKind::Call { args, .. } = r.hir.kind(db)
           && let Some(arg) = args.first()
         {
+          let new_relative = new_absolute.strip_prefix(&root_dir).ok()?;
+          let normalized = normalize_path(new_relative);
           let arg_node = arg.node(db);
           let start = text_offset_to_lsp_position(&ref_rope, arg_node.offset());
           let end = text_offset_to_lsp_position(&ref_rope, arg_node.offset() + arg_node.text_len());
-          let new_fref_path = new_relative.to_string_lossy();
           edits_by_path.entry(ref_path).or_default().push(TextEdit {
             range: lsp_types::Range { start, end },
-            new_text: format!("\"{}\"", new_fref_path),
+            new_text: format!("\"{}\"", normalized),
           });
         }
       }
@@ -164,11 +150,52 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
     DocumentChangeOperation::Op(_) => 1,
   });
 
+  if changes.is_empty() {
+    return None;
+  }
+
   Some(WorkspaceEdit {
     changes: None,
     document_changes: Some(DocumentChanges::Operations(changes)),
     change_annotations: None,
   })
+}
+
+/// Get the file path for a user-defined symbol
+fn symbol_file_path(db: &dyn tdr_incremental::QueryDatabase, symbol: Symbol) -> Option<PathBuf> {
+  match symbol.kind(db) {
+    SymbolKind::UserDefinedSchema(_, file) | SymbolKind::UserDefinedResource(_, file) => {
+      file.handle(db).path().cloned()
+    }
+    _ => None,
+  }
+}
+
+/// Add a file rename operation, deduplicating by old path
+fn add_file_rename(
+  analysis: &Analysis,
+  changes: &mut Vec<DocumentChangeOperation>,
+  renamed_files: &mut HashSet<PathBuf>,
+  old_path: &PathBuf,
+  new_path: &PathBuf,
+) {
+  if old_path == new_path || renamed_files.contains(old_path) {
+    return;
+  }
+  let scheme = analysis
+    .scheme_map
+    .get(old_path)
+    .map(|s| s.as_str())
+    .unwrap_or("file");
+  changes.push(DocumentChangeOperation::Op(ResourceOp::Rename(
+    RenameFile {
+      old_uri: path_to_uri(old_path, scheme),
+      new_uri: path_to_uri(new_path, scheme),
+      options: None,
+      annotation_id: None,
+    },
+  )));
+  renamed_files.insert(old_path.clone());
 }
 
 #[cfg(test)]
@@ -179,7 +206,7 @@ mod tests {
 
   use lsp_types::{
     DocumentChangeOperation, DocumentChanges, Position, RenameParams, ResourceOp,
-    TextDocumentIdentifier, TextDocumentPositionParams, TextEdit,
+    TextDocumentIdentifier, TextDocumentPositionParams,
   };
   use ropey::Rope;
   use tdr_lang::db::types::{File, FileHandle, Project};
@@ -294,7 +321,6 @@ age: 30
         match op {
           DocumentChangeOperation::Edit(doc_edit) => {
             let uri = doc_edit.text_document.uri.as_str();
-            // Strip scheme + vault prefix for readability
             let short = uri.rfind("/vault/").map_or(uri, |i| &uri[i..]);
             for edit in &doc_edit.edits {
               if let lsp_types::OneOf::Left(text_edit) = edit {
@@ -337,28 +363,34 @@ name: Alice
 "#,
     );
     let (analysis, uri) = setup(&raw);
-    let params = make_params(uri, &raw, offset, "Human");
-    let edit = rename(&analysis, params).expect("should produce edits");
+    let edit =
+      rename(&analysis, make_params(uri, &raw, offset, "Human")).expect("should produce edits");
     let snap = snapshot(&edit);
 
-    // Text edits on both files, no file rename
     assert!(snap.contains("EDIT"), "should have text edits");
-    assert!(!snap.contains("RENAME"), "should not have file rename");
-    // Both the editing file and alice.tdr reference Person
+    assert!(snap.contains("RENAME"), "should have file rename");
     assert_eq!(
       snap.matches("EDIT").count(),
       2,
-      "should have 2 edits:\n{}",
+      "should have 2 text edits:\n{}",
       snap
     );
     assert!(
-      snap.lines().all(|l| l.contains("\"Human\"")),
-      "all edits should rename to Human:\n{}",
+      snap
+        .lines()
+        .filter(|l| l.starts_with("EDIT"))
+        .all(|l| l.contains("\"Human\"")),
+      "all text edits should rename to Human:\n{}",
+      snap
+    );
+    assert!(
+      snap.contains("Human.tdr"),
+      "file rename should use Human.tdr:\n{}",
       snap
     );
   }
 
-  // Rename a fref target: text edits come before file rename
+  // Rename a fref target
   #[test]
   fn rename_fref_snapshot() {
     let (raw, offset) = cursor(
@@ -388,7 +420,7 @@ friend: fref("|content/alice.tdr")
 
   // Edits are ordered: text edits before file renames
   #[test]
-  fn rename_fref_edits_before_renames() {
+  fn rename_edits_before_renames() {
     let (raw, offset) = cursor(
       r#"---
 _type: Person

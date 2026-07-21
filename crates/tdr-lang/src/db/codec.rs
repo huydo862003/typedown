@@ -615,6 +615,9 @@ impl Encodable for Diagnostic {
         start_offset.encode(buf, encoder);
         end_offset.encode(buf, encoder);
       }
+      Diagnostic::NestedSchemaFile { path } => {
+        path.encode(buf, encoder);
+      }
     }
   }
 }
@@ -1112,6 +1115,10 @@ impl Decodable for Diagnostic {
           end_offset,
         }
       }
+      DiagnosticCode::NestedSchemaFile => {
+        let path = String::decode(data, decoder);
+        Diagnostic::NestedSchemaFile { path }
+      }
     }
   }
 }
@@ -1484,6 +1491,9 @@ impl StableHash for Diagnostic {
       } => {
         start_offset.stable_hash(db, hasher);
         end_offset.stable_hash(db, hasher);
+      }
+      Diagnostic::NestedSchemaFile { path } => {
+        path.stable_hash(db, hasher);
       }
     }
   }
