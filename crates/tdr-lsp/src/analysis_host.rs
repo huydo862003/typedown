@@ -43,7 +43,9 @@ impl AnalysisHost {
     let mut file_map = HashMap::new();
     let mut files = HashMap::new();
     for path in &project_files {
-      let handle = disk_handle(path);
+      let Some(handle) = disk_handle(path) else {
+        continue;
+      };
       let file = if let Some(&cached) = cached_files.get(path) {
         cached.set_handle(&mut db, handle);
         cached
@@ -103,12 +105,25 @@ impl AnalysisHost {
   }
 
   fn sync_files(&mut self) {
-    // Compute desired handles for all tracked paths
-    let mut desired: HashMap<PathBuf, FileHandle> = self
-      .project_files
-      .iter()
-      .map(|path| (path.clone(), disk_handle(path)))
-      .collect();
+    // Editor-opened files are always tracked
+    for path in self.open_files.keys() {
+      self.project_files.insert(path.clone());
+    }
+
+    // Build desired handles, pruning files that no longer exist on disk
+    let mut desired: HashMap<PathBuf, FileHandle> = HashMap::new();
+    self.project_files.retain(|path| {
+      if self.open_files.contains_key(path) {
+        return true; // editor-owned files handled below
+      }
+      match disk_handle(path) {
+        Some(handle) => {
+          desired.insert(path.clone(), handle);
+          true
+        }
+        None => false, // file no longer exists, prune it
+      }
+    });
     for (path, rope) in self.open_files.iter() {
       desired.insert(
         path.clone(),
@@ -191,6 +206,22 @@ impl AnalysisHost {
     }
   }
 
+  /// Moves the old path entry to the new path
+  pub fn on_did_rename_file(&mut self, old_path: PathBuf, new_path: PathBuf) {
+    if !self.project_files.remove(&old_path) {
+      return;
+    }
+    // If the editor had the file open, move its content to the new path
+    if let Some(rope) = Arc::make_mut(&mut self.open_files).remove(&old_path) {
+      Arc::make_mut(&mut self.open_files).insert(new_path.clone(), rope);
+    }
+    if let Some(scheme) = Arc::make_mut(&mut self.scheme_map).remove(&old_path) {
+      Arc::make_mut(&mut self.scheme_map).insert(new_path.clone(), scheme);
+    }
+    self.project_files.insert(new_path);
+    self.sync_files();
+  }
+
   /// Called by the file watcher when a file is deleted.
   pub fn on_disk_delete(&mut self, path: PathBuf) {
     if self.open_files.contains_key(&path) {
@@ -214,11 +245,9 @@ impl AnalysisHost {
   }
 }
 
-fn disk_handle(path: &PathBuf) -> FileHandle {
-  let mtime = fs::metadata(path)
-    .and_then(|meta| meta.modified())
-    .unwrap_or(SystemTime::UNIX_EPOCH);
-  FileHandle::Path(path.clone(), mtime)
+fn disk_handle(path: &PathBuf) -> Option<FileHandle> {
+  let mtime = fs::metadata(path).and_then(|meta| meta.modified()).ok()?;
+  Some(FileHandle::Path(path.clone(), mtime))
 }
 
 /// Read all relevant project files

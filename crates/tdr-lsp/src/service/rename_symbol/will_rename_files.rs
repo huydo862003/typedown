@@ -1,36 +1,35 @@
+use lsp_types::{RenameFilesParams, WorkspaceEdit};
+use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
+use tdr_lang::db::derived::name_resolver::resolution_index::references;
+use tdr_lang::db::types::SymbolKind;
+
+use crate::analysis::Analysis;
+use crate::service::rename_symbol::utils::{build_workspace_edit, collect_reference_edits};
+use crate::utils::uri::uri_to_path;
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use lsp_types::{
-  DocumentChangeOperation, DocumentChanges, OptionalVersionedTextDocumentIdentifier,
-  RenameFilesParams, TextDocumentEdit, TextEdit, WorkspaceEdit,
-};
-use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
-use tdr_lang::db::derived::name_resolver::resolution_index::{ReferenceKind, references};
-use tdr_lang::db::types::{HirValueKind, SymbolKind};
-use tdr_types::path::normalize_path;
+use lsp_types::TextEdit;
 
-use crate::analysis::Analysis;
-use crate::utils::position::text_offset_to_lsp_position;
-use crate::utils::uri::{path_to_uri, uri_to_path};
-
-/// Handle workspace/willRenameFiles: update references when files are renamed
+/// Handle workspace/willRenameFiles: update references when files are renamed via explorer
 pub fn will_rename_files(analysis: &Analysis, params: RenameFilesParams) -> Option<WorkspaceEdit> {
   let db = &analysis.db;
   let project = analysis.project;
   let root_dir = project.root_dir(db);
-  let mut edits_by_path: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
+  let mut all_edits: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
 
   for file_rename in &params.files {
     let old_uri: lsp_types::Uri = file_rename.old_uri.parse().ok()?;
+    let new_uri: lsp_types::Uri = file_rename.new_uri.parse().ok()?;
     let old_path = uri_to_path(&old_uri)?;
+    let new_path = uri_to_path(&new_uri)?;
+
     let file = *project.files(db).get(&old_path)?;
     let symbol = file_symbol(db, project, file).value(db)?;
 
-    // Schema rename to nested dir: ignore (don't block, just skip edits)
+    // Schema rename to nested dir: skip (schemas must be flat)
     if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) {
-      let new_uri: lsp_types::Uri = file_rename.new_uri.parse().ok()?;
-      let new_path = uri_to_path(&new_uri)?;
       let schema_dir =
         tdr_lang::db::derived::get_vault_config::get_vault_config(db, project).schema_dir(db);
       if new_path.parent() != Some(&schema_dir) {
@@ -38,75 +37,19 @@ pub fn will_rename_files(analysis: &Analysis, params: RenameFilesParams) -> Opti
       }
     }
 
-    let new_uri: lsp_types::Uri = file_rename.new_uri.parse().ok()?;
-    let new_path = uri_to_path(&new_uri)?;
     let new_stem = new_path
       .file_stem()
       .and_then(|s| s.to_str())
       .unwrap_or_default();
 
     let refs = references(db, project, symbol);
-    for r in &refs {
-      let ref_file = r.hir.file(db);
-      let ref_path = ref_file.handle(db).path()?.clone();
-      let ref_rope = analysis.file_rope(&ref_path)?;
-      let node = r.hir.node(db);
-
-      match r.kind {
-        ReferenceKind::Ident => {
-          let (offset, len) = node.trimmed_range();
-          let start = text_offset_to_lsp_position(&ref_rope, offset);
-          let end = text_offset_to_lsp_position(&ref_rope, offset + len);
-          edits_by_path.entry(ref_path).or_default().push(TextEdit {
-            range: lsp_types::Range { start, end },
-            new_text: new_stem.to_string(),
-          });
-        }
-        ReferenceKind::Fref => {
-          if let HirValueKind::Call { args, .. } = r.hir.kind(db)
-            && let Some(arg) = args.first()
-          {
-            let new_relative = new_path.strip_prefix(&root_dir).ok()?;
-            let normalized = normalize_path(new_relative);
-            let arg_node = arg.node(db);
-            let (offset, len) = arg_node.trimmed_range();
-            let start = text_offset_to_lsp_position(&ref_rope, offset);
-            let end = text_offset_to_lsp_position(&ref_rope, offset + len);
-            edits_by_path.entry(ref_path).or_default().push(TextEdit {
-              range: lsp_types::Range { start, end },
-              new_text: format!("\"{}\"", normalized),
-            });
-          }
-        }
-      }
+    let edits = collect_reference_edits(analysis, &refs, new_stem, &new_path, &root_dir)?;
+    for (path, file_edits) in edits {
+      all_edits.entry(path).or_default().extend(file_edits);
     }
   }
 
-  if edits_by_path.is_empty() {
-    return None;
-  }
-
-  let changes: Vec<DocumentChangeOperation> = edits_by_path
-    .into_iter()
-    .map(|(file_path, edits)| {
-      let scheme = analysis
-        .scheme_map
-        .get(&file_path)
-        .map(|s| s.as_str())
-        .unwrap_or("file");
-      let uri = path_to_uri(&file_path, scheme);
-      DocumentChangeOperation::Edit(TextDocumentEdit {
-        text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
-        edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
-      })
-    })
-    .collect();
-
-  Some(WorkspaceEdit {
-    changes: None,
-    document_changes: Some(DocumentChanges::Operations(changes)),
-    change_annotations: None,
-  })
+  build_workspace_edit(analysis, all_edits, vec![])
 }
 
 #[cfg(test)]

@@ -53,6 +53,15 @@ pub fn main() -> anyhow::Result<()> {
             },
           }],
         }),
+        did_rename: Some(FileOperationRegistrationOptions {
+          filters: vec![FileOperationFilter {
+            scheme: None,
+            pattern: FileOperationPattern {
+              glob: "**/*.tdr".to_string(),
+              ..Default::default()
+            },
+          }],
+        }),
         ..Default::default()
       }),
       ..Default::default()

@@ -9,14 +9,14 @@ use threadpool::ThreadPool;
 use lsp_server::{Connection, Message, Notification, Request, RequestId, Response};
 use lsp_types::notification::{
   DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
-  Notification as NotificationTrait,
+  DidRenameFiles, Notification as NotificationTrait,
 };
 use lsp_types::request::{RegisterCapability, Request as RequestTrait};
 use lsp_types::{
   ClientCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
   DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
   FileChangeType, FileSystemWatcher, GlobPattern, Registration, RegistrationParams,
-  TextDocumentContentChangeEvent, WatchKind,
+  RenameFilesParams, TextDocumentContentChangeEvent, WatchKind,
 };
 
 use crate::analysis::Analysis;
@@ -153,6 +153,45 @@ impl Server {
             _ => {}
           }
         }
+        if !affected_projects
+          .iter()
+          .any(|p: &Arc<ProjectEntry>| p.root_dir == project_entry.root_dir)
+        {
+          affected_projects.push(project_entry);
+        }
+      }
+      for project_entry in &affected_projects {
+        self.send_diagnostics_async(project_entry, None);
+      }
+      return Ok(());
+    }
+
+    // workspace/didRenameFiles: update the project state for each renamed file
+    if note.method == DidRenameFiles::METHOD {
+      let params = serde_json::from_value::<RenameFilesParams>(note.params.clone())?;
+      let mut affected_projects = Vec::new();
+      for file_rename in &params.files {
+        let old_uri: lsp_types::Uri = match file_rename.old_uri.parse() {
+          Ok(uri) => uri,
+          Err(_) => continue,
+        };
+        let new_uri: lsp_types::Uri = match file_rename.new_uri.parse() {
+          Ok(uri) => uri,
+          Err(_) => continue,
+        };
+        let (Some(old_path), Some(new_path)) = (uri_to_path(&old_uri), uri_to_path(&new_uri))
+        else {
+          continue;
+        };
+        let project_entry = match self.multiproject.load_nearest_project(&old_path) {
+          Ok(entry) => entry,
+          Err(_) => continue,
+        };
+        project_entry
+          .host
+          .write()
+          .expect("RwLock should not be poisoned")
+          .on_did_rename_file(old_path, new_path);
         if !affected_projects
           .iter()
           .any(|p: &Arc<ProjectEntry>| p.root_dir == project_entry.root_dir)
