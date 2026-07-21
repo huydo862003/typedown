@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 
 use ropey::Rope;
-use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::types::Project;
+use tdr_lang::db::TypedownDatabase;
 
 pub struct Analysis {
   pub(crate) db: TypedownDatabase,
@@ -29,6 +29,14 @@ impl Analysis {
       open_files,
       snapshot_counter,
     }
+  }
+
+  /// Check if a path is inside the schema directory
+  pub(crate) fn is_schema_file(&self, path: &Path) -> bool {
+    let schema_dir =
+      tdr_lang::db::derived::get_vault_config::get_vault_config(&self.db, self.project)
+        .schema_dir(&self.db);
+    path.starts_with(&schema_dir)
   }
 
   /// Get the rope for a file: from the editor buffer if open, otherwise read from disk.

@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::SystemTime;
 use std::{fs, io};
 
 use lsp_types::Uri;
@@ -121,7 +120,7 @@ impl AnalysisHost {
           desired.insert(path.clone(), handle);
           true
         }
-        None => false, // file no longer exists, prune it
+        None => false,
       }
     });
     for (path, rope) in self.open_files.iter() {
@@ -160,13 +159,10 @@ impl AnalysisHost {
   /// Called on textDocument/didOpen.
   pub fn on_editor_open_file(&mut self, uri: &Uri, content: String) {
     if let Some(path) = uri_to_path(uri) {
-      log::debug!("Editor opened: {}", path.display());
       let scheme = uri_scheme(uri).to_string();
       Arc::make_mut(&mut self.scheme_map).insert(path.clone(), scheme);
       Arc::make_mut(&mut self.open_files).insert(path, Rope::from(content));
       self.sync_files();
-    } else {
-      log::warn!("Could not convert URI to path: {}", uri.as_str());
     }
   }
 
@@ -188,7 +184,6 @@ impl AnalysisHost {
 
   /// Called on textDocument/didClose. Falls back to disk version.
   pub fn on_close_file(&mut self, path: &PathBuf) {
-    log::debug!("Editor closed: {}", path.display());
     Arc::make_mut(&mut self.open_files).remove(path);
     self.sync_files();
   }
@@ -208,18 +203,39 @@ impl AnalysisHost {
 
   /// Moves the old path entry to the new path
   pub fn on_did_rename_file(&mut self, old_path: PathBuf, new_path: PathBuf) {
-    if !self.project_files.remove(&old_path) {
-      return;
-    }
-    // If the editor had the file open, move its content to the new path
+    self.project_files.remove(&old_path);
+    self.project_files.insert(new_path.clone());
+
     if let Some(rope) = Arc::make_mut(&mut self.open_files).remove(&old_path) {
       Arc::make_mut(&mut self.open_files).insert(new_path.clone(), rope);
     }
     if let Some(scheme) = Arc::make_mut(&mut self.scheme_map).remove(&old_path) {
       Arc::make_mut(&mut self.scheme_map).insert(new_path.clone(), scheme);
     }
-    self.project_files.insert(new_path);
-    self.sync_files();
+
+    // Reuse the File ID, just update its handle path
+    let Some(file) = self.file_map.remove(&old_path) else {
+      return;
+    };
+
+    let content = match file.handle(&self.db) {
+      FileHandle::Content(_, content) => content.clone(),
+      FileHandle::Path(path, _) => fs::read_to_string(&path).unwrap_or_default(),
+    };
+
+    let handle = FileHandle::Content(new_path.clone(), content);
+
+    let project = self.project;
+
+    self.write(|db| {
+      file.set_handle(db, handle);
+      let mut files = project.files(db).clone();
+      files.remove(&old_path);
+      files.insert(new_path.clone(), file);
+      project.set_files(db, files);
+    });
+
+    self.file_map.insert(new_path, file);
   }
 
   /// Called by the file watcher when a file is deleted.
