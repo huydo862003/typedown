@@ -164,11 +164,16 @@ friend: fref("content/alice.tdr")
     lines.join("\n")
   }
 
-  fn make_params(old_path: &str, new_path: &str) -> RenameFilesParams {
+  fn root() -> PathBuf {
+    PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" })
+  }
+
+  fn make_params(old_relative: &str, new_relative: &str) -> RenameFilesParams {
+    let root = root();
     RenameFilesParams {
       files: vec![FileRename {
-        old_uri: path_to_uri(&PathBuf::from(old_path), "file").to_string(),
-        new_uri: path_to_uri(&PathBuf::from(new_path), "file").to_string(),
+        old_uri: path_to_uri(&root.join(old_relative), "file").to_string(),
+        new_uri: path_to_uri(&root.join(new_relative), "file").to_string(),
       }],
     }
   }
@@ -177,7 +182,7 @@ friend: fref("content/alice.tdr")
   #[test]
   fn will_rename_schema_updates_type_refs() {
     let analysis = setup(CONTENT_ALICE);
-    let params = make_params("/vault/schemas/Person.tdr", "/vault/schemas/Human.tdr");
+    let params = make_params("schemas/Person.tdr", "schemas/Human.tdr");
     let edit = will_rename_files(&analysis, params).expect("should produce edits");
     let snap = snapshot(&edit);
 
@@ -198,7 +203,7 @@ friend: fref("content/alice.tdr")
   #[test]
   fn will_rename_content_updates_fref() {
     let analysis = setup(CONTENT_WITH_FREF);
-    let params = make_params("/vault/content/alice.tdr", "/vault/content/bob.tdr");
+    let params = make_params("content/alice.tdr", "content/bob.tdr");
     let edit = will_rename_files(&analysis, params).expect("should produce edits");
     let snap = snapshot(&edit);
 
@@ -209,10 +214,7 @@ friend: fref("content/alice.tdr")
   #[test]
   fn will_rename_schema_to_nested_skips_edits() {
     let analysis = setup(CONTENT_ALICE);
-    let params = make_params(
-      "/vault/schemas/Person.tdr",
-      "/vault/schemas/nested/Person.tdr",
-    );
+    let params = make_params("schemas/Person.tdr", "schemas/nested/Person.tdr");
     let result = will_rename_files(&analysis, params);
 
     assert!(
@@ -225,7 +227,7 @@ friend: fref("content/alice.tdr")
   #[test]
   fn will_rename_unknown_file_returns_none() {
     let analysis = setup(CONTENT_ALICE);
-    let params = make_params("/vault/content/unknown.tdr", "/vault/content/other.tdr");
+    let params = make_params("content/unknown.tdr", "content/other.tdr");
     let result = will_rename_files(&analysis, params);
 
     assert!(result.is_none(), "unknown file should return None");
