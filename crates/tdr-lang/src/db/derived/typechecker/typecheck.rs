@@ -96,11 +96,12 @@ fn check_mapping_fields(
         && !symbol.kind(db).is_schema()
       {
         let node = value_hir.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::FieldTypeMismatch {
           field: "_type".to_string(),
           expected: "schema".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
       }
       continue;
@@ -119,22 +120,24 @@ fn check_mapping_fields(
         Some(actual_member) => {
           if !member_types_compatible(db, &member.typ(db), &actual_member.typ(db)) {
             let node = value_hir.node(db);
+            let (tr_offset, tr_len) = node.trimmed_range();
             diagnostics.push(Diagnostic::FieldTypeMismatch {
               field: key.clone(),
               expected: member_type_display_name(db, &member.typ(db)),
-              start_offset: node.offset(),
-              end_offset: node.offset() + node.text_len(),
+              start_offset: tr_offset,
+              end_offset: tr_offset + tr_len,
             });
           }
         }
         // Null on a non-optional field is a type error
         None if !is_optional => {
           let node = value_hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::FieldTypeMismatch {
             field: key.clone(),
             expected: member_type_display_name(db, &member.typ(db)),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
         }
         None => {}
@@ -144,6 +147,7 @@ fn check_mapping_fields(
 
   // Check required fields are present (not null are checked above)
   let mapping_node = mapping_hir.node(db);
+  let (tr_offset, tr_len) = mapping_node.trimmed_range();
   let present_keys: HashSet<&str> = entries.iter().map(|(key, _)| key.as_str()).collect();
 
   // Enumerate declared fields to check required ones are present
@@ -171,8 +175,8 @@ fn check_mapping_fields(
     if !is_optional && !present_keys.contains(field_name.as_str()) {
       diagnostics.push(Diagnostic::MissingRequiredField {
         field: field_name,
-        start_offset: mapping_node.offset(),
-        end_offset: mapping_node.offset() + mapping_node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
     }
   }
@@ -192,10 +196,11 @@ fn check_tag(
     && !expected_type.is_compatible_with(db, &actual_type)
   {
     let node = inner.node(db);
+    let (tr_offset, tr_len) = node.trimmed_range();
     diagnostics.push(Diagnostic::TagTypeMismatch {
       expected: expected_type.display_name(db),
-      start_offset: node.offset(),
-      end_offset: node.offset() + node.text_len(),
+      start_offset: tr_offset,
+      end_offset: tr_offset + tr_len,
     });
   }
   diagnostics
@@ -214,9 +219,10 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
 
   let Some(func) = callee_type.as_tdr_func_type() else {
     let node = callee.node(db);
+    let (tr_offset, tr_len) = node.trimmed_range();
     diagnostics.push(Diagnostic::NotCallable {
-      start_offset: node.offset(),
-      end_offset: node.offset() + node.text_len(),
+      start_offset: tr_offset,
+      end_offset: tr_offset + tr_len,
     });
     return diagnostics;
   };
@@ -226,11 +232,12 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
 
   if params.len() != args.len() {
     let node = callee.node(db);
+    let (tr_offset, tr_len) = node.trimmed_range();
     diagnostics.push(Diagnostic::WrongArgCount {
       expected: params.len(),
       got: args.len(),
-      start_offset: node.offset(),
-      end_offset: node.offset() + node.text_len(),
+      start_offset: tr_offset,
+      end_offset: tr_offset + tr_len,
     });
     return diagnostics;
   }
@@ -242,10 +249,11 @@ fn check_call(db: &TypedownDatabase, callee: HirValue, args: Vec<HirValue>) -> V
       && !param.is_compatible_with(db, &arg_type)
     {
       let node = arg_hir.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       diagnostics.push(Diagnostic::ArgTypeMismatch {
         expected: param.display_name(db),
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
     }
   }
@@ -278,10 +286,11 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
         let num_type = get_num_type(db);
         if !num_type.is_compatible_with(db, &idx_type) {
           let node = idx_hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::IndexTypeMismatch {
             expected: "number".to_string(),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
         }
       }
@@ -299,10 +308,11 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
           && !key_type.is_compatible_with(db, &idx_type)
         {
           let node = idx_hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::IndexTypeMismatch {
             expected: key_type.display_name(db),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
         }
       }
@@ -319,10 +329,11 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
         let num_type = get_num_type(db);
         if !num_type.is_compatible_with(db, &idx_type) {
           let node = idx_hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::IndexTypeMismatch {
             expected: "number".to_string(),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
         }
       }
@@ -332,9 +343,10 @@ fn check_index(db: &TypedownDatabase, expr: HirValue, indices: Vec<HirValue>) ->
 
   // Not indexable
   let node = expr.node(db);
+  let (tr_offset, tr_len) = node.trimmed_range();
   diagnostics.push(Diagnostic::NotIndexable {
-    start_offset: node.offset(),
-    end_offset: node.offset() + node.text_len(),
+    start_offset: tr_offset,
+    end_offset: tr_offset + tr_len,
   });
 
   diagnostics
@@ -361,11 +373,12 @@ fn check_unary(db: &TypedownDatabase, op: &str, operand: HirValue) -> Vec<Diagno
 
   if !expected_type.is_compatible_with(db, &operand_type) {
     let node = operand.node(db);
+    let (tr_offset, tr_len) = node.trimmed_range();
     diagnostics.push(Diagnostic::OperandTypeMismatch {
       op: op.to_string(),
       expected: expected_type.display_name(db),
-      start_offset: node.offset(),
-      end_offset: node.offset() + node.text_len(),
+      start_offset: tr_offset,
+      end_offset: tr_offset + tr_len,
     });
   }
 
@@ -396,22 +409,24 @@ fn check_binary(
         && !num_type.is_compatible_with(db, lt)
       {
         let node = left.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::OperandTypeMismatch {
           op: op.to_string(),
           expected: "number".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
       }
       if let Some(rt) = &right_type
         && !num_type.is_compatible_with(db, rt)
       {
         let node = right.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::OperandTypeMismatch {
           op: op.to_string(),
           expected: "number".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
       }
     }
@@ -423,22 +438,24 @@ fn check_binary(
         && !bool_type.is_compatible_with(db, lt)
       {
         let node = left.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::OperandTypeMismatch {
           op: op.to_string(),
           expected: "boolean".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
       }
       if let Some(rt) = &right_type
         && !bool_type.is_compatible_with(db, rt)
       {
         let node = right.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::OperandTypeMismatch {
           op: op.to_string(),
           expected: "boolean".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
       }
     }
@@ -480,10 +497,11 @@ fn check_sequence(
       && !elem_type.is_compatible_with(db, &item_type)
     {
       let node = item.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       diagnostics.push(Diagnostic::ElementTypeMismatch {
         expected: elem_type.display_name(db),
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
     }
   }

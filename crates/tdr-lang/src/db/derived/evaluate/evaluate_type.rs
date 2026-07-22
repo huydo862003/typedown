@@ -78,11 +78,12 @@ fn evaluate_user_defined_schema(
       HirValueKind::Mapping(entries) => entries,
       _ => {
         let node = props_hir.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::FieldTypeMismatch {
           field: "properties".to_string(),
           expected: "mapping".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
         return TypeResult::new(db, None, diagnostics);
       }
@@ -173,11 +174,12 @@ fn resolve_type_member(
         return resolve_type_member(db, *inner, diagnostics);
       }
       let node = hir.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       diagnostics.push(Diagnostic::FieldTypeMismatch {
         field: "type".to_string(),
         expected: "type expression".to_string(),
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
       None
     }
@@ -193,10 +195,11 @@ fn resolve_type_member(
         }
         None => {
           let node = hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::UnresolvedSchema {
             name: node.text(),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
           None
         }
@@ -241,11 +244,12 @@ fn resolve_type_member(
     HirValueKind::Bool(val) => Some(MemberType::Literal(LiteralValue::Bool(val))),
     _ => {
       let node = hir.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       diagnostics.push(Diagnostic::FieldTypeMismatch {
         field: "type".to_string(),
         expected: "type expression".to_string(),
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
       None
     }
