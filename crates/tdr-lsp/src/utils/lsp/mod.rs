@@ -27,10 +27,10 @@ fn extract_uri(params: &serde_json::Value) -> anyhow::Result<Uri> {
   if let Ok(doc) = serde_json::from_value::<HasDocumentUri>(params.clone()) {
     return Ok(doc.text_document.uri);
   }
-  if let Ok(renames) = serde_json::from_value::<HasFileRenames>(params.clone()) {
-    if let Some(first) = renames.files.first() {
-      return Ok(first.old_uri.parse()?);
-    }
+  if let Ok(renames) = serde_json::from_value::<HasFileRenames>(params.clone())
+    && let Some(first) = renames.files.first()
+  {
+    return Ok(first.old_uri.parse()?);
   }
   anyhow::bail!("cannot extract URI from params")
 }

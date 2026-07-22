@@ -114,3 +114,7 @@ impl Serialize for Person {
 Adding a new type does not touch the serializer. Changing the byte format does not touch any type. This is how `std::hash` works (`Hash`/`Hasher`), how rustc does it (`Encodable`/`Encoder`), and how serde does it (`Serialize`/`Serializer`).
 
 Reference: [rustc_serialize/src/serialize.rs](https://github.com/rust-lang/rust/blob/2371d697abddba53be85137d5a68064066b4ae10/compiler/rustc_serialize/src/serialize.rs)
+
+### LSP: Dynamic vs Static Registration
+
+When a client advertises `dynamicRegistration: true` for `workspace.fileOperations` (as VSCode does), some clients **ignore** static capabilities declared in `InitializeResult`. The server must use `client/registerCapability` to dynamically register for `workspace/willRenameFiles` and `workspace/didRenameFiles` at runtime.
