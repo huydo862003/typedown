@@ -109,10 +109,11 @@ fn lower_expr_kind(
       .map(|(key, val_expr)| {
         if !seen_keys.insert(key.clone()) {
           let node = val_expr.syntax();
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::DuplicateKey {
             key: key.clone(),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
         }
         let child = lower_node(db, project, file, val_expr.syntax().clone());
@@ -134,10 +135,11 @@ fn lower_expr_kind(
       .map(|(key, val_expr)| {
         if !seen_keys.insert(key.clone()) {
           let node = val_expr.syntax();
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::DuplicateKey {
             key: key.clone(),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
         }
         let child = lower_node(db, project, file, val_expr.syntax().clone());

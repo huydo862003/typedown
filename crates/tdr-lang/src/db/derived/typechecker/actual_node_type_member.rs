@@ -137,13 +137,14 @@ fn get_mapping_type(
         return type_result_to_member_result(db, evaluate_type(db, symbol));
       }
       let node = value_hir.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       return TypeMemberResult::new(
         db,
         None,
         vec![Diagnostic::UnresolvedSchema {
           name: node.text(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         }],
       );
     }
@@ -173,13 +174,14 @@ fn get_tag_type(db: &TypedownDatabase, tag: HirValue) -> TypeMemberResult {
     Some(symbol) => type_result_to_member_result(db, evaluate_type(db, symbol)),
     None => {
       let node = tag.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       TypeMemberResult::new(
         db,
         None,
         vec![Diagnostic::UnresolvedSchema {
           name: node.text(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         }],
       )
     }
@@ -225,11 +227,12 @@ fn get_binary_type(
       Some(member) => TypeMemberResult::new(db, Some(member), diagnostics),
       None => {
         let node = right.node(db);
+        let (tr_offset, tr_len) = node.trimmed_range();
         diagnostics.push(Diagnostic::UnknownField {
           field: field_name,
           on_type: left_type.display_name(db),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         });
         TypeMemberResult::new(db, None, diagnostics)
       }
@@ -322,19 +325,21 @@ fn get_macro_call_type(
 fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeMemberResult {
   if args.len() != 1 {
     let node = args.first().map(|a| a.node(db));
+    let (tr_offset, tr_len) = node.as_ref().map_or((0, 0), |n| n.trimmed_range());
     return TypeMemberResult::new(
       db,
       None,
       vec![Diagnostic::WrongArgCount {
         expected: 1,
         got: args.len(),
-        start_offset: node.as_ref().map_or(0, |n| n.offset()),
-        end_offset: node.as_ref().map_or(0, |n| n.offset() + n.text_len()),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       }],
     );
   }
   let arg = args[0];
   let node = arg.node(db);
+  let (tr_offset, tr_len) = node.trimmed_range();
   let path_str = match arg.kind(db) {
     HirValueKind::Str(val) => val,
     _ => {
@@ -343,8 +348,8 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeMemberResult
         None,
         vec![Diagnostic::ArgTypeMismatch {
           expected: "string".to_string(),
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         }],
       );
     }
@@ -363,8 +368,8 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeMemberResult
         None,
         vec![Diagnostic::UnresolvedFileRef {
           path: path_str,
-          start_offset: node.offset(),
-          end_offset: node.offset() + node.text_len(),
+          start_offset: tr_offset,
+          end_offset: tr_offset + tr_len,
         }],
       );
     }
@@ -378,8 +383,8 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeMemberResult
       None,
       vec![Diagnostic::UnresolvedSchema {
         name: path_str,
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       }],
     ),
   }
@@ -419,10 +424,11 @@ fn get_index_type(
         }
         None => {
           let node = idx_hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
           diagnostics.push(Diagnostic::UnresolvedSchema {
             name: node.text(),
-            start_offset: node.offset(),
-            end_offset: node.offset() + node.text_len(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
           });
           return TypeMemberResult::new(db, None, diagnostics);
         }

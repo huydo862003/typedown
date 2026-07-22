@@ -227,11 +227,12 @@ fn evaluate_index(
     let len = list.len(db);
     if idx >= len {
       let node = index_hir.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       diagnostics.push(Diagnostic::IndexOutOfBounds {
         index: idx,
         length: len,
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
       return None;
     }
@@ -247,11 +248,12 @@ fn evaluate_index(
     let chars: Vec<char> = str_obj.value(db).chars().collect();
     if idx >= chars.len() {
       let node = index_hir.node(db);
+      let (tr_offset, tr_len) = node.trimmed_range();
       diagnostics.push(Diagnostic::IndexOutOfBounds {
         index: idx,
         length: chars.len(),
-        start_offset: node.offset(),
-        end_offset: node.offset() + node.text_len(),
+        start_offset: tr_offset,
+        end_offset: tr_offset + tr_len,
       });
       return None;
     }
