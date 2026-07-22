@@ -49,7 +49,18 @@ local function start_lsp()
     name = "tdr-lsp",
     cmd = { binary },
     root_dir = root,
-    capabilities = vim.lsp.protocol.make_client_capabilities(),
+    -- Neovim defaults fileOperations to false
+    -- Enabling these lets file managers send workspace/willRenameFiles before renaming .tdr files,
+    -- But there is no truly way to do this :(
+    -- See: https://github.com/neovim/neovim/blob/master/runtime/lua/vim/lsp/protocol.lua
+    capabilities = vim.tbl_deep_extend("force", vim.lsp.protocol.make_client_capabilities(), {
+      workspace = {
+        fileOperations = {
+          willRename = true,
+          didRename = true,
+        },
+      },
+    }),
     handlers = {
       -- After applying a workspace edit
       -- save all modified buffers so the LSP sees the changes via didChange/didOpen
