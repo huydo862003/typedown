@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use lsp_types::{RenameParams, WorkspaceEdit};
-use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::referee::referee;
 use tdr_lang::db::derived::name_resolver::resolution_index::references;
@@ -50,10 +49,7 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
 
   // Compute new file path and identifier stem based on rename kind
   let (new_path, new_stem) = match &rename_symbol {
-    RenameSymbol::Fref { .. } => {
-      let content_dir = get_vault_config(db, project).content_dir(db);
-      compute_fref_target(new_name, &content_dir)
-    }
+    RenameSymbol::Fref { .. } => compute_fref_target(new_name, &root_dir),
     RenameSymbol::Identifier { .. } => compute_ident_target(db, new_name, symbol, &old_path)?,
   };
 
@@ -64,9 +60,9 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
   build_workspace_edit(analysis, edits, vec![(old_path, new_path)])
 }
 
-fn compute_fref_target(new_name: &str, content_dir: &Path) -> (std::path::PathBuf, String) {
+fn compute_fref_target(new_name: &str, root_dir: &Path) -> (std::path::PathBuf, String) {
   let relative = new_name.strip_suffix(".tdr").unwrap_or(new_name);
-  let absolute = content_dir.join(format!("{}.tdr", relative));
+  let absolute = root_dir.join(format!("{}.tdr", relative));
   let stem = Path::new(relative)
     .file_stem()
     .and_then(|s| s.to_str())
