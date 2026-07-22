@@ -26,6 +26,16 @@ use crate::utils::uri::path_to_uri;
 
 use super::types::RenameSymbol;
 
+/// Find the string content node (DqStrContent or SqStrContent) inside a StrLit
+pub fn str_content_node(str_lit: &RedNode) -> Option<RedNode> {
+  str_lit.children().find(|c| {
+    matches!(
+      c.kind(),
+      SyntaxKind::DqStrContent | SyntaxKind::SqStrContent
+    )
+  })
+}
+
 /// Find the renameable symbol at a given offset in a file
 pub fn find_rename_symbol(
   db: &TypedownDatabase,
@@ -37,6 +47,11 @@ pub fn find_rename_symbol(
   let node = node_at_offset(root, offset)?;
 
   if let Some(call_expr) = containing_fref_expr(&node) {
+    // Reject rename if the fref argument is an interpolated string
+    let arg = call_expr.arg(0)?;
+    if arg.syntax().children().any(|c| c.kind() == SyntaxKind::InterpFragment) {
+      return None;
+    }
     return Some(RenameSymbol::Fref {
       call_node: call_expr,
     });
@@ -94,10 +109,16 @@ pub fn collect_reference_edits(
           continue;
         };
         let Some(arg) = args.first() else { continue };
+        let arg_node = arg.node(db);
+        // Skip interpolated string arguments
+        if arg_node.children().any(|c| c.kind() == SyntaxKind::InterpFragment) {
+          continue;
+        }
+        let Some(content) = str_content_node(&arg_node) else { continue };
         let new_relative = new_absolute.strip_prefix(root_dir).ok()?;
         TextEdit {
-          range: trimmed_lsp_range(&ref_rope, &arg.node(db)),
-          new_text: format!("\"{}\"", normalize_path(new_relative)),
+          range: trimmed_lsp_range(&ref_rope, &content),
+          new_text: normalize_path(new_relative).to_string(),
         }
       }
     };
