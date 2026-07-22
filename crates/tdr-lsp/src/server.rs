@@ -60,6 +60,7 @@ impl Server {
   /// Run the server event loop until the client sends a shutdown request.
   pub fn run(&self) -> anyhow::Result<()> {
     self.register_file_watcher()?;
+    self.register_file_operations()?;
 
     for msg in &self.connection.receiver {
       match msg {
@@ -313,6 +314,51 @@ impl Server {
       RegistrationParams {
         registrations: vec![registration],
       },
+    );
+
+    self.connection.sender.send(Message::Request(req))?;
+    Ok(())
+  }
+
+  /// Dynamically register for workspace/willRenameFiles  because some editors (Vscode) ignore static fileOperations capabilities when dynamicRegistration is true
+  fn register_file_operations(&self) -> anyhow::Result<()> {
+    let supports_dynamic = self
+      .client_capabilities
+      .workspace
+      .as_ref()
+      .and_then(|ws| ws.file_operations.as_ref())
+      .and_then(|fo| fo.dynamic_registration)
+      .unwrap_or(false);
+
+    if !supports_dynamic {
+      return Ok(());
+    }
+
+    let file_filter = serde_json::json!({
+      "filters": [{
+        "pattern": {
+          "glob": "**/*.tdr"
+        }
+      }]
+    });
+
+    let registrations = vec![
+      Registration {
+        id: "typedown-will-rename".to_string(),
+        method: "workspace/willRenameFiles".to_string(),
+        register_options: Some(file_filter.clone()),
+      },
+      Registration {
+        id: "typedown-did-rename".to_string(),
+        method: "workspace/didRenameFiles".to_string(),
+        register_options: Some(file_filter),
+      },
+    ];
+
+    let req = Request::new(
+      RequestId::from("typedown-register-file-ops".to_string()),
+      RegisterCapability::METHOD.to_string(),
+      RegistrationParams { registrations },
     );
 
     self.connection.sender.send(Message::Request(req))?;
