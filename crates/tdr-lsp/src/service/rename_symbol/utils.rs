@@ -49,7 +49,11 @@ pub fn find_rename_symbol(
   if let Some(call_expr) = containing_fref_expr(&node) {
     // Reject rename if the fref argument is an interpolated string
     let arg = call_expr.arg(0)?;
-    if arg.syntax().children().any(|c| c.kind() == SyntaxKind::InterpFragment) {
+    if arg
+      .syntax()
+      .children()
+      .any(|c| c.kind() == SyntaxKind::InterpFragment)
+    {
       return None;
     }
     return Some(RenameSymbol::Fref {
@@ -111,10 +115,15 @@ pub fn collect_reference_edits(
         let Some(arg) = args.first() else { continue };
         let arg_node = arg.node(db);
         // Skip interpolated string arguments
-        if arg_node.children().any(|c| c.kind() == SyntaxKind::InterpFragment) {
+        if arg_node
+          .children()
+          .any(|c| c.kind() == SyntaxKind::InterpFragment)
+        {
           continue;
         }
-        let Some(content) = str_content_node(&arg_node) else { continue };
+        let Some(content) = str_content_node(&arg_node) else {
+          continue;
+        };
         let new_relative = new_absolute.strip_prefix(root_dir).ok()?;
         TextEdit {
           range: trimmed_lsp_range(&ref_rope, &content),

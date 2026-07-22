@@ -33,7 +33,9 @@ mod tests {
   use std::path::PathBuf;
   use std::sync::{Arc, Condvar, Mutex};
 
-  use lsp_types::{Position, PrepareRenameResponse, TextDocumentIdentifier, TextDocumentPositionParams};
+  use lsp_types::{
+    Position, PrepareRenameResponse, TextDocumentIdentifier, TextDocumentPositionParams,
+  };
   use ropey::Rope;
   use tdr_lang::db::types::{File, FileHandle, Project};
   use tdr_lang::db::{QueryStorage, TypedownDatabase};
@@ -66,7 +68,9 @@ name: Alice
   }
 
   fn cursor(content: &str) -> (String, usize) {
-    let offset = content.find('|').expect("content must have a cursor marker");
+    let offset = content
+      .find('|')
+      .expect("content must have a cursor marker");
     (content.replacen('|', "", 1), offset)
   }
 
@@ -145,8 +149,20 @@ name: Alice
       panic!("expected a range response");
     };
     // "Person" starts at line 1, col 7 and ends at col 13
-    assert_eq!(range.start, Position { line: 1, character: 7 });
-    assert_eq!(range.end, Position { line: 1, character: 13 });
+    assert_eq!(
+      range.start,
+      Position {
+        line: 1,
+        character: 7
+      }
+    );
+    assert_eq!(
+      range.end,
+      Position {
+        line: 1,
+        character: 13
+      }
+    );
   }
 
   // Fref returns the string content range (minus quotes)
@@ -166,7 +182,8 @@ name: fref("|content/alice.tdr")
     };
     // Should cover "content/alice.tdr" (inside quotes), not the whole fref(...) call
     let rope = Rope::from(raw.as_str());
-    let start_offset = rope.line_to_char(range.start.line as usize) + range.start.character as usize;
+    let start_offset =
+      rope.line_to_char(range.start.line as usize) + range.start.character as usize;
     let end_offset = rope.line_to_char(range.end.line as usize) + range.end.character as usize;
     let selected: String = rope.slice(start_offset..end_offset).into();
     assert_eq!(selected, "content/alice.tdr");
@@ -184,7 +201,10 @@ name: fref("|content/${name}.tdr")
     );
     let (analysis, uri) = setup(&raw);
     let result = prepare_rename(&analysis, make_params(uri, &raw, offset));
-    assert!(result.is_none(), "interpolated fref should not be renameable");
+    assert!(
+      result.is_none(),
+      "interpolated fref should not be renameable"
+    );
   }
 
   // Cursor outside any symbol returns None
