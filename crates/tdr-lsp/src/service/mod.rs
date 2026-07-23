@@ -1,12 +1,13 @@
 pub mod completion;
 pub mod definition;
+pub mod formatting;
 pub mod hover;
 pub mod rename_symbol;
 pub mod semantic_tokens;
 
 use lsp_server::{ErrorCode, Request, Response};
 use lsp_types::request::{
-  Completion, GotoDefinition, HoverRequest, PrepareRenameRequest, Rename, Request as _,
+  Completion, Formatting, GotoDefinition, HoverRequest, PrepareRenameRequest, Rename, Request as _,
   SemanticTokensFullRequest, WillRenameFiles,
 };
 use serde::Serialize;
@@ -28,6 +29,7 @@ pub fn dispatch(analysis: &Analysis, req: Request) -> Response {
       try_handle(&req, |p| rename_symbol::prepare_rename(analysis, p))
     }
     Rename::METHOD => try_handle(&req, |p| rename_symbol::rename(analysis, p)),
+    Formatting::METHOD => try_handle(&req, |p| formatting::formatting(analysis, p)),
     WillRenameFiles::METHOD => try_handle(&req, |p| rename_symbol::will_rename_files(analysis, p)),
     _ => Response::new_err(
       req.id,
