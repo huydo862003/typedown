@@ -241,7 +241,7 @@ name: Alice
     let (content, offset) = cursor(
       r#"---
 _type: Person
-name: fref("content/ali|ce.tdr")
+name: fref("ali|ce.tdr")
 ---
 "#,
     );

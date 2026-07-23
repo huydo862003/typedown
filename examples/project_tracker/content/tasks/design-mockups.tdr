@@ -4,8 +4,8 @@ title: "Design mockups for new homepage"
 status: "done"
 priority: "high"
 due: "2026-04-15"
-project: fref("content/projects/website-redesign.tdr")
-assignee: fref("content/people/bob.tdr")
+project: fref("projects/website-redesign.tdr")
+assignee: fref("people/bob.tdr")
 ---
 
 Completed **ahead of schedule**. Bob delivered three homepage variants.

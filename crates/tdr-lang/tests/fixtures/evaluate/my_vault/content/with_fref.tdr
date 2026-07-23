@@ -2,5 +2,5 @@
 _type: Person
 name: "Alice"
 age: 30
-friend: fref("content/valid_person.tdr")
+friend: fref("valid_person.tdr")
 ---

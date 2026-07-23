@@ -1,6 +1,7 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use lsp_types::{RenameParams, WorkspaceEdit};
+use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::hir::lower_node;
 use tdr_lang::db::derived::name_resolver::referee::referee;
 use tdr_lang::db::derived::name_resolver::resolution_index::references;
@@ -45,24 +46,24 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
   }
 
   let old_path = symbol_file_path(db, symbol)?;
-  let root_dir = project.root_dir(db);
+  let content_dir = get_vault_config(db, project).content_dir(db);
 
   // Compute new file path and identifier stem based on rename kind
   let (new_path, new_stem) = match &rename_symbol {
-    RenameSymbol::Fref { .. } => compute_fref_target(new_name, &root_dir),
+    RenameSymbol::Fref { .. } => compute_fref_target(new_name, &content_dir),
     RenameSymbol::Identifier { .. } => compute_ident_target(db, new_name, symbol, &old_path)?,
   };
 
   // Collect text edits for all references + file rename
   let refs = references(db, project, symbol);
-  let edits = collect_reference_edits(analysis, &refs, &new_stem, &new_path, &root_dir)?;
+  let edits = collect_reference_edits(analysis, &refs, &new_stem, &new_path, &content_dir)?;
 
   build_workspace_edit(analysis, edits, vec![(old_path, new_path)])
 }
 
-fn compute_fref_target(new_name: &str, root_dir: &Path) -> (std::path::PathBuf, String) {
+fn compute_fref_target(new_name: &str, content_dir: &Path) -> (PathBuf, String) {
   let relative = new_name.strip_suffix(".tdr").unwrap_or(new_name);
-  let absolute = root_dir.join(format!("{}.tdr", relative));
+  let absolute = content_dir.join(format!("{}.tdr", relative));
   let stem = Path::new(relative)
     .file_stem()
     .and_then(|s| s.to_str())
@@ -76,7 +77,7 @@ fn compute_ident_target(
   new_name: &str,
   symbol: tdr_lang::db::types::Symbol,
   old_path: &Path,
-) -> Option<(std::path::PathBuf, String)> {
+) -> Option<(PathBuf, String)> {
   let stem = new_name.strip_suffix(".tdr").unwrap_or(new_name);
   if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) && stem.contains('/') {
     return None;
@@ -283,7 +284,7 @@ name: Alice
     let (raw, offset) = cursor(
       r#"---
 _type: Person
-friend: fref("|content/alice.tdr")
+friend: fref("|alice.tdr")
 ---
 "#,
     );
@@ -311,7 +312,7 @@ friend: fref("|content/alice.tdr")
     let (raw, offset) = cursor(
       r#"---
 _type: Person
-friend: fref("|content/alice.tdr")
+friend: fref("|alice.tdr")
 ---
 "#,
     );

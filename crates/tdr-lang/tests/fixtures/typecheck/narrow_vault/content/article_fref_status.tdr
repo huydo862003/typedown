@@ -1,5 +1,5 @@
 ---
 _type: Article
 title: "My Article"
-status: fref("content/summary.tdr").status
+status: fref("summary.tdr").status
 ---

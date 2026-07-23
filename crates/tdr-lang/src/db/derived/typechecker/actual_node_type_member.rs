@@ -9,6 +9,7 @@ use crate::db::derived::get_builtin_types::{
   get_bool_type, get_date_type, get_datetime_type, get_math_type, get_num_type, get_str_type,
   get_time_type, get_type_type, instantiate_type,
 };
+use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::get_symbol_type_member::get_symbol_type_member;
@@ -357,8 +358,8 @@ fn get_fref_type(db: &TypedownDatabase, args: Vec<HirValue>) -> TypeMemberResult
 
   let project = arg.project(db);
   let files = project.files(db);
-  let root_dir = project.root_dir(db);
-  let target_path = root_dir.join(&path_str);
+  let content_dir = get_vault_config(db, project).content_dir(db);
+  let target_path = content_dir.join(&path_str);
 
   let target_file = match files.get(&target_path) {
     Some(file) => *file,
@@ -681,7 +682,7 @@ mod tests {
     let (hir, _) = lower_file(&db, project, file);
     let hir = hir.expect("should parse");
     if let HirValueKind::Mapping(entries) = hir.kind(&db) {
-      // status: fref("content/summary.tdr").status
+      // status: fref("summary.tdr").status
       let status_hir = entries.iter().find(|(k, _)| k == "status").map(|(_, v)| *v);
       let status_hir = status_hir.expect("should have status field");
       let result = actual_node_type_member(&db, status_hir);

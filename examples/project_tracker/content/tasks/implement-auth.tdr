@@ -4,8 +4,8 @@ title: "Implement authentication flow"
 status: "in_progress"
 priority: "high"
 due: "2026-07-10"
-project: fref("content/projects/website-redesign.tdr")
-assignee: fref("content/people/alice.tdr")
+project: fref("projects/website-redesign.tdr")
+assignee: fref("people/alice.tdr")
 ---
 
 Covers login, logout, session management, and password reset.

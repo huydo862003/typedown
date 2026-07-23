@@ -3,7 +3,7 @@ _type: Task
 title: "Set up CI pipeline"
 status: "todo"
 priority: "low"
-project: fref("content/projects/mobile-app.tdr")
+project: fref("projects/mobile-app.tdr")
 ---
 
 Configure a CI pipeline for the mobile app repo.

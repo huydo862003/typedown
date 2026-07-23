@@ -13,11 +13,7 @@ use serde::{Deserialize, Serialize};
 #[rpc(server, client, namespace = "tdr_build", namespace_separator = ".")]
 pub trait TdrBuildRpc<Hash, StorageKey> {
   #[method(name = "request_file")]
-  async fn request_file(
-    &self,
-    file_path: TdrFilePath,
-    format: TdrBuildFormat,
-  ) -> RpcResult<TdrBuiltResource>;
+  async fn request_file(&self, file_path: TdrFilePath) -> RpcResult<TdrBuiltResource>;
 
   #[subscription(name = "subscribe_file_changed", item = TdrFileChangedNotification)]
   async fn on_file_changed(&self) -> TdrRpcSubscriptionCloseResponse;
@@ -34,35 +30,39 @@ pub trait TdrBuildRpc<Hash, StorageKey> {
 
 /* RPC request params and results */
 
-/// Must be absolute, the root is relative to the vault root
+/// Absolute path relative to the vault root
 #[derive(Serialize, Deserialize)]
-pub struct TdrFilePath(String);
+pub struct TdrFilePath(pub String);
 
-#[derive(Serialize, Deserialize)]
-pub enum TdrBuildFormat {
-  Json,
-  Markdown,
-}
-
+/// Structured build result: Header (frontmatter) and content (commonmark body)
 #[derive(Serialize, Deserialize, Clone)]
-pub enum TdrBuiltResource {
-  Json {},
-  Markdown {},
+pub struct TdrBuiltResource {
+  pub header: serde_json::Value,
+  pub content: String,
 }
 
 /* RPC subscription items */
 
-#[derive(Deserialize)]
-pub struct TdrFileChangedNotification {}
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TdrFileChangedNotification {
+  pub path: String,
+}
 
-#[derive(Deserialize)]
-pub struct TdrFileCreatedNotification {}
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TdrFileCreatedNotification {
+  pub path: String,
+}
 
-#[derive(Deserialize)]
-pub struct TdrFileDeletedNotification {}
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TdrFileDeletedNotification {
+  pub path: String,
+}
 
-#[derive(Deserialize)]
-pub struct TdrFileRenamedNotification {}
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TdrFileRenamedNotification {
+  pub old_path: String,
+  pub new_path: String,
+}
 
 /* Server's response to client subscription termination */
 

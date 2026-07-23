@@ -93,7 +93,7 @@ pub fn collect_reference_edits(
   refs: &[Reference],
   new_stem: &str,
   new_absolute: &Path,
-  root_dir: &Path,
+  content_dir: &Path,
 ) -> Option<HashMap<PathBuf, Vec<TextEdit>>> {
   let db = &analysis.db;
   let mut edits: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
@@ -124,7 +124,7 @@ pub fn collect_reference_edits(
         let Some(content) = str_content_node(&arg_node) else {
           continue;
         };
-        let new_relative = new_absolute.strip_prefix(root_dir).ok()?;
+        let new_relative = new_absolute.strip_prefix(content_dir).ok()?;
         TextEdit {
           range: trimmed_lsp_range(&ref_rope, &content),
           new_text: normalize_path(new_relative).to_string(),

@@ -173,7 +173,7 @@ fn parse_tdr_fref_in_frontmatter_then_markdown() {
   let input = r#"---
 _type: Task
 title: "Design mockups"
-project: fref("content/projects/website-redesign.tdr")
+project: fref("projects/website-redesign.tdr")
 ---
 
 Completed **ahead of schedule**.
@@ -251,7 +251,7 @@ _type: Person
 name: "Alice"
 ---
 
-Inline formula reference: ${fref("content/tasks/implement-auth.tdr")}
+Inline formula reference: ${fref("tasks/implement-auth.tdr")}
 "#;
   let (ast, _) = parse(input);
   let tree = render_tree(&ast);
@@ -267,8 +267,8 @@ _type: Task
 title: "Write integration tests for auth"
 status: "todo"
 priority: "medium"
-project: fref("content/projects/website-redesign.tdr")
-assignee: fref("content/people/alice.tdr")
+project: fref("projects/website-redesign.tdr")
+assignee: fref("people/alice.tdr")
 ---
 
 Depends on the auth implementation being merged first.

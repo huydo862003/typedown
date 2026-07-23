@@ -1,4 +1,5 @@
 use lsp_types::{RenameFilesParams, WorkspaceEdit};
+use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::name_resolver::resolution_index::references;
 use tdr_lang::db::types::SymbolKind;
@@ -16,7 +17,7 @@ use lsp_types::TextEdit;
 pub fn will_rename_files(analysis: &Analysis, params: RenameFilesParams) -> Option<WorkspaceEdit> {
   let db = &analysis.db;
   let project = analysis.project;
-  let root_dir = project.root_dir(db);
+  let content_dir = get_vault_config(db, project).content_dir(db);
   let mut all_edits: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
 
   for file_rename in &params.files {
@@ -30,8 +31,7 @@ pub fn will_rename_files(analysis: &Analysis, params: RenameFilesParams) -> Opti
 
     // Schema rename to nested dir: skip (schemas must be flat)
     if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) {
-      let schema_dir =
-        tdr_lang::db::derived::get_vault_config::get_vault_config(db, project).schema_dir(db);
+      let schema_dir = get_vault_config(db, project).schema_dir(db);
       if new_path.parent() != Some(&schema_dir) {
         continue;
       }
@@ -43,7 +43,7 @@ pub fn will_rename_files(analysis: &Analysis, params: RenameFilesParams) -> Opti
       .unwrap_or_default();
 
     let refs = references(db, project, symbol);
-    let edits = collect_reference_edits(analysis, &refs, new_stem, &new_path, &root_dir)?;
+    let edits = collect_reference_edits(analysis, &refs, new_stem, &new_path, &content_dir)?;
     for (path, file_edits) in edits {
       all_edits.entry(path).or_default().extend(file_edits);
     }
@@ -89,7 +89,7 @@ age: 30
 "#;
   const CONTENT_WITH_FREF: &str = r#"---
 _type: Person
-friend: fref("content/alice.tdr")
+friend: fref("alice.tdr")
 ---
 "#;
 
