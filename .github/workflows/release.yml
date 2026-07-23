@@ -96,7 +96,7 @@ jobs:
 
       # LSP
       - name: Build LSP
-        run: cargo build --locked --release -p tdr-lsp --target ${{ matrix.target }}
+        run: cargo build --locked --release -p tdr-server --target ${{ matrix.target }}
 
       - name: Rename LSP binary
         shell: bash

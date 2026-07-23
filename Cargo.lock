@@ -2107,15 +2107,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tdr-build"
-version = "0.0.0"
-dependencies = [
- "jsonrpsee",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "tdr-incremental"
 version = "0.0.0"
 dependencies = [
@@ -2152,13 +2143,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "tdr-lsp"
+name = "tdr-macros"
+version = "0.0.0"
+dependencies = [
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "tdr-server"
 version = "0.0.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
  "dashmap",
  "filetime",
+ "jsonrpsee",
  "log",
  "lsp-server",
  "lsp-types",
@@ -2170,14 +2170,7 @@ dependencies = [
  "tdr-types",
  "tempfile",
  "threadpool",
-]
-
-[[package]]
-name = "tdr-macros"
-version = "0.0.0"
-dependencies = [
- "quote",
- "syn 2.0.118",
+ "tokio",
 ]
 
 [[package]]
