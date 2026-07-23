@@ -6,4 +6,5 @@ license = "AGPL"
 
 [dependencies]
 jsonrpsee = { version = "0.26.0", features = ["macros", "client", "server"] }
+serde = "1.0.229"
 tokio = "1.53.1"
