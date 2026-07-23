@@ -41,6 +41,7 @@
       - [Neo4j Internals: Native Graph Storage](./research/graph-database/graph-databases-book/12-native-graph-storage.md)
       - [Neo4j Internals: Transactions, Availability, Scale](./research/graph-database/graph-databases-book/13-internals-transactions-availability-scale.md)
   - [YAML 1.2](./research/yaml-1.2.md)
+  - [JSON-RPC 2.0](./research/json-rpc.md)
 - [Design](design.md)
   - [Typedown Abstract Model](./design/typedown-model.md)
   - [Typedown Vault](./design/typedown-vault.md)
