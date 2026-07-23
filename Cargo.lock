@@ -2111,6 +2111,7 @@ name = "tdr-build"
 version = "0.0.0"
 dependencies = [
  "jsonrpsee",
+ "tokio",
 ]
 
 [[package]]
