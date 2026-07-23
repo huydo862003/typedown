@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Condvar, Mutex};
 use std::{fs, io};
@@ -11,6 +11,7 @@ use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::types::{File, FileHandle, Project};
 
 use crate::core::analysis::Analysis;
+use crate::core::utils::fs::{disk_handle, is_tdr_file, is_vault_config, scan_project_files};
 use crate::core::utils::uri::{uri_scheme, uri_to_path};
 
 pub struct AnalysisHost {
@@ -259,40 +260,4 @@ impl AnalysisHost {
   pub fn project_dir(&self) -> &PathBuf {
     &self.project_dir
   }
-}
-
-fn disk_handle(path: &PathBuf) -> Option<FileHandle> {
-  let mtime = fs::metadata(path).and_then(|meta| meta.modified()).ok()?;
-  Some(FileHandle::Path(path.clone(), mtime))
-}
-
-/// Read all relevant project files
-fn scan_project_files(root: &PathBuf) -> io::Result<HashSet<PathBuf>> {
-  let mut files = HashSet::new();
-  scan_dir(root, root, &mut files)?;
-  Ok(files)
-}
-
-fn scan_dir(root: &PathBuf, dir: &PathBuf, files: &mut HashSet<PathBuf>) -> io::Result<()> {
-  for entry in fs::read_dir(dir)? {
-    let entry = entry?;
-    let path = entry.path();
-    if path.is_dir() {
-      scan_dir(root, &path, files)?;
-    } else if is_tdr_file(&path) || (dir == root && is_vault_config(&path)) {
-      files.insert(path);
-    }
-  }
-  Ok(())
-}
-
-fn is_tdr_file(path: &Path) -> bool {
-  path.extension().is_some_and(|ext| ext == "tdr")
-}
-
-fn is_vault_config(path: &Path) -> bool {
-  matches!(
-    path.file_name().and_then(|name| name.to_str()),
-    Some("typedown.yaml") | Some("typedown.yml")
-  )
 }
