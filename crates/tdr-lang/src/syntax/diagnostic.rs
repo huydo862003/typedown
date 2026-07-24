@@ -60,6 +60,7 @@ pub enum DiagnosticCode {
   UnknownField = 52,
   IndexOutOfBounds = 53,
   NestedSchemaFile = 54,
+  VaultConfigInvalidValue = 55,
 }
 
 impl DiagnosticCode {
@@ -122,6 +123,7 @@ impl DiagnosticCode {
       DiagnosticCode::UnknownField => "unknown-field",
       DiagnosticCode::IndexOutOfBounds => "index-out-of-bounds",
       DiagnosticCode::NestedSchemaFile => "nested-schema-file",
+      DiagnosticCode::VaultConfigInvalidValue => "vault-config-invalid-value",
     }
   }
 }
@@ -481,6 +483,14 @@ pub enum Diagnostic {
   },
   /// Schema file is nested in a subdirectory of schema_dir
   NestedSchemaFile { path: String },
+  /// A vault config field has an invalid value
+  VaultConfigInvalidValue {
+    path: String,
+    field: String,
+    message: String,
+    start_offset: usize,
+    end_offset: usize,
+  },
 }
 
 impl Diagnostic {
@@ -709,6 +719,11 @@ impl Diagnostic {
         start_offset,
         end_offset,
         ..
+      }
+      | Diagnostic::VaultConfigInvalidValue {
+        start_offset,
+        end_offset,
+        ..
       } => Some((*start_offset, *end_offset)),
       Diagnostic::MissingVaultConfig { .. }
       | Diagnostic::VaultConfigReadError { .. }
@@ -863,6 +878,11 @@ impl Diagnostic {
       Diagnostic::NestedSchemaFile { path } => {
         format!("unsupported nested schema file: {}", path)
       }
+      Diagnostic::VaultConfigInvalidValue {
+        path, field, message, ..
+      } => {
+        format!("vault config '{path}' field '{field}': {message}")
+      }
       Diagnostic::IndexOutOfBounds { index, length, .. } => {
         format!("index {index} is out of bounds for length {length}")
       }
@@ -931,6 +951,7 @@ impl Diagnostic {
       Diagnostic::UnknownField { .. } => DiagnosticCode::UnknownField,
       Diagnostic::IndexOutOfBounds { .. } => DiagnosticCode::IndexOutOfBounds,
       Diagnostic::NestedSchemaFile { .. } => DiagnosticCode::NestedSchemaFile,
+      Diagnostic::VaultConfigInvalidValue { .. } => DiagnosticCode::VaultConfigInvalidValue,
     }
   }
 }
