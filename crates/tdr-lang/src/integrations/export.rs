@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use tdr_types::either::Either;
 
+use super::types::SchemaId;
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use crate::db::derived::evaluate::evaluate_resource::evaluate_resource;
@@ -12,7 +13,9 @@ use crate::db::derived::hir::lower_node;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::parse_file::parse_file;
-use crate::db::types::{File, HirValue, Project, Symbol, SymbolKind, TdrObjectEnum, TdrObjectLike};
+use crate::db::types::{
+  File, HirValue, Project, Symbol, SymbolKind, TdrObjectEnum, TdrObjectLike, TdrTypeLike,
+};
 use crate::syntax::ast::{AstNode, InterpFragment, MdBody, MdToggleList, SourceFile};
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
@@ -20,6 +23,8 @@ use crate::syntax::syntax_kind::SyntaxKind;
 /// Structured export result
 #[derive(serde::Serialize)]
 pub struct ExportedResource {
+  /// Schema type of this resource
+  pub schema: SchemaId,
   /// Frontmatter fields as key-value pairs
   pub header: HashMap<String, ExportedValue>,
   /// Commonmark-compatible markdown body
@@ -44,14 +49,13 @@ pub fn export_resource(
   project: Project,
   file: File,
 ) -> Option<ExportedResource> {
-  let (symbol, obj) = resolve_resource(db, project, file)?;
-  let mut header = export_header(db, &obj);
-
-  // FIXME: _type is not in product fields, add from symbol
-  header.insert(
-    "_type".to_string(),
-    ExportedValue::String(symbol.name(db).to_string()),
-  );
+  let (_, obj) = resolve_resource(db, project, file)?;
+  // Get schema name from the product's type
+  let schema = match &obj {
+    TdrObjectEnum::TdrProductObj(product) => SchemaId::new(product.schema(db).display_name(db)),
+    _ => return None,
+  };
+  let header = export_header(db, &obj);
 
   // Walk the AST and translate to somewhat commonmark-conformant markdown
   let parse_result = parse_file(db, project, file);
@@ -60,7 +64,11 @@ pub fn export_resource(
   let body = source_file.body()?;
   let content = export_markdown_body(db, project, file, &body);
 
-  Some(ExportedResource { header, content })
+  Some(ExportedResource {
+    schema,
+    header,
+    content,
+  })
 }
 
 /// Extract frontmatter fields, excluding _content
@@ -326,9 +334,10 @@ mod tests {
     let result = export_resource(&db, project, file);
     let exported = result.expect("should export");
     assert!(!exported.header.is_empty(), "header should have fields");
-    assert!(
-      exported.header.contains_key("_type"),
-      "should contain _type"
+    assert_eq!(
+      exported.schema.as_str(),
+      "Person",
+      "schema should be Person"
     );
     assert!(
       !exported.header.contains_key("_content"),
