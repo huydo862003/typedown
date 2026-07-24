@@ -9,7 +9,7 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use tdr_incremental::QueryStorage;
 use tdr_lang::db::TypedownDatabase;
-use tdr_lang::integrations::export::{ExportedValue, export_resource};
+use tdr_lang::integrations::export::export_resource;
 use tokio::sync::broadcast;
 
 use crate::core::analysis_host::AnalysisHost;
@@ -158,36 +158,10 @@ impl RpcServer {
       ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "File is not a resource", None::<()>)
     })?;
 
-    // Convert header to JSON
-    let header = exported
-      .header
-      .into_iter()
-      .map(|(key, value)| (key, exported_value_to_json(value)))
-      .collect::<serde_json::Map<String, serde_json::Value>>();
-
     Ok(TdrBuiltResource {
-      header: serde_json::Value::Object(header),
+      header: serde_json::to_value(&exported.header).unwrap_or_default(),
       content: exported.content,
     })
-  }
-}
-
-fn exported_value_to_json(value: ExportedValue) -> serde_json::Value {
-  match value {
-    ExportedValue::String(string) => serde_json::Value::String(string),
-    ExportedValue::Number(num) => serde_json::json!(num),
-    ExportedValue::Bool(boolean) => serde_json::Value::Bool(boolean),
-    ExportedValue::List(items) => {
-      serde_json::Value::Array(items.into_iter().map(exported_value_to_json).collect())
-    }
-    ExportedValue::Object(map) => {
-      let obj = map
-        .into_iter()
-        .map(|(key, val)| (key, exported_value_to_json(val)))
-        .collect();
-      serde_json::Value::Object(obj)
-    }
-    ExportedValue::Null => serde_json::Value::Null,
   }
 }
 

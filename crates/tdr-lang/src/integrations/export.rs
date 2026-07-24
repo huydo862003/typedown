@@ -18,6 +18,7 @@ use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
 
 /// Structured export result
+#[derive(serde::Serialize)]
 pub struct ExportedResource {
   /// Frontmatter fields as key-value pairs
   pub header: HashMap<String, ExportedValue>,
@@ -26,6 +27,8 @@ pub struct ExportedResource {
 }
 
 /// An exported field value
+#[derive(serde::Serialize)]
+#[serde(untagged)]
 pub enum ExportedValue {
   String(String),
   Number(f64),
