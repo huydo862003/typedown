@@ -2,7 +2,7 @@
 //! Based on rustc's interned node deduplication strategy.
 //!
 //! Stores deduplicated blobs (e.g. green tree nodes: tokens and inner nodes).
-//! Each blob is stored once; references use indices into this table.
+//! Each blob is stored once & references use indices into this table.
 //!
 //! ```text
 //! [ FileHeader (8 bytes)       ]  magic "TDIB" + version

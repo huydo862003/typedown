@@ -69,9 +69,9 @@ pub fn find_rename_symbol(
 /// Get the file path backing a user-defined symbol
 pub fn symbol_file_path(db: &dyn QueryDatabase, symbol: Symbol) -> Option<PathBuf> {
   match symbol.kind(db) {
-    SymbolKind::UserDefinedSchema(_, file) | SymbolKind::UserDefinedResource(_, file) => {
-      file.handle(db).path().cloned()
-    }
+    SymbolKind::UserDefinedSchema(_, file)
+    | SymbolKind::UserDefinedResource(_, file)
+    | SymbolKind::Asset(_, _, file) => file.handle(db).path().cloned(),
     _ => None,
   }
 }

@@ -92,8 +92,18 @@ _type: Person
 friend: fref("alice.tdr")
 ---
 "#;
+  const CONTENT_WITH_ASSET_FREF: &str = r#"---
+_type: Person
+name: Alice
+avatar: fref("assets/icon.svg")
+---
+"#;
 
   fn setup(editing_content: &str) -> Analysis {
+    setup_with_extra_files(editing_content, vec![])
+  }
+
+  fn setup_with_extra_files(editing_content: &str, extra_files: Vec<(PathBuf, &str)>) -> Analysis {
     let root = PathBuf::from(if cfg!(windows) { "C:\\vault" } else { "/vault" });
     let content_root = root.join("content");
     let schema_root = root.join("schemas");
@@ -119,12 +129,17 @@ friend: fref("alice.tdr")
       FileHandle::Content(content_root.join("file.tdr"), editing_content.to_string()),
     );
 
-    let files = HashMap::from([
+    let mut files = HashMap::from([
       (root.join("typedown.yaml"), config_file),
       (root.join("schemas/Person.tdr"), person_file),
       (root.join("content/alice.tdr"), alice_file),
       (content_root.join("file.tdr"), editing_file),
     ]);
+
+    for (path, content) in extra_files {
+      let file = File::new(&db, FileHandle::Content(path.clone(), content.to_string()));
+      files.insert(path, file);
+    }
 
     let project = Project::new(&db, root, files);
     Analysis::new(
@@ -220,6 +235,24 @@ friend: fref("alice.tdr")
     assert!(
       result.is_none(),
       "should produce no edits for nested schema rename"
+    );
+  }
+
+  // Renaming an asset file updates fref references pointing to it
+  #[test]
+  fn will_rename_asset_updates_fref() {
+    let root = root();
+    let asset_path = root.join("content/assets/icon.svg");
+    let analysis =
+      setup_with_extra_files(CONTENT_WITH_ASSET_FREF, vec![(asset_path, "<svg></svg>")]);
+    let params = make_params("content/assets/icon.svg", "content/assets/logo.svg");
+    let edit = will_rename_files(&analysis, params).expect("should produce edits");
+    let snap = snapshot(&edit);
+
+    assert!(
+      snap.contains("logo"),
+      "should update fref to logo:\n{}",
+      snap
     );
   }
 
