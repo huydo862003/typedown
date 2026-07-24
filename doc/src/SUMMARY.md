@@ -42,8 +42,9 @@
       - [Neo4j Internals: Transactions, Availability, Scale](./research/graph-database/graph-databases-book/13-internals-transactions-availability-scale.md)
   - [YAML 1.2](./research/yaml-1.2.md)
   - [JSON-RPC 2.0](./research/json-rpc.md)
-  - [Vite Plugin](./research/vite-plugin.md)
   - [Rolldown Plugin](./research/rolldown-plugin.md)
+  - [Vite Plugin](./research/vite-plugin.md)
+
 - [Design](design.md)
   - [Typedown Abstract Model](./design/typedown-model.md)
   - [Typedown Vault](./design/typedown-vault.md)
