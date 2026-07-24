@@ -1,6 +1,9 @@
 # Rolldown Plugin
 
-References: [rolldown.rs](https://rolldown.rs/), [Plugin compatibility tracking](https://github.com/rolldown/rolldown/issues/819).
+References:
+
+- [rolldown.rs](https://rolldown.rs/apis/plugin-api)
+- [Plugin compatibility tracking](https://github.com/rolldown/rolldown/issues/819).
 
 ## Overview
 
