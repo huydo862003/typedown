@@ -5,7 +5,8 @@ use tdr_macros::query_derived;
 use crate::db::TypedownDatabase;
 use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
 use crate::db::types::{
-  MemberType, Symbol, SymbolKind, TdrTypeType, TypeMember, TypeMemberDescriptors, TypeMemberResult,
+  MemberType, Symbol, SymbolKind, TdrBlobType, TdrTypeType, TypeMember, TypeMemberDescriptors,
+  TypeMemberResult,
 };
 use crate::db::utils::lower_file;
 use tdr_incremental::QueryDatabase;
@@ -29,6 +30,15 @@ pub fn get_symbol_type_member(db: &TypedownDatabase, symbol: Symbol) -> TypeMemb
         None => TypeMemberResult::new(db, None, vec![]),
       }
     }
+    SymbolKind::Asset(_, _, _) => TypeMemberResult::new(
+      db,
+      Some(TypeMember::new(
+        db,
+        MemberType::Simple(TdrBlobType::get(db).into()),
+        TypeMemberDescriptors::empty(),
+      )),
+      vec![],
+    ),
     SymbolKind::BuiltinMacro(_) => TypeMemberResult::new(db, None, vec![]),
   }
 }

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use crate::db::types::{File, FileHandle, Project};
+use crate::db::types::{AssetKind, File, FileHandle, Project};
 use crate::db::{QueryStorage, TypedownDatabase};
 
 pub struct Fixture {
@@ -70,7 +70,13 @@ pub fn load_vault_fixture(
 fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, File> {
   fn is_vault_file(path: &Path) -> bool {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let is_asset = path
+      .extension()
+      .and_then(|ext| ext.to_str())
+      .and_then(AssetKind::from_extension)
+      .is_some();
     path.extension().is_some_and(|ext| ext == "tdr")
+      || is_asset
       || name == "typedown.yaml"
       || name == "typedown.yml"
   }

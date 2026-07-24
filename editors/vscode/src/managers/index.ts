@@ -9,3 +9,7 @@ export {
 export {
   LspManager,
 } from './lsp';
+
+export {
+  PasteHandlerManager,
+} from './pasteHandler';

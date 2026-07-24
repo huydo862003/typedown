@@ -618,6 +618,19 @@ impl Encodable for Diagnostic {
       Diagnostic::NestedSchemaFile { path } => {
         path.encode(buf, encoder);
       }
+      Diagnostic::VaultConfigInvalidValue {
+        path,
+        field,
+        message,
+        start_offset,
+        end_offset,
+      } => {
+        path.encode(buf, encoder);
+        field.encode(buf, encoder);
+        message.encode(buf, encoder);
+        encoder.emit_usize(buf, *start_offset);
+        encoder.emit_usize(buf, *end_offset);
+      }
     }
   }
 }
@@ -1119,6 +1132,20 @@ impl Decodable for Diagnostic {
         let path = String::decode(data, decoder);
         Diagnostic::NestedSchemaFile { path }
       }
+      DiagnosticCode::VaultConfigInvalidValue => {
+        let path = String::decode(data, decoder);
+        let field = String::decode(data, decoder);
+        let message = String::decode(data, decoder);
+        let start_offset = decoder.read_usize(data);
+        let end_offset = decoder.read_usize(data);
+        Diagnostic::VaultConfigInvalidValue {
+          path,
+          field,
+          message,
+          start_offset,
+          end_offset,
+        }
+      }
     }
   }
 }
@@ -1494,6 +1521,19 @@ impl StableHash for Diagnostic {
       }
       Diagnostic::NestedSchemaFile { path } => {
         path.stable_hash(db, hasher);
+      }
+      Diagnostic::VaultConfigInvalidValue {
+        path,
+        field,
+        message,
+        start_offset,
+        end_offset,
+      } => {
+        path.stable_hash(db, hasher);
+        field.stable_hash(db, hasher);
+        message.stable_hash(db, hasher);
+        start_offset.stable_hash(db, hasher);
+        end_offset.stable_hash(db, hasher);
       }
     }
   }

@@ -5,6 +5,7 @@ import {
   ExtensionContextManager,
   LogManager,
   LspManager,
+  PasteHandlerManager,
 } from './managers';
 
 export function activate (context: ExtensionContext) {
@@ -14,6 +15,7 @@ export function activate (context: ExtensionContext) {
   // the LSP client must be stopped before its output channel is torn down
   context.subscriptions.push(LogManager.getInstance());
   context.subscriptions.push(LspManager.getInstance());
+  context.subscriptions.push(PasteHandlerManager.getInstance());
 }
 
 export function deactivate () {}

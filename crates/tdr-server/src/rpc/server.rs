@@ -19,7 +19,7 @@ use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
 use tokio::sync::broadcast;
 
 use crate::core::analysis_host::AnalysisHost;
-use crate::core::utils::fs::{is_tdr_file, is_vault_config};
+use crate::core::utils::fs::{is_asset_file, is_tdr_file, is_vault_config};
 
 use super::contract::{
   TdrBuildRpcServer, TdrBuiltResource, TdrContentNotification, TdrFilePath,
@@ -35,7 +35,7 @@ enum FsEvent {
 /// RPC build server that holds a single project and serves build requests
 // TIL: Use tokio::sync::RwLock in async contexts, not std::sync::RwLock as std::sync::RwLock blocks the OS thread while waiting, which can deadlock the tokio runtime if the lock is held across an .await point
 pub struct RpcServer {
-  root_dir: PathBuf,
+  _root_dir: PathBuf,
   host: tokio::sync::RwLock<AnalysisHost>,
   // Content events
   content_changed_tx: broadcast::Sender<TdrContentNotification>,
@@ -67,7 +67,7 @@ impl RpcServer {
     let _watcher = Self::setup_watcher(&root_dir, fs_tx)?;
 
     let server = Arc::new(Self {
-      root_dir,
+      _root_dir: root_dir,
       host: tokio::sync::RwLock::new(host),
       content_changed_tx,
       content_created_tx,
@@ -91,7 +91,7 @@ impl RpcServer {
     let mut watcher = notify::recommended_watcher(move |result: Result<Event, notify::Error>| {
       let Ok(event) = result else { return };
       for path in &event.paths {
-        if !is_tdr_file(path) && !is_vault_config(path) {
+        if !is_tdr_file(path) && !is_asset_file(path) && !is_vault_config(path) {
           continue;
         }
         let fs_event = match event.kind {

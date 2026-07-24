@@ -9,7 +9,7 @@ use tdr_macros::query_derived;
 use crate::syntax::diagnostic::Diagnostic;
 
 use crate::db::TypedownDatabase;
-use crate::db::types::{Project, VaultConfigResult};
+use crate::db::types::{AssetsDir, AssetsDirMode, Project, VaultConfigResult};
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
@@ -24,6 +24,7 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       PathBuf::new(),
       PathBuf::new(),
       "/".to_string(),
+      AssetsDir::default(),
       diagnostics,
     );
   };
@@ -35,6 +36,7 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       PathBuf::new(),
       PathBuf::new(),
       "/".to_string(),
+      AssetsDir::default(),
       diagnostics,
     );
   };
@@ -46,9 +48,18 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
   let version = extract_version(&doc, &contents, &path_str, &mut diagnostics);
   let content_dir = extract_content_dir(&doc, &contents, &path_str, &root, &mut diagnostics);
   let schema_dir = extract_schema_dir(&doc, &contents, &path_str, &root, &mut diagnostics);
-  let base_path = extract_base_path(&doc);
+  let base_path = extract_base_path(&doc, &contents, &path_str, &mut diagnostics);
+  let assets_dir = extract_assets_dir(&doc, &contents, &path_str, &mut diagnostics);
 
-  VaultConfigResult::new(db, version, content_dir, schema_dir, base_path, diagnostics)
+  VaultConfigResult::new(
+    db,
+    version,
+    content_dir,
+    schema_dir,
+    base_path,
+    assets_dir,
+    diagnostics,
+  )
 }
 
 /// Locate `typedown.yaml` (preferred) or `typedown.yml` in the project files, open it, and
@@ -166,7 +177,7 @@ fn check_unknown_fields(
   if let Some(vault_hash) = doc["vault"].as_hash() {
     for key in vault_hash.keys() {
       if let Some(key_str) = key.as_str()
-        && !matches!(key_str, "content_dir" | "schema_dir")
+        && !matches!(key_str, "content_dir" | "schema_dir" | "assets_dir")
       {
         let offset = key_char_offset(contents, key_str).unwrap_or(0);
         diagnostics.push(Diagnostic::VaultConfigUnknownField {
@@ -254,19 +265,75 @@ fn extract_schema_dir(
   )
 }
 
-/// Extract `build.base_path`, defaulting to "/" if absent
-fn extract_base_path(doc: &yaml_rust2::Yaml) -> String {
-  doc["build"]["base_path"]
-    .as_str()
-    .map(|s| {
-      let trimmed = s.trim_end_matches('/');
-      if trimmed.starts_with('/') {
-        trimmed.to_string()
-      } else {
-        format!("/{trimmed}")
-      }
-    })
-    .unwrap_or_else(|| "/".to_string())
+/// Extract `build.base_path`, defaulting to "/" if absent.
+/// Validates that the value is a valid URL path segment.
+fn extract_base_path(
+  doc: &yaml_rust2::Yaml,
+  contents: &str,
+  path_str: &str,
+  diagnostics: &mut Vec<Diagnostic>,
+) -> String {
+  let Some(raw) = doc["build"]["base_path"].as_str() else {
+    return "/".to_string();
+  };
+
+  let trimmed = raw.trim_end_matches('/');
+  let normalized = if trimmed.starts_with('/') {
+    trimmed.to_string()
+  } else {
+    format!("/{trimmed}")
+  };
+
+  let is_valid = normalized.is_ascii()
+    && !normalized.contains(' ')
+    && !normalized.contains('#')
+    && !normalized.contains('?');
+
+  if !is_valid {
+    let offset = key_char_offset(contents, "base_path").unwrap_or(0);
+    diagnostics.push(Diagnostic::VaultConfigInvalidValue {
+      path: path_str.to_string(),
+      field: "build.base_path".to_string(),
+      message: format!("invalid URL path: {raw}"),
+      start_offset: offset,
+      end_offset: offset + raw.chars().count(),
+    });
+    return "/".to_string();
+  }
+
+  normalized
+}
+
+/// Extract `vault.assets_dir` as an `AssetsDir`, defaulting to local mode with "assets" path.
+fn extract_assets_dir(
+  doc: &yaml_rust2::Yaml,
+  contents: &str,
+  path_str: &str,
+  diagnostics: &mut Vec<Diagnostic>,
+) -> AssetsDir {
+  let node = &doc["vault"]["assets_dir"];
+  if node.is_badvalue() {
+    return AssetsDir::default();
+  }
+
+  let mode = match node["mode"].as_str() {
+    Some("local") | None => AssetsDirMode::Local,
+    Some(unknown) => {
+      let offset = key_char_offset(contents, "mode").unwrap_or(0);
+      diagnostics.push(Diagnostic::VaultConfigInvalidValue {
+        path: path_str.to_string(),
+        field: "vault.assets_dir.mode".to_string(),
+        message: format!("unsupported mode '{unknown}', expected 'local'"),
+        start_offset: offset,
+        end_offset: offset + unknown.chars().count(),
+      });
+      AssetsDirMode::Local
+    }
+  };
+
+  let path = node["path"].as_str().unwrap_or("assets").to_string();
+
+  AssetsDir { mode, path }
 }
 
 /// Find the char offset of `key:` in the source text, returning `None` if the key is absent.
