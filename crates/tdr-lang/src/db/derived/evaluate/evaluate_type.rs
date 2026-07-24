@@ -267,6 +267,7 @@ mod tests {
 
   use crate::db::{
     QueryStorage, TypedownDatabase,
+    derived::evaluate::evaluate_resource::evaluate_resource,
     derived::evaluate::evaluate_type::evaluate_type,
     derived::evaluate::utils::construct_from_hir,
     derived::get_builtin_types::*,
@@ -663,6 +664,36 @@ age: 42
       panic!("expected Simple type");
     };
     assert_eq!(typ.display_name(&db), "Person");
+  }
+
+  // Asset symbol evaluates to TdrBlobType
+  #[test]
+  fn evaluate_type_asset_returns_blob_type() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/icon.svg");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+
+    assert!(symbol.kind(&db).is_asset(), "should be an asset symbol");
+
+    let result = evaluate_type(&db, symbol);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "should have no diagnostics"
+    );
+    let typ = result.typ(&db).expect("should return a type");
+    assert!(
+      typ.is_tdr_blob_type(),
+      "asset should evaluate to TdrBlobType"
+    );
+    assert_eq!(typ.display_name(&db), "blob");
+
+    // Evaluate the asset as a resource and check the format field value
+    let result = evaluate_resource(&db, symbol);
+    let obj = result.value(&db).expect("should produce a blob object");
+    let format = obj
+      .get_owned_field(&db, "format")
+      .expect("should have format field");
+    let format_str = format.as_tdr_str_obj().expect("expected TdrStrObj");
+    assert_eq!(format_str.value(&db), "svg");
   }
 
   // Enum schema where type is a union of string literals

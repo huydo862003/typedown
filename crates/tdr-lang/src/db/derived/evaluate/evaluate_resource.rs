@@ -501,12 +501,36 @@ mod tests {
     assert_eq!(format_str.value(&db), "png");
   }
 
+  // An SVG file in the fixture vault is loaded as an asset and evaluates to a blob
+  #[test]
+  fn asset_file_loaded_and_evaluated() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/icon.svg");
+    let symbol = file_symbol(&db, project, file)
+      .value(&db)
+      .expect("file_symbol should return a symbol");
+
+    assert!(symbol.kind(&db).is_asset(), "should be an asset symbol");
+
+    let result = evaluate_resource(&db, symbol);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "should have no diagnostics"
+    );
+    let obj = result.value(&db).expect("should produce a blob object");
+    assert!(obj.as_tdr_blob_obj().is_some(), "expected TdrBlobObj");
+
+    let format = obj
+      .get_owned_field(&db, "format")
+      .expect("should have format field");
+    let format_str = format.as_tdr_str_obj().expect("expected TdrStrObj");
+    assert_eq!(format_str.value(&db), "svg");
+  }
+
   // Each AssetKind produces the correct format string
   #[test]
   fn blob_format_matches_asset_kind() {
-    use crate::db::types::{File, FileHandle, TdrBlobObj};
+    use crate::db::types::TdrBlobObj;
     use crate::db::{QueryStorage, TypedownDatabase};
-    use std::time::SystemTime;
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),

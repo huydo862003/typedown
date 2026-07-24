@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use tdr_lang::db::types::FileHandle;
+use tdr_lang::db::types::{AssetKind, FileHandle};
 
 pub fn disk_handle(path: &PathBuf) -> Option<FileHandle> {
   let mtime = fs::metadata(path).and_then(|meta| meta.modified()).ok()?;
@@ -21,7 +21,8 @@ fn scan_dir(root: &PathBuf, dir: &PathBuf, files: &mut HashSet<PathBuf>) -> io::
     let path = entry.path();
     if path.is_dir() {
       scan_dir(root, &path, files)?;
-    } else if is_tdr_file(&path) || (dir == root && is_vault_config(&path)) {
+    } else if is_tdr_file(&path) || is_asset_file(&path) || (dir == root && is_vault_config(&path))
+    {
       files.insert(path);
     }
   }
@@ -30,6 +31,14 @@ fn scan_dir(root: &PathBuf, dir: &PathBuf, files: &mut HashSet<PathBuf>) -> io::
 
 pub fn is_tdr_file(path: &Path) -> bool {
   path.extension().is_some_and(|ext| ext == "tdr")
+}
+
+pub fn is_asset_file(path: &Path) -> bool {
+  path
+    .extension()
+    .and_then(|ext| ext.to_str())
+    .and_then(AssetKind::from_extension)
+    .is_some()
 }
 
 pub fn is_vault_config(path: &Path) -> bool {

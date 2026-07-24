@@ -147,6 +147,19 @@ pub enum AssetKind {
   UnknownBinary = 5,
 }
 
+impl AssetKind {
+  pub fn from_extension(ext: &str) -> Option<AssetKind> {
+    match ext {
+      "pdf" => Some(AssetKind::Pdf),
+      "svg" => Some(AssetKind::Svg),
+      "png" => Some(AssetKind::Png),
+      "jpg" | "jpeg" => Some(AssetKind::Jpg),
+      "webp" => Some(AssetKind::Webp),
+      _ => None,
+    }
+  }
+}
+
 impl StableHash for AssetKind {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);

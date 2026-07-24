@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use tdr_incremental::{CacheSession, InputId};
-use tdr_lang::db::types::{File, FileHandle, Project};
+use tdr_lang::db::types::{AssetKind, File, FileHandle, Project};
 use tdr_lang::db::{QueryStorage, TypedownDatabase};
 
 pub fn example_vault() -> PathBuf {
@@ -128,7 +128,9 @@ pub fn scan_project_files(dir: &Path) -> Vec<PathBuf> {
       } else {
         let ext = path.extension().and_then(|e| e.to_str());
         let name = path.file_name().and_then(|n| n.to_str());
+        let is_asset = ext.and_then(AssetKind::from_extension).is_some();
         if ext == Some("tdr")
+          || is_asset
           || (dir == root && matches!(name, Some("typedown.yaml") | Some("typedown.yml")))
         {
           result.push(path);

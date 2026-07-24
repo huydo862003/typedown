@@ -3,7 +3,7 @@ use tdr_types::path::normalize_path;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_vault_config::get_vault_config;
-use crate::db::types::{File, Project, Symbol, SymbolKind};
+use crate::db::types::{AssetKind, File, Project, Symbol, SymbolKind};
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
@@ -29,7 +29,14 @@ pub fn file_symbol(db: &TypedownDatabase, project: Project, file: File) -> Maybe
     .unwrap_or_default()
     .to_string();
 
-  let kind = if is_schema_file {
+  let ext = path
+    .extension()
+    .and_then(|e| e.to_str())
+    .unwrap_or_default();
+
+  let kind = if let Some(asset_kind) = AssetKind::from_extension(ext) {
+    SymbolKind::Asset(asset_kind, project, file)
+  } else if is_schema_file {
     SymbolKind::UserDefinedSchema(project, file)
   } else {
     SymbolKind::UserDefinedResource(project, file)
