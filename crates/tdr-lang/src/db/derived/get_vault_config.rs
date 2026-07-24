@@ -320,9 +320,10 @@ fn extract_assets_dir(
     Some("local") | None => AssetsDirMode::Local,
     Some(unknown) => {
       let offset = key_char_offset(contents, "mode").unwrap_or(0);
-      diagnostics.push(Diagnostic::VaultConfigUnknownField {
+      diagnostics.push(Diagnostic::VaultConfigInvalidValue {
         path: path_str.to_string(),
-        field: format!("vault.assets_dir.mode: {unknown}"),
+        field: "vault.assets_dir.mode".to_string(),
+        message: format!("unsupported mode '{unknown}', expected 'local'"),
         start_offset: offset,
         end_offset: offset + unknown.chars().count(),
       });

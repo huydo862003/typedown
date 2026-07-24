@@ -21,9 +21,10 @@ use crate::syntax::red::RedNode;
 
 use super::inputs::{File, FileHandle, Project};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::FromRepr)]
+#[repr(u8)]
 pub enum AssetsDirMode {
-  Local,
+  Local = 0,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -50,19 +51,17 @@ impl StableHash for AssetsDir {
 
 impl Encodable for AssetsDir {
   fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
-    encoder.emit_u8(buf, 0); // Local = 0
+    encoder.emit_u8(buf, self.mode as u8);
     self.path.encode(buf, encoder);
   }
 }
 
 impl Decodable for AssetsDir {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
-    let _mode = decoder.read_u8(data); // Only Local for now
+    let tag = decoder.read_u8(data);
+    let mode = AssetsDirMode::from_repr(tag).expect("unknown AssetsDirMode tag");
     let path = String::decode(data, decoder);
-    AssetsDir {
-      mode: AssetsDirMode::Local,
-      path,
-    }
+    AssetsDir { mode, path }
   }
 }
 

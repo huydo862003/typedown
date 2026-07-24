@@ -879,7 +879,10 @@ impl Diagnostic {
         format!("unsupported nested schema file: {}", path)
       }
       Diagnostic::VaultConfigInvalidValue {
-        path, field, message, ..
+        path,
+        field,
+        message,
+        ..
       } => {
         format!("vault config '{path}' field '{field}': {message}")
       }
