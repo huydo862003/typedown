@@ -97,7 +97,10 @@ impl RpcServer {
     Ok(watcher)
   }
 
-  fn spawn_fs_watcher_task(server: Arc<Self>, mut fs_rx: tokio::sync::mpsc::UnboundedReceiver<FsEvent>) {
+  fn spawn_fs_watcher_task(
+    server: Arc<Self>,
+    mut fs_rx: tokio::sync::mpsc::UnboundedReceiver<FsEvent>,
+  ) {
     tokio::spawn(async move {
       while let Some(event) = fs_rx.recv().await {
         let relative = match &event {

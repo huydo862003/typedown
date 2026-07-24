@@ -13,7 +13,7 @@ use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::parse_file::parse_file;
 use crate::db::types::{File, HirValue, Project, Symbol, SymbolKind, TdrObjectEnum, TdrObjectLike};
-use crate::syntax::ast::{AstNode, MdBody, MdToggleList, SourceFile};
+use crate::syntax::ast::{AstNode, InterpFragment, MdBody, MdToggleList, SourceFile};
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
 
@@ -188,14 +188,31 @@ fn emit_md_node(
     return;
   }
 
-  // Interpolation fragment: Try to resolve as fref link
+  // Interpolation fragment
   if node.kind() == SyntaxKind::InterpFragment {
-    if let Some(link) = try_resolve_fref(db, project, file, node) {
+    let Some(fragment) = InterpFragment::cast(node.clone()) else {
+      return;
+    };
+    let Some(expr) = fragment.expr() else { return };
+    let expr_node = expr.syntax().clone();
+
+    // Try to resolve as fref link
+    if let Some(link) = try_resolve_fref(db, project, file, &expr_node) {
       out.push_str(&link);
       return;
     }
-    // Not a fref, emit source text as fallback
-    out.push_str(&node.text());
+    // Not a fref: Evaluate and call to_string on the result
+    let hir = lower_node(db, project, file, expr_node);
+    if let Some(obj) = evaluate_node(db, hir).value(db)
+      && let Some(func) = obj.lookup_method(db, "to_string")
+    {
+      let native_fn = func.func(db).resolve();
+      if let Some(result) = native_fn(db, obj, vec![])
+        && let Some(str_obj) = result.as_tdr_str_obj()
+      {
+        out.push_str(&str_obj.value(db));
+      }
+    }
     return;
   }
 
@@ -217,7 +234,7 @@ fn try_resolve_fref(
 
   let name = resolve_display_name(db, project, &target_symbol);
 
-  // Build URL-friendly path relative to content_dir
+  // Build URL-friendly path relative to content_dir, prefixed with base_path
   let target_path = match target_symbol.kind(db) {
     SymbolKind::UserDefinedResource(_, target_file)
     | SymbolKind::UserDefinedSchema(_, target_file) => {
@@ -225,10 +242,15 @@ fn try_resolve_fref(
       let path = handle.path()?;
       let config = get_vault_config(db, project);
       let content_dir = config.content_dir(db);
+      let base_path = config.base_path(db);
       let relative = path.strip_prefix(&content_dir).unwrap_or(path);
       let path_str = relative.to_string_lossy();
       let without_ext = path_str.strip_suffix(".tdr").unwrap_or(&path_str);
-      format!("/{without_ext}")
+      if base_path == "/" {
+        format!("/{without_ext}")
+      } else {
+        format!("{base_path}/{without_ext}")
+      }
     }
     _ => return None,
   };
@@ -354,5 +376,30 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let result = export_resource(&db, project, file);
     assert!(result.is_none(), "schema should return None");
+  }
+
+  // fref links use build.base_path from typedown.yaml
+  #[test]
+  fn fref_uses_base_path() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/base_path_vault", "content/with_fref.tdr");
+    let exported = export_resource(&db, project, file).expect("should export");
+    assert!(
+      exported.content.contains("[Alice](/blog/alice)"),
+      "fref should use base_path /blog: {}",
+      exported.content
+    );
+  }
+
+  // Default base_path is /
+  #[test]
+  fn fref_default_base_path() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/with_fref.tdr");
+    let exported = export_resource(&db, project, file).expect("should export");
+    assert!(
+      !exported.content.contains("/blog"),
+      "default base_path should not have /blog prefix: {}",
+      exported.content
+    );
   }
 }

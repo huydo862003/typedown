@@ -23,6 +23,7 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       String::new(),
       PathBuf::new(),
       PathBuf::new(),
+      "/".to_string(),
       diagnostics,
     );
   };
@@ -33,6 +34,7 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       String::new(),
       PathBuf::new(),
       PathBuf::new(),
+      "/".to_string(),
       diagnostics,
     );
   };
@@ -44,8 +46,9 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
   let version = extract_version(&doc, &contents, &path_str, &mut diagnostics);
   let content_dir = extract_content_dir(&doc, &contents, &path_str, &root, &mut diagnostics);
   let schema_dir = extract_schema_dir(&doc, &contents, &path_str, &root, &mut diagnostics);
+  let base_path = extract_base_path(&doc);
 
-  VaultConfigResult::new(db, version, content_dir, schema_dir, diagnostics)
+  VaultConfigResult::new(db, version, content_dir, schema_dir, base_path, diagnostics)
 }
 
 /// Locate `typedown.yaml` (preferred) or `typedown.yml` in the project files, open it, and
@@ -147,7 +150,7 @@ fn check_unknown_fields(
   if let Some(hash) = doc.as_hash() {
     for key in hash.keys() {
       if let Some(key_str) = key.as_str()
-        && !matches!(key_str, "version" | "vault")
+        && !matches!(key_str, "version" | "vault" | "build")
       {
         let offset = key_char_offset(contents, key_str).unwrap_or(0);
         diagnostics.push(Diagnostic::VaultConfigUnknownField {
@@ -249,6 +252,21 @@ fn extract_schema_dir(
     },
     |s| root.join(s),
   )
+}
+
+/// Extract `build.base_path`, defaulting to "/" if absent
+fn extract_base_path(doc: &yaml_rust2::Yaml) -> String {
+  doc["build"]["base_path"]
+    .as_str()
+    .map(|s| {
+      let trimmed = s.trim_end_matches('/');
+      if trimmed.starts_with('/') {
+        trimmed.to_string()
+      } else {
+        format!("/{trimmed}")
+      }
+    })
+    .unwrap_or_else(|| "/".to_string())
 }
 
 /// Find the char offset of `key:` in the source text, returning `None` if the key is absent.
