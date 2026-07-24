@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "vite-plugin-typedown",
+  "version": "0.0.0",
+  "description": "Vite plugin for Typedown.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Huy-DNA/typedown.git",
+    "directory": "packages/vite-plugin-typedown"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "vite-plugin",
+    "rolldown-plugin",
+    "typedown"
+  ],
+  "author": "Huy-DNA <huydo862003@gmail.com>",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "lint": "eslint .",
+    "lint:fix": "eslint ./src --fix",
+    "test": "vitest"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
+  },
+  "devDependencies": {
+    "@hdnax/nuclint": "^0.17.4",
+    "@types/node": "~24.13.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.5"
+  }
+}
