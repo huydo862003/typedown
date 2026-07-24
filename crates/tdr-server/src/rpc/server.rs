@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -9,16 +10,20 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use tdr_incremental::QueryStorage;
 use tdr_lang::db::TypedownDatabase;
+use tdr_lang::db::derived::get_vault_config::get_vault_config;
+use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
+use tdr_lang::db::types::SymbolKind;
+use tdr_lang::integrations::export::ExportedValue;
 use tdr_lang::integrations::export::export_resource;
+use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
 use tokio::sync::broadcast;
 
 use crate::core::analysis_host::AnalysisHost;
 use crate::core::utils::fs::{is_tdr_file, is_vault_config};
 
 use super::contract::{
-  TdrBuildRpcServer, TdrBuiltResource, TdrFileChangedNotification, TdrFileCreatedNotification,
-  TdrFileDeletedNotification, TdrFilePath, TdrFileRenamedNotification,
-  TdrRpcSubscriptionCloseResponse,
+  TdrBuildRpcServer, TdrBuiltResource, TdrContentNotification, TdrFilePath,
+  TdrRpcSubscriptionCloseResponse, TdrSchemaInfo, TdrSchemaNotification,
 };
 
 enum FsEvent {
@@ -32,38 +37,44 @@ enum FsEvent {
 pub struct RpcServer {
   root_dir: PathBuf,
   host: tokio::sync::RwLock<AnalysisHost>,
-  change_tx: broadcast::Sender<TdrFileChangedNotification>,
-  create_tx: broadcast::Sender<TdrFileCreatedNotification>,
-  delete_tx: broadcast::Sender<TdrFileDeletedNotification>,
-  rename_tx: broadcast::Sender<TdrFileRenamedNotification>,
+  // Content events
+  content_changed_tx: broadcast::Sender<TdrContentNotification>,
+  content_created_tx: broadcast::Sender<TdrContentNotification>,
+  content_deleted_tx: broadcast::Sender<TdrContentNotification>,
+  // Schema events
+  schema_changed_tx: broadcast::Sender<TdrSchemaNotification>,
+  schema_created_tx: broadcast::Sender<TdrSchemaNotification>,
+  schema_deleted_tx: broadcast::Sender<TdrSchemaNotification>,
   // Held to keep the watcher alive for the lifetime of the server
   _watcher: RecommendedWatcher,
 }
 
 impl RpcServer {
-  /// Create a new RPC server and start watching for file changes
   pub fn new(root_dir: PathBuf) -> anyhow::Result<Arc<Self>> {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
     let host = AnalysisHost::new(db, root_dir.clone())?;
 
-    let (change_tx, _) = broadcast::channel(64);
-    let (create_tx, _) = broadcast::channel(64);
-    let (delete_tx, _) = broadcast::channel(64);
-    let (rename_tx, _) = broadcast::channel(64);
+    let (content_changed_tx, _) = broadcast::channel(64);
+    let (content_created_tx, _) = broadcast::channel(64);
+    let (content_deleted_tx, _) = broadcast::channel(64);
+    let (schema_changed_tx, _) = broadcast::channel(64);
+    let (schema_created_tx, _) = broadcast::channel(64);
+    let (schema_deleted_tx, _) = broadcast::channel(64);
 
     let (fs_tx, fs_rx) = tokio::sync::mpsc::unbounded_channel();
-
     let _watcher = Self::setup_watcher(&root_dir, fs_tx)?;
 
     let server = Arc::new(Self {
       root_dir,
       host: tokio::sync::RwLock::new(host),
-      change_tx,
-      create_tx,
-      delete_tx,
-      rename_tx,
+      content_changed_tx,
+      content_created_tx,
+      content_deleted_tx,
+      schema_changed_tx,
+      schema_created_tx,
+      schema_deleted_tx,
       _watcher,
     });
 
@@ -103,12 +114,8 @@ impl RpcServer {
   ) {
     tokio::spawn(async move {
       while let Some(event) = fs_rx.recv().await {
-        let relative = match &event {
-          FsEvent::Created(path) | FsEvent::Modified(path) | FsEvent::Removed(path) => path
-            .strip_prefix(&server.root_dir)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .to_string(),
+        let path = match &event {
+          FsEvent::Created(path) | FsEvent::Modified(path) | FsEvent::Removed(path) => path.clone(),
         };
 
         // Update the incremental database
@@ -121,24 +128,52 @@ impl RpcServer {
             host.on_disk_delete(path.clone());
           }
         }
+        let analysis = host.snapshot();
         drop(host);
 
-        // Notify subscribers
-        match event {
-          FsEvent::Created(_) => {
-            let _ = server
-              .create_tx
-              .send(TdrFileCreatedNotification { path: relative });
+        // Classify as content or schema and notify subscribers
+        let db = &analysis.db;
+        let project = analysis.project;
+        let config = get_vault_config(db, project);
+        let content_dir = config.content_dir(db);
+        let schema_dir = config.schema_dir(db);
+
+        if path.starts_with(&content_dir) {
+          let relative = path
+            .strip_prefix(&content_dir)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .to_string();
+          let notification = TdrContentNotification { path: relative };
+          match event {
+            FsEvent::Created(_) => {
+              let _ = server.content_created_tx.send(notification);
+            }
+            FsEvent::Modified(_) => {
+              let _ = server.content_changed_tx.send(notification);
+            }
+            FsEvent::Removed(_) => {
+              let _ = server.content_deleted_tx.send(notification);
+            }
           }
-          FsEvent::Modified(_) => {
-            let _ = server
-              .change_tx
-              .send(TdrFileChangedNotification { path: relative });
-          }
-          FsEvent::Removed(_) => {
-            let _ = server
-              .delete_tx
-              .send(TdrFileDeletedNotification { path: relative });
+        } else if path.starts_with(&schema_dir) {
+          let schema = SchemaId::new(
+            path
+              .file_stem()
+              .and_then(|s| s.to_str())
+              .unwrap_or("unknown"),
+          );
+          let notification = TdrSchemaNotification { schema };
+          match event {
+            FsEvent::Created(_) => {
+              let _ = server.schema_created_tx.send(notification);
+            }
+            FsEvent::Modified(_) => {
+              let _ = server.schema_changed_tx.send(notification);
+            }
+            FsEvent::Removed(_) => {
+              let _ = server.schema_deleted_tx.send(notification);
+            }
           }
         }
       }
@@ -146,12 +181,12 @@ impl RpcServer {
   }
 
   async fn build_file_impl(&self, file_path: &TdrFilePath) -> RpcResult<TdrBuiltResource> {
-    // Take snapshot and release the lock before doing export work
     let analysis = self.host.read().await.snapshot();
     let db = &analysis.db;
     let project = analysis.project;
 
-    let path = self.root_dir.join(&file_path.0);
+    let content_dir = get_vault_config(db, project).content_dir(db);
+    let path = content_dir.join(&file_path.0);
     let files = project.files(db);
     let file = files.get(&path).ok_or_else(|| {
       ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "File not found in project", None::<()>)
@@ -161,10 +196,86 @@ impl RpcServer {
       ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "File is not a resource", None::<()>)
     })?;
 
+    let header = exported
+      .header
+      .into_iter()
+      .map(|(key, value)| (YamlKeyId::new(key), exported_to_yaml_value(value)))
+      .collect();
+
     Ok(TdrBuiltResource {
-      header: serde_json::to_value(&exported.header).unwrap_or_default(),
+      schema: SchemaId::new(exported.schema.as_str()),
+      header,
       content: exported.content,
     })
+  }
+
+  async fn list_schemas_impl(&self) -> RpcResult<Vec<SchemaId>> {
+    let analysis = self.host.read().await.snapshot();
+    let db = &analysis.db;
+    let project = analysis.project;
+
+    let config = get_vault_config(db, project);
+    let schema_dir = config.schema_dir(db);
+    let files = project.files(db);
+
+    let mut schemas = Vec::new();
+    for (path, file) in &files {
+      if !path.starts_with(&schema_dir) {
+        continue;
+      }
+      let Some(symbol) = file_symbol(db, project, *file).value(db) else {
+        continue;
+      };
+      if !matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(..)) {
+        continue;
+      }
+      schemas.push(SchemaId::new(symbol.name(db)));
+    }
+
+    Ok(schemas)
+  }
+
+  async fn get_schema_impl(&self, schema: &SchemaId) -> RpcResult<TdrSchemaInfo> {
+    let analysis = self.host.read().await.snapshot();
+    let db = &analysis.db;
+    let project = analysis.project;
+
+    let config = get_vault_config(db, project);
+    let schema_dir = config.schema_dir(db);
+    let schema_path = schema_dir.join(format!("{schema}.tdr"));
+
+    let files = project.files(db);
+    let file = files.get(&schema_path).ok_or_else(|| {
+      ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "Schema not found", None::<()>)
+    })?;
+
+    let _symbol = file_symbol(db, project, *file).value(db).ok_or_else(|| {
+      ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "Schema has no symbol", None::<()>)
+    })?;
+
+    // TODO: Extract property details
+    Ok(TdrSchemaInfo {
+      schema: schema.clone(),
+      properties: HashMap::new(),
+    })
+  }
+}
+
+fn exported_to_yaml_value(value: ExportedValue) -> YamlValue {
+  match value {
+    ExportedValue::String(string) => YamlValue::String(string),
+    ExportedValue::Number(num) => YamlValue::Number(num),
+    ExportedValue::Bool(boolean) => YamlValue::Bool(boolean),
+    ExportedValue::List(items) => {
+      YamlValue::List(items.into_iter().map(exported_to_yaml_value).collect())
+    }
+    ExportedValue::Object(map) => YamlValue::Object(
+      map
+        .into_iter()
+        .map(|(key, val)| (YamlKeyId::new(key), exported_to_yaml_value(val)))
+        .collect(),
+    ),
+    ExportedValue::Null => YamlValue::Null,
   }
 }
 
@@ -197,31 +308,53 @@ impl TdrBuildRpcServer<(), ()> for RpcServer {
     self.build_file_impl(&file_path).await
   }
 
-  async fn on_file_changed(
-    &self,
-    pending: PendingSubscriptionSink,
-  ) -> TdrRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.change_tx.subscribe()).await
+  async fn list_schemas(&self) -> RpcResult<Vec<SchemaId>> {
+    self.list_schemas_impl().await
   }
 
-  async fn on_file_created(
-    &self,
-    pending: PendingSubscriptionSink,
-  ) -> TdrRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.create_tx.subscribe()).await
+  async fn get_schema(&self, schema: SchemaId) -> RpcResult<TdrSchemaInfo> {
+    self.get_schema_impl(&schema).await
   }
 
-  async fn on_file_deleted(
+  async fn on_content_changed(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.delete_tx.subscribe()).await
+    run_subscription(pending, self.content_changed_tx.subscribe()).await
   }
 
-  async fn on_file_renamed(
+  async fn on_content_created(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.rename_tx.subscribe()).await
+    run_subscription(pending, self.content_created_tx.subscribe()).await
+  }
+
+  async fn on_content_deleted(
+    &self,
+    pending: PendingSubscriptionSink,
+  ) -> TdrRpcSubscriptionCloseResponse {
+    run_subscription(pending, self.content_deleted_tx.subscribe()).await
+  }
+
+  async fn on_schema_changed(
+    &self,
+    pending: PendingSubscriptionSink,
+  ) -> TdrRpcSubscriptionCloseResponse {
+    run_subscription(pending, self.schema_changed_tx.subscribe()).await
+  }
+
+  async fn on_schema_created(
+    &self,
+    pending: PendingSubscriptionSink,
+  ) -> TdrRpcSubscriptionCloseResponse {
+    run_subscription(pending, self.schema_created_tx.subscribe()).await
+  }
+
+  async fn on_schema_deleted(
+    &self,
+    pending: PendingSubscriptionSink,
+  ) -> TdrRpcSubscriptionCloseResponse {
+    run_subscription(pending, self.schema_deleted_tx.subscribe()).await
   }
 }
