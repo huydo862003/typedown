@@ -77,8 +77,6 @@ importers:
 
   editors/zed: {}
 
-  packages/ssg: {}
-
   packages/tree-sitter:
     devDependencies:
       tree-sitter-cli:
