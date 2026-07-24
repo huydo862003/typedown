@@ -11,7 +11,9 @@ use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::types::{File, FileHandle, Project};
 
 use crate::core::analysis::Analysis;
-use crate::core::utils::fs::{disk_handle, is_tdr_file, is_vault_config, scan_project_files};
+use crate::core::utils::fs::{
+  disk_handle, is_asset_file, is_tdr_file, is_vault_config, scan_project_files,
+};
 use crate::core::utils::uri::{uri_scheme, uri_to_path};
 
 pub struct AnalysisHost {
@@ -195,6 +197,7 @@ impl AnalysisHost {
       return; // editor owns this file, ignore disk change
     }
     if is_tdr_file(&path)
+      || is_asset_file(&path)
       || (path.parent().is_some_and(|p| p == self.project_dir) && is_vault_config(&path))
     {
       self.project_files.insert(path);

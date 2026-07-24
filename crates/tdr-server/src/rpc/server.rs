@@ -19,7 +19,7 @@ use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
 use tokio::sync::broadcast;
 
 use crate::core::analysis_host::AnalysisHost;
-use crate::core::utils::fs::{is_tdr_file, is_vault_config};
+use crate::core::utils::fs::{is_asset_file, is_tdr_file, is_vault_config};
 
 use super::contract::{
   TdrBuildRpcServer, TdrBuiltResource, TdrContentNotification, TdrFilePath,
@@ -91,7 +91,7 @@ impl RpcServer {
     let mut watcher = notify::recommended_watcher(move |result: Result<Event, notify::Error>| {
       let Ok(event) = result else { return };
       for path in &event.paths {
-        if !is_tdr_file(path) && !is_vault_config(path) {
+        if !is_tdr_file(path) && !is_asset_file(path) && !is_vault_config(path) {
           continue;
         }
         let fs_event = match event.kind {

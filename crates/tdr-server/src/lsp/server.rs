@@ -291,6 +291,10 @@ impl Server {
         kind: Some(WatchKind::all()),
       },
       FileSystemWatcher {
+        glob_pattern: GlobPattern::String("**/*.{pdf,svg,png,jpg,jpeg,webp}".to_string()),
+        kind: Some(WatchKind::all()),
+      },
+      FileSystemWatcher {
         glob_pattern: GlobPattern::String("**/typedown.yaml".to_string()),
         kind: Some(WatchKind::all()),
       },
