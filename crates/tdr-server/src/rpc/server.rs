@@ -35,7 +35,7 @@ enum FsEvent {
 /// RPC build server that holds a single project and serves build requests
 // TIL: Use tokio::sync::RwLock in async contexts, not std::sync::RwLock as std::sync::RwLock blocks the OS thread while waiting, which can deadlock the tokio runtime if the lock is held across an .await point
 pub struct RpcServer {
-  root_dir: PathBuf,
+  _root_dir: PathBuf,
   host: tokio::sync::RwLock<AnalysisHost>,
   // Content events
   content_changed_tx: broadcast::Sender<TdrContentNotification>,
@@ -67,7 +67,7 @@ impl RpcServer {
     let _watcher = Self::setup_watcher(&root_dir, fs_tx)?;
 
     let server = Arc::new(Self {
-      root_dir,
+      _root_dir: root_dir,
       host: tokio::sync::RwLock::new(host),
       content_changed_tx,
       content_created_tx,
