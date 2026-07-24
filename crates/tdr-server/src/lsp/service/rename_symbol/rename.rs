@@ -62,12 +62,21 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
 }
 
 fn compute_fref_target(new_name: &str, content_dir: &Path) -> (PathBuf, String) {
-  let relative = new_name.strip_suffix(".tdr").unwrap_or(new_name);
-  let absolute = content_dir.join(format!("{}.tdr", relative));
-  let stem = Path::new(relative)
+  let new_path = Path::new(new_name);
+  // Check extension on filename only, not the full path (e.g. "v2.0/file" has no extension)
+  let has_extension = new_path
+    .file_name()
+    .and_then(|f| Path::new(f).extension())
+    .is_some();
+  let absolute = if has_extension {
+    content_dir.join(new_name)
+  } else {
+    content_dir.join(format!("{}.tdr", new_name))
+  };
+  let stem = new_path
     .file_stem()
     .and_then(|s| s.to_str())
-    .unwrap_or(relative)
+    .unwrap_or(new_name)
     .to_string();
   (absolute, stem)
 }
@@ -78,11 +87,33 @@ fn compute_ident_target(
   symbol: tdr_lang::db::types::Symbol,
   old_path: &Path,
 ) -> Option<(PathBuf, String)> {
-  let stem = new_name.strip_suffix(".tdr").unwrap_or(new_name);
-  if matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _)) && stem.contains('/') {
+  let new_path = Path::new(new_name);
+  let has_extension = new_path
+    .file_name()
+    .and_then(|f| Path::new(f).extension())
+    .is_some();
+  let is_schema = matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _));
+  // Schemas must be .tdr & reject non .tdr extensions
+  if is_schema && has_extension && new_path.extension() != Some("tdr".as_ref()) {
     return None;
   }
-  let absolute = old_path.parent()?.join(format!("{}.tdr", stem));
+  let stem = if has_extension {
+    new_path
+      .file_stem()
+      .and_then(|s| s.to_str())
+      .unwrap_or(new_name)
+  } else {
+    new_name
+  };
+  if is_schema && stem.contains('/') {
+    return None;
+  }
+  let filename = if has_extension {
+    new_name.to_string()
+  } else {
+    format!("{}.tdr", new_name)
+  };
+  let absolute = old_path.parent()?.join(filename);
   Some((absolute, stem.to_string()))
 }
 
