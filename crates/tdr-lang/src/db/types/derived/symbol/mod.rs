@@ -13,6 +13,7 @@ use tdr_incremental::{
 pub enum SymbolKind {
   UserDefinedSchema(Project, File),
   UserDefinedResource(Project, File),
+  Asset(AssetKind, Project, File),
   BuiltinSchema(BuiltinSchemaKind),
   BuiltinMacro(BuiltinMacroKind),
 }
@@ -24,6 +25,7 @@ enum SymbolKindTag {
   UserDefinedResource = 1,
   BuiltinSchema = 2,
   BuiltinMacro = 3,
+  Asset = 4,
 }
 
 impl SymbolKind {
@@ -38,10 +40,16 @@ impl SymbolKind {
     matches!(self, SymbolKind::UserDefinedResource(_, _))
   }
 
+  pub fn is_asset(&self) -> bool {
+    matches!(self, SymbolKind::Asset(_, _, _))
+  }
+
   pub fn is_user_defined(&self) -> bool {
     matches!(
       self,
-      SymbolKind::UserDefinedSchema(_, _) | SymbolKind::UserDefinedResource(_, _)
+      SymbolKind::UserDefinedSchema(_, _)
+        | SymbolKind::UserDefinedResource(_, _)
+        | SymbolKind::Asset(_, _, _)
     )
   }
 
@@ -56,6 +64,11 @@ impl StableHash for SymbolKind {
     match self {
       SymbolKind::UserDefinedSchema(project, file)
       | SymbolKind::UserDefinedResource(project, file) => {
+        project.stable_hash(db, hasher);
+        file.stable_hash(db, hasher);
+      }
+      SymbolKind::Asset(asset_kind, project, file) => {
+        asset_kind.stable_hash(db, hasher);
         project.stable_hash(db, hasher);
         file.stable_hash(db, hasher);
       }
@@ -75,6 +88,12 @@ impl Encodable for SymbolKind {
       }
       SymbolKind::UserDefinedResource(project, file) => {
         encoder.emit_u8(buf, SymbolKindTag::UserDefinedResource as u8);
+        project.encode_field(buf, encoder);
+        file.encode_field(buf, encoder);
+      }
+      SymbolKind::Asset(asset_kind, project, file) => {
+        encoder.emit_u8(buf, SymbolKindTag::Asset as u8);
+        asset_kind.encode(buf, encoder);
         project.encode_field(buf, encoder);
         file.encode_field(buf, encoder);
       }
@@ -102,6 +121,11 @@ impl Decodable for SymbolKind {
         Project::decode_field(data, decoder),
         File::decode_field(data, decoder),
       ),
+      SymbolKindTag::Asset => SymbolKind::Asset(
+        AssetKind::decode(data, decoder),
+        Project::decode_field(data, decoder),
+        File::decode_field(data, decoder),
+      ),
       SymbolKindTag::BuiltinSchema => {
         SymbolKind::BuiltinSchema(BuiltinSchemaKind::decode(data, decoder))
       }
@@ -109,6 +133,37 @@ impl Decodable for SymbolKind {
         SymbolKind::BuiltinMacro(BuiltinMacroKind::decode(data, decoder))
       }
     }
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FromRepr)]
+#[repr(u8)]
+pub enum AssetKind {
+  Pdf = 0,
+  Svg = 1,
+  Png = 2,
+  Jpg = 3,
+  Jpeg = 4,
+  Webp = 5,
+  UnknownBinary = 6,
+}
+
+impl StableHash for AssetKind {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
+    std::mem::discriminant(self).stable_hash(db, hasher);
+  }
+}
+
+impl Encodable for AssetKind {
+  fn encode(&self, buf: &mut Vec<u8>, encoder: &mut Encoder) {
+    encoder.emit_u8(buf, *self as u8);
+  }
+}
+
+impl Decodable for AssetKind {
+  fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
+    let tag = decoder.read_u8(data);
+    AssetKind::from_repr(tag).expect("unknown AssetKind tag")
   }
 }
 

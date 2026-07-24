@@ -29,6 +29,8 @@ pub fn get_symbol_type_member(db: &TypedownDatabase, symbol: Symbol) -> TypeMemb
         None => TypeMemberResult::new(db, None, vec![]),
       }
     }
-    SymbolKind::BuiltinMacro(_) => TypeMemberResult::new(db, None, vec![]),
+    SymbolKind::Asset(_, _, _) | SymbolKind::BuiltinMacro(_) => {
+      TypeMemberResult::new(db, None, vec![])
+    }
   }
 }
