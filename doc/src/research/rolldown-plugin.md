@@ -7,8 +7,25 @@ References:
 
 ## Overview
 
-Rolldown's plugin interface is almost fully compatible with Rollup's. If you've written a Rollup plugin before, you already know how to write one for Rolldown.
+Plugins allow customizing Rolldown's behavior. Some use cases:
 
-A plugin is just an object that satisfies a specific interface. Typically you distribute it as a package that exports a factory function: The function takes plugin-specific options, returns the plugin object.
+1. Transpile code before bundling.
+2. Shim built-in modules.
+3. Inject virtual modules.
 
-What can plugins do? Customize Rolldown's behavior: Transpile code before bundling, shim built-in modules, inject virtual modules, etc.
+Rolldown's plugin interface is almost fully compatible with Rollup's. (For context, Rolldown is a rust migration of Rollup, if I recall correctly)
+
+By definition:
+
+1. A plugin is just an object that satisfies the specific plugin interface of Rolldown.
+2. Typically it is distributed as a package that exports a factory function: The function takes plugin-specific options, returns the plugin object.
+
+> Remark: I have seen plugins registered like this
+
+```json
+{
+  plugins: [
+    plugin(options) // `plugin` is the factory function that creates a plugin object
+  ]
+}
+```
