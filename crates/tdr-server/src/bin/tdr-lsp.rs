@@ -32,6 +32,7 @@ pub fn main() -> anyhow::Result<()> {
     hover_provider: Some(HoverProviderCapability::Simple(true)),
     completion_provider: Some(CompletionOptions::default()),
     definition_provider: Some(OneOf::Left(true)),
+    document_formatting_provider: Some(OneOf::Left(true)),
     semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
       SemanticTokensOptions {
         legend: SemanticTokensLegend {

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use lsp_server::Notification;
 use lsp_types::notification::{Notification as _, PublishDiagnostics};
-use lsp_types::{Diagnostic, PublishDiagnosticsParams};
+use lsp_types::{Diagnostic, NumberOrString, PublishDiagnosticsParams};
 use ropey::Rope;
 use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::derived::check_schema_dir::check_schema_dir;
@@ -14,9 +14,12 @@ use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::derived::parse_file::parse_file;
 use tdr_lang::db::derived::typechecker::typecheck::typecheck;
 use tdr_lang::db::types::{File, Project};
+use tdr_lang::integrations::lint::lint_markdown;
+use tdr_lang::syntax::ast::{AstNode, SourceFile};
 use tdr_lang::syntax::diagnostic::Diagnostic as TdrDiagnostic;
 
 use crate::core::analysis::Analysis;
+use crate::core::utils::position::text_offset_to_lsp_position;
 use crate::core::utils::uri::path_to_uri;
 
 use super::to_lsp_diagnostic;
@@ -120,10 +123,29 @@ fn get_diagnostics_for_file(
     }
   }
 
-  let lsp_diags: Vec<Diagnostic> = tdr_diags
+  let mut lsp_diags: Vec<Diagnostic> = tdr_diags
     .iter()
     .filter_map(|diag| to_lsp_diagnostic(diag, rope))
     .collect();
+
+  // Lint warnings (markdown body only)
+  if let Some(body) = SourceFile::cast(parse_result.ast(db)).and_then(|sf| sf.body()) {
+    for lint in lint_markdown(&body) {
+      let start = lint.start_offset.min(rope.len_chars());
+      let end = lint.end_offset.min(rope.len_chars());
+      lsp_diags.push(Diagnostic {
+        range: lsp_types::Range {
+          start: text_offset_to_lsp_position(rope, start),
+          end: text_offset_to_lsp_position(rope, end),
+        },
+        severity: Some(lsp_types::DiagnosticSeverity::WARNING),
+        code: Some(NumberOrString::String(lint.code.as_str().into())),
+        source: Some("typedown".into()),
+        message: lint.message,
+        ..Default::default()
+      });
+    }
+  }
 
   let scheme = analysis
     .scheme_map

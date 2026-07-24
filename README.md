@@ -14,7 +14,7 @@ The tree-sitter grammar research is documented in the [loupe](https://github.com
 
 NOTE: In this early phase, we don't intend to be conformant to [commonmark](https://commonmark.org/) though. However, basic markdowns with basic syntaxes like tables, lists, links, headings, bold texts, block quotes should just work. In the future, we can use these two to check for compatibility: [spec](https://spec.commonmark.org/) and [reference implementations & tests](https://github.com/commonmark).
 
-For linting and formatting, we use the [Google's markdown style-guide](https://google.github.io/styleguide/docguide/style.html#use-lazy-numbering-for-long-lists).
+For linting and formatting, we follow [Google's markdown style guide](https://google.github.io/styleguide/docguide/style.html) with some divergences. See [crates/tdr-lang/README.md](crates/tdr-lang/README.md) for details.
 
 ## Dev Setup
 
