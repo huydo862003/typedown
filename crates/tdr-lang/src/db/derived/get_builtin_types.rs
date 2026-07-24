@@ -8,8 +8,8 @@ use crate::db::TypedownDatabase;
 use crate::db::types::BuiltinSchemaKind;
 use crate::db::types::FuncSignature;
 use crate::db::types::{
-  InstResult, Symbol, SymbolKind, TdrBoolObj, TdrBoolType, TdrDateTimeType, TdrDateType,
-  TdrDictType, TdrFuncType, TdrListType, TdrMathType, TdrNumType, TdrObjectType,
+  InstResult, Symbol, SymbolKind, TdrBlobType, TdrBoolObj, TdrBoolType, TdrDateTimeType,
+  TdrDateType, TdrDictType, TdrFuncType, TdrListType, TdrMathType, TdrNumType, TdrObjectType,
   TdrSchemaPropertyType, TdrSchemaType, TdrStrType, TdrTimeType, TdrTypeEnum, TdrTypeLike,
   TdrTypeType,
 };
@@ -189,6 +189,11 @@ pub fn get_dict_symbol(db: &TypedownDatabase) -> Symbol {
     "dict".to_string(),
     "@builtin::dict".to_string(),
   )
+}
+
+#[query_derived]
+pub fn get_blob_type(db: &TypedownDatabase) -> TdrBlobType {
+  TdrBlobType::new(db)
 }
 
 #[query_derived]

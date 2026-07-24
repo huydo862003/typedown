@@ -14,7 +14,8 @@ use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::typecheck::typecheck;
 use crate::db::types::{
   BuiltinSchemaKind, File, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-  SymbolKind, TdrProductType, TdrTypeEnum, TypeMember, TypeMemberDescriptors, TypeResult,
+  SymbolKind, TdrBlobType, TdrProductType, TdrTypeEnum, TypeMember, TypeMemberDescriptors,
+  TypeResult,
 };
 use crate::db::utils::lower_file;
 use tdr_incremental::QueryDatabase;
@@ -41,7 +42,8 @@ pub fn evaluate_type(db: &TypedownDatabase, symbol: Symbol) -> TypeResult {
     SymbolKind::UserDefinedSchema(project, file) => {
       evaluate_user_defined_schema(db, symbol.name(db), project, file)
     }
-    SymbolKind::UserDefinedResource(_, _) | SymbolKind::Asset(_, _, _) | SymbolKind::BuiltinMacro(_) => {
+    SymbolKind::Asset(_, _, _) => TypeResult::new(db, Some(TdrBlobType::get(db).into()), vec![]),
+    SymbolKind::UserDefinedResource(_, _) | SymbolKind::BuiltinMacro(_) => {
       TypeResult::new(db, None, vec![])
     }
   }

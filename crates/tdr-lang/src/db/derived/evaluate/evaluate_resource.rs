@@ -4,12 +4,17 @@ use tdr_macros::query_derived;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
-use crate::db::types::{ResourceResult, Symbol, SymbolKind};
+use crate::db::types::{ResourceResult, Symbol, SymbolKind, TdrBlobObj};
 use crate::db::utils::lower_file;
 use tdr_incremental::QueryDatabase;
 
 #[query_derived]
 pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResult {
+  if let SymbolKind::Asset(asset_kind, _project, _file) = symbol.kind(db) {
+    let blob = TdrBlobObj::new(db, asset_kind);
+    return ResourceResult::new(db, Some(blob.into()), vec![]);
+  }
+
   let (project, file) = match symbol.kind(db) {
     SymbolKind::UserDefinedResource(project, file) => (project, file),
     _ => return ResourceResult::new(db, None, vec![]),
@@ -29,7 +34,7 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 
 #[cfg(test)]
 mod tests {
-  use crate::db::types::{TdrObjectEnum, TdrObjectLike};
+  use crate::db::types::{AssetKind, TdrObjectEnum, TdrObjectLike};
   use crate::syntax::diagnostic::Diagnostic;
 
   use crate::db::{
@@ -454,5 +459,80 @@ mod tests {
       .expect("should have _content field");
     let str_obj = content.as_tdr_str_obj().expect("expected TdrStrObj");
     assert!(str_obj.value(&db).contains("Hello world"));
+  }
+
+  // An asset symbol evaluates to a TdrBlobObj with format and path fields
+  #[test]
+  fn evaluate_asset_produces_blob() {
+    use crate::db::types::{File, FileHandle, Project, Symbol, SymbolKind};
+    use crate::db::{QueryStorage, TypedownDatabase};
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+    let path = PathBuf::from("/vault/assets/photo.png");
+    let file = File::new(&db, FileHandle::Path(path.clone(), SystemTime::UNIX_EPOCH));
+    let project = Project::new(
+      &db,
+      PathBuf::from("/vault"),
+      [(path, file)].into_iter().collect(),
+    );
+    let symbol = Symbol::new(
+      &db,
+      SymbolKind::Asset(AssetKind::Png, project, file),
+      "photo".to_string(),
+      "@vault::assets/photo.png".to_string(),
+    );
+
+    let result = evaluate_resource(&db, symbol);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "should have no diagnostics"
+    );
+    let obj = result.value(&db).expect("should produce a blob object");
+    assert!(obj.as_tdr_blob_obj().is_some(), "expected TdrBlobObj");
+
+    let format = obj
+      .get_owned_field(&db, "format")
+      .expect("should have format field");
+    let format_str = format.as_tdr_str_obj().expect("expected TdrStrObj");
+    assert_eq!(format_str.value(&db), "png");
+  }
+
+  // Each AssetKind produces the correct format string
+  #[test]
+  fn blob_format_matches_asset_kind() {
+    use crate::db::types::{File, FileHandle, TdrBlobObj};
+    use crate::db::{QueryStorage, TypedownDatabase};
+    use std::time::SystemTime;
+
+    let db = TypedownDatabase {
+      storage: QueryStorage::default(),
+    };
+
+    let cases = [
+      (AssetKind::Pdf, "pdf"),
+      (AssetKind::Svg, "svg"),
+      (AssetKind::Png, "png"),
+      (AssetKind::Jpg, "jpg"),
+      (AssetKind::Webp, "webp"),
+      (AssetKind::UnknownBinary, "unknown"),
+    ];
+
+    for (kind, expected_format) in cases {
+      let blob = TdrBlobObj::new(&db, kind);
+      let format = TdrObjectEnum::from(blob)
+        .get_owned_field(&db, "format")
+        .expect("should have format");
+      let format_str = format.as_tdr_str_obj().expect("expected TdrStrObj");
+      assert_eq!(
+        format_str.value(&db),
+        expected_format,
+        "format mismatch for {:?}",
+        kind
+      );
+    }
   }
 }

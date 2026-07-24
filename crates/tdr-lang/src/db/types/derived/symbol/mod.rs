@@ -143,9 +143,8 @@ pub enum AssetKind {
   Svg = 1,
   Png = 2,
   Jpg = 3,
-  Jpeg = 4,
-  Webp = 5,
-  UnknownBinary = 6,
+  Webp = 4,
+  UnknownBinary = 5,
 }
 
 impl StableHash for AssetKind {

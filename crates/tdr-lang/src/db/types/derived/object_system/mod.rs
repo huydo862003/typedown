@@ -1,4 +1,5 @@
 mod base;
+mod blob;
 mod bool;
 mod datetime;
 mod dict;
@@ -14,7 +15,12 @@ mod str;
 
 use std::hash::{Hash, Hasher};
 
+use strum::FromRepr;
+
+use tdr_incremental::{Decodable, Decoder, Encodable, Encoder, FieldDecodable, FieldEncodable};
+
 pub use base::*;
+pub use blob::*;
 pub use bool::*;
 pub use datetime::*;
 pub use dict::*;
@@ -55,6 +61,7 @@ pub enum TdrTypeEnum {
   TdrSchemaType(TdrSchemaType),
   TdrSchemaPropertyType(TdrSchemaPropertyType),
   TdrProductType(TdrProductType),
+  TdrBlobType(TdrBlobType),
 }
 
 /// Use this instead of dyn
@@ -78,6 +85,7 @@ pub enum TdrObjectEnum {
   TdrSchemaType(TdrSchemaType),
   TdrSchemaPropertyType(TdrSchemaPropertyType),
   TdrProductType(TdrProductType),
+  TdrBlobType(TdrBlobType),
   // Objects
   TdrBoolObj(TdrBoolObj),
   TdrStrObj(TdrStrObj),
@@ -90,6 +98,7 @@ pub enum TdrObjectEnum {
   TdrDateObj(TdrDateObj),
   TdrTimeObj(TdrTimeObj),
   TdrProductObj(TdrProductObj),
+  TdrBlobObj(TdrBlobObj),
 }
 
 impl Id for TdrTypeEnum {
@@ -110,6 +119,7 @@ impl Id for TdrTypeEnum {
       TdrTypeEnum::TdrSchemaType(v) => v.as_id(),
       TdrTypeEnum::TdrSchemaPropertyType(v) => v.as_id(),
       TdrTypeEnum::TdrProductType(v) => v.as_id(),
+      TdrTypeEnum::TdrBlobType(v) => v.as_id(),
     }
   }
 }
@@ -132,6 +142,7 @@ impl Id for TdrObjectEnum {
       TdrObjectEnum::TdrSchemaType(v) => v.as_id(),
       TdrObjectEnum::TdrSchemaPropertyType(v) => v.as_id(),
       TdrObjectEnum::TdrProductType(v) => v.as_id(),
+      TdrObjectEnum::TdrBlobType(v) => v.as_id(),
       TdrObjectEnum::TdrBoolObj(v) => v.as_id(),
       TdrObjectEnum::TdrStrObj(v) => v.as_id(),
       TdrObjectEnum::TdrNumObj(v) => v.as_id(),
@@ -143,6 +154,7 @@ impl Id for TdrObjectEnum {
       TdrObjectEnum::TdrDateObj(v) => v.as_id(),
       TdrObjectEnum::TdrTimeObj(v) => v.as_id(),
       TdrObjectEnum::TdrProductObj(v) => v.as_id(),
+      TdrObjectEnum::TdrBlobObj(v) => v.as_id(),
     }
   }
 }
@@ -165,6 +177,7 @@ impl From<TdrTypeEnum> for TdrObjectEnum {
       TdrTypeEnum::TdrSchemaType(v) => TdrObjectEnum::TdrSchemaType(v),
       TdrTypeEnum::TdrSchemaPropertyType(v) => TdrObjectEnum::TdrSchemaPropertyType(v),
       TdrTypeEnum::TdrProductType(v) => TdrObjectEnum::TdrProductType(v),
+      TdrTypeEnum::TdrBlobType(v) => TdrObjectEnum::TdrBlobType(v),
     }
   }
 }
@@ -187,6 +200,7 @@ impl TdrObjectEnum {
       TdrObjectEnum::TdrSchemaType(v) => Some(TdrTypeEnum::TdrSchemaType(v)),
       TdrObjectEnum::TdrSchemaPropertyType(v) => Some(TdrTypeEnum::TdrSchemaPropertyType(v)),
       TdrObjectEnum::TdrProductType(v) => Some(TdrTypeEnum::TdrProductType(v)),
+      TdrObjectEnum::TdrBlobType(v) => Some(TdrTypeEnum::TdrBlobType(v)),
       _ => None,
     }
   }
@@ -240,6 +254,7 @@ impl tdr_incremental::StableHash for TdrTypeEnum {
       TdrTypeEnum::TdrSchemaType(v) => v.stable_hash(db, hasher),
       TdrTypeEnum::TdrSchemaPropertyType(v) => v.stable_hash(db, hasher),
       TdrTypeEnum::TdrProductType(v) => v.stable_hash(db, hasher),
+      TdrTypeEnum::TdrBlobType(v) => v.stable_hash(db, hasher),
     }
   }
 }
@@ -266,6 +281,7 @@ impl tdr_incremental::StableHash for TdrObjectEnum {
       TdrObjectEnum::TdrSchemaType(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrSchemaPropertyType(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrProductType(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrBlobType(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrBoolObj(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrStrObj(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrNumObj(v) => v.stable_hash(db, hasher),
@@ -277,13 +293,10 @@ impl tdr_incremental::StableHash for TdrObjectEnum {
       TdrObjectEnum::TdrDateObj(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrTimeObj(v) => v.stable_hash(db, hasher),
       TdrObjectEnum::TdrProductObj(v) => v.stable_hash(db, hasher),
+      TdrObjectEnum::TdrBlobObj(v) => v.stable_hash(db, hasher),
     }
   }
 }
-
-use strum::FromRepr;
-
-use tdr_incremental::{Decodable, Decoder, Encodable, Encoder, FieldDecodable, FieldEncodable};
 
 #[derive(FromRepr)]
 #[repr(u8)]
@@ -303,6 +316,7 @@ pub enum TdrTypeKind {
   DateTime = 12,
   Date = 13,
   Time = 14,
+  Blob = 15,
 }
 
 #[derive(FromRepr)]
@@ -324,6 +338,7 @@ pub enum TdrObjectKind {
   DateTime = 12,
   Date = 13,
   Time = 14,
+  Blob = 15,
   // Object-only
   StrObj = 128,
   BoolObj = 129,
@@ -336,6 +351,7 @@ pub enum TdrObjectKind {
   DateTimeObj = 136,
   DateObj = 137,
   TimeObj = 138,
+  BlobObj = 139,
 }
 
 // TdrTypeEnum
@@ -402,6 +418,10 @@ impl Encodable for TdrTypeEnum {
         encoder.emit_u8(buf, TdrTypeKind::Time as u8);
         v.encode_field(buf, encoder);
       }
+      TdrTypeEnum::TdrBlobType(v) => {
+        encoder.emit_u8(buf, TdrTypeKind::Blob as u8);
+        v.encode_field(buf, encoder);
+      }
     }
   }
 }
@@ -425,6 +445,7 @@ impl Decodable for TdrTypeEnum {
       TdrTypeKind::DateTime => TdrDateTimeType::decode_field(data, decoder).into(),
       TdrTypeKind::Date => TdrDateType::decode_field(data, decoder).into(),
       TdrTypeKind::Time => TdrTimeType::decode_field(data, decoder).into(),
+      TdrTypeKind::Blob => TdrBlobType::decode_field(data, decoder).into(),
     }
   }
 }
@@ -494,6 +515,10 @@ impl Encodable for TdrObjectEnum {
         encoder.emit_u8(buf, TdrObjectKind::Time as u8);
         v.encode_field(buf, encoder);
       }
+      TdrObjectEnum::TdrBlobType(v) => {
+        encoder.emit_u8(buf, TdrObjectKind::Blob as u8);
+        v.encode_field(buf, encoder);
+      }
       // Objects
       TdrObjectEnum::TdrStrObj(v) => {
         encoder.emit_u8(buf, TdrObjectKind::StrObj as u8);
@@ -539,6 +564,10 @@ impl Encodable for TdrObjectEnum {
         encoder.emit_u8(buf, TdrObjectKind::TimeObj as u8);
         v.encode_field(buf, encoder);
       }
+      TdrObjectEnum::TdrBlobObj(v) => {
+        encoder.emit_u8(buf, TdrObjectKind::BlobObj as u8);
+        v.encode_field(buf, encoder);
+      }
     }
   }
 }
@@ -562,6 +591,7 @@ impl Decodable for TdrObjectEnum {
       TdrObjectKind::DateTime => TdrDateTimeType::decode_field(data, decoder).into(),
       TdrObjectKind::Date => TdrDateType::decode_field(data, decoder).into(),
       TdrObjectKind::Time => TdrTimeType::decode_field(data, decoder).into(),
+      TdrObjectKind::Blob => TdrBlobType::decode_field(data, decoder).into(),
       TdrObjectKind::StrObj => TdrStrObj::decode_field(data, decoder).into(),
       TdrObjectKind::BoolObj => TdrBoolObj::decode_field(data, decoder).into(),
       TdrObjectKind::NumObj => TdrNumObj::decode_field(data, decoder).into(),
@@ -573,6 +603,7 @@ impl Decodable for TdrObjectEnum {
       TdrObjectKind::DateTimeObj => TdrDateTimeObj::decode_field(data, decoder).into(),
       TdrObjectKind::DateObj => TdrDateObj::decode_field(data, decoder).into(),
       TdrObjectKind::TimeObj => TdrTimeObj::decode_field(data, decoder).into(),
+      TdrObjectKind::BlobObj => TdrBlobObj::decode_field(data, decoder).into(),
     }
   }
 }
