@@ -22,7 +22,12 @@ strum = { version = "0.28.0", features = ["derive"] }
 
 [features]
 default = []
-markdown = []
+export = ["serde"]
+
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+optional = true
 
 [dev-dependencies]
 expect-test = "1.5.1"

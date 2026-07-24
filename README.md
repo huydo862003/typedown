@@ -38,9 +38,9 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions (Nix and non-Ni
   - It can be depended upon by everyone, EXCEPT FOR `tdr-macros` and `tdr-types`.
 - `tdr-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
   - It depends on `tdr-incremental`, `tdr-macros`, and `tdr-types`.
-  - It must not depend on `tdr-lsp`.
-  - It can only be depended upon by `tdr-lsp`.
-- `tdr-lsp` contains the LSP server for typedown.
+  - It must not depend on `tdr-lsp`/`tdr-build`.
+  - It can only be depended upon by `tdr-lsp`/`tdr-build`.
+- `tdr-lsp` contains the LSP server for typedown while `tdr-build` contains the build server.
   - It can depend on any other crates.
   - It can not be depended upon by others.
 

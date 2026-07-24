@@ -27,4 +27,4 @@ She joined the team in 2023 and has been ***leading*** the website redesign effo
 
 ## Formula Examples
 
-Inline formula reference: ${fref("content/tasks/implement-auth.tdr")}
+Inline formula reference: ${fref("tasks/implement-auth.tdr")}

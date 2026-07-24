@@ -3,8 +3,8 @@ _type: Task
 title: "Write integration tests for auth"
 status: "todo"
 priority: "medium"
-project: fref("content/projects/website-redesign.tdr")
-assignee: fref("content/people/alice.tdr")
+project: fref("projects/website-redesign.tdr")
+assignee: fref("people/alice.tdr")
 description: >
   Integration tests for the authentication flow,
   covering login, session management, and password

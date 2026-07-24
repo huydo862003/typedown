@@ -23,6 +23,7 @@ pub struct VaultConfigResult {
   version: String,
   content_dir: PathBuf,
   schema_dir: PathBuf,
+  base_path: String,
   diagnostics: Vec<Diagnostic>,
 }
 

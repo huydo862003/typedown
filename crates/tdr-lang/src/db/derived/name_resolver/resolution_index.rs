@@ -22,7 +22,7 @@ use crate::db::utils::lower_file;
 pub enum ReferenceKind {
   /// An identifier that resolves to the symbol (e.g. `_type: Person`)
   Ident = 0,
-  /// A fref call whose path resolves to the symbol (e.g. `fref("content/summary.tdr")`)
+  /// A fref call whose path resolves to the symbol (e.g. `fref("summary.tdr")`)
   Fref = 1,
 }
 
@@ -248,7 +248,7 @@ mod tests {
   fn resolution_index_finds_fref() {
     let (db, project, file) =
       load_vault_fixture("typecheck/narrow_vault", "content/article_fref_status.tdr");
-    // article_fref_status.tdr has fref("content/summary.tdr") which resolves to a symbol
+    // article_fref_status.tdr has fref("summary.tdr") which resolves to a symbol
     let idx = resolution_index(&db, project, file);
     let all_refs: Vec<_> = idx
       .symbols(&db)

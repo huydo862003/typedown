@@ -4,6 +4,7 @@ use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
 
 use crate::db::TypedownDatabase;
+use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::derived::name_resolver::file_symbol::{MaybeSymbol, file_symbol};
 use crate::db::derived::name_resolver::members::members;
 use crate::db::derived::name_resolver::scope::{parent_scope, scope};
@@ -49,7 +50,8 @@ fn resolve_call(
     && let HirValueKind::Str(path) = first_arg.kind(db)
   {
     let project = hir.project(db);
-    let target_path = project.root_dir(db).join(&path);
+    let content_dir = get_vault_config(db, project).content_dir(db);
+    let target_path = content_dir.join(&path);
     if let Some(&target_file) = project.files(db).get(&target_path) {
       return file_symbol(db, project, target_file);
     }
