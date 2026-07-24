@@ -67,12 +67,12 @@ impl RpcServer {
       _watcher,
     });
 
-    Self::watch_fs(Arc::clone(&server), fs_rx);
+    Self::spawn_fs_watcher_task(Arc::clone(&server), fs_rx);
 
     Ok(server)
   }
 
-  /// Set up the file watcher, forwarding events to an mpsc channel
+  /// Set up the file watcher
   fn setup_watcher(
     root_dir: &Path,
     fs_tx: tokio::sync::mpsc::UnboundedSender<FsEvent>,
@@ -97,7 +97,7 @@ impl RpcServer {
     Ok(watcher)
   }
 
-  fn watch_fs(server: Arc<Self>, mut fs_rx: tokio::sync::mpsc::UnboundedReceiver<FsEvent>) {
+  fn spawn_fs_watcher_task(server: Arc<Self>, mut fs_rx: tokio::sync::mpsc::UnboundedReceiver<FsEvent>) {
     tokio::spawn(async move {
       while let Some(event) = fs_rx.recv().await {
         let relative = match &event {
