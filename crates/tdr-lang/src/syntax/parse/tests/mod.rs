@@ -1,5 +1,5 @@
 mod expr;
-mod helpers;
+pub(crate) mod helpers;
 mod markdown;
 mod tdr;
 mod yaml;
