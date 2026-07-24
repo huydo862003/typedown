@@ -18,7 +18,7 @@ local function resolve_tree_sitter_binaries()
 
   local tag, version = release.release_tag()
 
-  -- Artifact naming: tdr-parser-{grammar}-{version}-{os}-{arch}.so
+  -- Artifact naming: tdr-treesitter-{grammar}-{version}-{os}-{arch}.so
   local os_arch, err = release.os_arch()
   if not os_arch then
     vim.notify("[typedown] Unsupported platform: " .. err, vim.log.levels.ERROR)
@@ -32,7 +32,7 @@ local function resolve_tree_sitter_binaries()
   if vim.uv.fs_stat(cache_dir) then
     local result = {}
     for _, name in ipairs(PARSER_NAMES) do
-      result[name] = cache_dir .. "/tdr-parser-" .. name .. "-" .. version .. "-" .. os_arch .. ".so"
+      result[name] = cache_dir .. "/tdr-treesitter-" .. name .. "-" .. version .. "-" .. os_arch .. ".so"
     end
     return result
   end
@@ -42,7 +42,7 @@ local function resolve_tree_sitter_binaries()
 
   local result = {}
   for _, name in ipairs(PARSER_NAMES) do
-    local filename = "tdr-parser-" .. name .. "-" .. version .. "-" .. os_arch .. ".so"
+    local filename = "tdr-treesitter-" .. name .. "-" .. version .. "-" .. os_arch .. ".so"
     local dest = cache_dir .. "/" .. filename
     local url = base_url .. "/" .. filename
     local ok, download_err = release.download(url, dest)

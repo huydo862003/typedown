@@ -1,14 +1,14 @@
 # Release artifact naming convention:
 #   tdr-lsp-{version}-{os}-{arch}[.exe]
-#   tdr-parser-{grammar}-{version}-{os}-{arch}.{so|wasm}
+#   tdr-treesitter-{grammar}-{version}-{os}-{arch}.{so|wasm}
 #   typedown-vscode-{version}-{os}-{arch}.vsix
 #
 # Examples:
 #   tdr-lsp-0.1.0-linux-x86_64
 #   tdr-lsp-0.1.0-darwin-aarch64
-#   tdr-parser-tdr-0.1.0-linux-x86_64.so
-#   tdr-parser-tdr_md-0.1.0-linux-x86_64.so
-#   tdr-parser-tdr-0.1.0.wasm
+#   tdr-treesitter-tdr-0.1.0-linux-x86_64.so
+#   tdr-treesitter-tdr_md-0.1.0-linux-x86_64.so
+#   tdr-treesitter-tdr-0.1.0.wasm
 #   typedown-vscode-0.1.0-linux-x86_64.vsix
 
 name: Release
@@ -155,13 +155,13 @@ jobs:
           mkdir -p dist/parsers
           for so in packages/tree-sitter/dist/tree-sitter-so/*.so; do
             grammar=$(basename "$so" .so)
-            cp "$so" "dist/parsers/tdr-parser-${grammar}-${{ env.VERSION }}-${{ matrix.os-arch }}.so"
+            cp "$so" "dist/parsers/tdr-treesitter-${grammar}-${{ env.VERSION }}-${{ matrix.os-arch }}.so"
           done
 
       - name: Upload .so parsers
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: tdr-parsers-so-${{ matrix.os-arch }}
+          name: tdr-treesitters-so-${{ matrix.os-arch }}
           path: dist/parsers/*.so
           retention-days: 2
 
@@ -177,14 +177,14 @@ jobs:
           mkdir -p dist/parsers-wasm
           for wasm in packages/tree-sitter/dist/tree-sitter-wasm/*.wasm; do
             grammar=$(basename "$wasm" .wasm)
-            cp "$wasm" "dist/parsers-wasm/tdr-parser-${grammar}-${{ env.VERSION }}.wasm"
+            cp "$wasm" "dist/parsers-wasm/tdr-treesitter-${grammar}-${{ env.VERSION }}.wasm"
           done
 
       - name: Upload .wasm parsers
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: matrix.runner == 'ubuntu-24.04'
         with:
-          name: tdr-parsers-wasm
+          name: tdr-treesitters-wasm
           path: dist/parsers-wasm/*.wasm
           retention-days: 2
 
@@ -211,5 +211,5 @@ jobs:
           files: |
             artifacts/tdr-lsp-*/*
             artifacts/typedown-vscode-*/*
-            artifacts/tdr-parsers-so-*/*
-            artifacts/tdr-parsers-wasm/*
+            artifacts/tdr-treesitters-so-*/*
+            artifacts/tdr-treesitters-wasm/*
