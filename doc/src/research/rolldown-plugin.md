@@ -60,3 +60,60 @@ See an example here: https://rolldown.rs/apis/plugin-api#example (there's a noti
     >
     > - Modules derived from a real file (like submodules from `.vue` or `.svelte` SFCs) should NOT use the `\0` prefix.
     > - Using it would break sourcemaps, since those submodules can be mapped back to the actual file on disk.
+
+## Plugin Interface
+
+The plugin object has:
+
+- One required property: `name`.
+- Everything else is optional hooks.
+
+### Hooks
+
+> Definition: Hooks are **methods** on **the plugin object** that **Rolldown calls** at **various stages of the build**.
+
+Basically, it is something like this:
+
+```json
+{
+  name: "...",
+  hook1 () { console.log("Rolldown will call this at a known point during the buld") }
+}
+```
+
+Hooks can:
+
+- Affect how a build runs.
+- Provide info about it.
+- Modify it after completion.
+
+When multiple plugins define the same hook (e.g. both `pluginA` and `pluginB` define `transform`), the **hook's kind** determines **how Rolldown coordinates them**.
+
+The type is fixed per hook in Rolldown's spec, not chosen by the plugin author. For example, `resolveId` is always `first`, `transform` is always `sequential`. The plugin author just defines the method, and Rolldown knows how to coordinate it.
+
+The following specifies the hook kinds:
+
+- **`async`**:
+  - The hook **may** return a Promise resolving to the same type of value.
+  - Otherwise it is **`sync`**.
+- **`first`**:
+  - Plugins implementing this hook run sequentially until one returns a non-`null`/non-`undefined` value.
+  - The rest are skipped.
+- **`sequential`**:
+  - All plugins run in the specificed plugin order.
+  - If `async`, each waits for the previous to resolve.
+- **`parallel`**:
+  - All plugins run in the specified plugin order.
+  - If `async`, they run concurrently (don't wait for each other).
+
+> Remark: A hook can also be specified as an object with a `handler` property instead of a plain method. This is the `ObjectHook` form, which allows attaching additional metadata to control behavior (e.g. hook filters).
+
+There are **two types of hooks**:
+
+1. **Build hooks**: Run during the build phase (`buildStart`, `resolveId`, `load`, `transform`, `buildEnd`, etc.).
+2. **Output generation hooks**: Run during output generation (`renderStart`, `renderChunk`, `generateBundle`, etc.).
+
+> Remark: Ok, following convention, we will distinguish between:
+>
+> - Hook kind: Rolldown specification of how a defined hook is coordinated if multiple plugins define the hook.
+> - Hook type: Rolldown specification of when the hook is run.
