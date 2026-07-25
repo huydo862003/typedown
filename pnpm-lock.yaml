@@ -77,6 +77,8 @@ importers:
 
   editors/zed: {}
 
+  packages/rpc-client: {}
+
   packages/tree-sitter:
     devDependencies:
       tree-sitter-cli:
@@ -84,6 +86,10 @@ importers:
         version: 0.26.11
 
   packages/vite-plugin-typedown:
+    dependencies:
+      rpc-client:
+        specifier: workspace:*
+        version: link:../rpc-client
     devDependencies:
       '@hdnax/nuclint':
         specifier: ^0.17.4
