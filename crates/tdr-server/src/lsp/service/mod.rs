@@ -13,8 +13,8 @@ use lsp_types::request::{
   Completion, Formatting, GotoDefinition, HoverRequest, PrepareRenameRequest, References, Rename,
   Request as _, SemanticTokensFullRequest, WillRenameFiles,
 };
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::core::analysis::Analysis;
