@@ -2099,6 +2099,7 @@ dependencies = [
  "proptest",
  "regex",
  "serde",
+ "serde_json",
  "strum",
  "tdr-incremental",
  "tdr-macros",

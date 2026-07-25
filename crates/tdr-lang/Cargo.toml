@@ -22,11 +22,15 @@ strum = { version = "0.28.0", features = ["derive"] }
 
 [features]
 default = []
-export = ["serde"]
+export = ["serde", "serde_json"]
 
 [dependencies.serde]
 version = "1"
 features = ["derive"]
+optional = true
+
+[dependencies.serde_json]
+version = "1"
 optional = true
 
 [dev-dependencies]

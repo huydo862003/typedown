@@ -145,7 +145,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
       pub fn #field_name<DB: ::tdr_incremental::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
         let ingredient_index = Self::ingredient_start_index() + #idx;
-        let ingredient = (&*storage.ingredients[ingredient_index].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[ingredient_index].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid input id");
 
@@ -165,7 +165,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
       pub fn #setter_name<DB: ::tdr_incremental::QueryDatabase + ?Sized>(&self, db: &mut DB, value: #field_ty) {
         let storage = unsafe { db.storage() };
-        let ingredient = (&*storage.ingredients[Self::ingredient_start_index() + #idx].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[Self::ingredient_start_index() + #idx].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::InputFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let mut entry = ingredient.data.get_mut(&self.0).expect("invalid input id");
         if entry.value.eq(&value) {
@@ -190,7 +190,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
       impl #struct_name {
         fn ingredient_start_index_lock() -> &'static ::std::sync::OnceLock<usize> {
-          static START_INDEX: std::sync::OnceLock<usize> = ::std::sync::OnceLock::new();
+          static START_INDEX: ::std::sync::OnceLock<usize> = ::std::sync::OnceLock::new();
           &START_INDEX
         }
 
@@ -204,13 +204,13 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           let _ = Self::ingredient_start_index_lock().set(index);
         }
 
-        fn id_counter() -> &'static std::sync::atomic::AtomicUsize {
-          static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        fn id_counter() -> &'static ::std::sync::atomic::AtomicUsize {
+          static COUNTER: ::std::sync::atomic::AtomicUsize = ::std::sync::atomic::AtomicUsize::new(0);
           &COUNTER
         }
 
         fn next_id() -> usize {
-          Self::id_counter().fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+          Self::id_counter().fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
         }
 
         pub fn new<DB: ::tdr_incremental::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
@@ -218,10 +218,10 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           let id = Self::next_id();
           let start_index = Self::ingredient_start_index();
 
-          let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);
+          let current_revision = storage.revision.load(::std::sync::atomic::Ordering::Acquire);
           #(
             {
-              let ingredient = (&*storage.ingredients[start_index + #field_indices].ingredient as &dyn std::any::Any)
+              let ingredient = (&*storage.ingredients[start_index + #field_indices].ingredient as &dyn ::std::any::Any)
                 .downcast_ref::<::tdr_incremental::InputFieldIngredient<#field_types>>().expect("ingredient type mismatch");
               ingredient.data.insert(id, ::tdr_incremental::StampedInputField {
                 value: #field_names,
@@ -388,8 +388,8 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
       #visibility struct #fn_name { private: () }
 
       impl #fn_name {
-        fn ingredient_index_lock() -> &'static std::sync::OnceLock<usize> {
-          static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+        fn ingredient_index_lock() -> &'static ::std::sync::OnceLock<usize> {
+          static INDEX: ::std::sync::OnceLock<usize> = ::std::sync::OnceLock::new();
           &INDEX
         }
 
@@ -439,7 +439,7 @@ fn query_derived_fn_impl(func: ItemFn) -> TokenStream {
     quote! {
       #visibility fn #fn_name(#db_arg, #(#key_names: #key_types),*) -> #return_type {
         let storage = unsafe { db.storage() };
-        let ingredient = (&*storage.ingredients[#fn_name::ingredient_index()].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[#fn_name::ingredient_index()].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::DerivedQueryIngredient<#db_type, #key_tuple_ty, #return_type>>()
           .expect("derived ingredient type mismatch");
         ingredient.execute_query(db, (#(#key_names,)*))
@@ -524,8 +524,8 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
   for (idx, field_ty) in internal_field_types.iter().enumerate() {
     let identity_map_expr = if idx == 0 {
       quote! {
-        Some(std::sync::Arc::new(dashmap::DashMap::<#identity_ty, usize>::new())
-          as std::sync::Arc<dyn std::any::Any + Send + Sync>)
+        Some(::std::sync::Arc::new(dashmap::DashMap::<#identity_ty, usize>::new())
+          as ::std::sync::Arc<dyn ::std::any::Any + Send + Sync>)
       }
     } else {
       quote! { None }
@@ -570,7 +570,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
       pub fn #field_name<DB: ::tdr_incremental::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
         let ingredient_index = Self::ingredient_start_index() + #idx;
-        let ingredient = (&*storage.ingredients[ingredient_index].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[ingredient_index].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::DerivedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid derived id");
 
@@ -592,7 +592,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
   let identity_map_lookup_tokens = if let Some(fft) = first_field_ty {
     quote! {
-      let first_ingredient = (&*storage.ingredients[start_index].ingredient as &dyn std::any::Any)
+      let first_ingredient = (&*storage.ingredients[start_index].ingredient as &dyn ::std::any::Any)
         .downcast_ref::<::tdr_incremental::DerivedFieldIngredient<#fft>>()
         .expect("ingredient type mismatch");
       let map = first_ingredient.identity_map.as_ref()
@@ -628,7 +628,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
   if has_phantom {
     new_body_tokens.extend(quote! {
       {
-        let ingredient = (&*storage.ingredients[start_index].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[start_index].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::DerivedFieldIngredient<()>>().expect("ingredient type mismatch");
         ingredient.data.entry(id).or_insert(::tdr_incremental::StampedDerivedField {
           value: (),
@@ -644,7 +644,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
     new_body_tokens.extend(quote! {
       {
-        let ingredient = (&*storage.ingredients[start_index + #idx].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[start_index + #idx].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::DerivedFieldIngredient<#field_ty>>().expect("ingredient type mismatch");
         // Backdate: only update changed_at if the value actually changed
         if let Some(existing) = ingredient.data.get(&id) {
@@ -673,8 +673,8 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
       #visibility struct #struct_name(usize);
 
       impl #struct_name {
-        fn ingredient_start_index_lock() -> &'static std::sync::OnceLock<usize> {
-          static START_INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+        fn ingredient_start_index_lock() -> &'static ::std::sync::OnceLock<usize> {
+          static START_INDEX: ::std::sync::OnceLock<usize> = ::std::sync::OnceLock::new();
           &START_INDEX
         }
 
@@ -689,13 +689,13 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
         }
 
         #[doc(hidden)]
-        pub fn id_counter() -> &'static std::sync::atomic::AtomicUsize {
-          static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        pub fn id_counter() -> &'static ::std::sync::atomic::AtomicUsize {
+          static COUNTER: ::std::sync::atomic::AtomicUsize = ::std::sync::atomic::AtomicUsize::new(0);
           &COUNTER
         }
 
         fn next_id() -> usize {
-          Self::id_counter().fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+          Self::id_counter().fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
         }
 
         /// Create or update a derived struct by identity
@@ -703,11 +703,11 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
         pub fn new<DB: ::tdr_incremental::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let storage = unsafe { db.storage() };
           let start_index = Self::ingredient_start_index();
-          let current_revision = storage.revision.load(std::sync::atomic::Ordering::Acquire);
+          let current_revision = storage.revision.load(::std::sync::atomic::Ordering::Acquire);
 
           // Compute disambiguator scoped to the creating query
           let identity_hash = {
-            use std::hash::{Hash, Hasher};
+            use ::std::hash::{Hash, Hasher};
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             start_index.hash(&mut hasher);
             storage.current_query_identity().hash(&mut hasher);
@@ -811,7 +811,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
           const fn assert_send<T: Send>() {}
           const fn assert_sync<T: Sync>() {}
           const fn assert_clone<T: Clone>() {}
-          const fn assert_hash<T: std::hash::Hash>() {}
+          const fn assert_hash<T: ::std::hash::Hash>() {}
           const fn assert_eq<T: Eq>() {}
           assert_send::<#field_ty>();
           assert_sync::<#field_ty>();
@@ -866,7 +866,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
       pub fn #field_name<DB: ::tdr_incremental::QueryDatabase + ?Sized>(&self, db: &DB) -> #field_ty {
         let storage = unsafe { db.storage() };
         let ingredient_index = Self::ingredient_index();
-        let ingredient = (&*storage.ingredients[ingredient_index].ingredient as &dyn std::any::Any)
+        let ingredient = (&*storage.ingredients[ingredient_index].ingredient as &dyn ::std::any::Any)
           .downcast_ref::<::tdr_incremental::InternedIngredient<#intern_key_ty>>().expect("ingredient type mismatch");
         let entry = ingredient.data.get(&self.0).expect("invalid interned id");
 
@@ -881,8 +881,8 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
       #visibility struct #struct_name(usize);
 
       impl #struct_name {
-        fn ingredient_index_lock() -> &'static std::sync::OnceLock<usize> {
-          static INDEX: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+        fn ingredient_index_lock() -> &'static ::std::sync::OnceLock<usize> {
+          static INDEX: ::std::sync::OnceLock<usize> = ::std::sync::OnceLock::new();
           &INDEX
         }
 
@@ -896,17 +896,17 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
           let _ = Self::ingredient_index_lock().set(index);
         }
 
-        fn id_counter() -> &'static std::sync::atomic::AtomicUsize {
-          static COUNTER: std::sync::atomic::AtomicUsize = ::std::sync::atomic::AtomicUsize::new(0);
+        fn id_counter() -> &'static ::std::sync::atomic::AtomicUsize {
+          static COUNTER: ::std::sync::atomic::AtomicUsize = ::std::sync::atomic::AtomicUsize::new(0);
           &COUNTER
         }
 
         fn next_id() -> usize {
-          Self::id_counter().fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+          Self::id_counter().fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
         }
 
         fn intern_map() -> &'static dashmap::DashMap<#intern_key_ty, usize> {
-          static MAP: std::sync::OnceLock<dashmap::DashMap<#intern_key_ty, usize>> = std::sync::OnceLock::new();
+          static MAP: ::std::sync::OnceLock<dashmap::DashMap<#intern_key_ty, usize>> = ::std::sync::OnceLock::new();
           MAP.get_or_init(|| dashmap::DashMap::new())
         }
 
@@ -923,7 +923,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 
           // Always ensure data exists in the current storage
           let storage = unsafe { db.storage() };
-          let ingredient = (&*storage.ingredients[Self::ingredient_index()].ingredient as &dyn std::any::Any)
+          let ingredient = (&*storage.ingredients[Self::ingredient_index()].ingredient as &dyn ::std::any::Any)
             .downcast_ref::<::tdr_incremental::InternedIngredient<#intern_key_ty>>().expect("ingredient type mismatch");
           ingredient.data.entry(id).or_insert(intern_key);
 

@@ -1,19 +1,21 @@
 //! Export typedown resources
 
-use std::collections::HashMap;
+pub mod json;
 
 use tdr_types::either::Either;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use crate::db::derived::evaluate::evaluate_resource::evaluate_resource;
+use crate::db::derived::evaluate::evaluate_type::evaluate_type;
 use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::derived::hir::lower_node;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::parse_file::parse_file;
 use crate::db::types::{
-  File, HirValue, Project, Symbol, SymbolKind, TdrObjectEnum, TdrObjectLike, TdrTypeLike,
+  File, HirValue, Project, Symbol, SymbolKind, TdrBlobType, TdrObjectEnum, TdrObjectLike,
+  TdrTypeLike,
 };
 use crate::syntax::ast::{AstNode, InterpFragment, MdBody, MdToggleList, SourceFile};
 use crate::syntax::red::RedNode;
@@ -22,24 +24,12 @@ use crate::syntax::syntax_kind::SyntaxKind;
 /// Structured export result
 #[derive(serde::Serialize)]
 pub struct ExportedResource {
-  /// Schema type of this resource
+  /// Schema type name of this resource
   pub schema: String,
-  /// Frontmatter fields as key-value pairs
-  pub header: HashMap<String, ExportedValue>,
+  /// Frontmatter fields as a JSON object
+  pub header: serde_json::Value,
   /// Commonmark-compatible markdown body
   pub content: String,
-}
-
-/// An exported field value
-#[derive(serde::Serialize)]
-#[serde(untagged)]
-pub enum ExportedValue {
-  String(String),
-  Number(f64),
-  Bool(bool),
-  List(Vec<ExportedValue>),
-  Object(HashMap<String, ExportedValue>),
-  Null,
 }
 
 /// Export a resource file as structured header and commonmark content
@@ -48,13 +38,25 @@ pub fn export_resource(
   project: Project,
   file: File,
 ) -> Option<ExportedResource> {
-  let (_, obj) = resolve_resource(db, project, file)?;
-  // Get schema name from the product's type
-  let schema = match &obj {
-    TdrObjectEnum::TdrProductObj(product) => product.schema(db).display_name(db).to_string(),
-    _ => return None,
-  };
-  let header = export_header(db, &obj);
+  let symbol = file_symbol(db, project, file).value(db)?;
+  let obj = evaluate_resource(db, symbol).value(db)?;
+
+  // Assets export as a blob descriptor with no body
+  if obj.as_tdr_blob_obj().is_some() {
+    return Some(ExportedResource {
+      schema: TdrBlobType::get(db).display_name(db),
+      header: json::to_json(db, &obj).unwrap_or_default(),
+      content: String::new(),
+    });
+  }
+
+  let product = obj.as_tdr_product_obj()?;
+  let schema = product.schema(db).display_name(db);
+  let mut header = json::to_json(db, &obj).unwrap_or_default();
+  // _content is available in ExportedResource.content, not the header
+  if let serde_json::Value::Object(ref mut map) = header {
+    map.remove("_content");
+  }
 
   // Walk the AST and translate to somewhat commonmark-conformant markdown
   let parse_result = parse_file(db, project, file);
@@ -70,53 +72,16 @@ pub fn export_resource(
   })
 }
 
-/// Extract frontmatter fields, excluding _content
-fn export_header(db: &TypedownDatabase, obj: &TdrObjectEnum) -> HashMap<String, ExportedValue> {
-  let mut header = HashMap::new();
-
-  let product = match obj {
-    TdrObjectEnum::TdrProductObj(product) => product,
-    _ => return header,
-  };
-
-  for (key, field) in product.fields(db) {
-    // Skip _content, available in ExportedResource.content
-    if key == "_content" {
-      continue;
-    }
-    if let Some(value) = evaluate_lazy_field(db, field.clone()) {
-      header.insert(key.clone(), export_value(db, &value));
-    }
-  }
-
-  header
-}
-
-fn export_value(db: &TypedownDatabase, obj: &TdrObjectEnum) -> ExportedValue {
-  match obj {
-    TdrObjectEnum::TdrStrObj(str_obj) => ExportedValue::String(str_obj.value(db)),
-    TdrObjectEnum::TdrNumObj(num_obj) => ExportedValue::Number(num_obj.value(db)),
-    TdrObjectEnum::TdrBoolObj(bool_obj) => ExportedValue::Bool(bool_obj.value(db)),
-    TdrObjectEnum::TdrListObj(list_obj) => {
-      let items = list_obj
-        .items(db)
-        .iter()
-        .filter_map(|item| evaluate_lazy_field(db, item.clone()))
-        .map(|obj| export_value(db, &obj))
-        .collect();
-      ExportedValue::List(items)
-    }
-    TdrObjectEnum::TdrProductObj(product) => {
-      let mut map = HashMap::new();
-      for (key, field) in product.fields(db) {
-        if let Some(value) = evaluate_lazy_field(db, field.clone()) {
-          map.insert(key.clone(), export_value(db, &value));
-        }
-      }
-      ExportedValue::Object(map)
-    }
-    _ => ExportedValue::Null,
-  }
+/// Export schema field types as a JSON object mapping field name to type name
+pub fn export_schema(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+) -> Option<serde_json::Value> {
+  let symbol = file_symbol(db, project, file).value(db)?;
+  let typ = evaluate_type(db, symbol).typ(db)?;
+  let obj = TdrObjectEnum::from(typ);
+  json::to_json(db, &obj).ok()
 }
 
 fn export_markdown_body(
@@ -299,7 +264,7 @@ fn resolve_display_name(db: &TypedownDatabase, project: Project, symbol: &Symbol
   }
 }
 
-fn evaluate_lazy_field(
+pub(super) fn evaluate_lazy_field(
   db: &TypedownDatabase,
   field: Either<HirValue, TdrObjectEnum>,
 ) -> Option<TdrObjectEnum> {
@@ -307,19 +272,6 @@ fn evaluate_lazy_field(
     Either::Right(obj) => Some(obj),
     Either::Left(hir) => evaluate_node(db, hir).value(db),
   }
-}
-
-fn resolve_resource(
-  db: &TypedownDatabase,
-  project: Project,
-  file: File,
-) -> Option<(Symbol, TdrObjectEnum)> {
-  let symbol = file_symbol(db, project, file).value(db)?;
-  if !matches!(symbol.kind(db), SymbolKind::UserDefinedResource(..)) {
-    return None;
-  }
-  let obj = evaluate_resource(db, symbol).value(db)?;
-  Some((symbol, obj))
 }
 
 #[cfg(test)]
@@ -332,12 +284,20 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
     let result = export_resource(&db, project, file);
     let exported = result.expect("should export");
-    assert!(!exported.header.is_empty(), "header should have fields");
+    assert!(
+      exported.header.as_object().is_some_and(|m| !m.is_empty()),
+      "header should have fields"
+    );
     assert_eq!(exported.schema, "Person", "schema should be Person");
     assert!(
-      !exported.header.contains_key("_content"),
+      exported.header.get("_content").is_none(),
       "should not contain _content"
     );
+    assert_eq!(
+      exported.header["name"],
+      serde_json::Value::String("Alice".to_string())
+    );
+    assert_eq!(exported.header["age"], serde_json::json!(30.0));
   }
 
   #[test]
@@ -380,6 +340,47 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
     let result = export_resource(&db, project, file);
     assert!(result.is_none(), "schema should return None");
+  }
+
+  #[test]
+  fn exports_schema_properties() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
+    let props = export_schema(&db, project, file).expect("Person schema should export");
+    assert_eq!(
+      props["name"],
+      serde_json::Value::String("string".to_string())
+    );
+    assert_eq!(
+      props["age"],
+      serde_json::Value::String("number".to_string())
+    );
+  }
+
+  #[test]
+  fn returns_none_for_non_schema() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.tdr");
+    let result = export_schema(&db, project, file);
+    assert!(
+      result.is_none(),
+      "resource file should return None from export_schema"
+    );
+  }
+
+  #[test]
+  fn exports_asset_as_blob_descriptor() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/icon.svg");
+    let exported = export_resource(&db, project, file).expect("asset should export");
+    assert_eq!(exported.schema, "blob");
+    assert_eq!(
+      exported.header["format"],
+      serde_json::Value::String("svg".to_string())
+    );
+    assert!(
+      exported.header.get("handle").is_some(),
+      "should include handle"
+    );
+    assert_eq!(exported.header["handle"]["type"], "path");
+    assert!(exported.content.is_empty(), "asset has no markdown body");
   }
 
   // fref links use build.base_path from typedown.yaml
