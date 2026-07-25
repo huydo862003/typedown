@@ -178,3 +178,45 @@ The lifecycle:
 >
 > - `resolveImportMeta` ([rolldown#1010](https://github.com/rolldown/rolldown/issues/1010)).
 > - `renderDynamicImport` ([rolldown#4532](https://github.com/rolldown/rolldown/issues/4532)).
+
+### Plugin Context
+
+Inside most hooks, `this` refers to a [PluginContext](https://rolldown.rs/reference/Interface.PluginContext) object that provides utility functions and build information. For example, `this.resolve()` to resolve an import, `this.emitFile()` to emit a file, `this.getModuleInfo()` to inspect a module, etc.
+
+> Remark: This means hooks must be regular functions (not arrow functions) to access `this`.
+
+### Supporting TypeScript and JSX
+
+Rolldown runs `internalTransform` (TS/JSX to JS) **after** the `transform` hooks. This means plugins using `transform` receive TypeScript/JSX code, not plain JS.
+
+Two ways to handle this:
+
+1. **Parse the TS/JSX directly**: `this.parse` supports TypeScript and JSX via a `lang` option. So if your plugin works with the AST, just pass the right lang and it works.
+
+2. **Transform to JS first**: If working with TS/JSX AST is not an option, use the `transform` function from `rolldown/utils` to convert to JS before processing. This has additional overhead since it runs an extra transform pass.
+
+> Remark: This is a key difference from Rollup, where transforms typically receive plain JS. In Rolldown, you might see type annotations and JSX in the `transform` hook input.
+
+## Notable Differences from Rollup
+
+While Rolldown's plugin interface is largely compatible with Rollup's, there are some behavioral differences.
+
+### Output Generation Handling
+
+In Rollup, all outputs are generated together in a single process. Rolldown handles each output generation separately. If you have multiple output configurations, Rolldown processes each output independently. This affects plugins that maintain state across the build.
+
+Concrete differences:
+
+- `outputOptions` hook is called **before** build hooks in Rolldown. Rollup calls them **after**.
+- Build hooks are called **for each output separately** in Rolldown. Rollup calls them once for all outputs.
+- `closeBundle` hook is called only when `generate()` or `write()` was called at least once. Rollup calls it regardless.
+
+### Watch Mode
+
+In Rollup, the `options` hook is called on every rebuild in watch mode. In Rolldown, `options` is only called once when the watcher is created, not on subsequent rebuilds.
+
+### Sequential Hook Execution
+
+In Rollup, `writeBundle` is `parallel` by default, so plugins need to explicitly set `sequential: true` if they need ordered execution.
+
+In Rolldown, `writeBundle` is already `sequential` by default.
