@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
 use serde::{Deserialize, Serialize};
@@ -32,24 +33,24 @@ pub trait TdrBuildRpc<Hash, StorageKey> {
   /* Content subscriptions */
 
   #[subscription(name = "subscribe_content_changed", item = TdrContentNotification)]
-  async fn on_content_changed(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_content_changed(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_content_created", item = TdrContentNotification)]
-  async fn on_content_created(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_content_created(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_content_deleted", item = TdrContentNotification)]
-  async fn on_content_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_content_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
 
   /* Schema subscriptions */
 
   #[subscription(name = "subscribe_schema_changed", item = TdrSchemaNotification)]
-  async fn on_schema_changed(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_schema_changed(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_schema_created", item = TdrSchemaNotification)]
-  async fn on_schema_created(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_schema_created(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_schema_deleted", item = TdrSchemaNotification)]
-  async fn on_schema_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_schema_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
 }
 
 /* RPC request params and results */
@@ -89,11 +90,13 @@ pub struct TdrSchemaNotification {
 
 /* Server's response to client subscription termination */
 
+#[cfg(not(target_arch = "wasm32"))]
 pub enum TdrRpcSubscriptionCloseResponse {
   Ok,
   Err(String),
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl IntoSubscriptionCloseResponse for TdrRpcSubscriptionCloseResponse {
   fn into_response(self) -> SubscriptionCloseResponse {
     match self {

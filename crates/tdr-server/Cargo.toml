@@ -59,6 +59,10 @@ wasm-bindgen = "0.2"
 # TIL: Bridges Rust Future and JS Promise
 # This is required because there is no tokio in WASM, the JS event loop is the only executor
 wasm-bindgen-futures = "0.4"
+# Converts Rust types to/from JS values via serde
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+futures = "0.3"
 
 [dev-dependencies]
 tempfile = "3"

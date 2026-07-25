@@ -8,3 +8,6 @@ pub mod lsp;
 
 // client trait is used by both native and WASM
 pub mod rpc;
+
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
