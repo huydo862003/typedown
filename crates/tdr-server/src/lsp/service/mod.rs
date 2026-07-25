@@ -3,16 +3,18 @@ pub mod completion;
 pub mod definition;
 pub mod formatting;
 pub mod hover;
+pub mod references;
 pub mod rename_symbol;
 pub mod semantic_tokens;
+pub mod utils;
 
 use lsp_server::{ErrorCode, Request, Response};
 use lsp_types::request::{
-  Completion, Formatting, GotoDefinition, HoverRequest, PrepareRenameRequest, Rename, Request as _,
-  SemanticTokensFullRequest, WillRenameFiles,
+  Completion, Formatting, GotoDefinition, HoverRequest, PrepareRenameRequest, References, Rename,
+  Request as _, SemanticTokensFullRequest, WillRenameFiles,
 };
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::core::analysis::Analysis;
@@ -23,6 +25,7 @@ pub fn dispatch(analysis: &Analysis, req: Request) -> Response {
     HoverRequest::METHOD => try_handle(&req, |p| hover::hover(analysis, p)),
     Completion::METHOD => try_handle(&req, |p| completion::completion(analysis, p)),
     GotoDefinition::METHOD => try_handle(&req, |p| definition::definition(analysis, p)),
+    References::METHOD => try_handle(&req, |p| references::find_references(analysis, p)),
     SemanticTokensFullRequest::METHOD => {
       try_handle(&req, |p| semantic_tokens::semantic_tokens_full(analysis, p))
     }
