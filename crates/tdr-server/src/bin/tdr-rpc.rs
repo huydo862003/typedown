@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
   let addr = server.local_addr()?;
   let handle = server.start(module);
 
-  println!("{}", addr.port());
+  println!("ws://{addr}");
 
   handle.stopped().await;
 

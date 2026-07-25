@@ -1,16 +1,23 @@
-use jsonrpsee::core::{RpcResult, to_json_raw_value};
+#[cfg(not(target_arch = "wasm32"))]
+use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::{self, IntoSubscriptionCloseResponse, SubscriptionCloseResponse};
 use serde::{Deserialize, Serialize};
 
-/// According to the doc, this generates two traits:
-/// - TdrBuildRpcClient: An extension trait that adds all the required methods to a type that implements Client or SubscriptionClient
-/// - TdrBuildRpcServer: A trait mostly equivalent to the input with
-///    + An additional method `into_rpc` that converts TdrBuildRpcServer implementors to an `RpcModule`
-///    + For subscription methods:
-///      An additional param inserted after `&self`: `subscription_sink: SubscriptionSink`.
-///      Return type must implement `IntoSubscriptionCloseResponse`.
-#[rpc(server, client, namespace = "tdr_build", namespace_separator = ".")]
+#[cfg(not(target_arch = "wasm32"))]
+use jsonrpsee::{
+  IntoSubscriptionCloseResponse, SubscriptionCloseResponse, core::to_json_raw_value,
+};
+
+/// On native: generates both TdrBuildRpcServer and TdrBuildRpcClient traits
+#[cfg_attr(
+  not(target_arch = "wasm32"),
+  rpc(server, client, namespace = "tdr_build", namespace_separator = ".")
+)]
+/// On WASM: generates only TdrBuildRpcClient (no server types available)
+#[cfg_attr(
+  target_arch = "wasm32",
+  rpc(client, namespace = "tdr_build", namespace_separator = ".")
+)]
 pub trait TdrBuildRpc<Hash, StorageKey> {
   /* Requests */
 
@@ -26,24 +33,24 @@ pub trait TdrBuildRpc<Hash, StorageKey> {
   /* Content subscriptions */
 
   #[subscription(name = "subscribe_content_changed", item = TdrContentNotification)]
-  async fn on_content_changed(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_content_changed(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_content_created", item = TdrContentNotification)]
-  async fn on_content_created(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_content_created(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_content_deleted", item = TdrContentNotification)]
-  async fn on_content_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_content_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
 
   /* Schema subscriptions */
 
   #[subscription(name = "subscribe_schema_changed", item = TdrSchemaNotification)]
-  async fn on_schema_changed(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_schema_changed(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_schema_created", item = TdrSchemaNotification)]
-  async fn on_schema_created(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_schema_created(&self) -> TdrRpcSubscriptionCloseResponse;
 
   #[subscription(name = "subscribe_schema_deleted", item = TdrSchemaNotification)]
-  async fn on_schema_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
+  async fn subscribe_schema_deleted(&self) -> TdrRpcSubscriptionCloseResponse;
 }
 
 /* RPC request params and results */
@@ -83,11 +90,13 @@ pub struct TdrSchemaNotification {
 
 /* Server's response to client subscription termination */
 
+#[cfg(not(target_arch = "wasm32"))]
 pub enum TdrRpcSubscriptionCloseResponse {
   Ok,
   Err(String),
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl IntoSubscriptionCloseResponse for TdrRpcSubscriptionCloseResponse {
   fn into_response(self) -> SubscriptionCloseResponse {
     match self {

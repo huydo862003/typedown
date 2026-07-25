@@ -287,42 +287,42 @@ impl TdrBuildRpcServer<(), ()> for RpcServer {
     self.get_schema_impl(&schema).await
   }
 
-  async fn on_content_changed(
+  async fn subscribe_content_changed(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
     run_subscription(pending, self.content_changed_tx.subscribe()).await
   }
 
-  async fn on_content_created(
+  async fn subscribe_content_created(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
     run_subscription(pending, self.content_created_tx.subscribe()).await
   }
 
-  async fn on_content_deleted(
+  async fn subscribe_content_deleted(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
     run_subscription(pending, self.content_deleted_tx.subscribe()).await
   }
 
-  async fn on_schema_changed(
+  async fn subscribe_schema_changed(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
     run_subscription(pending, self.schema_changed_tx.subscribe()).await
   }
 
-  async fn on_schema_created(
+  async fn subscribe_schema_created(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {
     run_subscription(pending, self.schema_created_tx.subscribe()).await
   }
 
-  async fn on_schema_deleted(
+  async fn subscribe_schema_deleted(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdrRpcSubscriptionCloseResponse {

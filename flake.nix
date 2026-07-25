@@ -29,7 +29,7 @@
             "clippy"
             "rustfmt"
           ];
-          targets = [ "wasm32-wasip1" "wasm32-wasip2" ];
+          targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" ];
         };
         # wasi-sdk does not exist :(
         # this is a standard nix derivation tho
@@ -71,6 +71,7 @@
             neovim
             cargo-edit
             cargo-watch
+            wasm-pack
             tree-sitter
           ];
           TREE_SITTER_WASI_SDK_PATH = "${wasi-sdk}";
