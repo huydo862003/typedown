@@ -8,7 +8,9 @@ use super::str::TdrStrType;
 use super::{TdrObjectEnum, TdrStrObj, TdrTypeEnum};
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::get_blob_type;
-use crate::db::types::{AssetKind, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
+use crate::db::types::{
+  AssetKind, File, InstResult, MemberType, TypeMember, TypeMemberDescriptors,
+};
 use tdr_incremental::Id;
 
 #[query_derived]
@@ -74,6 +76,7 @@ impl TdrBlobType {
 #[query_derived]
 pub struct TdrBlobObj {
   asset_kind: AssetKind,
+  file: File,
 }
 
 impl TdrObjectLike for TdrBlobObj {
@@ -82,17 +85,7 @@ impl TdrObjectLike for TdrBlobObj {
   }
   fn get_owned_field(&self, db: &TypedownDatabase, key: &str) -> Option<TdrObjectEnum> {
     match key {
-      "format" => {
-        let format_str = match self.asset_kind(db) {
-          AssetKind::Pdf => "pdf",
-          AssetKind::Svg => "svg",
-          AssetKind::Png => "png",
-          AssetKind::Jpg => "jpg",
-          AssetKind::Webp => "webp",
-          AssetKind::UnknownBinary => "unknown",
-        };
-        Some(TdrStrObj::new(db, format_str.to_string()).into())
-      }
+      "format" => Some(TdrStrObj::new(db, self.asset_kind(db).as_format_str().to_string()).into()),
       _ => None,
     }
   }

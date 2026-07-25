@@ -13,7 +13,6 @@ use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::types::SymbolKind;
-use tdr_lang::integrations::export::ExportedValue;
 use tdr_lang::integrations::export::export_resource;
 use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
 use tokio::sync::broadcast;
@@ -261,21 +260,21 @@ impl RpcServer {
   }
 }
 
-fn exported_to_yaml_value(value: ExportedValue) -> YamlValue {
+fn exported_to_yaml_value(value: serde_json::Value) -> YamlValue {
   match value {
-    ExportedValue::String(string) => YamlValue::String(string),
-    ExportedValue::Number(num) => YamlValue::Number(num),
-    ExportedValue::Bool(boolean) => YamlValue::Bool(boolean),
-    ExportedValue::List(items) => {
+    serde_json::Value::String(string) => YamlValue::String(string),
+    serde_json::Value::Number(num) => YamlValue::Number(num.as_f64().unwrap_or(0.0)),
+    serde_json::Value::Bool(boolean) => YamlValue::Bool(boolean),
+    serde_json::Value::Array(items) => {
       YamlValue::List(items.into_iter().map(exported_to_yaml_value).collect())
     }
-    ExportedValue::Object(map) => YamlValue::Object(
+    serde_json::Value::Object(map) => YamlValue::Object(
       map
         .into_iter()
         .map(|(key, val)| (YamlKeyId::new(key), exported_to_yaml_value(val)))
         .collect(),
     ),
-    ExportedValue::Null => YamlValue::Null,
+    serde_json::Value::Null => YamlValue::Null,
   }
 }
 

@@ -158,6 +158,17 @@ impl AssetKind {
       _ => None,
     }
   }
+
+  pub fn as_format_str(&self) -> &'static str {
+    match self {
+      AssetKind::Pdf => "pdf",
+      AssetKind::Svg => "svg",
+      AssetKind::Png => "png",
+      AssetKind::Jpg => "jpg",
+      AssetKind::Webp => "webp",
+      AssetKind::UnknownBinary => "unknown",
+    }
+  }
 }
 
 impl StableHash for AssetKind {
