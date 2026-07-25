@@ -10,8 +10,8 @@ use tdr_incremental::QueryDatabase;
 
 #[query_derived]
 pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResult {
-  if let SymbolKind::Asset(asset_kind, _project, _file) = symbol.kind(db) {
-    let blob = TdrBlobObj::new(db, asset_kind);
+  if let SymbolKind::Asset(asset_kind, _project, file) = symbol.kind(db) {
+    let blob = TdrBlobObj::new(db, asset_kind, file);
     return ResourceResult::new(db, Some(blob.into()), vec![]);
   }
 
@@ -461,7 +461,7 @@ mod tests {
     assert!(str_obj.value(&db).contains("Hello world"));
   }
 
-  // An asset symbol evaluates to a TdrBlobObj with format and path fields
+  // An asset symbol evaluates to a TdrBlobObj with the correct format field
   #[test]
   fn evaluate_asset_produces_blob() {
     use crate::db::types::{File, FileHandle, Project, Symbol, SymbolKind};
@@ -529,12 +529,18 @@ mod tests {
   // Each AssetKind produces the correct format string
   #[test]
   fn blob_format_matches_asset_kind() {
-    use crate::db::types::TdrBlobObj;
+    use crate::db::types::{File, FileHandle, TdrBlobObj};
     use crate::db::{QueryStorage, TypedownDatabase};
+    use std::path::PathBuf;
+    use std::time::SystemTime;
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
+    let file = File::new(
+      &db,
+      FileHandle::Path(PathBuf::from("/dummy"), SystemTime::UNIX_EPOCH),
+    );
 
     let cases = [
       (AssetKind::Pdf, "pdf"),
@@ -546,7 +552,7 @@ mod tests {
     ];
 
     for (kind, expected_format) in cases {
-      let blob = TdrBlobObj::new(&db, kind);
+      let blob = TdrBlobObj::new(&db, kind, file);
       let format = TdrObjectEnum::from(blob)
         .get_owned_field(&db, "format")
         .expect("should have format");
