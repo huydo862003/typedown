@@ -99,3 +99,16 @@ Some notes:
 
 - `moduleParsed` is not called during dev, because Vite avoids full AST parses for better performance.
 - Output generation hooks (except `closeBundle`) are not called during dev.
+
+## Vite-Specific Hooks
+
+These hooks are only meaningful to Vite and are ignored by Rollup.
+
+| Hook                     | Kind                                                                                                       | Purpose                                                                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `config`                 | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Modify the raw user config before it is resolved. Return a partial config to deep-merge, or mutate directly.                  |
+| `configResolved`         | [`async`](./rolldown-plugin.md#hook-kind-async), [`parallel`](./rolldown-plugin.md#hook-kind-parallel)     | Called after config is fully resolved. Use this to read and store the final config for use in other hooks.                    |
+| `configureServer`        | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Configure the dev server (e.g. add custom middlewares). Return a function to inject middleware after Vite's internal ones.    |
+| `configurePreviewServer` | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Same as `configureServer` but for the preview server (`vite preview`).                                                        |
+| `transformIndexHtml`     | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Transform HTML entry files (e.g. `index.html`). Can return a new HTML string, an array of tag descriptors to inject, or both. |
+| `handleHotUpdate`        | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Custom HMR update handling. Can filter the affected module list, trigger a full reload, or send custom events to the client.  |

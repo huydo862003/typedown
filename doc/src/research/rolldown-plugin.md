@@ -93,16 +93,16 @@ The type is fixed per hook in Rolldown's spec, not chosen by the plugin author. 
 
 The following specifies the hook kinds:
 
-- **`async`**:
+- <span id="hook-kind-async"></span>**`async`**:
   - The hook **may** return a Promise resolving to the same type of value.
   - Otherwise it is **`sync`**.
-- **`first`**:
+- <span id="hook-kind-first"></span>**`first`**:
   - Plugins implementing this hook run sequentially until one returns a non-`null`/non-`undefined` value.
   - The rest are skipped.
-- **`sequential`**:
+- <span id="hook-kind-sequential"></span>**`sequential`**:
   - All plugins run in the specificed plugin order.
   - If `async`, each waits for the previous to resolve.
-- **`parallel`**:
+- <span id="hook-kind-parallel"></span>**`parallel`**:
   - All plugins run in the specified plugin order.
   - If `async`, they run concurrently (don't wait for each other).
 
