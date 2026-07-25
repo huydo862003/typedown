@@ -1,16 +1,22 @@
-use jsonrpsee::core::{RpcResult, to_json_raw_value};
+use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::{self, IntoSubscriptionCloseResponse, SubscriptionCloseResponse};
 use serde::{Deserialize, Serialize};
 
-/// According to the doc, this generates two traits:
-/// - TdrBuildRpcClient: An extension trait that adds all the required methods to a type that implements Client or SubscriptionClient
-/// - TdrBuildRpcServer: A trait mostly equivalent to the input with
-///    + An additional method `into_rpc` that converts TdrBuildRpcServer implementors to an `RpcModule`
-///    + For subscription methods:
-///      An additional param inserted after `&self`: `subscription_sink: SubscriptionSink`.
-///      Return type must implement `IntoSubscriptionCloseResponse`.
-#[rpc(server, client, namespace = "tdr_build", namespace_separator = ".")]
+#[cfg(not(target_arch = "wasm32"))]
+use jsonrpsee::{
+  IntoSubscriptionCloseResponse, SubscriptionCloseResponse, core::to_json_raw_value,
+};
+
+/// On native: generates both TdrBuildRpcServer and TdrBuildRpcClient traits
+#[cfg_attr(
+  not(target_arch = "wasm32"),
+  rpc(server, client, namespace = "tdr_build", namespace_separator = ".")
+)]
+/// On WASM: generates only TdrBuildRpcClient (no server types available)
+#[cfg_attr(
+  target_arch = "wasm32",
+  rpc(client, namespace = "tdr_build", namespace_separator = ".")
+)]
 pub trait TdrBuildRpc<Hash, StorageKey> {
   /* Requests */
 
