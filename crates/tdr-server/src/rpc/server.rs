@@ -15,7 +15,7 @@ use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::types::SymbolKind;
 use tdr_lang::integrations::export::ExportedValue;
 use tdr_lang::integrations::export::export_resource;
-use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
+use tdr_lang::integrations::types::{ContentId, SchemaId, YamlKeyId, YamlValue};
 use tokio::sync::broadcast;
 
 use crate::core::analysis_host::AnalysisHost;
@@ -139,12 +139,9 @@ impl RpcServer {
         let schema_dir = config.schema_dir(db);
 
         if path.starts_with(&content_dir) {
-          let relative = path
-            .strip_prefix(&content_dir)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-          let notification = TdrContentNotification { path: relative };
+          let notification = TdrContentNotification {
+            content: ContentId::new(path.clone()),
+          };
           match event {
             FsEvent::Created(_) => {
               let _ = server.content_created_tx.send(notification);
@@ -157,12 +154,14 @@ impl RpcServer {
             }
           }
         } else if path.starts_with(&schema_dir) {
-          let schema = SchemaId::new(
-            path
-              .file_stem()
-              .and_then(|s| s.to_str())
-              .unwrap_or("unknown"),
-          );
+          let Some(name) = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(str::to_string)
+          else {
+            continue;
+          };
+          let schema = SchemaId::new(name, path.clone());
           let notification = TdrSchemaNotification { schema };
           match event {
             FsEvent::Created(_) => {
@@ -185,7 +184,9 @@ impl RpcServer {
     let db = &analysis.db;
     let project = analysis.project;
 
-    let content_dir = get_vault_config(db, project).content_dir(db);
+    let config = get_vault_config(db, project);
+    let content_dir = config.content_dir(db);
+    let schema_dir = config.schema_dir(db);
     let path = content_dir.join(&file_path.0);
     let files = project.files(db);
     let file = files.get(&path).ok_or_else(|| {
@@ -203,7 +204,10 @@ impl RpcServer {
       .collect();
 
     Ok(TdrBuiltResource {
-      schema: SchemaId::new(exported.schema.as_str()),
+      schema: SchemaId::new(
+        &exported.schema,
+        schema_dir.join(format!("{}.tdr", exported.schema)),
+      ),
       header,
       content: exported.content,
     })
@@ -229,7 +233,7 @@ impl RpcServer {
       if !matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(..)) {
         continue;
       }
-      schemas.push(SchemaId::new(symbol.name(db)));
+      schemas.push(SchemaId::new(symbol.name(db), path.clone()));
     }
 
     Ok(schemas)
@@ -255,7 +259,7 @@ impl RpcServer {
 
     // TODO: Extract property details
     Ok(TdrSchemaInfo {
-      schema: schema.clone(),
+      schema: SchemaId::new(schema.as_str(), schema_path),
       properties: HashMap::new(),
     })
   }

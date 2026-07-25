@@ -4,7 +4,7 @@ use jsonrpsee::core::{RpcResult, to_json_raw_value};
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::{self, IntoSubscriptionCloseResponse, SubscriptionCloseResponse};
 use serde::{Deserialize, Serialize};
-use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
+use tdr_lang::integrations::types::{ContentId, SchemaId, YamlKeyId, YamlValue};
 
 /// According to the doc, this generates two traits:
 /// - TdrBuildRpcClient: An extension trait that adds all the required methods to a type that implements Client or SubscriptionClient
@@ -75,8 +75,7 @@ pub struct TdrSchemaInfo {
 /// Content file event: A resource file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TdrContentNotification {
-  // Relative to content_dir
-  pub path: String,
+  pub content: ContentId,
 }
 
 /// Schema file event: A schema file was created, changed, or deleted

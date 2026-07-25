@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use tdr_types::either::Either;
 
-use super::types::SchemaId;
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use crate::db::derived::evaluate::evaluate_resource::evaluate_resource;
@@ -24,7 +23,7 @@ use crate::syntax::syntax_kind::SyntaxKind;
 #[derive(serde::Serialize)]
 pub struct ExportedResource {
   /// Schema type of this resource
-  pub schema: SchemaId,
+  pub schema: String,
   /// Frontmatter fields as key-value pairs
   pub header: HashMap<String, ExportedValue>,
   /// Commonmark-compatible markdown body
@@ -52,7 +51,7 @@ pub fn export_resource(
   let (_, obj) = resolve_resource(db, project, file)?;
   // Get schema name from the product's type
   let schema = match &obj {
-    TdrObjectEnum::TdrProductObj(product) => SchemaId::new(product.schema(db).display_name(db)),
+    TdrObjectEnum::TdrProductObj(product) => product.schema(db).display_name(db).to_string(),
     _ => return None,
   };
   let header = export_header(db, &obj);
@@ -334,11 +333,7 @@ mod tests {
     let result = export_resource(&db, project, file);
     let exported = result.expect("should export");
     assert!(!exported.header.is_empty(), "header should have fields");
-    assert_eq!(
-      exported.schema.as_str(),
-      "Person",
-      "schema should be Person"
-    );
+    assert_eq!(exported.schema, "Person", "schema should be Person");
     assert!(
       !exported.header.contains_key("_content"),
       "should not contain _content"
