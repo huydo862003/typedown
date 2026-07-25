@@ -11,10 +11,8 @@ use tdr_lang::syntax::ast::AstNode;
 use crate::core::analysis::Analysis;
 use crate::core::utils::position::lsp_position_to_text_offset;
 use crate::core::utils::uri::uri_to_path;
-use crate::lsp::service::rename_symbol::types::RenameSymbol;
-use crate::lsp::service::rename_symbol::utils::{
-  build_workspace_edit, collect_reference_edits, find_rename_symbol, symbol_file_path,
-};
+use crate::lsp::service::rename_symbol::utils::{build_workspace_edit, collect_reference_edits};
+use crate::lsp::service::utils::symbol::{CursorSymbol, find_symbol_at_cursor, symbol_file_path};
 
 pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit> {
   let db = &analysis.db;
@@ -28,12 +26,12 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
   let offset = lsp_position_to_text_offset(&rope, params.text_document_position.position)?;
 
   // Find the renameable symbol at the cursor (fref or ident)
-  let rename_symbol = find_rename_symbol(db, project, file, offset)?;
+  let rename_symbol = find_symbol_at_cursor(db, project, file, offset)?;
 
   // Resolve to the underlying symbol
   let syntax = match &rename_symbol {
-    RenameSymbol::Fref { call_node } => call_node.syntax().clone(),
-    RenameSymbol::Identifier { ident_node } => ident_node.syntax().clone(),
+    CursorSymbol::Fref { call_node } => call_node.syntax().clone(),
+    CursorSymbol::Identifier { ident_node } => ident_node.syntax().clone(),
   };
   let symbol = referee(db, lower_node(db, project, file, syntax)).value(db)?;
 
@@ -50,8 +48,8 @@ pub fn rename(analysis: &Analysis, params: RenameParams) -> Option<WorkspaceEdit
 
   // Compute new file path and identifier stem based on rename kind
   let (new_path, new_stem) = match &rename_symbol {
-    RenameSymbol::Fref { .. } => compute_fref_target(new_name, &content_dir),
-    RenameSymbol::Identifier { .. } => compute_ident_target(db, new_name, symbol, &old_path)?,
+    CursorSymbol::Fref { .. } => compute_fref_target(new_name, &content_dir),
+    CursorSymbol::Identifier { .. } => compute_ident_target(db, new_name, symbol, &old_path)?,
   };
 
   // Collect text edits for all references + file rename

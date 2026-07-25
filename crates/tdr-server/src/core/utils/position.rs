@@ -1,5 +1,6 @@
 use lsp_types::{Position, Range};
 use ropey::Rope;
+use tdr_lang::syntax::red::RedNode;
 use tdr_types::text_range::TextRange;
 
 pub fn text_offset_to_lsp_position(rope: &Rope, char_offset: usize) -> Position {
@@ -27,4 +28,13 @@ pub fn lsp_range_to_text_range(rope: &Rope, range: Range) -> Option<TextRange> {
   let start = lsp_position_to_text_offset(rope, range.start)?;
   let end = lsp_position_to_text_offset(rope, range.end)?;
   Some(TextRange::new(start, end))
+}
+
+/// Convert a RedNode to an LSP range using its trimmed span (excluding leading/trailing trivia)
+pub fn node_trimmed_range(rope: &Rope, node: &RedNode) -> Range {
+  let (offset, len) = node.trimmed_range();
+  Range {
+    start: text_offset_to_lsp_position(rope, offset),
+    end: text_offset_to_lsp_position(rope, offset + len),
+  }
 }
