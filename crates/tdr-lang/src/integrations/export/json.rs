@@ -6,7 +6,10 @@ use tdr_incremental::Id;
 
 use super::evaluate_lazy_field;
 use crate::db::TypedownDatabase;
-use crate::db::types::{FileHandle, TdrObjectEnum};
+use crate::db::types::derived::object_system::member_type_display_name;
+use crate::db::types::{
+  FileHandle, MemberType, TdrObjectEnum, TdrTypeEnum, TypeMember, TypeMemberDescriptors,
+};
 
 /// Serialize a FileHandle to a JSON object
 pub fn handle_to_json(handle: &FileHandle) -> serde_json::Value {
@@ -112,8 +115,56 @@ fn serialize(
       Ok(serde_json::json!({ "format": format, "handle": handle }))
     }
 
-    // Type objects and functions are not meaningful as document values
+    // Product types (schema files) serialize as a map of field name to field type descriptor
+    TdrObjectEnum::TdrProductType(product) => {
+      let id = product.as_id();
+      if !visiting.insert(id) {
+        return Err(CircularRef);
+      }
+      let mut map = serde_json::Map::new();
+      for (name, member) in product.fields(db) {
+        map.insert(name, serialize_member(db, &member, visiting)?);
+      }
+      visiting.remove(&id);
+      Ok(serde_json::Value::Object(map))
+    }
+
+    // Other type objects and functions are not meaningful as document values
     _ => Ok(serde_json::Value::Null),
+  }
+}
+
+/// Serialize a TypeMember to JSON
+/// Wraps optional fields as `{ "type": ..., "optional": true }`.
+fn serialize_member(
+  db: &TypedownDatabase,
+  member: &TypeMember,
+  visiting: &mut HashSet<(usize, usize)>,
+) -> Result<serde_json::Value, CircularRef> {
+  let typ = serialize_member_type(db, &member.typ(db), visiting)?;
+  if member
+    .descriptors(db)
+    .contains(TypeMemberDescriptors::OPTIONAL)
+  {
+    Ok(serde_json::json!({ "type": typ, "optional": true }))
+  } else {
+    Ok(typ)
+  }
+}
+
+/// Serialize a MemberType to JSON
+/// Recurses into nested product types, everything else becomes a string.
+fn serialize_member_type(
+  db: &TypedownDatabase,
+  member: &MemberType,
+  visiting: &mut HashSet<(usize, usize)>,
+) -> Result<serde_json::Value, CircularRef> {
+  if let MemberType::Simple(TdrTypeEnum::TdrProductType(product)) = member {
+    serialize(db, &TdrObjectEnum::TdrProductType(*product), visiting)
+  } else {
+    Ok(serde_json::Value::String(member_type_display_name(
+      db, member,
+    )))
   }
 }
 
@@ -128,6 +179,7 @@ mod tests {
 
   use super::*;
   use crate::db::derived::evaluate::evaluate_resource::evaluate_resource;
+  use crate::db::derived::evaluate::evaluate_type::evaluate_type;
   use crate::db::derived::name_resolver::file_symbol::file_symbol;
   use crate::db::fixtures::load_vault_fixture;
   use crate::db::types::{
@@ -265,14 +317,10 @@ mod tests {
     assert_eq!(value["age"], serde_json::json!(30.0));
   }
 
-  // Two distinct product objects nested inside each other are not a cycle.
-  // This confirms shared non-cyclic products serialize fully without error.
-  // A true cycle (product A contains product A) is not constructible through
-  // the public API since ids are assigned at construction time.
   #[test]
   fn nested_product_serializes_without_cycle() {
     let db = empty_db();
-    let schema: crate::db::types::TdrTypeEnum = TdrStrType::get(&db).into();
+    let schema: TdrTypeEnum = TdrStrType::get(&db).into();
     let inner = TdrProductObj::new(&db, schema.clone(), HashMap::new());
     let mut fields = HashMap::new();
     fields.insert(
@@ -283,6 +331,82 @@ mod tests {
 
     let result = to_json(&db, &TdrObjectEnum::from(outer));
     assert!(result.is_ok(), "non-cyclic nested product should serialize");
+  }
+
+  #[test]
+  fn serializes_product_type_as_field_type_map() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let typ = evaluate_type(&db, symbol)
+      .typ(&db)
+      .expect("should have type");
+    let obj = TdrObjectEnum::from(typ);
+    let value = to_json(&db, &obj).expect("should serialize");
+    assert!(value.is_object(), "product type should serialize to object");
+    assert_eq!(
+      value["name"],
+      serde_json::Value::String("string".to_string())
+    );
+    assert_eq!(
+      value["age"],
+      serde_json::Value::String("number".to_string())
+    );
+  }
+
+  #[test]
+  fn serializes_nested_product_type_recursively() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Event.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let typ = evaluate_type(&db, symbol)
+      .typ(&db)
+      .expect("should have type");
+    let obj = TdrObjectEnum::from(typ);
+    let value = to_json(&db, &obj).expect("should serialize");
+    assert_eq!(
+      value["title"],
+      serde_json::Value::String("string".to_string())
+    );
+    // Nested product type expands inline rather than flattening to "Address"
+    assert!(
+      value["location"].is_object(),
+      "nested schema should expand to object"
+    );
+    assert_eq!(
+      value["location"]["street"],
+      serde_json::Value::String("string".to_string())
+    );
+    assert_eq!(
+      value["location"]["city"],
+      serde_json::Value::String("string".to_string())
+    );
+  }
+
+  #[test]
+  fn optional_field_serializes_with_optional_flag() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Article.tdr");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+    let typ = evaluate_type(&db, symbol)
+      .typ(&db)
+      .expect("should have type");
+    let obj = TdrObjectEnum::from(typ);
+    let value = to_json(&db, &obj).expect("should serialize");
+    assert_eq!(
+      value["title"],
+      serde_json::Value::String("string".to_string())
+    );
+    assert_eq!(
+      value["subtitle"]["type"],
+      serde_json::Value::String("string".to_string())
+    );
+    assert_eq!(value["subtitle"]["optional"], serde_json::Value::Bool(true));
+  }
+
+  #[test]
+  fn non_product_type_serializes_to_null() {
+    let db = empty_db();
+    let obj = TdrObjectEnum::from(TdrStrType::get(&db));
+    let value = to_json(&db, &obj).unwrap();
+    assert_eq!(value, serde_json::Value::Null);
   }
 
   #[test]

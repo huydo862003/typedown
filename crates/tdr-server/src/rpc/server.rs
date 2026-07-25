@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -13,8 +12,7 @@ use tdr_lang::db::TypedownDatabase;
 use tdr_lang::db::derived::get_vault_config::get_vault_config;
 use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::types::SymbolKind;
-use tdr_lang::integrations::export::export_resource;
-use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
+use tdr_lang::integrations::export::{export_resource, export_schema};
 use tokio::sync::broadcast;
 
 use crate::core::analysis_host::AnalysisHost;
@@ -138,12 +136,9 @@ impl RpcServer {
         let schema_dir = config.schema_dir(db);
 
         if path.starts_with(&content_dir) {
-          let relative = path
-            .strip_prefix(&content_dir)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-          let notification = TdrContentNotification { path: relative };
+          let notification = TdrContentNotification {
+            content: path.to_string_lossy().into_owned(),
+          };
           match event {
             FsEvent::Created(_) => {
               let _ = server.content_created_tx.send(notification);
@@ -156,13 +151,14 @@ impl RpcServer {
             }
           }
         } else if path.starts_with(&schema_dir) {
-          let schema = SchemaId::new(
-            path
-              .file_stem()
-              .and_then(|s| s.to_str())
-              .unwrap_or("unknown"),
-          );
-          let notification = TdrSchemaNotification { schema };
+          let Some(name) = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(str::to_string)
+          else {
+            continue;
+          };
+          let notification = TdrSchemaNotification { schema: name };
           match event {
             FsEvent::Created(_) => {
               let _ = server.schema_created_tx.send(notification);
@@ -184,7 +180,8 @@ impl RpcServer {
     let db = &analysis.db;
     let project = analysis.project;
 
-    let content_dir = get_vault_config(db, project).content_dir(db);
+    let config = get_vault_config(db, project);
+    let content_dir = config.content_dir(db);
     let path = content_dir.join(&file_path.0);
     let files = project.files(db);
     let file = files.get(&path).ok_or_else(|| {
@@ -195,20 +192,16 @@ impl RpcServer {
       ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "File is not a resource", None::<()>)
     })?;
 
-    let header = exported
-      .header
-      .into_iter()
-      .map(|(key, value)| (YamlKeyId::new(key), exported_to_yaml_value(value)))
-      .collect();
+    let header = exported.header;
 
     Ok(TdrBuiltResource {
-      schema: SchemaId::new(exported.schema.as_str()),
+      schema: exported.schema,
       header,
       content: exported.content,
     })
   }
 
-  async fn list_schemas_impl(&self) -> RpcResult<Vec<SchemaId>> {
+  async fn list_schemas_impl(&self) -> RpcResult<Vec<String>> {
     let analysis = self.host.read().await.snapshot();
     let db = &analysis.db;
     let project = analysis.project;
@@ -228,53 +221,32 @@ impl RpcServer {
       if !matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(..)) {
         continue;
       }
-      schemas.push(SchemaId::new(symbol.name(db)));
+      schemas.push(symbol.name(db).to_string());
     }
 
     Ok(schemas)
   }
 
-  async fn get_schema_impl(&self, schema: &SchemaId) -> RpcResult<TdrSchemaInfo> {
+  async fn get_schema_impl(&self, schema: &str) -> RpcResult<TdrSchemaInfo> {
     let analysis = self.host.read().await.snapshot();
     let db = &analysis.db;
     let project = analysis.project;
 
     let config = get_vault_config(db, project);
-    let schema_dir = config.schema_dir(db);
-    let schema_path = schema_dir.join(format!("{schema}.tdr"));
+    let schema_path = config.schema_dir(db).join(format!("{schema}.tdr"));
 
     let files = project.files(db);
     let file = files.get(&schema_path).ok_or_else(|| {
       ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "Schema not found", None::<()>)
     })?;
 
-    let _symbol = file_symbol(db, project, *file).value(db).ok_or_else(|| {
-      ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "Schema has no symbol", None::<()>)
-    })?;
+    let properties = export_schema(db, project, *file)
+      .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
-    // TODO: Extract property details
     Ok(TdrSchemaInfo {
-      schema: schema.clone(),
-      properties: HashMap::new(),
+      schema: schema.to_string(),
+      properties,
     })
-  }
-}
-
-fn exported_to_yaml_value(value: serde_json::Value) -> YamlValue {
-  match value {
-    serde_json::Value::String(string) => YamlValue::String(string),
-    serde_json::Value::Number(num) => YamlValue::Number(num.as_f64().unwrap_or(0.0)),
-    serde_json::Value::Bool(boolean) => YamlValue::Bool(boolean),
-    serde_json::Value::Array(items) => {
-      YamlValue::List(items.into_iter().map(exported_to_yaml_value).collect())
-    }
-    serde_json::Value::Object(map) => YamlValue::Object(
-      map
-        .into_iter()
-        .map(|(key, val)| (YamlKeyId::new(key), exported_to_yaml_value(val)))
-        .collect(),
-    ),
-    serde_json::Value::Null => YamlValue::Null,
   }
 }
 
@@ -307,11 +279,11 @@ impl TdrBuildRpcServer<(), ()> for RpcServer {
     self.build_file_impl(&file_path).await
   }
 
-  async fn list_schemas(&self) -> RpcResult<Vec<SchemaId>> {
+  async fn list_schemas(&self) -> RpcResult<Vec<String>> {
     self.list_schemas_impl().await
   }
 
-  async fn get_schema(&self, schema: SchemaId) -> RpcResult<TdrSchemaInfo> {
+  async fn get_schema(&self, schema: String) -> RpcResult<TdrSchemaInfo> {
     self.get_schema_impl(&schema).await
   }
 

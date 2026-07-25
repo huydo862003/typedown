@@ -100,7 +100,7 @@ impl TdrTypeLike for TdrProductType {
   }
 }
 
-pub(crate) fn member_type_display_name(db: &TypedownDatabase, member: &MemberType) -> String {
+pub fn member_type_display_name(db: &TypedownDatabase, member: &MemberType) -> String {
   match member {
     MemberType::Simple(typ) => typ.display_name(db),
     MemberType::Sum(members) => members

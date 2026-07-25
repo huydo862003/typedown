@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ],
+    "strict": true,
+    "ignoreDeprecations": "6.0",
+    "rootDir": "./",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "*.ts",
+    "src/**/*.ts",
+    "__tests__/**/*.ts"
+  ]
+}

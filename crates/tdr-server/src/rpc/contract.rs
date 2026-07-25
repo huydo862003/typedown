@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use jsonrpsee::core::{RpcResult, to_json_raw_value};
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::{self, IntoSubscriptionCloseResponse, SubscriptionCloseResponse};
 use serde::{Deserialize, Serialize};
-use tdr_lang::integrations::types::{SchemaId, YamlKeyId, YamlValue};
 
 /// According to the doc, this generates two traits:
 /// - TdrBuildRpcClient: An extension trait that adds all the required methods to a type that implements Client or SubscriptionClient
@@ -21,10 +18,10 @@ pub trait TdrBuildRpc<Hash, StorageKey> {
   async fn request_file(&self, file_path: TdrFilePath) -> RpcResult<TdrBuiltResource>;
 
   #[method(name = "list_schemas")]
-  async fn list_schemas(&self) -> RpcResult<Vec<SchemaId>>;
+  async fn list_schemas(&self) -> RpcResult<Vec<String>>;
 
   #[method(name = "get_schema")]
-  async fn get_schema(&self, schema: SchemaId) -> RpcResult<TdrSchemaInfo>;
+  async fn get_schema(&self, schema: String) -> RpcResult<TdrSchemaInfo>;
 
   /* Content subscriptions */
 
@@ -58,16 +55,16 @@ pub struct TdrFilePath(pub String);
 /// Structured build result: Header (frontmatter) and content (commonmark body)
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TdrBuiltResource {
-  pub schema: SchemaId,
-  pub header: HashMap<YamlKeyId, YamlValue>,
+  pub schema: String,
+  pub header: serde_json::Value,
   pub content: String,
 }
 
 /// Schema metadata
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TdrSchemaInfo {
-  pub schema: SchemaId,
-  pub properties: HashMap<YamlKeyId, YamlValue>,
+  pub schema: String,
+  pub properties: serde_json::Value,
 }
 
 /* Subscription notifications */
@@ -75,14 +72,13 @@ pub struct TdrSchemaInfo {
 /// Content file event: A resource file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TdrContentNotification {
-  // Relative to content_dir
-  pub path: String,
+  pub content: String,
 }
 
 /// Schema file event: A schema file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TdrSchemaNotification {
-  pub schema: SchemaId,
+  pub schema: String,
 }
 
 /* Server's response to client subscription termination */
