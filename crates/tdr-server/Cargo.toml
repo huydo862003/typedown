@@ -31,7 +31,7 @@ ropey = "1.6.1"
 dashmap = "6.2.1"
 serde = "1"
 threadpool = "1"
-jsonrpsee = { version = "0.26.0", features = ["macros", "client", "server"] }
+jsonrpsee = { version = "0.26.0", features = ["macros", "wasm-client", "server"] }
 tokio = "1.53.1"
 notify = "8.2.0"
 
