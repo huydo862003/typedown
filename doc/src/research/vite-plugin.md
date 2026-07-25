@@ -112,3 +112,44 @@ These hooks are only meaningful to Vite and are ignored by Rollup.
 | `configurePreviewServer` | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Same as `configureServer` but for the preview server (`vite preview`).                                                        |
 | `transformIndexHtml`     | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Transform HTML entry files (e.g. `index.html`). Can return a new HTML string, an array of tag descriptors to inject, or both. |
 | `handleHotUpdate`        | [`async`](./rolldown-plugin.md#hook-kind-async), [`sequential`](./rolldown-plugin.md#hook-kind-sequential) | Custom HMR update handling. Can filter the affected module list, trigger a full reload, or send custom events to the client.  |
+
+## Plugin Context Meta
+
+`this.meta` is the plugin context's metadata object. Vite adds two extra fields to it:
+
+- `this.meta.viteVersion`: Current Vite version string (e.g. `"8.0.0"`).
+- `this.meta.rolldownVersion`: Only set on Rolldown-powered Vite (Vite 8+).
+
+Use `this.meta.rolldownVersion` to branch behavior between Rolldown and Rollup backends.
+
+## Output Bundle Metadata
+
+`viteMetadata` is a Vite-specific field added to Rolldown's output objects (`RenderedChunk`, `OutputChunk`, `OutputAsset`) during build.
+
+It exposes which CSS files and static assets a chunk imports:
+
+- `viteMetadata.importedCss`: `Set<string>`
+- `viteMetadata.importedAssets`: `Set<string>`
+
+Use this when your plugin needs to inspect emitted assets per chunk without parsing `build.manifest`.
+
+Access it inside output hooks like `generateBundle` or `renderChunk`.
+
+## Plugin Ordering
+
+User plugins can set `enforce: 'pre'` or `enforce: 'post'` to control where they run relative to Vite's internal plugins. The full resolved order is:
+
+1. Alias resolution (Vite internal).
+2. User plugins with `enforce: 'pre'`.
+3. Vite core plugins (Vite internal).
+4. User plugins with no `enforce` value.
+5. Vite build plugins (Vite internal).
+6. User plugins with `enforce: 'post'`.
+7. Vite post-build plugins: minify, manifest, reporting (Vite internal).
+
+> Remark: `enforce` and hook-level `order` are independent:
+>
+> - `enforce` affects all hooks of a plugin at once, placing the whole plugin into a bucket relative to Vite's internals.
+> - Hook `order` is a per-hook override. Two plugins in the same `enforce` bucket can still use `order` to sequence a specific hook between themselves.
+
+> Remark: Within each bucket, plugins run in the order they appear in the `plugins` array. `enforce` only determines which bucket a plugin is placed into.
