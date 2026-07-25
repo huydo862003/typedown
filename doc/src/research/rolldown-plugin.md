@@ -110,10 +110,33 @@ The following specifies the hook kinds:
 
 There are **two types of hooks**:
 
-1. **Build hooks**: Run during the build phase (`buildStart`, `resolveId`, `load`, `transform`, `buildEnd`, etc.).
-2. **Output generation hooks**: Run during output generation (`renderStart`, `renderChunk`, `generateBundle`, etc.).
+1. **Build hooks**: Run during the build phase.
+2. **Output generation hooks**: Run during output generation.
 
 > Remark: Ok, following convention, we will distinguish between:
 >
 > - Hook kind: Rolldown specification of how a defined hook is coordinated if multiple plugins define the hook.
 > - Hook type: Rolldown specification of when the hook is run.
+
+### Build Hooks
+
+Build hooks are concerned with locating, providing and transforming input files before Rolldown processes them.
+
+The lifecycle:
+
+![Build hooks lifecycle (from rolldown.rs page)](../assets/rolldown-build-hooks-lifecycle.png)
+
+- First hook: `options`.
+- Last hook: always `buildEnd`.
+- If a build error occurs, `closeBundle` is called after `buildEnd`.
+
+> Remark: There is an internal step called `internalTransform` in Rolldown's pipeline graph. This is NOT a plugin hook. It is where Rolldown transforms non-JS code to JS.
+
+In watch mode:
+
+- `watchChange` can be triggered at any time to notify that a new run will start once the current run finishes its outputs.
+- `closeWatcher` is triggered when the watcher closes.
+
+> The following are supported by Rollup but not Rolldown:
+>
+> - `shouldTransformCachedModule` ([rolldown#4389](https://github.com/rolldown/rolldown/issues/4389)).
