@@ -13,6 +13,17 @@ path = "src/bin/tdr-lsp.rs"
 name = "tdr-rpc"
 path = "src/bin/tdr-rpc.rs"
 
+[lib]
+crate-type = [
+  # TIL: Produces .wasm when targeting wasm32, .so/.dylib/.dll on native.
+  # This format strips Rust metadata and conforms to the C shared library format
+  # TIL: It happens that wasm exports the same interface as C - Just numeric types everywhere...
+  "cdylib",
+  # TIL: Rust static archive consumed by rustc at compile time.
+  # Required so [[bin]] targets (tdr-lsp, tdr-rpc) can depend on this crate.
+  "rlib",
+]
+
 [features]
 default = ["session"]
 session = ["tdr-incremental/session"]
