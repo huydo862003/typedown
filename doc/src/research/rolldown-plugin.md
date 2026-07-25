@@ -120,7 +120,15 @@ There are **two types of hooks**:
 
 ### Build Hooks
 
-Build hooks are concerned with locating, providing and transforming input files before Rolldown processes them.
+**Build hooks** are concerned with:
+
+- Locating
+- Providing
+- Transforming
+
+**input files** before Rolldown processes them.
+
+> Remarks: So basically, a build hooks can either **provide an input** or **transform an existing input**.
 
 The lifecycle:
 
@@ -140,3 +148,33 @@ In watch mode:
 > The following are supported by Rollup but not Rolldown:
 >
 > - `shouldTransformCachedModule` ([rolldown#4389](https://github.com/rolldown/rolldown/issues/4389)).
+
+### Output Generation Hooks
+
+**Output generation hooks**:
+
+- Provide information about a generated bundle.
+- Modify a build once complete (Post-transform).
+
+Plugins that **ONLY use output generation hooks** can also be passed in via the **output options**, so they run **only for certain outputs**.
+
+The lifecycle:
+
+![Output generation hooks lifecycle (from rolldown.rs page)](../assets/rolldown-output-hooks-lifecycle.png)
+
+- First hook: `renderStart`.
+- Last hook depends on the outcome:
+  - `generateBundle` if output was successfully generated via `bundle.generate(...)`.
+  - `writeBundle` if output was successfully generated via `bundle.write(...)`.
+  - `renderError` if an error occurred during output generation.
+
+> Remark: `bundle.generate()` produces the output in memory only. `bundle.write()` does the same but also writes files to disk. So `generateBundle` fires in both cases, while `writeBundle` only fires when files are actually written. The sequence for `bundle.write()` is: `generateBundle` then `writeBundle`.
+
+- `closeBundle` can be called as the very last hook, but the user must manually call `bundle.close()` to trigger it. The CLI always does this automatically.
+
+> Remark: `minify` in the pipeline graph is NOT a plugin hook. It is the step where Rolldown runs the minifier. Similarly, `postBanner` and `postFooter` are output options, not hooks (unlike `banner` and `footer` which do have corresponding hooks).
+
+> The following are supported by Rollup but not Rolldown:
+>
+> - `resolveImportMeta` ([rolldown#1010](https://github.com/rolldown/rolldown/issues/1010)).
+> - `renderDynamicImport` ([rolldown#4532](https://github.com/rolldown/rolldown/issues/4532)).
