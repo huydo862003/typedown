@@ -153,3 +153,152 @@ User plugins can set `enforce: 'pre'` or `enforce: 'post'` to control where they
 > - Hook `order` is a per-hook override. Two plugins in the same `enforce` bucket can still use `order` to sequence a specific hook between themselves.
 
 > Remark: Within each bucket, plugins run in the order they appear in the `plugins` array. `enforce` only determines which bucket a plugin is placed into.
+
+## Conditional Application
+
+`apply` is a **top-level field on the plugin object** that controls **which mode the plugin runs in**.
+
+By default it runs in both `serve` and `build`.
+
+- Set to `'build'` or `'serve'` to restrict to one mode.
+- Set to a function returning a boolean for finer control:
+
+```ts
+apply(config, { command }) {
+  return command === 'build' && !config.build.ssr
+}
+```
+
+## Rolldown Plugin Compatibility
+
+Most Rolldown/Rollup plugins work as Vite plugins. A plugin is compatible as long as:
+
+- It does not use `moduleParsed`.
+- It does not rely on Rolldown-specific options like `transform.inject`.
+- It does not have strong coupling between bundle-phase and output-phase hooks.
+
+For build-only Rolldown/Rollup plugins, place them under `build.rolldownOptions.plugins`. This is equivalent to `enforce: 'post'` + `apply: 'build'`.
+
+You can also spread an existing plugin and add Vite-only properties:
+
+```js
+plugins: [{ ...example(), enforce: "post", apply: "build" }];
+```
+
+## Path Normalization
+
+Vite normalizes resolved IDs to POSIX separators (`/`), including on Windows. Rollup/Rolldown does not: resolved IDs use `\` on Windows by default.
+
+When comparing paths against resolved IDs in a Vite plugin, normalize first using `normalizePath` from `vite`:
+
+```js
+import { normalizePath } from "vite";
+
+normalizePath("foo\\bar"); // 'foo/bar'
+normalizePath("foo/bar"); // 'foo/bar'
+```
+
+> Remark:
+>
+> - Rollup plugins that use `createFilter` from `@rollup/pluginutils` already normalize paths before comparing, so their `include`/`exclude` patterns work correctly in both Rollup and Vite without changes.
+> - If you are writing a Vite plugin from scratch and doing your own path comparisons, call `normalizePath` yourself.
+
+## Filtering
+
+- `createFilter` is a utility from `@rollup/pluginutils`, re-exported by Vite.
+- It builds a filter function from `include`/`exclude` glob patterns, the same way Vite core filters files internally.
+- Use it in plugins to implement standard file filtering.
+
+### Hook Filters
+
+Hook filters are a Rolldown feature. They let a plugin declare patterns directly on a hook so Rolldown skips invoking the JS handler entirely when the pattern does not match, avoiding unnecessary Rust-to-JS calls.
+
+- A `filter` object on a hook's `ObjectHook` form.
+- It can be specified on any hook that supports `ObjectHook` (e.g. `transform`).
+- It was introduced to reduce overhead between Rust and JS runtimes.
+
+Hook filters are supported in Rollup 4.38.0+ and Vite 6.3.0+. For backward compatibility, also check the filter inside the handler:
+
+```ts
+transform: {
+  filter: { id: /\.js$/ },
+  handler(code, id) {
+    if (!/\.js$/.test(id)) return null // backward compat
+    return { code: transformCode(code), map: null }
+  },
+}
+```
+
+> Remark: `@rolldown/pluginutils` exports filter utilities like `exactRegex` and `prefixRegex`, also re-exported from `rolldown/filter`.
+
+## Client-Server Communication
+
+Vite provides utilities for plugins to communicate between the dev server and the client (browser).
+
+### Server to Client
+
+Use `server.ws.send` to broadcast events from the plugin:
+
+```js
+configureServer(server) {
+  server.ws.on('connection', () => {
+    server.ws.send('my:greetings', { msg: 'hello' })
+  })
+}
+```
+
+On the client side, use `import.meta.hot.on` to listen:
+
+```js
+if (import.meta.hot) {
+  import.meta.hot.on("my:greetings", (data) => {
+    console.log(data.msg); // hello
+  });
+}
+```
+
+> Convention: Always prefix event names (e.g. `my:`) to avoid collisions with other plugins.
+
+### Client to Server
+
+Use `import.meta.hot.send` to send events from the client:
+
+```js
+if (import.meta.hot) {
+  import.meta.hot.send("my:from-client", { msg: "Hey!" });
+}
+```
+
+Listen on the server with `server.ws.on`:
+
+```js
+configureServer(server) {
+  server.ws.on('my:from-client', (data, client) => {
+    console.log(data.msg) // Hey!
+    client.send('my:ack', { msg: 'Hi! I got your message!' })
+  })
+}
+```
+
+### TypeScript for Custom Events
+
+Extend the `CustomEventMap` interface from `vite/types/customEvent.d.ts` to type custom event payloads:
+
+```ts
+// events.d.ts
+import "vite/types/customEvent.d.ts";
+
+declare module "vite/types/customEvent.d.ts" {
+  interface CustomEventMap {
+    "custom:foo": { msg: string };
+  }
+}
+```
+
+Vite uses this interface with `InferCustomEventPayload<T>` to infer the payload type when calling `hot.on`:
+
+```ts
+import.meta.hot?.on("custom:foo", (payload) => {
+  // payload is { msg: string }
+});
+```
