@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "rpc-server",
+  "version": "0.0.0",
+  "description": "Typedown RPC server binary.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Huy-DNA/typedown.git",
+    "directory": "packages/rpc-server"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "prepublishOnly": "cp .env .env.bak && cp .env.publish .env",
+    "postpublish": "mv .env.bak .env"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "author": "Huy-DNA <huydo862003@gmail.com>",
+  "license": "AGPL-3.0-only"
+}

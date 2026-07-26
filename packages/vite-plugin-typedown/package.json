@@ -36,7 +36,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "rpc-client": "workspace:*"
+    "rpc-client": "workspace:*",
+    "rpc-server": "workspace:*"
   },
   "peerDependencies": {
     "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
