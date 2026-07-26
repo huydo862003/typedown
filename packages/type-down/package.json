@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "vite-plugin-typedown",
+  "name": "type-down",
   "version": "0.0.0",
-  "description": "Vite plugin for Typedown.",
+  "description": "Typedown: A typed content framework. Work in progress.",
   "repository": {
     "type": "git",
     "url": "https://github.com/Huy-DNA/typedown.git",
-    "directory": "packages/vite-plugin-typedown"
+    "directory": "packages/typedown"
   },
   "type": "module",
   "main": "./dist/index.cjs",
@@ -42,8 +42,8 @@
     "markdown-it-container": "^4.0.0",
     "markdown-it-emoji": "^3.0.0",
     "markdown-it-task-lists": "^2.1.1",
-    "rpc-client": "workspace:*",
-    "rpc-server": "workspace:*",
+    "@type-down/rpc-client": "workspace:*",
+    "@type-down/rpc-server": "workspace:*",
     "shiki": "^4.3.1"
   },
   "peerDependencies": {

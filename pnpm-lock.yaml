@@ -91,11 +91,17 @@ importers:
         specifier: ^0.26.9
         version: 0.26.11
 
-  packages/vite-plugin-typedown:
+  packages/type-down:
     dependencies:
       '@shikijs/markdown-it':
         specifier: ^4.3.1
         version: 4.3.1
+      '@type-down/rpc-client':
+        specifier: workspace:*
+        version: link:../rpc-client
+      '@type-down/rpc-server':
+        specifier: workspace:*
+        version: link:../rpc-server
       markdown-it:
         specifier: ^14.0.0
         version: 14.3.0
@@ -111,12 +117,6 @@ importers:
       markdown-it-task-lists:
         specifier: ^2.1.1
         version: 2.1.1
-      rpc-client:
-        specifier: workspace:*
-        version: link:../rpc-client
-      rpc-server:
-        specifier: workspace:*
-        version: link:../rpc-server
       shiki:
         specifier: ^4.3.1
         version: 4.3.1

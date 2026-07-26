@@ -17,8 +17,8 @@ export default defineConfig({
       external: [
         'vite',
         'vue',
-        'rpc-client',
-        'rpc-server',
+        '@type-down/rpc-client',
+        '@type-down/rpc-server',
         'markdown-it',
         'markdown-it-anchor',
         'markdown-it-container',

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "rpc-client",
+  "name": "@type-down/rpc-client",
   "version": "0.0.0",
   "description": "WASM RPC client for Typedown.",
   "repository": {
@@ -18,7 +18,8 @@
     }
   },
   "scripts": {
-    "build": "wasm-pack build ../../crates/tdr-server --target nodejs --out-dir ../../packages/rpc-client/src && rm src/package.json src/.gitignore"
+    "build": "wasm-pack build ../../crates/tdr-server --target nodejs --out-dir ../../packages/rpc-client/src && rm src/package.json src/.gitignore",
+    "prepublishOnly": "pnpm build"
   },
   "author": "Huy-DNA <huydo862003@gmail.com>",
   "license": "AGPL-3.0-only"
