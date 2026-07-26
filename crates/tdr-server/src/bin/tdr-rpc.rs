@@ -14,7 +14,11 @@ async fn main() -> anyhow::Result<()> {
   let root_dir = find_vault_root(&start)?;
 
   let addr = std::env::var("TDR_RPC_ADDR").unwrap_or_else(|_| "127.0.0.1".to_string());
-  let port = std::env::var("TDR_RPC_PORT").unwrap_or_else(|_| "0".to_string());
+  let port: u16 = std::env::var("TDR_RPC_PORT")
+    .unwrap_or_else(|_| "4747".to_string())
+    .parse()
+    .expect("TDR_RPC_PORT must be a valid port number");
+  anyhow::ensure!(port != 0, "TDR_RPC_PORT=0 (random port) is not supported");
 
   let rpc_server = RpcServer::new(root_dir)?;
   let module = Arc::try_unwrap(rpc_server)

@@ -1,4 +1,6 @@
 import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { binPath } from "./platform.js";
 
 const bin = binPath();
@@ -10,4 +12,75 @@ if (!existsSync(bin)) {
   );
 }
 
-export const rpcBinaryPath = bin;
+const DEFAULT_PORT = 4747;
+
+export class RpcServer extends EventEmitter {
+  constructor({ root, addr, port } = {}) {
+    super();
+    this._root = root ?? process.cwd();
+    this._addr = addr ?? "127.0.0.1";
+    this._port = port ?? DEFAULT_PORT;
+    this._process = null;
+    this._listening = false;
+  }
+
+  get address() {
+    if (!this._listening) return null;
+    return `ws://${this._addr}:${this._port}`;
+  }
+
+  get listening() {
+    return this._listening;
+  }
+
+  listen(callback) {
+    if (this._process) {
+      throw new Error("Server is already running");
+    }
+
+    const child = spawn(bin, [], {
+      cwd: this._root,
+      env: {
+        ...process.env,
+        TDR_RPC_ROOT: this._root,
+        TDR_RPC_ADDR: this._addr,
+        TDR_RPC_PORT: String(this._port),
+      },
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+
+    this._process = child;
+
+    const stdout = child.stdout;
+    if (!stdout) {
+      this.emit("error", new Error("Failed to capture tdr-rpc stdout"));
+      return this;
+    }
+
+    // The server prints the ws:// address when ready
+    stdout.once("data", () => {
+      this._listening = true;
+      this.emit("listening");
+      if (callback) callback();
+    });
+
+    child.on("error", (error) => {
+      this.emit("error", error);
+    });
+
+    child.on("exit", (code, signal) => {
+      this._listening = false;
+      this._process = null;
+      this.emit("close", code, signal);
+    });
+
+    return this;
+  }
+
+  close() {
+    if (this._process) {
+      this._process.kill();
+    }
+    return this;
+  }
+}
