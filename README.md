@@ -6,7 +6,7 @@
 
 A typed markdown language for structured content.
 
-The npm package & scope name is `type-down` (with hyphen) instead of `typedown` as npm blocks names that are too similar to existing packages (`typedoc` :sad:)
+The npm entry package is [`typeleft`](https://www.npmjs.com/package/typeleft) and the scoped packages are under [`@typeright`](https://www.npmjs.com/org/typeright), as npm blocks `typedown` for being too similar to `typedoc`. Type left, type right, type down :)
 
 ## Design Documentation
 
