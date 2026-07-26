@@ -7,7 +7,13 @@ use jsonrpsee::wasm_client::{Client as WasmClient, WasmClientBuilder};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 
-use crate::rpc::contract::{TdrBuildRpcClient, TdrFilePath};
+use crate::rpc::contract::{
+  TdrBuildRpcClient, TdrBuiltResource, TdrFilePath, TdrSchemaInfo, TdrSiteConfig,
+};
+
+fn rpc_err(err: impl std::fmt::Display) -> JsValue {
+  JsValue::from_str(&err.to_string())
+}
 
 #[wasm_bindgen]
 pub struct RpcClient {
@@ -71,7 +77,7 @@ impl RpcClient {
     let inner = WasmClientBuilder::default()
       .build(&url)
       .await
-      .map_err(|e| JsValue::from_str(&e.to_string()))?;
+      .map_err(rpc_err)?;
     Ok(RpcClient {
       inner: Arc::new(inner),
       content_changed: RefCell::new(None),
@@ -84,26 +90,41 @@ impl RpcClient {
     })
   }
 
-  pub async fn request_file(&self, path: String) -> Result<JsValue, JsValue> {
-    let result =
-      <WasmClient as TdrBuildRpcClient<(), ()>>::request_file(&*self.inner, TdrFilePath(path))
-        .await
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+  pub async fn request_file(&self, path: String) -> Result<TdrBuiltResource, JsValue> {
+    <WasmClient as TdrBuildRpcClient<(), ()>>::request_file(&*self.inner, TdrFilePath(path))
+      .await
+      .map_err(rpc_err)
   }
 
-  pub async fn list_schemas(&self) -> Result<JsValue, JsValue> {
-    let result = <WasmClient as TdrBuildRpcClient<(), ()>>::list_schemas(&*self.inner)
+  pub async fn request_files(&self, paths: Vec<String>) -> Result<Vec<TdrBuiltResource>, JsValue> {
+    let file_paths = paths.into_iter().map(TdrFilePath).collect();
+    <WasmClient as TdrBuildRpcClient<(), ()>>::request_files(&*self.inner, file_paths)
       .await
-      .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+      .map_err(rpc_err)
   }
 
-  pub async fn get_schema(&self, schema: String) -> Result<JsValue, JsValue> {
-    let result = <WasmClient as TdrBuildRpcClient<(), ()>>::get_schema(&*self.inner, schema)
+  pub async fn list_vault(&self) -> Result<Vec<String>, JsValue> {
+    <WasmClient as TdrBuildRpcClient<(), ()>>::list_vault(&*self.inner)
       .await
-      .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+      .map_err(rpc_err)
+  }
+
+  pub async fn get_config(&self) -> Result<TdrSiteConfig, JsValue> {
+    <WasmClient as TdrBuildRpcClient<(), ()>>::get_config(&*self.inner)
+      .await
+      .map_err(rpc_err)
+  }
+
+  pub async fn list_schemas(&self) -> Result<Vec<String>, JsValue> {
+    <WasmClient as TdrBuildRpcClient<(), ()>>::list_schemas(&*self.inner)
+      .await
+      .map_err(rpc_err)
+  }
+
+  pub async fn get_schema(&self, schema: String) -> Result<TdrSchemaInfo, JsValue> {
+    <WasmClient as TdrBuildRpcClient<(), ()>>::get_schema(&*self.inner, schema)
+      .await
+      .map_err(rpc_err)
   }
 
   pub fn on_content_changed(&self, callback: js_sys::Function) {
@@ -115,10 +136,7 @@ impl RpcClient {
         return;
       };
       while let Some(Ok(notif)) = sub.next().await {
-        let Ok(val) = serde_wasm_bindgen::to_value(&notif) else {
-          continue;
-        };
-        let _ = callback.call1(&JsValue::NULL, &val);
+        let _ = callback.call1(&JsValue::NULL, &notif.into());
       }
     });
   }
@@ -132,10 +150,7 @@ impl RpcClient {
         return;
       };
       while let Some(Ok(notif)) = sub.next().await {
-        let Ok(val) = serde_wasm_bindgen::to_value(&notif) else {
-          continue;
-        };
-        let _ = callback.call1(&JsValue::NULL, &val);
+        let _ = callback.call1(&JsValue::NULL, &notif.into());
       }
     });
   }
@@ -149,10 +164,7 @@ impl RpcClient {
         return;
       };
       while let Some(Ok(notif)) = sub.next().await {
-        let Ok(val) = serde_wasm_bindgen::to_value(&notif) else {
-          continue;
-        };
-        let _ = callback.call1(&JsValue::NULL, &val);
+        let _ = callback.call1(&JsValue::NULL, &notif.into());
       }
     });
   }
@@ -166,10 +178,7 @@ impl RpcClient {
         return;
       };
       while let Some(Ok(notif)) = sub.next().await {
-        let Ok(val) = serde_wasm_bindgen::to_value(&notif) else {
-          continue;
-        };
-        let _ = callback.call1(&JsValue::NULL, &val);
+        let _ = callback.call1(&JsValue::NULL, &notif.into());
       }
     });
   }
@@ -183,10 +192,7 @@ impl RpcClient {
         return;
       };
       while let Some(Ok(notif)) = sub.next().await {
-        let Ok(val) = serde_wasm_bindgen::to_value(&notif) else {
-          continue;
-        };
-        let _ = callback.call1(&JsValue::NULL, &val);
+        let _ = callback.call1(&JsValue::NULL, &notif.into());
       }
     });
   }
@@ -200,10 +206,7 @@ impl RpcClient {
         return;
       };
       while let Some(Ok(notif)) = sub.next().await {
-        let Ok(val) = serde_wasm_bindgen::to_value(&notif) else {
-          continue;
-        };
-        let _ = callback.call1(&JsValue::NULL, &val);
+        let _ = callback.call1(&JsValue::NULL, &notif.into());
       }
     });
   }

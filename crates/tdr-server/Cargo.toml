@@ -51,6 +51,7 @@ threadpool = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 jsonrpsee = { version = "0.26.0", features = ["wasm-client"] }
+tsify-next = { version = "0.5", features = ["js"] }
 # TIL: Bridge between Rust and JS
 # 1. #[wasm_bindgen] marks Rust fns/types to expose -> The compiled binary will contain the markers for those
 # 2. CLI reads .wasm at build time

@@ -2,6 +2,8 @@
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
 use serde::{Deserialize, Serialize};
+#[cfg(target_arch = "wasm32")]
+use tsify_next::Tsify;
 
 #[cfg(not(target_arch = "wasm32"))]
 use jsonrpsee::{
@@ -24,11 +26,20 @@ pub trait TdrBuildRpc<Hash, StorageKey> {
   #[method(name = "request_file")]
   async fn request_file(&self, file_path: TdrFilePath) -> RpcResult<TdrBuiltResource>;
 
+  #[method(name = "request_files")]
+  async fn request_files(&self, file_paths: Vec<TdrFilePath>) -> RpcResult<Vec<TdrBuiltResource>>;
+
+  #[method(name = "list_vault")]
+  async fn list_vault(&self) -> RpcResult<Vec<String>>;
+
   #[method(name = "list_schemas")]
   async fn list_schemas(&self) -> RpcResult<Vec<String>>;
 
   #[method(name = "get_schema")]
   async fn get_schema(&self, schema: String) -> RpcResult<TdrSchemaInfo>;
+
+  #[method(name = "get_config")]
+  async fn get_config(&self) -> RpcResult<TdrSiteConfig>;
 
   /* Content subscriptions */
 
@@ -55,22 +66,39 @@ pub trait TdrBuildRpc<Hash, StorageKey> {
 
 /* RPC request params and results */
 
+/// Site-wide configuration derived from typedown.yaml
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdrSiteConfig {
+  /// URL base path (e.g. "/" or "/docs")
+  pub base_path: String,
+  /// Content directory path relative to the project root
+  pub content_dir: String,
+}
+
 /// Path relative to the content directory
 #[derive(Serialize, Deserialize)]
 pub struct TdrFilePath(pub String);
 
 /// Structured build result: Header (frontmatter) and content (commonmark body)
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdrBuiltResource {
   pub schema: String,
+  #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
   pub header: serde_json::Value,
   pub content: String,
 }
 
 /// Schema metadata
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdrSchemaInfo {
   pub schema: String,
+  #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
   pub properties: serde_json::Value,
 }
 
@@ -78,12 +106,16 @@ pub struct TdrSchemaInfo {
 
 /// Content file event: A resource file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdrContentNotification {
   pub content: String,
 }
 
 /// Schema file event: A schema file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdrSchemaNotification {
   pub schema: String,
 }

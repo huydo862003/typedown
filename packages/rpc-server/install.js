@@ -33,17 +33,17 @@ if (dev()) {
 }
 
 // In non dev mode, fetch the artifacts
+const arch = osArch();
+const tag = releaseTag();
+const artifact = artifactName(arch);
+const url = artifactUrl(tag, artifact);
+
+const binDir = path.dirname(bin);
+mkdirSync(binDir, { recursive: true });
+
+console.log(`[rpc-server] Downloading tdr-rpc from ${url}`);
+
 try {
-  const arch = osArch();
-  const tag = releaseTag();
-  const artifact = artifactName(arch);
-  const url = artifactUrl(tag, artifact);
-
-  const binDir = path.dirname(bin);
-  mkdirSync(binDir, { recursive: true });
-
-  console.log(`[rpc-server] Downloading tdr-rpc from ${url}`);
-
   execFileSync("curl", ["-fsSL", "-o", bin, url], { stdio: "inherit" });
 } catch {
   console.error(`[rpc-server] Failed to download tdr-rpc from ${url}`);

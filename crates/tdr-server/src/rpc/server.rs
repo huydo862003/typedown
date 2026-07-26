@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -14,19 +15,27 @@ use tdr_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use tdr_lang::db::types::SymbolKind;
 use tdr_lang::integrations::export::{export_resource, export_schema};
 use tokio::sync::broadcast;
+use tokio::time::{Duration, sleep};
+
+use tdr_types::path::normalize_path;
 
 use crate::core::analysis_host::AnalysisHost;
 use crate::core::utils::fs::{is_asset_file, is_tdr_file, is_vault_config};
 
 use super::contract::{
   TdrBuildRpcServer, TdrBuiltResource, TdrContentNotification, TdrFilePath,
-  TdrRpcSubscriptionCloseResponse, TdrSchemaInfo, TdrSchemaNotification,
+  TdrRpcSubscriptionCloseResponse, TdrSchemaInfo, TdrSchemaNotification, TdrSiteConfig,
 };
 
-enum FsEvent {
-  Created(PathBuf),
-  Modified(PathBuf),
-  Removed(PathBuf),
+enum FsEventKind {
+  Created,
+  Modified,
+  Removed,
+}
+
+struct FsEvent {
+  path: PathBuf,
+  kind: FsEventKind,
 }
 
 /// RPC build server that holds a single project and serves build requests
@@ -91,13 +100,16 @@ impl RpcServer {
         if !is_tdr_file(path) && !is_asset_file(path) && !is_vault_config(path) {
           continue;
         }
-        let fs_event = match event.kind {
-          EventKind::Create(_) => FsEvent::Created(path.clone()),
-          EventKind::Modify(_) => FsEvent::Modified(path.clone()),
-          EventKind::Remove(_) => FsEvent::Removed(path.clone()),
+        let kind = match event.kind {
+          EventKind::Create(_) => FsEventKind::Created,
+          EventKind::Modify(_) => FsEventKind::Modified,
+          EventKind::Remove(_) => FsEventKind::Removed,
           _ => continue,
         };
-        let _ = fs_tx.send(fs_event);
+        let _ = fs_tx.send(FsEvent {
+          path: path.clone(),
+          kind,
+        });
       }
     })?;
 
@@ -110,65 +122,70 @@ impl RpcServer {
     mut fs_rx: tokio::sync::mpsc::UnboundedReceiver<FsEvent>,
   ) {
     tokio::spawn(async move {
-      while let Some(event) = fs_rx.recv().await {
-        let path = match &event {
-          FsEvent::Created(path) | FsEvent::Modified(path) | FsEvent::Removed(path) => path.clone(),
+      loop {
+        let Some(first) = fs_rx.recv().await else {
+          break;
         };
+        let mut pending: HashMap<PathBuf, FsEvent> = HashMap::new();
+        pending.insert(first.path.clone(), first);
 
-        // Update the incremental database
-        let mut host = server.host.write().await;
-        match &event {
-          FsEvent::Created(path) | FsEvent::Modified(path) => {
-            host.on_disk_change(path.clone());
+        // Drain additional events within 50ms so rapid editor saves batch together
+        let deadline = sleep(Duration::from_millis(50));
+        tokio::pin!(deadline);
+        loop {
+          tokio::select! {
+            event = fs_rx.recv() => match event {
+              Some(ev) => { pending.insert(ev.path.clone(), ev); }
+              None => return,
+            },
+            _ = &mut deadline => break,
           }
-          FsEvent::Removed(path) => {
-            host.on_disk_delete(path.clone());
+        }
+
+        // Apply all debounced events
+        let mut host = server.host.write().await;
+        for event in pending.values() {
+          match event.kind {
+            FsEventKind::Created | FsEventKind::Modified => host.on_disk_change(event.path.clone()),
+            FsEventKind::Removed => host.on_disk_delete(event.path.clone()),
           }
         }
         let analysis = host.snapshot();
         drop(host);
 
-        // Classify as content or schema and notify subscribers
         let db = &analysis.db;
         let project = analysis.project;
         let config = get_vault_config(db, project);
         let content_dir = config.content_dir(db);
         let schema_dir = config.schema_dir(db);
 
-        if path.starts_with(&content_dir) {
-          let notification = TdrContentNotification {
-            content: path.to_string_lossy().into_owned(),
-          };
-          match event {
-            FsEvent::Created(_) => {
-              let _ = server.content_created_tx.send(notification);
-            }
-            FsEvent::Modified(_) => {
-              let _ = server.content_changed_tx.send(notification);
-            }
-            FsEvent::Removed(_) => {
-              let _ = server.content_deleted_tx.send(notification);
-            }
-          }
-        } else if path.starts_with(&schema_dir) {
-          let Some(name) = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(str::to_string)
-          else {
-            continue;
-          };
-          let notification = TdrSchemaNotification { schema: name };
-          match event {
-            FsEvent::Created(_) => {
-              let _ = server.schema_created_tx.send(notification);
-            }
-            FsEvent::Modified(_) => {
-              let _ = server.schema_changed_tx.send(notification);
-            }
-            FsEvent::Removed(_) => {
-              let _ = server.schema_deleted_tx.send(notification);
-            }
+        for event in pending.into_values() {
+          if event.path.starts_with(&content_dir) {
+            let notification = TdrContentNotification {
+              content: event.path.to_string_lossy().into_owned(),
+            };
+            let sender = match event.kind {
+              FsEventKind::Created => &server.content_created_tx,
+              FsEventKind::Modified => &server.content_changed_tx,
+              FsEventKind::Removed => &server.content_deleted_tx,
+            };
+            let _ = sender.send(notification);
+          } else if event.path.starts_with(&schema_dir) {
+            let Some(name) = event
+              .path
+              .file_stem()
+              .and_then(|s| s.to_str())
+              .map(str::to_string)
+            else {
+              continue;
+            };
+            let notification = TdrSchemaNotification { schema: name };
+            let sender = match event.kind {
+              FsEventKind::Created => &server.schema_created_tx,
+              FsEventKind::Modified => &server.schema_changed_tx,
+              FsEventKind::Removed => &server.schema_deleted_tx,
+            };
+            let _ = sender.send(notification);
           }
         }
       }
@@ -176,28 +193,89 @@ impl RpcServer {
   }
 
   async fn build_file_impl(&self, file_path: &TdrFilePath) -> RpcResult<TdrBuiltResource> {
+    let mut results = self
+      .build_files_impl(std::slice::from_ref(file_path))
+      .await?;
+    Ok(results.swap_remove(0))
+  }
+
+  async fn build_files_impl(&self, file_paths: &[TdrFilePath]) -> RpcResult<Vec<TdrBuiltResource>> {
     let analysis = self.host.read().await.snapshot();
     let db = &analysis.db;
     let project = analysis.project;
 
     let config = get_vault_config(db, project);
     let content_dir = config.content_dir(db);
-    let path = content_dir.join(&file_path.0);
     let files = project.files(db);
-    let file = files.get(&path).ok_or_else(|| {
-      ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "File not found in project", None::<()>)
-    })?;
 
-    let exported = export_resource(db, project, *file).ok_or_else(|| {
-      ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "File is not a resource", None::<()>)
-    })?;
+    let mut results = Vec::with_capacity(file_paths.len());
+    for file_path in file_paths {
+      let path = content_dir.join(&file_path.0);
+      let file = files.get(&path).ok_or_else(|| {
+        ErrorObjectOwned::owned(
+          INVALID_PARAMS_CODE,
+          format!("File not found: {}", file_path.0),
+          None::<()>,
+        )
+      })?;
 
-    let header = exported.header;
+      let exported = export_resource(db, project, *file).ok_or_else(|| {
+        ErrorObjectOwned::owned(
+          INVALID_PARAMS_CODE,
+          format!("File is not a resource: {}", file_path.0),
+          None::<()>,
+        )
+      })?;
 
-    Ok(TdrBuiltResource {
-      schema: exported.schema,
-      header,
-      content: exported.content,
+      results.push(TdrBuiltResource {
+        schema: exported.schema,
+        header: exported.header,
+        content: exported.content,
+      });
+    }
+
+    Ok(results)
+  }
+
+  async fn list_vault_impl(&self) -> RpcResult<Vec<String>> {
+    let analysis = self.host.read().await.snapshot();
+    let db = &analysis.db;
+    let project = analysis.project;
+
+    let config = get_vault_config(db, project);
+    let content_dir = config.content_dir(db);
+    let files = project.files(db);
+
+    let mut result = Vec::new();
+    for (path, _) in &files {
+      if !path.starts_with(&content_dir) {
+        continue;
+      }
+      if path.extension().and_then(|e| e.to_str()) != Some("tdr") {
+        continue;
+      }
+      let rel = path.strip_prefix(&content_dir).unwrap_or(path);
+      result.push(normalize_path(rel));
+    }
+
+    Ok(result)
+  }
+
+  async fn get_config_impl(&self) -> RpcResult<TdrSiteConfig> {
+    let analysis = self.host.read().await.snapshot();
+    let db = &analysis.db;
+    let project = analysis.project;
+
+    let config = get_vault_config(db, project);
+    let root = project.root_dir(db);
+    let content_dir = config.content_dir(db);
+    let base_path = config.base_path(db);
+
+    let content_dir_rel = normalize_path(content_dir.strip_prefix(&root).unwrap_or(&content_dir));
+
+    Ok(TdrSiteConfig {
+      base_path: base_path.to_string(),
+      content_dir: content_dir_rel,
     })
   }
 
@@ -279,12 +357,24 @@ impl TdrBuildRpcServer<(), ()> for RpcServer {
     self.build_file_impl(&file_path).await
   }
 
+  async fn request_files(&self, file_paths: Vec<TdrFilePath>) -> RpcResult<Vec<TdrBuiltResource>> {
+    self.build_files_impl(&file_paths).await
+  }
+
+  async fn list_vault(&self) -> RpcResult<Vec<String>> {
+    self.list_vault_impl().await
+  }
+
   async fn list_schemas(&self) -> RpcResult<Vec<String>> {
     self.list_schemas_impl().await
   }
 
   async fn get_schema(&self, schema: String) -> RpcResult<TdrSchemaInfo> {
     self.get_schema_impl(&schema).await
+  }
+
+  async fn get_config(&self) -> RpcResult<TdrSiteConfig> {
+    self.get_config_impl().await
   }
 
   async fn subscribe_content_changed(
