@@ -2,7 +2,9 @@
 name = "tdr-server"
 version.workspace = true
 edition = "2024"
-license = "AGPL"
+license = "AGPL-3.0-only"
+description = "Typedown LSP and RPC server"
+repository = "https://github.com/Huy-DNA/typedown"
 authors = ["Huy-DNA <huydo862003@gmail.com>"]
 
 [[bin]]

@@ -247,7 +247,7 @@ impl RpcServer {
     let files = project.files(db);
 
     let mut result = Vec::new();
-    for (path, _) in &files {
+    for path in files.keys() {
       if !path.starts_with(&content_dir) {
         continue;
       }

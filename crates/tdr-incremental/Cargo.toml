@@ -2,7 +2,9 @@
 name = "tdr-incremental"
 version.workspace = true
 edition = "2024"
-license = "AGPL"
+license = "AGPL-3.0-only"
+description = "Incremental computation engine for Typedown"
+repository = "https://github.com/Huy-DNA/typedown"
 
 [dependencies]
 tdr-macros = { version = "0.0.0", path = "../tdr-macros" }
