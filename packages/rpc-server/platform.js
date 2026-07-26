@@ -41,7 +41,7 @@ export function releaseTag() {
 
 export function artifactName(osArchStr) {
   const ext = process.platform === "win32" ? ".exe" : "";
-  return `tdr-rpc-${pkg.version}-${osArchStr}${ext}`;
+  return `typedown-rpc-${pkg.version}-${osArchStr}${ext}`;
 }
 
 export function artifactUrl(tag, artifact) {
@@ -55,7 +55,7 @@ export function repoRoot() {
 export function binPath() {
   const ext = process.platform === "win32" ? ".exe" : "";
   if (isDev) {
-    return path.join(repoRoot(), "target", "debug", `tdr-rpc${ext}`);
+    return path.join(repoRoot(), "target", "debug", `typedown-rpc${ext}`);
   }
-  return path.join(path.dirname(import.meta.filename), "bin", `tdr-rpc${ext}`);
+  return path.join(path.dirname(import.meta.filename), "bin", `typedown-rpc${ext}`);
 }

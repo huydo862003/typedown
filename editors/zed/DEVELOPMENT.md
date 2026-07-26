@@ -47,6 +47,6 @@ Releases are handled by `publish.sh` from the repo root. CI builds the WASM and 
 
 ## Tree-sitter
 
-Syntactic highlighting in Zed uses Tree-sitter. The grammar lives in `packages/tree-sitter/`. Zed extensions reference the grammar via `extension.toml` and include query files under `languages/tdr/`.
+Syntactic highlighting in Zed uses Tree-sitter. The grammar lives in `packages/tree-sitter/`. Zed extensions reference the grammar via `extension.toml` and include query files under `languages/typedown/`.
 
 See also: [Tree-sitter research](https://huydo862003.github.io/loupe/research/analysis/syntactic-analysis.html)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build everything and generate extension.toml for local development.
-# Embeds the absolute path to target/debug/tdr-lsp into the extension binary.
+# Embeds the absolute path to target/debug/typedown-lsp into the extension binary.
 # See: https://github.com/zed-industries/zed/issues/42353
 set -euo pipefail
 
@@ -10,12 +10,12 @@ VERSION="$(cat "$REPO_ROOT/VERSION")"
 COMMIT_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 
 # Build LSP binary
-echo "Building tdr-lsp..."
-cargo build -p tdr-lsp
+echo "Building typedown-lsp..."
+cargo build -p typedown-lsp
 
 # Build extension WASM with dev LSP path embedded
 echo "Building extension WASM..."
-TDR_DEV_LSP_PATH="$REPO_ROOT/target/debug/tdr-lsp" \
+TYPEDOWN_DEV_LSP_PATH="$REPO_ROOT/target/debug/typedown-lsp" \
   cargo build -p typedown-zed --target wasm32-wasip1
 
 # Clean stale grammar caches

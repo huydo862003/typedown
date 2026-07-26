@@ -1,21 +1,21 @@
 {
-  "scopeName": "tdr.haskell.codeblock",
-  "injectionSelector": "L:source.tdr",
+  "scopeName": "typedown.haskell.codeblock",
+  "injectionSelector": "L:source.typedown",
   "patterns": [
     {
       "begin": "(^```+)(haskell|hs)\\s*$",
       "end": "^(\\1)\\s*$",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.definition.code.begin.tdr"
+          "name": "punctuation.definition.code.begin.td"
         },
         "2": {
-          "name": "entity.name.tag.tdr"
+          "name": "entity.name.tag.td"
         }
       },
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.code.end.tdr"
+          "name": "punctuation.definition.code.end.td"
         }
       },
       "contentName": "meta.embedded.block.haskell",

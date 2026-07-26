@@ -12,12 +12,15 @@ fn main() {
     .is_some_and(|content| content.contains("file://"));
 
   if is_dev {
-    let lsp_path = manifest_path.join("../../target/debug/tdr-lsp");
+    let lsp_path = manifest_path.join("../../target/debug/typedown-lsp");
     if let Ok(canonical) = lsp_path.canonicalize() {
-      println!("cargo:rustc-env=TDR_DEV_LSP_PATH={}", canonical.display());
+      println!(
+        "cargo:rustc-env=TYPEDOWN_DEV_LSP_PATH={}",
+        canonical.display()
+      );
     }
   }
 
   println!("cargo:rerun-if-changed=extension.toml");
-  println!("cargo:rerun-if-changed=../../target/debug/tdr-lsp");
+  println!("cargo:rerun-if-changed=../../target/debug/typedown-lsp");
 }

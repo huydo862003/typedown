@@ -111,7 +111,7 @@ Install each dependency manually:
 
 If you only intend to work on a specific package or editor extension, see the individual DEVELOPMENT.md files:
 
-- Core Rust crates (`tdr-lang`, `tdr-lsp`, `tdr-incremental`, etc.): This file
+- Core Rust crates (`typedown-lang`, `typedown-server`, `typedown-incremental`, etc.): This file
 - Tree-sitter grammars: [packages/tree-sitter/DEVELOPMENT.md](packages/tree-sitter/DEVELOPMENT.md)
 - Neovim plugin: [editors/nvim/DEVELOPMENT.md](editors/nvim/DEVELOPMENT.md)
 - VS Code extension: [editors/vscode/DEVELOPMENT.md](editors/vscode/DEVELOPMENT.md)

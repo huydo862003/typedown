@@ -2,7 +2,7 @@
 
 A Typedown vault is a directory containing a `typedown.yaml` file at its root. This file is the entrypoint: its presence marks the directory as a Typedown vault and configures where the vault's content is located.
 
-A vault is purely an organization convention: it defines how [TDR](./tdr.md) files are arranged on disk & how cross-file definitions are resolved. It has no meaning in the [Typedown abstract model](./typedown-model.md), which only concerns itself with the resource graph and its contents.
+A vault is purely an organization convention: it defines how [Typedown](./typedown.md) files are arranged on disk & how cross-file definitions are resolved. It has no meaning in the [Typedown abstract model](./typedown-model.md), which only concerns itself with the resource graph and its contents.
 
 ## Vault Layout
 
@@ -12,30 +12,30 @@ A typical vault looks like:
 my-vault/
 ├── typedown.yaml
 ├── content/
-│   ├── bob.tdr
-│   └── mona-lisa.tdr
+│   ├── bob.td
+│   └── mona-lisa.td
 └── schema/
-    ├── person.tdr
-    └── artwork.tdr
+    ├── person.td
+    └── artwork.td
 ```
 
-See [TDR](./tdr.md) for how individual files are structured.
+See [Typedown](./typedown.md) for how individual files are structured.
 
 ### Naming Conventions
 
 Typedown uses **snake_case** throughout:
 
-- **File names**: all `.tdr` files use snake_case (e.g. `my_note.tdr`, `blog_post.tdr`).
+- **File names**: all `.td` files use snake_case (e.g. `my_note.td`, `blog_post.td`).
 - **YAML keys**: all property names in the frontmatter use snake_case (e.g. `birth_date`, `first_name`, `topic_interest`).
 
 ### typedown.yaml
 
 `typedown.yaml` (or `typedown.yml`) holds global vault configuration. It has the following fields:
 
-- `version`: the TDR format version.
+- `version`: the Typedown format version.
 - `vault`: configuration for the vault.
-  - `content_dir`: the directory where content `.tdr` files (resources) are located.
-  - `schema_dir`: the directory where schema `.tdr` files (type definitions) are located.
+  - `content_dir`: the directory where content `.td` files (resources) are located.
+  - `schema_dir`: the directory where schema `.td` files (type definitions) are located.
 
 ```yaml
 version: 1.0.0

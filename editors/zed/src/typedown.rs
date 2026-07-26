@@ -6,7 +6,7 @@ struct TypedownExtension {
 }
 
 impl TypedownExtension {
-  /// Artifact naming: tdr-lsp-{version}-{os}-{arch}[.exe]
+  /// Artifact naming: typedown-lsp-{version}-{os}-{arch}[.exe]
   fn os_arch() -> Result<(&'static str, &'static str)> {
     let (platform, arch) = zed::current_platform();
     let os = match platform {
@@ -37,12 +37,12 @@ impl TypedownExtension {
     }
 
     // 2. Dev build (path embedded at compile time by build.rs when extension.toml has file:// URLs)
-    if let Some(dev_path) = option_env!("TDR_DEV_LSP_PATH") {
+    if let Some(dev_path) = option_env!("TYPEDOWN_DEV_LSP_PATH") {
       return Ok(dev_path.to_string());
     }
 
     // 3. Binary on $PATH
-    if let Some(path) = worktree.which("tdr-lsp") {
+    if let Some(path) = worktree.which("typedown-lsp") {
       return Ok(path);
     }
 
@@ -74,7 +74,7 @@ impl TypedownExtension {
       .version
       .strip_prefix('v')
       .unwrap_or(&release.version);
-    let asset_name = format!("tdr-lsp-{version}-{os}-{arch}{ext}");
+    let asset_name = format!("typedown-lsp-{version}-{os}-{arch}{ext}");
 
     let asset = release
       .assets
@@ -82,8 +82,8 @@ impl TypedownExtension {
       .find(|a| a.name == asset_name)
       .ok_or_else(|| format!("no release asset matching {asset_name:?}"))?;
 
-    let version_dir = format!("tdr-lsp-{version}");
-    let binary_path = format!("{version_dir}/tdr-lsp{ext}");
+    let version_dir = format!("typedown-lsp-{version}");
+    let binary_path = format!("{version_dir}/typedown-lsp{ext}");
 
     if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
       zed::set_language_server_installation_status(
@@ -96,10 +96,10 @@ impl TypedownExtension {
         &binary_path,
         zed::DownloadedFileType::Uncompressed,
       )
-      .map_err(|err| format!("failed to download tdr-lsp: {err}"))?;
+      .map_err(|err| format!("failed to download typedown-lsp: {err}"))?;
 
       zed::make_file_executable(&binary_path)
-        .map_err(|err| format!("failed to make tdr-lsp executable: {err}"))?;
+        .map_err(|err| format!("failed to make typedown-lsp executable: {err}"))?;
 
       // Clean up old versions
       if let Ok(entries) = fs::read_dir(".") {
@@ -107,7 +107,7 @@ impl TypedownExtension {
           let name = entry.file_name();
           if name
             .to_str()
-            .is_some_and(|n| n.starts_with("tdr-lsp-") && n != version_dir)
+            .is_some_and(|n| n.starts_with("typedown-lsp-") && n != version_dir)
           {
             fs::remove_dir_all(entry.path()).ok();
           }

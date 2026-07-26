@@ -1,9 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "tree-sitter-tdr",
+  "name": "tree-sitter-typedown",
   "version": "0.0.0",
   "private": true,
-  "description": "Typedown TDR grammar for tree-sitter",
+  "description": "Typedown grammar for tree-sitter",
   "type": "module",
   "repository": {
     "type": "git",
@@ -18,16 +18,16 @@
     "incremental",
     "parsing",
     "tree-sitter",
-    "tdr"
+    "typedown"
   ],
   "files": [
     "tree-sitter.json",
     "grammar.js",
     "queries/*",
     "src/**",
-    "tdr-*/grammar.js",
-    "tdr-*/queries/*",
-    "tdr-*/src/**",
+    "typedown-*/grammar.js",
+    "typedown-*/queries/*",
+    "typedown-*/src/**",
     "*.wasm"
   ],
   "devDependencies": {

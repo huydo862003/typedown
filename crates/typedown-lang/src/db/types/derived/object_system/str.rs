@@ -1,0 +1,139 @@
+use std::collections::HashMap;
+use typedown_macros::query_derived;
+
+use super::base::{TdObjectLike, TdObjectType, TdTypeLike, TdTypeType};
+use super::func::TdFuncObj;
+use super::native_fn::NativeFnKind;
+use super::{TdObjectEnum, TdTypeEnum};
+use crate::db::TypedownDatabase;
+use crate::db::derived::get_builtin_types::get_str_type;
+use crate::db::types::{FuncSignature, InstResult, TypeMember};
+use typedown_incremental::Id;
+
+#[query_derived]
+pub struct TdStrType {}
+
+impl TdObjectLike for TdStrType {
+  fn get_type(&self, db: &TypedownDatabase) -> TdTypeEnum {
+    TdTypeType::get(db).into()
+  }
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<TdObjectEnum> {
+    None
+  }
+  fn source_path(&self, _db: &TypedownDatabase) -> String {
+    "@builtin::string".to_string()
+  }
+}
+
+impl TdTypeLike for TdStrType {
+  fn arity(&self, _db: &TypedownDatabase) -> usize {
+    0
+  }
+  fn get_supertype(&self, db: &TypedownDatabase) -> TdTypeEnum {
+    TdObjectType::get(db).into()
+  }
+  fn get_vtable(&self, db: &TypedownDatabase) -> HashMap<String, TdFuncObj> {
+    let sig = FuncSignature::new(db, vec![], TdStrType::get(db).into());
+    let func_obj = TdFuncObj::new(
+      db,
+      "to_string".to_string(),
+      TdStrType::get(db).into(),
+      sig,
+      NativeFnKind::StrToString,
+    );
+    HashMap::from([("to_string".to_string(), func_obj)])
+  }
+  fn get_owned_field_type_member(&self, _db: &TypedownDatabase, _name: &str) -> Option<TypeMember> {
+    None
+  }
+  fn instantiate(&self, db: &TypedownDatabase, args: Vec<TdTypeEnum>) -> InstResult {
+    assert_eq!(args.len(), self.arity(db), "arity mismatch");
+    InstResult::new(db, (*self).into(), vec![])
+  }
+  fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdTypeEnum> {
+    vec![]
+  }
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &TdTypeEnum) -> bool {
+    if self.as_id() == actual.as_id() {
+      return true;
+    }
+    // Accept subtypes of string (e.g. date, time, datetime) by walking the supertype chain
+    let mut current = actual.get_supertype(db);
+    loop {
+      if self.as_id() == current.as_id() {
+        return true;
+      }
+      let next = current.get_supertype(db);
+      if next.as_id() == current.as_id() {
+        return false;
+      }
+      current = next;
+    }
+  }
+  fn construct(&self, _db: &TypedownDatabase, args: Vec<TdObjectEnum>) -> Option<TdObjectEnum> {
+    let arg = args.into_iter().next()?;
+    arg.as_td_str_obj()?;
+    Some(arg)
+  }
+  fn display_name(&self, _db: &TypedownDatabase) -> String {
+    "string".to_string()
+  }
+}
+
+impl TdStrType {
+  pub fn get(db: &TypedownDatabase) -> TdStrType {
+    get_str_type(db)
+  }
+}
+
+#[query_derived]
+pub struct TdStrObj {
+  pub value: String,
+}
+
+impl TdObjectLike for TdStrObj {
+  fn get_type(&self, db: &TypedownDatabase) -> TdTypeEnum {
+    TdStrType::get(db).into()
+  }
+  fn get_owned_field(&self, _db: &TypedownDatabase, _key: &str) -> Option<TdObjectEnum> {
+    None
+  }
+  fn source_path(&self, db: &TypedownDatabase) -> String {
+    self.get_type(db).source_path(db)
+  }
+  fn eq(&self, db: &TypedownDatabase, other: &TdObjectEnum) -> bool {
+    if let TdObjectEnum::TdStrObj(other) = other {
+      self.value(db) == other.value(db)
+    } else {
+      self.as_id() == other.as_id()
+    }
+  }
+  fn lt(&self, db: &TypedownDatabase, other: &TdObjectEnum) -> bool {
+    if let TdObjectEnum::TdStrObj(other) = other {
+      self.value(db) < other.value(db)
+    } else {
+      self.as_id() < other.as_id()
+    }
+  }
+  fn gt(&self, db: &TypedownDatabase, other: &TdObjectEnum) -> bool {
+    if let TdObjectEnum::TdStrObj(other) = other {
+      self.value(db) > other.value(db)
+    } else {
+      self.as_id() > other.as_id()
+    }
+  }
+  fn le(&self, db: &TypedownDatabase, other: &TdObjectEnum) -> bool {
+    if let TdObjectEnum::TdStrObj(other) = other {
+      self.value(db) <= other.value(db)
+    } else {
+      self.as_id() <= other.as_id()
+    }
+  }
+  fn ge(&self, db: &TypedownDatabase, other: &TdObjectEnum) -> bool {
+    if let TdObjectEnum::TdStrObj(other) = other {
+      self.value(db) >= other.value(db)
+    } else {
+      self.as_id() >= other.as_id()
+    }
+  }
+}

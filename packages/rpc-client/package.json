@@ -9,16 +9,16 @@
     "directory": "packages/rpc-client"
   },
   "type": "module",
-  "main": "./src/tdr_server.js",
-  "types": "./src/tdr_server.d.ts",
+  "main": "./src/typedown_server.js",
+  "types": "./src/typedown_server.d.ts",
   "exports": {
     ".": {
-      "types": "./src/tdr_server.d.ts",
-      "import": "./src/tdr_server.js"
+      "types": "./src/typedown_server.d.ts",
+      "import": "./src/typedown_server.js"
     }
   },
   "scripts": {
-    "build": "wasm-pack build ../../crates/tdr-server --target nodejs --out-dir ../../packages/rpc-client/src && rm src/package.json src/.gitignore",
+    "build": "wasm-pack build ../../crates/typedown-server --target nodejs --out-dir ../../packages/rpc-client/src && rm src/package.json src/.gitignore",
     "prepublishOnly": "pnpm build"
   },
   "author": "Huy-DNA <huydo862003@gmail.com>",

@@ -19,7 +19,7 @@
   },
   "scripts": {
     "postinstall": "node install.js",
-    "prepublishOnly": "cargo build --release -p tdr-server && cp .env .env.bak && cp .env.publish .env",
+    "prepublishOnly": "cargo build --release -p typedown-server && cp .env .env.bak && cp .env.publish .env",
     "postpublish": "mv .env.bak .env"
   },
   "dependencies": {

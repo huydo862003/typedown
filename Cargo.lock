@@ -2092,91 +2092,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tdr-incremental"
-version = "0.0.0"
-dependencies = [
- "dashmap",
- "fs2",
- "inventory",
- "memmap2",
- "rand 0.9.5",
- "rustc-stable-hash",
- "tdr-macros",
- "tdr-types",
- "tempfile",
-]
-
-[[package]]
-name = "tdr-lang"
-version = "0.0.0"
-dependencies = [
- "ambassador",
- "bitflags 2.13.0",
- "dashmap",
- "derive_more",
- "enum-as-inner",
- "expect-test",
- "hashbrown 0.17.1",
- "inventory",
- "proptest",
- "regex",
- "serde",
- "serde_json",
- "strum",
- "tdr-incremental",
- "tdr-macros",
- "tdr-types",
- "yaml-rust2",
-]
-
-[[package]]
-name = "tdr-macros"
-version = "0.0.0"
-dependencies = [
- "quote",
- "syn 2.0.118",
-]
-
-[[package]]
-name = "tdr-server"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "dashmap",
- "filetime",
- "futures",
- "js-sys",
- "jsonrpsee",
- "log",
- "lsp-server",
- "lsp-types",
- "notify",
- "ropey",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "tdr-incremental",
- "tdr-lang",
- "tdr-types",
- "tempfile",
- "threadpool",
- "tokio",
- "tsify-next",
- "wasm-bindgen",
- "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "tdr-types"
-version = "0.0.0"
-dependencies = [
- "html-escape",
- "num_enum",
- "unescaper",
-]
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2434,6 +2349,91 @@ dependencies = [
  "quote",
  "serde_derive_internals",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "typedown-incremental"
+version = "0.0.0"
+dependencies = [
+ "dashmap",
+ "fs2",
+ "inventory",
+ "memmap2",
+ "rand 0.9.5",
+ "rustc-stable-hash",
+ "tempfile",
+ "typedown-macros",
+ "typedown-types",
+]
+
+[[package]]
+name = "typedown-lang"
+version = "0.0.0"
+dependencies = [
+ "ambassador",
+ "bitflags 2.13.0",
+ "dashmap",
+ "derive_more",
+ "enum-as-inner",
+ "expect-test",
+ "hashbrown 0.17.1",
+ "inventory",
+ "proptest",
+ "regex",
+ "serde",
+ "serde_json",
+ "strum",
+ "typedown-incremental",
+ "typedown-macros",
+ "typedown-types",
+ "yaml-rust2",
+]
+
+[[package]]
+name = "typedown-macros"
+version = "0.0.0"
+dependencies = [
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "typedown-server"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "crossbeam-channel",
+ "dashmap",
+ "filetime",
+ "futures",
+ "js-sys",
+ "jsonrpsee",
+ "log",
+ "lsp-server",
+ "lsp-types",
+ "notify",
+ "ropey",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "tempfile",
+ "threadpool",
+ "tokio",
+ "tsify-next",
+ "typedown-incremental",
+ "typedown-lang",
+ "typedown-types",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "typedown-types"
+version = "0.0.0"
+dependencies = [
+ "html-escape",
+ "num_enum",
+ "unescaper",
 ]
 
 [[package]]

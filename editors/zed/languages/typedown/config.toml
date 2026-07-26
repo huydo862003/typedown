@@ -1,0 +1,4 @@
+name = "Typedown"
+grammar = "typedown"
+path_suffixes = ["typedown"]
+tab_size = 2

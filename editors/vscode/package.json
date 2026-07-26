@@ -15,367 +15,367 @@
     "lsp"
   ],
   "activationEvents": [
-    "onLanguage:tdr"
+    "onLanguage:typedown"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "tdr",
+        "id": "typedown",
         "aliases": [
           "Typedown",
-          "tdr"
+          "typedown"
         ],
         "extensions": [
-          ".tdr"
+          ".td"
         ],
         "icon": {
-          "light": "./icons/tdr.svg",
-          "dark": "./icons/tdr.svg"
+          "light": "./icons/typedown.svg",
+          "dark": "./icons/typedown.svg"
         },
         "configuration": "./language-configuration.json"
       }
     ],
     "configurationDefaults": {
-      "[tdr]": {
+      "[typedown]": {
         "editor.tabSize": 2,
         "editor.insertSpaces": true
       }
     },
     "grammars": [
       {
-        "language": "tdr",
-        "scopeName": "source.tdr",
-        "path": "./syntaxes/tdr.tmLanguage.json",
+        "language": "typedown",
+        "scopeName": "source.typedown",
+        "path": "./syntaxes/typedown.tmLanguage.json",
         "embeddedLanguages": {
-          "meta.embedded.math.tdr": "latex"
+          "meta.embedded.math.typedown": "latex"
         }
       },
       {
-        "scopeName": "tdr.javascript.codeblock",
+        "scopeName": "typedown.javascript.codeblock",
         "path": "./syntaxes/javascript-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.javascript": "javascript"
         }
       },
       {
-        "scopeName": "tdr.typescript.codeblock",
+        "scopeName": "typedown.typescript.codeblock",
         "path": "./syntaxes/typescript-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.typescript": "typescript"
         }
       },
       {
-        "scopeName": "tdr.typescriptreact.codeblock",
+        "scopeName": "typedown.typescriptreact.codeblock",
         "path": "./syntaxes/typescriptreact-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.typescriptreact": "typescriptreact"
         }
       },
       {
-        "scopeName": "tdr.javascriptreact.codeblock",
+        "scopeName": "typedown.javascriptreact.codeblock",
         "path": "./syntaxes/javascriptreact-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.javascriptreact": "javascriptreact"
         }
       },
       {
-        "scopeName": "tdr.json.codeblock",
+        "scopeName": "typedown.json.codeblock",
         "path": "./syntaxes/json-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.json": "json"
         }
       },
       {
-        "scopeName": "tdr.css.codeblock",
+        "scopeName": "typedown.css.codeblock",
         "path": "./syntaxes/css-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.css": "css"
         }
       },
       {
-        "scopeName": "tdr.html.codeblock",
+        "scopeName": "typedown.html.codeblock",
         "path": "./syntaxes/html-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.html": "html"
         }
       },
       {
-        "scopeName": "tdr.python.codeblock",
+        "scopeName": "typedown.python.codeblock",
         "path": "./syntaxes/python-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.python": "python"
         }
       },
       {
-        "scopeName": "tdr.rust.codeblock",
+        "scopeName": "typedown.rust.codeblock",
         "path": "./syntaxes/rust-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.rust": "rust"
         }
       },
       {
-        "scopeName": "tdr.go.codeblock",
+        "scopeName": "typedown.go.codeblock",
         "path": "./syntaxes/go-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.go": "go"
         }
       },
       {
-        "scopeName": "tdr.c.codeblock",
+        "scopeName": "typedown.c.codeblock",
         "path": "./syntaxes/c-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.c": "c"
         }
       },
       {
-        "scopeName": "tdr.cpp.codeblock",
+        "scopeName": "typedown.cpp.codeblock",
         "path": "./syntaxes/cpp-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.cpp": "cpp"
         }
       },
       {
-        "scopeName": "tdr.java.codeblock",
+        "scopeName": "typedown.java.codeblock",
         "path": "./syntaxes/java-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.java": "java"
         }
       },
       {
-        "scopeName": "tdr.ruby.codeblock",
+        "scopeName": "typedown.ruby.codeblock",
         "path": "./syntaxes/ruby-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.ruby": "ruby"
         }
       },
       {
-        "scopeName": "tdr.shellscript.codeblock",
+        "scopeName": "typedown.shellscript.codeblock",
         "path": "./syntaxes/shellscript-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.shellscript": "shellscript"
         }
       },
       {
-        "scopeName": "tdr.lua.codeblock",
+        "scopeName": "typedown.lua.codeblock",
         "path": "./syntaxes/lua-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.lua": "lua"
         }
       },
       {
-        "scopeName": "tdr.sql.codeblock",
+        "scopeName": "typedown.sql.codeblock",
         "path": "./syntaxes/sql-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.sql": "sql"
         }
       },
       {
-        "scopeName": "tdr.yaml.codeblock",
+        "scopeName": "typedown.yaml.codeblock",
         "path": "./syntaxes/yaml-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.yaml": "yaml"
         }
       },
       {
-        "scopeName": "tdr.toml.codeblock",
+        "scopeName": "typedown.toml.codeblock",
         "path": "./syntaxes/toml-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.toml": "toml"
         }
       },
       {
-        "scopeName": "tdr.xml.codeblock",
+        "scopeName": "typedown.xml.codeblock",
         "path": "./syntaxes/xml-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.xml": "xml"
         }
       },
       {
-        "scopeName": "tdr.graphql.codeblock",
+        "scopeName": "typedown.graphql.codeblock",
         "path": "./syntaxes/graphql-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.graphql": "graphql"
         }
       },
       {
-        "scopeName": "tdr.dockerfile.codeblock",
+        "scopeName": "typedown.dockerfile.codeblock",
         "path": "./syntaxes/dockerfile-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.dockerfile": "dockerfile"
         }
       },
       {
-        "scopeName": "tdr.markdown.codeblock",
+        "scopeName": "typedown.markdown.codeblock",
         "path": "./syntaxes/markdown-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.markdown": "markdown"
         }
       },
       {
-        "scopeName": "tdr.elixir.codeblock",
+        "scopeName": "typedown.elixir.codeblock",
         "path": "./syntaxes/elixir-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.elixir": "elixir"
         }
       },
       {
-        "scopeName": "tdr.swift.codeblock",
+        "scopeName": "typedown.swift.codeblock",
         "path": "./syntaxes/swift-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.swift": "swift"
         }
       },
       {
-        "scopeName": "tdr.kotlin.codeblock",
+        "scopeName": "typedown.kotlin.codeblock",
         "path": "./syntaxes/kotlin-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.kotlin": "kotlin"
         }
       },
       {
-        "scopeName": "tdr.r.codeblock",
+        "scopeName": "typedown.r.codeblock",
         "path": "./syntaxes/r-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.r": "r"
         }
       },
       {
-        "scopeName": "tdr.csharp.codeblock",
+        "scopeName": "typedown.csharp.codeblock",
         "path": "./syntaxes/csharp-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.csharp": "csharp"
         }
       },
       {
-        "scopeName": "tdr.php.codeblock",
+        "scopeName": "typedown.php.codeblock",
         "path": "./syntaxes/php-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.php": "php"
         }
       },
       {
-        "scopeName": "tdr.scala.codeblock",
+        "scopeName": "typedown.scala.codeblock",
         "path": "./syntaxes/scala-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.scala": "scala"
         }
       },
       {
-        "scopeName": "tdr.zig.codeblock",
+        "scopeName": "typedown.zig.codeblock",
         "path": "./syntaxes/zig-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.zig": "zig"
         }
       },
       {
-        "scopeName": "tdr.haskell.codeblock",
+        "scopeName": "typedown.haskell.codeblock",
         "path": "./syntaxes/haskell-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.haskell": "haskell"
         }
       },
       {
-        "scopeName": "tdr.ocaml.codeblock",
+        "scopeName": "typedown.ocaml.codeblock",
         "path": "./syntaxes/ocaml-codeblock.json",
         "injectTo": [
-          "source.tdr"
+          "source.typedown"
         ],
         "embeddedLanguages": {
           "meta.embedded.block.ocaml": "ocaml"
@@ -384,8 +384,8 @@
     ]
   },
   "scripts": {
-    "build:grammar": "json5 -o syntaxes/tdr.tmLanguage.json syntaxes/tdr.tmLanguage.json5",
-    "build:rust": "cargo build -p tdr-lsp && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
+    "build:grammar": "json5 -o syntaxes/typedown.tmLanguage.json syntaxes/typedown.tmLanguage.json5",
+    "build:rust": "cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
     "check-types": "tsc --noEmit",
     "fetch:staging": "TYPEDOWN_BINARY_SOURCE=staging node scripts/setup-binary.mjs",
 
@@ -400,7 +400,7 @@
     "dev": "npm-run-all -p dev:rust dev:esbuild dev:tsc",
     "dev:esbuild": "node esbuild.js --watch",
     "dev:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "dev:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p tdr-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
+    "dev:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
     "dev:staging": "npm-run-all -p dev:esbuild dev:tsc",
     "dev:tests": "tsc -p . -w --outDir out",
 

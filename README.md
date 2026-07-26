@@ -16,7 +16,7 @@ The tree-sitter grammar research is documented in the [loupe](https://github.com
 
 NOTE: In this early phase, we don't intend to be conformant to [commonmark](https://commonmark.org/) though. However, basic markdowns with basic syntaxes like tables, lists, links, headings, bold texts, block quotes should just work. In the future, we can use these two to check for compatibility: [spec](https://spec.commonmark.org/) and [reference implementations & tests](https://github.com/commonmark).
 
-For linting and formatting, we follow [Google's markdown style guide](https://google.github.io/styleguide/docguide/style.html) with some divergences. See [crates/tdr-lang/README.md](crates/tdr-lang/README.md) for details.
+For linting and formatting, we follow [Google's markdown style guide](https://google.github.io/styleguide/docguide/style.html) with some divergences. See [crates/typedown-lang/README.md](crates/typedown-lang/README.md) for details.
 
 ## Dev Setup
 
@@ -32,17 +32,17 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for full setup instructions (Nix and non-Ni
 
 ## Dependency Graph
 
-- `tdr-macros` and `tdr-types` contain common utils, which are the lowest common denominator that everyone depends upon.
+- `typedown-macros` and `typedown-types` contain common utils, which are the lowest common denominator that everyone depends upon.
   - They can be depended upon by other crates.
   - They must not depend on any other crates.
-- `tdr-incremental` contains the incremental engine.
-  - It must not depend on any other crates, except for `tdr-macros` and `tdr-types`.
-  - It can be depended upon by everyone, EXCEPT FOR `tdr-macros` and `tdr-types`.
-- `tdr-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
-  - It depends on `tdr-incremental`, `tdr-macros`, and `tdr-types`.
-  - It must not depend on `tdr-lsp`/`tdr-build`.
-  - It can only be depended upon by `tdr-lsp`/`tdr-build`.
-- `tdr-lsp` contains the LSP server for typedown while `tdr-build` contains the build server.
+- `typedown-incremental` contains the incremental engine.
+  - It must not depend on any other crates, except for `typedown-macros` and `typedown-types`.
+  - It can be depended upon by everyone, EXCEPT FOR `typedown-macros` and `typedown-types`.
+- `typedown-lang` contains the AST structure, parser, typechecking, and evaluation logic for typedown.
+  - It depends on `typedown-incremental`, `typedown-macros`, and `typedown-types`.
+  - It must not depend on `typedown-server`/`typedown-build`.
+  - It can only be depended upon by `typedown-server`/`typedown-build`.
+- `typedown-server` contains the LSP server for typedown while `typedown-build` contains the build server.
   - It can depend on any other crates.
   - It can not be depended upon by others.
 

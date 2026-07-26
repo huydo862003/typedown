@@ -48,4 +48,4 @@
 - [Design](design.md)
   - [Typedown Abstract Model](./design/typedown-model.md)
   - [Typedown Vault](./design/typedown-vault.md)
-  - [TDR: Typedown Resource](./design/tdr.md)
+  - [Typedown Syntax](./design/typedown.md)

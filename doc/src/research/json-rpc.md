@@ -81,7 +81,7 @@ Some boring but worth-noting conventions from the spec:
 
 One interesting note: A single program can act as both client and server at the same time. For example, program A serves requests from B, while also sending its own requests back to B. The spec acknowledges this is possible but says "this specification does not address that layer of complexity." In other words: If both sides send requests with the same `id`, or if you need to distinguish "my requests" from "their requests," that's your problem.
 
-The LSP is a real-world example of this: `tdr-lsp` is a server (handles `textDocument/hover` from the editor), but also a client (sends `client/registerCapability` TO the editor). Both sides need to track which `id`s belong to which direction.
+The LSP is a real-world example of this: `typedown-lsp` is a server (handles `textDocument/hover` from the editor), but also a client (sends `client/registerCapability` TO the editor). Both sides need to track which `id`s belong to which direction.
 
 ## Compatibility
 
@@ -117,7 +117,7 @@ Example:
   "jsonrpc": "2.0",
   "id": 1,
   "method": "buildFile",
-  "params": { "path": "content/alice.tdr" }
+  "params": { "path": "content/alice.td" }
 }
 ```
 
@@ -133,7 +133,7 @@ A Notification is a Request **without** an `id` member (not `id: null`, literall
 {
   "jsonrpc": "2.0",
   "method": "fileChanged",
-  "params": { "path": "content/alice.tdr" }
+  "params": { "path": "content/alice.td" }
 }
 ```
 
@@ -143,8 +143,8 @@ A Notification is a Request **without** an `id` member (not `id: null`, literall
 
 If `params` is present, it MUST be either:
 
-- **By-position** (Array): Values in the order the server expects. `["content/alice.tdr", true]`
-- **By-name** (Object): Keys matching the server's expected parameter names, case-sensitive. `{ "path": "content/alice.tdr", "force": true }`
+- **By-position** (Array): Values in the order the server expects. `["content/alice.td", true]`
+- **By-name** (Object): Keys matching the server's expected parameter names, case-sensitive. `{ "path": "content/alice.td", "force": true }`
 
 Missing expected names MAY result in an error.
 
@@ -216,9 +216,9 @@ A client can send multiple Requests at once by wrapping them in an Array:
 
 ```json
 [
-  { "jsonrpc": "2.0", "id": 1, "method": "getOutput", "params": { "path": "a.tdr" } },
-  { "jsonrpc": "2.0", "id": 2, "method": "getOutput", "params": { "path": "b.tdr" } },
-  { "jsonrpc": "2.0", "method": "fileChanged", "params": { "path": "c.tdr" } }
+  { "jsonrpc": "2.0", "id": 1, "method": "getOutput", "params": { "path": "a.td" } },
+  { "jsonrpc": "2.0", "id": 2, "method": "getOutput", "params": { "path": "b.td" } },
+  { "jsonrpc": "2.0", "method": "fileChanged", "params": { "path": "c.td" } }
 ]
 ```
 

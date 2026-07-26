@@ -6,7 +6,7 @@ For full project setup, see the [root DEVELOPMENT.md](../../DEVELOPMENT.md).
 
 - **Node.js** (22+)
 - **pnpm** (11+)
-- **Rust nightly**: To build `tdr-lsp`
+- **Rust nightly**: To build `typedown-lsp`
 - **VS Code** or **VSCodium**
 
 All provided automatically by `nix develop` from the repo root.
@@ -25,9 +25,9 @@ pnpm install
 - Lint: `pnpm run lint`
 - Type check: `pnpm run check-types`
 
-- `build:local` builds `tdr-lsp` from source and copies the debug binary into `bin/` before bundling the extension
+- `build:local` builds `typedown-lsp` from source and copies the debug binary into `bin/` before bundling the extension
 - `dev` runs `cargo watch` and esbuild/tsc in parallel. Relaunch the Extension Development Host after each Rust rebuild
-- `build:grammar` converts `syntaxes/tdr.tmLanguage.json5` (JSON5, supports comments) to `syntaxes/tdr.tmLanguage.json`. The generated `.json` file is gitignored
+- `build:grammar` converts `syntaxes/typedown.tmLanguage.json5` (JSON5, supports comments) to `syntaxes/typedown.tmLanguage.json`. The generated `.json` file is gitignored
 
 ## Testing
 
@@ -55,7 +55,7 @@ Releases are handled by `publish.sh` from the repo root. It bumps the version in
 
 ## Authoring TextMate Grammar
 
-The grammar source is `syntaxes/tdr.tmLanguage.json5` (JSON5, supports comments). It is converted to `syntaxes/tdr.tmLanguage.json` at build time via `pnpm run build:grammar`. The generated `.json` file is gitignored.
+The grammar source is `syntaxes/typedown.tmLanguage.json5` (JSON5, supports comments). It is converted to `syntaxes/typedown.tmLanguage.json` at build time via `pnpm run build:grammar`. The generated `.json` file is gitignored.
 
 In this section, I will document my personal experiences with TextMate grammar, maybe some pitfalls or high-level concepts to know.
 
@@ -69,7 +69,7 @@ Top-level fields:
 
   "name": "Typedown",
 
-  "scopeName": "source.tdr",
+  "scopeName": "source.typedown",
 
   "patterns": [
     {
@@ -83,12 +83,12 @@ Top-level fields:
       "end": "^(---)",
       "beginCaptures": {
         "1": {
-          "name": "punctuation.definition.frontmatter.begin.tdr"
+          "name": "punctuation.definition.frontmatter.begin.typedown"
         }
       },
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.frontmatter.end.tdr"
+          "name": "punctuation.definition.frontmatter.end.typedown"
         }
       },
       "patterns": []
@@ -99,22 +99,22 @@ Top-level fields:
 
 - `$schema`: Normal JSON schema declaration.
 - `name`: The name of the TextMate grammar, no functional effects.
-- `scopeName: "source.tdr"`: The unique identifier for your grammar.
-  1. How themes target your language: Rules can match broadly (`source`) or specifically (`source.tdr`)
-  2. How other grammars embed yours: They reference `source.tdr` to include your grammar
-  3. Scope hierarchy: Every token in your file inherits source.tdr as its root, and nested scopes build on top (e.g, `source.tdr > string.quoted.double.tdr`).
+- `scopeName: "source.typedown"`: The unique identifier for your grammar.
+  1. How themes target your language: Rules can match broadly (`source`) or specifically (`source.typedown`)
+  2. How other grammars embed yours: They reference `source.typedown` to include your grammar
+  3. Scope hierarchy: Every token in your file inherits source.typedown as its root, and nested scopes build on top (e.g, `source.typedown > string.quoted.double.typedown`).
 
      Example: `string` would match `string.quoted`, but `quoted` would not match `string.quoted`. When both `string` and `string.quoted` match, the more specific one (`string.quoted`) wins, similar to CSS specificity.
 
-  > The `.` is not a file part separator, it creates namespace prefixes, like folder hierarchy in `source/tdr`.
+  > The `.` is not a file part separator, it creates namespace prefixes, like folder hierarchy in `source/typedown`.
 
-  > Initially, I thought this is a regex for filenames `*.tdr`.
+  > Initially, I thought this is a regex for filenames `*.typedown`.
 
 - `patterns`: An array of rules applied to the file content.
   - Each rule is a regex that matches a region of text and assigns scope names to it.
   - Rules can nest: a matched region can have its own inner `patterns`, forming a tree. Inner rules see the raw text within the region and match against it independently. See [Rules](#rules) below.
   - Rules in `repository` are only applied when referenced from here (or from other active rules) via `include`.
-  - Unmatched text (text that no pattern matches) stays in the parent scope. At the top level, that's `source.tdr`. No error occurs.
+  - Unmatched text (text that no pattern matches) stays in the parent scope. At the top level, that's `source.typedown`. No error occurs.
 - `repository`: A dictionary of named rules referenced via `{ "include": "#rule-name" }` from `patterns` or other rules. Rules here are not applied unless included. Recursive includes are valid and useful for nested constructs (e.g., nested comments, nested brackets). The engine handles this by trying the rule at each position without infinite looping, since each match must consume text to advance.
 
 ### Rules
@@ -132,15 +132,15 @@ Each rule in `patterns` or `repository` can be one of three forms:
    - `match`: Regex to match against.
    - `name`: Scope assigned to the entire matched text.
    - `captures`: Scopes assigned to individual capture groups. These are applied on top of `name`. For example, with the rule below, `# my comment` produces:
-     - `#` has scopes: `comment.line.number-sign.tdr`, `punctuation.definition.comment.tdr` (targeted by either)
-     - ` my comment` has scope: `comment.line.number-sign.tdr` only (targeted by `comment` but not `punctuation`)
+     - `#` has scopes: `comment.line.number-sign.typedown`, `punctuation.definition.comment.typedown` (targeted by either)
+     - ` my comment` has scope: `comment.line.number-sign.typedown` only (targeted by `comment` but not `punctuation`)
 
    ```json
    {
      "match": "(#).*$",
-     "name": "comment.line.number-sign.tdr",
+     "name": "comment.line.number-sign.typedown",
      "captures": {
-       "1": { "name": "punctuation.definition.comment.tdr" }
+       "1": { "name": "punctuation.definition.comment.typedown" }
      }
    }
    ```
@@ -157,7 +157,7 @@ Each rule in `patterns` or `repository` can be one of three forms:
    {
      "begin": "\"",
      "end": "\"",
-     "name": "string.quoted.double.tdr",
+     "name": "string.quoted.double.typedown",
      "patterns": [{ "include": "#escape" }, { "include": "#interpolation" }]
    }
    ```
@@ -176,10 +176,10 @@ Suggestions:
 - **Spread out across root groups**: Don't put everything under `keyword` just because your formal spec calls them keywords. Ask "would I want these two elements styled differently?". If yes, use different root groups.
 - **Reuse existing sub-types**:
   - Within a group, use the established sub-names (e.g., `storage.modifier`, `storage.type`) rather than inventing new ones.
-  - But append extra info: `storage.modifier.static.tdr` instead of just `storage.modifier`.
+  - But append extra info: `storage.modifier.static.typedown` instead of just `storage.modifier`.
 - **Put the language name last**:
-  - Example: `string.quoted.double.tdr`, not `tdr.string.quoted.double`.
-  - This matters for embedded languages where `source.tdr` context may not be available in selectors.
+  - Example: `string.quoted.double.typedown`, not `typedown.string.quoted.double`.
+  - This matters for embedded languages where `source.typedown` context may not be available in selectors.
 
 The 11 root groups:
 
@@ -213,8 +213,8 @@ Two pieces are needed:
 
    ````json
    {
-     "scopeName": "tdr.js.codeblock",
-     "injectionSelector": "L:source.tdr",
+     "scopeName": "typedown.js.codeblock",
+     "injectionSelector": "L:source.typedown",
      "patterns": [
        {
          "begin": "(^```)(js|javascript)\\s*$",
@@ -232,9 +232,9 @@ Two pieces are needed:
    {
      "grammars": [
        {
-         "scopeName": "tdr.js.codeblock",
+         "scopeName": "typedown.js.codeblock",
          "path": "./syntaxes/js-codeblock.json",
-         "injectTo": ["source.tdr"],
+         "injectTo": ["source.typedown"],
          "embeddedLanguages": {
            "meta.embedded.block.javascript": "javascript"
          }

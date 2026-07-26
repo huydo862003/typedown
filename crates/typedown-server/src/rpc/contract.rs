@@ -1,0 +1,147 @@
+#[cfg(not(target_arch = "wasm32"))]
+use jsonrpsee::core::RpcResult;
+use jsonrpsee::proc_macros::rpc;
+use serde::{Deserialize, Serialize};
+#[cfg(target_arch = "wasm32")]
+use tsify_next::Tsify;
+
+#[cfg(not(target_arch = "wasm32"))]
+use jsonrpsee::{
+  IntoSubscriptionCloseResponse, SubscriptionCloseResponse, core::to_json_raw_value,
+};
+
+/// On native: generates both TdBuildRpcServer and TdBuildRpcClient traits
+#[cfg_attr(
+  not(target_arch = "wasm32"),
+  rpc(
+    server,
+    client,
+    namespace = "typedown_build",
+    namespace_separator = "."
+  )
+)]
+/// On WASM: generates only TdBuildRpcClient (no server types available)
+#[cfg_attr(
+  target_arch = "wasm32",
+  rpc(client, namespace = "typedown_build", namespace_separator = ".")
+)]
+pub trait TdBuildRpc<Hash, StorageKey> {
+  /* Requests */
+
+  #[method(name = "request_file")]
+  async fn request_file(&self, file_path: TdFilePath) -> RpcResult<TdBuiltResource>;
+
+  #[method(name = "request_files")]
+  async fn request_files(&self, file_paths: Vec<TdFilePath>) -> RpcResult<Vec<TdBuiltResource>>;
+
+  #[method(name = "list_vault")]
+  async fn list_vault(&self) -> RpcResult<Vec<String>>;
+
+  #[method(name = "list_schemas")]
+  async fn list_schemas(&self) -> RpcResult<Vec<String>>;
+
+  #[method(name = "get_schema")]
+  async fn get_schema(&self, schema: String) -> RpcResult<TdSchemaInfo>;
+
+  #[method(name = "get_config")]
+  async fn get_config(&self) -> RpcResult<TdSiteConfig>;
+
+  /* Content subscriptions */
+
+  #[subscription(name = "subscribe_content_changed", item = TdContentNotification)]
+  async fn subscribe_content_changed(&self) -> TdRpcSubscriptionCloseResponse;
+
+  #[subscription(name = "subscribe_content_created", item = TdContentNotification)]
+  async fn subscribe_content_created(&self) -> TdRpcSubscriptionCloseResponse;
+
+  #[subscription(name = "subscribe_content_deleted", item = TdContentNotification)]
+  async fn subscribe_content_deleted(&self) -> TdRpcSubscriptionCloseResponse;
+
+  /* Schema subscriptions */
+
+  #[subscription(name = "subscribe_schema_changed", item = TdSchemaNotification)]
+  async fn subscribe_schema_changed(&self) -> TdRpcSubscriptionCloseResponse;
+
+  #[subscription(name = "subscribe_schema_created", item = TdSchemaNotification)]
+  async fn subscribe_schema_created(&self) -> TdRpcSubscriptionCloseResponse;
+
+  #[subscription(name = "subscribe_schema_deleted", item = TdSchemaNotification)]
+  async fn subscribe_schema_deleted(&self) -> TdRpcSubscriptionCloseResponse;
+}
+
+/* RPC request params and results */
+
+/// Site-wide configuration derived from typedown.yaml
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdSiteConfig {
+  /// URL base path (e.g. "/" or "/docs")
+  pub base_path: String,
+  /// Content directory path relative to the project root
+  pub content_dir: String,
+}
+
+/// Path relative to the content directory
+#[derive(Serialize, Deserialize)]
+pub struct TdFilePath(pub String);
+
+/// Structured build result: Header (frontmatter) and content (commonmark body)
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdBuiltResource {
+  pub schema: String,
+  #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
+  pub header: serde_json::Value,
+  pub content: String,
+}
+
+/// Schema metadata
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdSchemaInfo {
+  pub schema: String,
+  #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
+  pub properties: serde_json::Value,
+}
+
+/* Subscription notifications */
+
+/// Content file event: A resource file was created, changed, or deleted
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdContentNotification {
+  pub content: String,
+}
+
+/// Schema file event: A schema file was created, changed, or deleted
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdSchemaNotification {
+  pub schema: String,
+}
+
+/* Server's response to client subscription termination */
+
+#[cfg(not(target_arch = "wasm32"))]
+pub enum TdRpcSubscriptionCloseResponse {
+  Ok,
+  Err(String),
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl IntoSubscriptionCloseResponse for TdRpcSubscriptionCloseResponse {
+  fn into_response(self) -> SubscriptionCloseResponse {
+    match self {
+      TdRpcSubscriptionCloseResponse::Ok => SubscriptionCloseResponse::None,
+      TdRpcSubscriptionCloseResponse::Err(msg) => {
+        let err = to_json_raw_value(&msg).unwrap();
+        SubscriptionCloseResponse::Notif(err.into())
+      }
+    }
+  }
+}

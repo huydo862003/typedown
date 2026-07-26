@@ -4,7 +4,7 @@ This document specifies the abstract model of Typedown, independent of any seria
 
 The model is inspired by the [property graph model](../research/graph-database/graph-databases-book/2-concept-property-graph-model.md) from graph databases and [RDF](../research/web-3/technologies/rdf.md) from the semantic web.
 
-For a complete, opinionated serialization of the resource graph, see [TDR](./tdr.md) (how individual resources are serialized as markdown with YAML frontmatter) and [Typedown Vault](./typedown-vault.md) (how a collection of TDR files is organized on disk). Note that the vault is purely an organization convention for structuring TDR files on disk and has no meaning in the abstract model itself.
+For a complete, opinionated serialization of the resource graph, see [Typedown](./typedown.md) (how individual resources are serialized as markdown with YAML frontmatter) and [Typedown Vault](./typedown-vault.md) (how a collection of Typedown files is organized on disk). Note that the vault is purely an organization convention for structuring Typedown files on disk and has no meaning in the abstract model itself.
 
 ## Resource Graph
 

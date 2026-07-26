@@ -18,7 +18,7 @@ export class PasteHandlerManager implements Disposable {
     this.registration = languages.registerDocumentPasteEditProvider(
       {
         scheme: 'file',
-        language: 'tdr',
+        language: 'typedown',
       },
       new PasteEditProvider(),
       {

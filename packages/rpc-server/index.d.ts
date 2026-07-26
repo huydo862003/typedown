@@ -12,8 +12,11 @@ export interface RpcServerOptions {
 export class RpcServer extends EventEmitter {
   constructor(options?: RpcServerOptions);
 
-  /** The ws:// address the server is listening on, or null if not started */
-  get address(): string | null;
+  /** The ws:// address the server is listening on, or undefined if not started */
+  get address(): string | undefined;
+
+  /** The port the server is listening on, or undefined if not started */
+  get port(): number | undefined;
 
   /** Whether the server is currently listening */
   get listening(): boolean;

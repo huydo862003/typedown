@@ -1,0 +1,10 @@
+name = "typedown-yaml"
+grammar = "typedown_yaml"
+tab_size = 2
+line_comments = ["# "]
+
+brackets = [
+  { start = "(", end = ")", close = true, newline = false },
+  { start = "[", end = "]", close = true, newline = false },
+  { start = "{", end = "}", close = true, newline = true },
+]

@@ -1,6 +1,6 @@
 # Typedown for Zed
 
-Language server integration for the Typedown language (`.tdr` files).
+Language server integration for the Typedown language (`.td` files).
 
 ## Semantic Tokens
 

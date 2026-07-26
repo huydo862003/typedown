@@ -26,7 +26,7 @@ import {
   LspManager,
 } from '../managers/lsp';
 
-// Keep in sync with AssetKind::from_extension in tdr-lang
+// Keep in sync with AssetKind::from_extension in typedown-lang
 export const MIME_TO_EXTENSION: ReadonlyMap<string, string> = new Map([
   [
     'image/png',
@@ -98,7 +98,7 @@ export class PasteEditProvider implements DocumentPasteEditProvider {
     const relativePath = relative(documentDirectory, filePath);
     const snippet = new SnippetString(`\${fref("${relativePath}")}`);
 
-    return [new DocumentPasteEdit(snippet, 'Paste as TDR asset', DocumentDropOrPasteEditKind.Empty)];
+    return [new DocumentPasteEdit(snippet, 'Paste as Typedown asset', DocumentDropOrPasteEditKind.Empty)];
   }
 }
 

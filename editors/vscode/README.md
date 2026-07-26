@@ -1,6 +1,6 @@
 # Typedown for VSCode / VSCodium
 
-LSP integration for the Typedown language (`.tdr` files).
+LSP integration for the Typedown language (`.td` files).
 
 ## Features
 

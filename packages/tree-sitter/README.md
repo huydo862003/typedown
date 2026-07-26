@@ -1,6 +1,6 @@
-# tree-sitter-tdr
+# tree-sitter-typedown
 
-Tree-sitter grammar for the Typedown TDR language.
+Tree-sitter grammar for the Typedown language.
 
 ## Research
 
@@ -8,10 +8,10 @@ The tree-sitter grammar research is documented in the [loupe](https://github.com
 
 ## Structure
 
-- `grammar.js`: Main grammar (owns `.tdr` files, injects into the two sub-grammars)
-- `tdr-yaml/`: YAML sub-grammar
-- `tdr-md/`: Markdown sub-grammar
-- `tdr-md-inline/`: Markdown inline sub-grammar
+- `grammar.js`: Main grammar (owns `.td` files, injects into the two sub-grammars)
+- `typedown-yaml/`: YAML sub-grammar
+- `typedown-md/`: Markdown sub-grammar
+- `typedown-md-inline/`: Markdown inline sub-grammar
 
 ## Scripts
 

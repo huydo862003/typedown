@@ -1,5 +1,5 @@
 /**
- * Shared expression rules for tdr sub-grammars
+ * Shared expression rules for typedown sub-grammars
  */
 
 /* eslint-disable id-length */
@@ -166,7 +166,7 @@ export const expr_rules = {
 
   self_expression: () => 'self',
 
-  // File reference: fref("filename.tdr")
+  // File reference: fref("filename.td")
 
   fref: ($) =>
     seq(

@@ -7,8 +7,8 @@ const bin = binPath();
 
 if (!existsSync(bin)) {
   throw new Error(
-    `tdr-rpc binary not found at ${bin}. Run "pnpm install" to download it, ` +
-      `or build manually with "cargo build --release -p tdr-server".`,
+    `typedown-rpc binary not found at ${bin}. Run "pnpm install" to download it, ` +
+      `or build manually with "cargo build --release -p typedown-server".`,
   );
 }
 
@@ -20,13 +20,19 @@ export class RpcServer extends EventEmitter {
     this._root = root ?? process.cwd();
     this._addr = addr ?? "127.0.0.1";
     this._port = port ?? DEFAULT_PORT;
-    this._process = null;
+    this._process = undefined;
     this._listening = false;
+    this._resolvedAddress = undefined;
   }
 
   get address() {
-    if (!this._listening) return null;
-    return `ws://${this._addr}:${this._port}`;
+    if (!this._listening) return undefined;
+    return this._resolvedAddress;
+  }
+
+  get port() {
+    if (!this._listening) return undefined;
+    return Number(new URL(this._resolvedAddress).port);
   }
 
   get listening() {
@@ -42,9 +48,9 @@ export class RpcServer extends EventEmitter {
       cwd: this._root,
       env: {
         ...process.env,
-        TDR_RPC_ROOT: this._root,
-        TDR_RPC_ADDR: this._addr,
-        TDR_RPC_PORT: String(this._port),
+        TYPEDOWN_RPC_ROOT: this._root,
+        TYPEDOWN_RPC_ADDR: this._addr,
+        TYPEDOWN_RPC_PORT: String(this._port),
       },
       stdio: ["ignore", "pipe", "inherit"],
     });
@@ -53,12 +59,13 @@ export class RpcServer extends EventEmitter {
 
     const stdout = child.stdout;
     if (!stdout) {
-      this.emit("error", new Error("Failed to capture tdr-rpc stdout"));
+      this.emit("error", new Error("Failed to capture typedown-rpc stdout"));
       return this;
     }
 
     // The server prints the ws:// address when ready
-    stdout.once("data", () => {
+    stdout.once("data", (data) => {
+      this._resolvedAddress = data.toString().trim();
       this._listening = true;
       this.emit("listening");
       if (callback) callback();
@@ -70,7 +77,8 @@ export class RpcServer extends EventEmitter {
 
     child.on("exit", (code, signal) => {
       this._listening = false;
-      this._process = null;
+      this._process = undefined;
+      this._resolvedAddress = undefined;
       this.emit("close", code, signal);
     });
 

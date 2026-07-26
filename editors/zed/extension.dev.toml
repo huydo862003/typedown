@@ -5,28 +5,28 @@ schema_version = 1
 authors = ["Lucas Nguyen"]
 description = "Typedown - a structured type-safe markdown language"
 repository = "https://github.com/huydo862003/typedown"
-languages = ["languages/tdr", "languages/tdr_yaml", "languages/tdr_md", "languages/tdr_md_inline"]
+languages = ["languages/typedown", "languages/typedown_yaml", "languages/typedown_md", "languages/typedown_md_inline"]
 
-[language_servers.tdr-lsp]
-name = "Typedown TDR LSP"
-languages = ["TDR"]
+[language_servers.typedown-lsp]
+name = "Typedown LSP"
+languages = ["Typedown"]
 
-[grammars.tdr]
+[grammars.typedown]
 repository = "${REPO_URL}"
 rev = "${COMMIT_SHA}"
 path = "packages/tree-sitter"
 
-[grammars.tdr_yaml]
+[grammars.typedown_yaml]
 repository = "${REPO_URL}"
 rev = "${COMMIT_SHA}"
-path = "packages/tree-sitter/tdr-yaml"
+path = "packages/tree-sitter/typedown-yaml"
 
-[grammars.tdr_md]
+[grammars.typedown_md]
 repository = "${REPO_URL}"
 rev = "${COMMIT_SHA}"
-path = "packages/tree-sitter/tdr-md"
+path = "packages/tree-sitter/typedown-md"
 
-[grammars.tdr_md_inline]
+[grammars.typedown_md_inline]
 repository = "${REPO_URL}"
 rev = "${COMMIT_SHA}"
-path = "packages/tree-sitter/tdr-md-inline"
+path = "packages/tree-sitter/typedown-md-inline"

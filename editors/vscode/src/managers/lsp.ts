@@ -37,7 +37,7 @@ export class LspManager implements Disposable {
   static getInstance (): LspManager {
     if (!LspManager.instance) {
       const context = ExtensionContextManager.context;
-      const binName = platform === 'win32' ? 'tdr-lsp.exe' : 'tdr-lsp';
+      const binName = platform === 'win32' ? 'typedown-lsp.exe' : 'typedown-lsp';
 
       const serverOptions: ServerOptions = {
         command: context.asAbsolutePath(join('bin', binName)),
@@ -48,7 +48,7 @@ export class LspManager implements Disposable {
         documentSelector: [
           {
             scheme: 'file',
-            language: 'tdr',
+            language: 'typedown',
           },
         ],
         workspaceFolder: workspace.workspaceFolders?.[0],
@@ -57,8 +57,8 @@ export class LspManager implements Disposable {
       };
 
       const client = new LanguageClient(
-        'tdr-lsp',
-        'Typedown TDR LSP',
+        'typedown-lsp',
+        'Typedown LSP',
         serverOptions,
         clientOptions,
       );

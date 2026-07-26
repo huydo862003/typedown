@@ -91,15 +91,15 @@ importers:
         specifier: ^0.26.9
         version: 0.26.11
 
-  packages/typeleft:
+  packages/typerighter:
     dependencies:
       '@shikijs/markdown-it':
         specifier: ^4.3.1
         version: 4.3.1
-      '@typeright/rpc-client':
+      '@typerighter/rpc-client':
         specifier: workspace:*
         version: link:../rpc-client
-      '@typeright/rpc-server':
+      '@typerighter/rpc-server':
         specifier: workspace:*
         version: link:../rpc-server
       markdown-it:

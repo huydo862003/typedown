@@ -1,4 +1,4 @@
-// Sets up the tdr-lsp binary in bin/ based on TYPEDOWN_BINARY_SOURCE:
+// Sets up the typedown-lsp binary in bin/ based on TYPEDOWN_BINARY_SOURCE:
 //   local   - copies from local build
 //   staging - downloads the prerelease binary of the current version
 import { copyFileSync, createWriteStream, mkdirSync, chmodSync, readFileSync, renameSync, rmSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { platform, arch, env } from 'node:process';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const binName = platform === 'win32' ? 'tdr-lsp.exe' : 'tdr-lsp';
+const binName = platform === 'win32' ? 'typedown-lsp.exe' : 'typedown-lsp';
 const binDir = join(repoRoot, 'editors', 'vscode', 'bin');
 const binDest = join(binDir, binName);
 
@@ -28,7 +28,7 @@ if (mode === 'local') {
   const version = readFileSync(join(repoRoot, 'VERSION'), 'utf8').trim();
   const releaseTag = version.includes('-') ? `staging/v${version}` : `v${version}`;
 
-  // Artifact naming: tdr-lsp-{version}-{os}-{arch}[.exe]
+  // Artifact naming: typedown-lsp-{version}-{os}-{arch}[.exe]
   const osArchMap = {
     'linux-x64':    'linux-x86_64',
     'darwin-x64':   'darwin-x86_64',
@@ -43,7 +43,7 @@ if (mode === 'local') {
     process.exit(1);
   }
   const ext = platform === 'win32' ? '.exe' : '';
-  const releaseArtifact = `tdr-lsp-${version}-${osArch}${ext}`;
+  const releaseArtifact = `typedown-lsp-${version}-${osArch}${ext}`;
 
   const downloadUrl = `https://github.com/huydo862003/typedown/releases/download/${encodeURIComponent(releaseTag)}/${releaseArtifact}`;
   console.log(`Downloading ${downloadUrl} -> ${binDest}`);
