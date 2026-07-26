@@ -90,12 +90,14 @@ impl RpcClient {
     })
   }
 
+  #[wasm_bindgen(js_name = "requestFile")]
   pub async fn request_file(&self, path: String) -> Result<TdrBuiltResource, JsValue> {
     <WasmClient as TdrBuildRpcClient<(), ()>>::request_file(&*self.inner, TdrFilePath(path))
       .await
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "requestFiles")]
   pub async fn request_files(&self, paths: Vec<String>) -> Result<Vec<TdrBuiltResource>, JsValue> {
     let file_paths = paths.into_iter().map(TdrFilePath).collect();
     <WasmClient as TdrBuildRpcClient<(), ()>>::request_files(&*self.inner, file_paths)
@@ -103,30 +105,35 @@ impl RpcClient {
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "listVault")]
   pub async fn list_vault(&self) -> Result<Vec<String>, JsValue> {
     <WasmClient as TdrBuildRpcClient<(), ()>>::list_vault(&*self.inner)
       .await
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "getConfig")]
   pub async fn get_config(&self) -> Result<TdrSiteConfig, JsValue> {
     <WasmClient as TdrBuildRpcClient<(), ()>>::get_config(&*self.inner)
       .await
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "listSchemas")]
   pub async fn list_schemas(&self) -> Result<Vec<String>, JsValue> {
     <WasmClient as TdrBuildRpcClient<(), ()>>::list_schemas(&*self.inner)
       .await
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "getSchema")]
   pub async fn get_schema(&self, schema: String) -> Result<TdrSchemaInfo, JsValue> {
     <WasmClient as TdrBuildRpcClient<(), ()>>::get_schema(&*self.inner, schema)
       .await
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "onContentChanged")]
   pub fn on_content_changed(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.content_changed, async move {
@@ -141,6 +148,7 @@ impl RpcClient {
     });
   }
 
+  #[wasm_bindgen(js_name = "onContentCreated")]
   pub fn on_content_created(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.content_created, async move {
@@ -155,6 +163,7 @@ impl RpcClient {
     });
   }
 
+  #[wasm_bindgen(js_name = "onContentDeleted")]
   pub fn on_content_deleted(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.content_deleted, async move {
@@ -169,6 +178,7 @@ impl RpcClient {
     });
   }
 
+  #[wasm_bindgen(js_name = "onSchemaChanged")]
   pub fn on_schema_changed(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.schema_changed, async move {
@@ -183,6 +193,7 @@ impl RpcClient {
     });
   }
 
+  #[wasm_bindgen(js_name = "onSchemaCreated")]
   pub fn on_schema_created(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.schema_created, async move {
@@ -197,6 +208,7 @@ impl RpcClient {
     });
   }
 
+  #[wasm_bindgen(js_name = "onSchemaDeleted")]
   pub fn on_schema_deleted(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.schema_deleted, async move {
@@ -211,6 +223,7 @@ impl RpcClient {
     });
   }
 
+  #[wasm_bindgen(js_name = "onDisconnect")]
   pub fn on_disconnect(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
     self.register(&self.disconnect, async move {
