@@ -6,7 +6,7 @@
 
 A typed markdown language for structured content.
 
-The npm entry package is [`typeleft`](https://www.npmjs.com/package/typeleft) and the scoped packages are under [`@typeright`](https://www.npmjs.com/org/typeright), as npm blocks `typedown` for being too similar to `typedoc`. Type left, type right, type down :)
+The npm package name `typedown` is unavailable (npm considers it too similar to `typedoc`). Since "down" was taken, we went the other direction: The entry package is [`typerighter`](https://www.npmjs.com/package/typerighter) and scoped packages are under [`@typerighter`](https://www.npmjs.com/org/typerighter)
 
 ## Design Documentation
 

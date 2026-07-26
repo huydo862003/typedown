@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "typeleft",
+  "name": "typerighter",
   "version": "0.0.0",
   "description": "Typedown: A typed content framework. Work in progress.",
   "repository": {
@@ -42,8 +42,8 @@
     "markdown-it-container": "^4.0.0",
     "markdown-it-emoji": "^3.0.0",
     "markdown-it-task-lists": "^2.1.1",
-    "@typeright/rpc-client": "workspace:*",
-    "@typeright/rpc-server": "workspace:*",
+    "@typerighter/rpc-client": "workspace:*",
+    "@typerighter/rpc-server": "workspace:*",
     "shiki": "^4.3.1"
   },
   "peerDependencies": {
