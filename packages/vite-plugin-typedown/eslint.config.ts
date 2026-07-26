@@ -1,5 +1,9 @@
 import {
   baseConfig,
+  vueConfig,
 } from '@hdnax/nuclint';
 
-export default [...baseConfig];
+export default [
+  ...baseConfig,
+  ...vueConfig,
+];

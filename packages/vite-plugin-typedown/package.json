@@ -36,14 +36,25 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@shikijs/markdown-it": "^4.3.1",
+    "markdown-it": "^14.0.0",
+    "markdown-it-anchor": "^9.0.0",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-emoji": "^3.0.0",
+    "markdown-it-task-lists": "^2.1.1",
     "rpc-client": "workspace:*",
-    "rpc-server": "workspace:*"
+    "rpc-server": "workspace:*",
+    "shiki": "^4.3.1"
   },
   "peerDependencies": {
-    "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
+    "vite": "^6.0.0 || ^7.0.0 || ^8.0.0",
+    "vue": "^3.0.0"
   },
   "devDependencies": {
     "@hdnax/nuclint": "^0.17.4",
+    "@types/markdown-it": "^14.0.0",
+    "@types/markdown-it-container": "^4.0.0",
+    "@types/markdown-it-emoji": "^3.0.1",
     "@types/node": "~24.13.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
