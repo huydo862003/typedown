@@ -8,7 +8,7 @@ use tempfile::TempDir;
 #[test]
 fn cache_roundtrip_creates_and_loads_files() {
   let dir = TempDir::new().unwrap();
-  let cache_dir = dir.path().join(".typedown/cache");
+  let cache_dir = dir.path().join(".typedown/.local/cache");
 
   // Session 1: create a database, dump, finalize
   {

@@ -22,7 +22,7 @@ fn session1_dump() -> (TempDir, PathBuf, PathBuf, usize) {
   let project_dir = tmp.path().join("project_tracker");
   copy_dir_recursive(&source, &project_dir);
 
-  let cache_dir = project_dir.join(".typedown/cache");
+  let cache_dir = project_dir.join(".typedown/.local/cache");
 
   let db = setup_db_fresh(&project_dir);
   run_diagnostics(&db);

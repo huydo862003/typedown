@@ -11,6 +11,3 @@ output/
 
 # tree-sitter
 editors/tree-sitter/src
-
-# Added by typedown
-.typedown
