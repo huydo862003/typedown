@@ -45,6 +45,14 @@ impl CacheSession {
   /// then create a new working directory for this session.
   pub fn open(cache_dir: &Path) -> io::Result<(Self, Option<SerializedQueryStorage>)> {
     fs::create_dir_all(cache_dir)?;
+
+    // Ignore everything in .local/ since it's all generated
+    let local_dir = cache_dir.parent().expect("cache_dir has parent");
+    let gitignore = local_dir.join(".gitignore");
+    if !gitignore.exists() {
+      let _ = fs::write(&gitignore, "*\n");
+    }
+
     garbage_collect(cache_dir);
 
     // Find and load the most recent finalized session

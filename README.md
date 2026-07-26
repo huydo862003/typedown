@@ -6,6 +6,8 @@
 
 A typed markdown language for structured content.
 
+The npm package & scope name is `type-down` (with hyphen) instead of `typedown` as npm blocks names that are too similar to existing packages (`typedoc` :sad:)
+
 ## Design Documentation
 
 The compiler design is researched and documented in the [dboxide](https://github.com/Huy-DNA/dboxide) repo. See the [design docs](https://github.com/Huy-DNA/dboxide/tree/main/doc/src/design) for details on the syntax, type system, and incremental compilation engine.

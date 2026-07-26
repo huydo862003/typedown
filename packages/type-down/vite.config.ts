@@ -14,7 +14,20 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['vite'],
+      external: [
+        'vite',
+        'vue',
+        '@type-down/rpc-client',
+        '@type-down/rpc-server',
+        'markdown-it',
+        'markdown-it-anchor',
+        'markdown-it-container',
+        'markdown-it-emoji',
+        'markdown-it-task-lists',
+        'shiki',
+        '@shikijs/markdown-it',
+        /^node:/,
+      ],
     },
   },
   resolve: {

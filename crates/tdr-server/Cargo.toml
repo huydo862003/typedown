@@ -2,7 +2,9 @@
 name = "tdr-server"
 version.workspace = true
 edition = "2024"
-license = "AGPL"
+license = "AGPL-3.0-only"
+description = "Typedown LSP and RPC server"
+repository = "https://github.com/Huy-DNA/typedown"
 authors = ["Huy-DNA <huydo862003@gmail.com>"]
 
 [[bin]]
@@ -51,6 +53,7 @@ threadpool = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 jsonrpsee = { version = "0.26.0", features = ["wasm-client"] }
+tsify-next = { version = "0.5", features = ["js"] }
 # TIL: Bridge between Rust and JS
 # 1. #[wasm_bindgen] marks Rust fns/types to expose -> The compiled binary will contain the markers for those
 # 2. CLI reads .wasm at build time
