@@ -8,7 +8,7 @@ use super::evaluate_lazy_field;
 use crate::db::TypedownDatabase;
 use crate::db::types::derived::object_system::member_type_display_name;
 use crate::db::types::{
-  FileHandle, MemberType, TdObjectEnum, TdTypeEnum, TypeMember, TypeMemberDescriptors,
+  FileHandle, MemberType, SymbolKind, TdObjectEnum, TdTypeEnum, TypeMember, TypeMemberDescriptors,
 };
 
 /// Serialize a FileHandle to a JSON object
@@ -44,13 +44,14 @@ pub fn to_json(
   db: &TypedownDatabase,
   obj: &TdObjectEnum,
 ) -> Result<serde_json::Value, CircularRef> {
-  serialize(db, obj, &mut HashSet::new())
+  serialize(db, obj, &mut HashSet::new(), false)
 }
 
 fn serialize(
   db: &TypedownDatabase,
   obj: &TdObjectEnum,
   visiting: &mut HashSet<(usize, usize)>,
+  should_serialize_as_fref: bool, /* false for the top-level object */
 ) -> Result<serde_json::Value, CircularRef> {
   match obj {
     TdObjectEnum::TdStrObj(str_obj) => Ok(serde_json::Value::String(str_obj.value(db))),
@@ -76,7 +77,7 @@ fn serialize(
       let mut items = Vec::with_capacity(list.len(db));
       for idx in 0..list.len(db) {
         match list.get(db, idx) {
-          Some(item) => items.push(serialize(db, &item, visiting)?),
+          Some(item) => items.push(serialize(db, &item, visiting, true)?),
           None => items.push(serde_json::Value::Null),
         }
       }
@@ -87,13 +88,27 @@ fn serialize(
       let mut map = serde_json::Map::new();
       for (key, entry) in dict.entries(db) {
         if let Some(item) = evaluate_lazy_field(db, entry) {
-          map.insert(key, serialize(db, &item, visiting)?);
+          map.insert(key, serialize(db, &item, visiting, true)?);
         }
       }
       Ok(serde_json::Value::Object(map))
     }
 
     TdObjectEnum::TdProductObj(product) => {
+      // If this product originated from a file symbol, serialize as a $fref (skip for root)
+      if should_serialize_as_fref && let Some(symbol) = product.file_symbol(db) {
+        let file = match symbol.kind(db) {
+          SymbolKind::UserDefinedResource(_, f) | SymbolKind::UserDefinedSchema(_, f) => Some(f),
+          _ => None,
+        };
+        if let Some(file) = file {
+          let handle = file.handle(db);
+          if let Some(path) = handle.path() {
+            return Ok(serde_json::json!({ "$fref": path.to_string_lossy() }));
+          }
+        }
+      }
+
       // If this object is already on the call stack we have a cycle
       let id = product.as_id();
       if !visiting.insert(id) {
@@ -102,7 +117,7 @@ fn serialize(
       let mut map = serde_json::Map::new();
       for (key, entry) in product.fields(db) {
         if let Some(item) = evaluate_lazy_field(db, entry) {
-          map.insert(key, serialize(db, &item, visiting)?);
+          map.insert(key, serialize(db, &item, visiting, true)?);
         }
       }
       visiting.remove(&id);
@@ -160,7 +175,7 @@ fn serialize_member_type(
   visiting: &mut HashSet<(usize, usize)>,
 ) -> Result<serde_json::Value, CircularRef> {
   if let MemberType::Simple(TdTypeEnum::TdProductType(product)) = member {
-    serialize(db, &TdObjectEnum::TdProductType(*product), visiting)
+    serialize(db, &TdObjectEnum::TdProductType(*product), visiting, true)
   } else {
     Ok(serde_json::Value::String(member_type_display_name(
       db, member,
@@ -315,16 +330,52 @@ mod tests {
   }
 
   #[test]
+  fn fref_field_serializes_as_fref_object() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/with_fref.td");
+    let result = evaluate_resource(&db, file_symbol(&db, project, file).value(&db).unwrap());
+    let obj = result.value(&db).expect("should evaluate resource");
+    let value = to_json(&db, &obj).expect("should serialize");
+    assert!(value["friend"].is_object(), "friend should be an object");
+    assert!(
+      value["friend"]["$fref"].is_string(),
+      "friend should have $fref key: {value}",
+    );
+    let fref_path = value["friend"]["$fref"].as_str().unwrap();
+    assert!(
+      fref_path.ends_with("valid_person.td"),
+      "fref path should end with valid_person.td, got: {fref_path}",
+    );
+  }
+
+  #[test]
+  fn transitive_fref_serializes_as_fref_object() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/transitive_fref.td");
+    let result = evaluate_resource(&db, file_symbol(&db, project, file).value(&db).unwrap());
+    let obj = result.value(&db).expect("should evaluate resource");
+    let value = to_json(&db, &obj).expect("should serialize");
+    // friend is fref("with_fref.td").friend, which evaluates to valid_person.td's product
+    assert!(
+      value["friend"]["$fref"].is_string(),
+      "transitive fref should have $fref key: {value}",
+    );
+    let fref_path = value["friend"]["$fref"].as_str().unwrap();
+    assert!(
+      fref_path.ends_with("valid_person.td"),
+      "transitive fref path should end with valid_person.td, got: {fref_path}",
+    );
+  }
+
+  #[test]
   fn nested_product_serializes_without_cycle() {
     let db = empty_db();
     let schema: TdTypeEnum = TdStrType::get(&db).into();
-    let inner = TdProductObj::new(&db, schema.clone(), HashMap::new());
+    let inner = TdProductObj::new(&db, schema.clone(), None, HashMap::new());
     let mut fields = HashMap::new();
     fields.insert(
       "inner".to_string(),
       Either::Right(TdObjectEnum::from(inner)),
     );
-    let outer = TdProductObj::new(&db, schema, fields);
+    let outer = TdProductObj::new(&db, schema, None, fields);
 
     let result = to_json(&db, &TdObjectEnum::from(outer));
     assert!(result.is_ok(), "non-cyclic nested product should serialize");

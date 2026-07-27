@@ -9,7 +9,9 @@ use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use typedown_incremental::Id;
 use typedown_types::either::Either;
 
-use crate::db::types::{HirValue, InstResult, MemberType, TypeMember, TypeMemberDescriptors};
+use crate::db::types::{
+  HirValue, InstResult, MemberType, Symbol, TypeMember, TypeMemberDescriptors,
+};
 use crate::db::utils::typecheck::member_types_compatible;
 
 #[query_derived]
@@ -77,7 +79,7 @@ impl TdTypeLike for TdProductType {
     let arg = args.into_iter().next()?;
     let dict = arg.as_td_dict_obj()?;
     let fields = dict.entries(db);
-    Some(TdProductObj::new(db, (*self).into(), fields).into())
+    Some(TdProductObj::new(db, (*self).into(), None, fields).into())
   }
   fn display_name(&self, db: &TypedownDatabase) -> String {
     if let Some(name) = self.name(db) {
@@ -132,6 +134,7 @@ pub fn member_type_display_name(db: &TypedownDatabase, member: &MemberType) -> S
 #[query_derived]
 pub struct TdProductObj {
   pub schema: TdTypeEnum,
+  pub file_symbol: Option<Symbol>,
   pub fields: HashMap<String, Either<HirValue, TdObjectEnum>>,
 }
 
