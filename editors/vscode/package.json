@@ -385,7 +385,7 @@
   },
   "scripts": {
     "build:grammar": "json5 -o syntaxes/typedown.tmLanguage.json syntaxes/typedown.tmLanguage.json5",
-    "build:rust": "cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
+    "build:rust": "cargo build -p typedown-server && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
     "check-types": "tsc --noEmit",
     "fetch:staging": "TYPEDOWN_BINARY_SOURCE=staging node scripts/setup-binary.mjs",
 
@@ -400,7 +400,7 @@
     "dev": "npm-run-all -p dev:rust dev:esbuild dev:tsc",
     "dev:esbuild": "node esbuild.js --watch",
     "dev:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "dev:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p typedown-lsp && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
+    "dev:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p typedown-server && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
     "dev:staging": "npm-run-all -p dev:esbuild dev:tsc",
     "dev:tests": "tsc -p . -w --outDir out",
 
