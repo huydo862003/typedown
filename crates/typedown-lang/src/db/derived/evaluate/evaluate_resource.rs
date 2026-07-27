@@ -4,7 +4,7 @@ use typedown_macros::query_derived;
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
-use crate::db::types::{ResourceResult, Symbol, SymbolKind, TdBlobObj};
+use crate::db::types::{ResourceResult, Symbol, SymbolKind, TdBlobObj, TdObjectEnum, TdProductObj};
 use crate::db::utils::lower_file;
 use typedown_incremental::QueryDatabase;
 
@@ -29,7 +29,15 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
   let node_result = evaluate_node(db, hir);
   diagnostics.extend(node_result.diagnostics(db).iter().cloned());
 
-  ResourceResult::new(db, node_result.value(db), diagnostics)
+  // Stamp the file symbol on the product so serialization can detect fref origins
+  let value = match node_result.value(db) {
+    Some(TdObjectEnum::TdProductObj(product)) => {
+      Some(TdProductObj::new(db, product.schema(db), Some(symbol), product.fields(db)).into())
+    }
+    other => other,
+  };
+
+  ResourceResult::new(db, value, diagnostics)
 }
 
 #[cfg(test)]

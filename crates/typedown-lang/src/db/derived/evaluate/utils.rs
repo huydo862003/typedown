@@ -339,7 +339,7 @@ fn evaluate_mapping(
       }
       fields.insert(key, Either::Left(val_hir));
     }
-    return Some(TdProductObj::new(db, (*product_typ).into(), fields).into());
+    return Some(TdProductObj::new(db, (*product_typ).into(), None, fields).into());
   }
 
   let dict_entries: HashMap<_, _> = entries
