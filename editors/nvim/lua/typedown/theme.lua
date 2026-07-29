@@ -25,7 +25,8 @@ function M.setup()
   vim.api.nvim_set_hl(0, "@markup.italic.typedown_md_inline", { italic = true, default = true })
 
   -- > blockquote
-  vim.api.nvim_set_hl(0, "@markup.quote.typedown_md", { link = "Comment", default = true })
+  vim.api.nvim_set_hl(0, "@markup.quote.typedown_md", { italic = true, default = true })
+  vim.api.nvim_set_hl(0, "@punctuation.special.typedown_md", { link = "Special", default = true })
 
   -- `code` or ```code block```
   vim.api.nvim_set_hl(0, "@markup.raw.typedown_md_inline", { link = "String", default = true })
