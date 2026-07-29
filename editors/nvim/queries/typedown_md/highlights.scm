@@ -42,7 +42,6 @@
 (list_marker_dot) @markup.list
 
 ; Callouts
-(callout_block) @markup.quote
 (callout_block_delimiter) @punctuation.special
 (callout_type) @label
 
