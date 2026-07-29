@@ -238,10 +238,10 @@ fn lint_heading_blank_lines(body: &MdBody, diagnostics: &mut Vec<LintDiagnostic>
     let rel_start = node.offset().saturating_sub(body_offset);
     let rel_end = rel_start + node.text_len();
 
-    // Check blank line before (unless at start of body)
+    // Check blank line before unless at start of body
     if rel_start > 0 {
       let before = &source[..rel_start];
-      if !before.ends_with("\n\n") {
+      if !before.trim().is_empty() && !before.ends_with("\n\n") {
         diagnostics.push(LintDiagnostic {
           start_offset: trimmed_offset,
           end_offset: trimmed_offset + trimmed_len,
@@ -447,6 +447,17 @@ mod tests {
     assert!(
       codes(&diags).contains(&"consecutive-blank-lines"),
       "should warn about consecutive blank lines: {:?}",
+      codes(&diags)
+    );
+  }
+
+  // First heading after frontmatter should not warn about missing blank line
+  #[test]
+  fn heading_after_frontmatter_no_blank_line_warning() {
+    let diags = lint("---\n---\n\n# Heading\n\nSome text.\n");
+    assert!(
+      !codes(&diags).contains(&"heading-blank-line"),
+      "should not warn about blank line for first heading after frontmatter: {:?}",
       codes(&diags)
     );
   }
