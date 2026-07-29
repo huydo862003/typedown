@@ -29,7 +29,7 @@ pub enum LintCode {
   DuplicateHeading,
   TrailingWhitespace,
   HeadingSpacing,
-  HeadingBlankLine,
+  BlockBlankLine,
   ConsecutiveBlankLines,
 }
 
@@ -42,7 +42,7 @@ impl LintCode {
       LintCode::DuplicateHeading => "duplicate-heading",
       LintCode::TrailingWhitespace => "trailing-whitespace",
       LintCode::HeadingSpacing => "heading-spacing",
-      LintCode::HeadingBlankLine => "heading-blank-line",
+      LintCode::BlockBlankLine => "block-blank-line",
       LintCode::ConsecutiveBlankLines => "consecutive-blank-lines",
     }
   }
@@ -66,7 +66,7 @@ pub fn lint_markdown(body: &MdBody) -> Vec<LintDiagnostic> {
   lint_inline_elements(body.syntax(), &mut diagnostics);
   lint_trailing_whitespace(body, &mut diagnostics);
   lint_heading_spacing(body, &mut diagnostics);
-  lint_heading_blank_lines(body, &mut diagnostics);
+  lint_block_blank_lines(body, &mut diagnostics);
   lint_consecutive_blank_lines(body, &mut diagnostics);
 
   diagnostics
@@ -223,43 +223,26 @@ fn lint_heading_spacing(body: &MdBody, diagnostics: &mut Vec<LintDiagnostic>) {
   }
 }
 
-/// Check that headings have blank lines before and after them
-fn lint_heading_blank_lines(body: &MdBody, diagnostics: &mut Vec<LintDiagnostic>) {
+// Check that blocks have blank lines between them
+fn lint_block_blank_lines(body: &MdBody, diagnostics: &mut Vec<LintDiagnostic>) {
   let source = body.syntax().text();
   let body_offset = body.syntax().offset();
+  let blocks: Vec<_> = body.block_elements().collect();
 
-  for block in body.block_elements() {
-    if block.syntax().kind() != SyntaxKind::MdHeading {
-      continue;
-    }
+  for (idx, block) in blocks.iter().enumerate() {
     let node = block.syntax();
     let (trimmed_offset, trimmed_len) = node.trimmed_range();
-    // Convert absolute offsets to relative positions within body text
     let rel_start = node.offset().saturating_sub(body_offset);
-    let rel_end = rel_start + node.text_len();
 
-    // Check blank line before unless at start of body
-    if rel_start > 0 {
+    // Check blank line before (skip the first block)
+    if idx > 0 && rel_start > 0 {
       let before = &source[..rel_start];
       if !before.trim().is_empty() && !before.ends_with("\n\n") {
         diagnostics.push(LintDiagnostic {
           start_offset: trimmed_offset,
           end_offset: trimmed_offset + trimmed_len,
-          code: LintCode::HeadingBlankLine,
-          message: "Missing blank line before heading".to_string(),
-        });
-      }
-    }
-
-    // Check blank line after (unless at end of body)
-    if rel_end < source.len() {
-      let after = &source[rel_end..];
-      if !after.starts_with("\n\n") && !after.is_empty() {
-        diagnostics.push(LintDiagnostic {
-          start_offset: trimmed_offset,
-          end_offset: trimmed_offset + trimmed_len,
-          code: LintCode::HeadingBlankLine,
-          message: "Missing blank line after heading".to_string(),
+          code: LintCode::BlockBlankLine,
+          message: "Missing blank line before block".to_string(),
         });
       }
     }
@@ -308,168 +291,182 @@ mod tests {
     diags.iter().map(|d| d.code.as_str()).collect()
   }
 
-  // Missing alt text on image
   #[test]
   fn missing_alt_text() {
-    let diags = lint("---\n---\n![](image.png)\n");
-    assert!(
-      codes(&diags).contains(&"missing-alt-text"),
-      "should warn about missing alt text: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+![](image.png)
+"#);
+    assert!(codes(&diags).contains(&"missing-alt-text"));
   }
 
-  // Image with alt text is fine
   #[test]
   fn image_with_alt_text() {
-    let diags = lint("---\n---\n![A cat](cat.png)\n");
-    assert!(
-      !codes(&diags).contains(&"missing-alt-text"),
-      "should not warn when alt text is present: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+![A cat](cat.png)
+"#);
+    assert!(!codes(&diags).contains(&"missing-alt-text"));
   }
 
-  // Generic link text
   #[test]
   fn generic_link_text() {
-    let diags = lint("---\n---\n[click here](https://example.com)\n");
-    assert!(
-      codes(&diags).contains(&"generic-link-text"),
-      "should warn about generic link text: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+[click here](https://example.com)
+"#);
+    assert!(codes(&diags).contains(&"generic-link-text"));
   }
 
-  // Descriptive link text is fine
   #[test]
   fn descriptive_link_text() {
-    let diags = lint("---\n---\n[the full documentation](https://example.com)\n");
-    assert!(
-      !codes(&diags).contains(&"generic-link-text"),
-      "should not warn on descriptive text: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+[the full documentation](https://example.com)
+"#);
+    assert!(!codes(&diags).contains(&"generic-link-text"));
   }
 
-  // Multiple H1 headings
   #[test]
   fn multiple_h1() {
-    let diags = lint("---\n---\n# First\n\n# Second\n");
-    assert!(
-      codes(&diags).contains(&"multiple-h1"),
-      "should warn about multiple H1: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+# First
+
+# Second
+"#);
+    assert!(codes(&diags).contains(&"multiple-h1"));
   }
 
-  // Single H1 is fine
   #[test]
   fn single_h1() {
-    let diags = lint("---\n---\n# Title\n\n## Section\n");
-    assert!(
-      !codes(&diags).contains(&"multiple-h1"),
-      "should not warn on single H1: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+# Title
+
+## Section
+"#);
+    assert!(!codes(&diags).contains(&"multiple-h1"));
   }
 
-  // Duplicate headings
   #[test]
   fn duplicate_headings() {
-    let diags = lint("---\n---\n## Summary\n\nText.\n\n## Summary\n");
-    assert!(
-      codes(&diags).contains(&"duplicate-heading"),
-      "should warn about duplicate headings: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+## Summary
+
+Text.
+
+## Summary
+"#);
+    assert!(codes(&diags).contains(&"duplicate-heading"));
   }
 
-  // Unique headings are fine
   #[test]
   fn unique_headings() {
-    let diags = lint("---\n---\n## Overview\n\n## Details\n");
-    assert!(
-      !codes(&diags).contains(&"duplicate-heading"),
-      "should not warn on unique headings: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+## Overview
+
+## Details
+"#);
+    assert!(!codes(&diags).contains(&"duplicate-heading"));
   }
 
-  // Trailing whitespace
   #[test]
   fn trailing_whitespace() {
     let diags = lint("---\n---\nHello   \n");
-    assert!(
-      codes(&diags).contains(&"trailing-whitespace"),
-      "should warn about trailing whitespace: {:?}",
-      codes(&diags)
-    );
+    assert!(codes(&diags).contains(&"trailing-whitespace"));
   }
 
-  // No trailing whitespace is fine
   #[test]
   fn no_trailing_whitespace() {
-    let diags = lint("---\n---\nHello\n");
-    assert!(
-      !codes(&diags).contains(&"trailing-whitespace"),
-      "should not warn without trailing whitespace: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+Hello
+"#);
+    assert!(!codes(&diags).contains(&"trailing-whitespace"));
   }
 
-  // Missing space after # in heading
   #[test]
   fn heading_missing_space() {
-    let diags = lint("---\n---\n##Heading\n");
-    assert!(
-      codes(&diags).contains(&"heading-spacing"),
-      "should warn about missing space: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+##Heading
+"#);
+    assert!(codes(&diags).contains(&"heading-spacing"));
   }
 
-  // Missing blank line before heading
   #[test]
   fn heading_missing_blank_line() {
-    let diags = lint("---\n---\nSome text.\n## Heading\n");
-    assert!(
-      codes(&diags).contains(&"heading-blank-line"),
-      "should warn about missing blank line: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+Some text.
+## Heading
+"#);
+    assert!(codes(&diags).contains(&"block-blank-line"));
   }
 
-  // Multiple consecutive blank lines
+  #[test]
+  fn list_then_paragraph_missing_blank_line() {
+    let diags = lint(r#"---
+---
+- Item one
+- Item two
+Some text.
+"#);
+    assert!(codes(&diags).contains(&"block-blank-line"));
+  }
+
+  #[test]
+  fn paragraph_then_list_missing_blank_line() {
+    let diags = lint(r#"---
+---
+Some text.
+- Item one
+"#);
+    assert!(codes(&diags).contains(&"block-blank-line"));
+  }
+
+  #[test]
+  fn blocks_with_blank_lines() {
+    let diags = lint(r#"---
+---
+Some text.
+
+- Item one
+
+More text.
+"#);
+    assert!(!codes(&diags).contains(&"block-blank-line"));
+  }
+
   #[test]
   fn consecutive_blank_lines() {
     let diags = lint("---\n---\nFirst.\n\n\n\nSecond.\n");
-    assert!(
-      codes(&diags).contains(&"consecutive-blank-lines"),
-      "should warn about consecutive blank lines: {:?}",
-      codes(&diags)
-    );
+    assert!(codes(&diags).contains(&"consecutive-blank-lines"));
   }
 
-  // First heading after frontmatter should not warn about missing blank line
   #[test]
   fn heading_after_frontmatter_no_blank_line_warning() {
-    let diags = lint("---\n---\n\n# Heading\n\nSome text.\n");
-    assert!(
-      !codes(&diags).contains(&"heading-blank-line"),
-      "should not warn about blank line for first heading after frontmatter: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+
+# Heading
+
+Some text.
+"#);
+    assert!(!codes(&diags).contains(&"block-blank-line"));
   }
 
-  // Well-formatted file has no warnings
   #[test]
   fn clean_file() {
-    let diags = lint("---\n---\n## Heading\n\nSome text.\n");
-    assert!(
-      diags.is_empty(),
-      "well-formatted file should have no lint warnings: {:?}",
-      codes(&diags)
-    );
+    let diags = lint(r#"---
+---
+## Heading
+
+Some text.
+"#);
+    assert!(diags.is_empty(), "unexpected warnings: {:?}", codes(&diags));
   }
 }
