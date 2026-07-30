@@ -11,8 +11,7 @@
 //! - File ends with exactly one newline
 
 use crate::syntax::ast::{
-  AstNode, MdBlockElement, MdBody, MdBulletList, MdBulletListItem, MdOrderedList,
-  MdOrderedListItem, MdTaskListItem,
+  AstNode, MdBody, MdBulletList, MdBulletListItem, MdOrderedList, MdOrderedListItem, MdTaskListItem,
 };
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;

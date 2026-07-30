@@ -293,83 +293,99 @@ mod tests {
 
   #[test]
   fn missing_alt_text() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 ![](image.png)
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"missing-alt-text"));
   }
 
   #[test]
   fn image_with_alt_text() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 ![A cat](cat.png)
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"missing-alt-text"));
   }
 
   #[test]
   fn generic_link_text() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 [click here](https://example.com)
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"generic-link-text"));
   }
 
   #[test]
   fn descriptive_link_text() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 [the full documentation](https://example.com)
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"generic-link-text"));
   }
 
   #[test]
   fn multiple_h1() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 # First
 
 # Second
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"multiple-h1"));
   }
 
   #[test]
   fn single_h1() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 # Title
 
 ## Section
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"multiple-h1"));
   }
 
   #[test]
   fn duplicate_headings() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 ## Summary
 
 Text.
 
 ## Summary
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"duplicate-heading"));
   }
 
   #[test]
   fn unique_headings() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 ## Overview
 
 ## Details
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"duplicate-heading"));
   }
 
@@ -381,63 +397,75 @@ Text.
 
   #[test]
   fn no_trailing_whitespace() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 Hello
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"trailing-whitespace"));
   }
 
   #[test]
   fn heading_missing_space() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 ##Heading
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"heading-spacing"));
   }
 
   #[test]
   fn heading_missing_blank_line() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 Some text.
 ## Heading
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"block-blank-line"));
   }
 
   #[test]
   fn list_then_paragraph_missing_blank_line() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 - Item one
 - Item two
 Some text.
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"block-blank-line"));
   }
 
   #[test]
   fn paragraph_then_list_missing_blank_line() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 Some text.
 - Item one
-"#);
+"#,
+    );
     assert!(codes(&diags).contains(&"block-blank-line"));
   }
 
   #[test]
   fn blocks_with_blank_lines() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 Some text.
 
 - Item one
 
 More text.
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"block-blank-line"));
   }
 
@@ -449,24 +477,28 @@ More text.
 
   #[test]
   fn heading_after_frontmatter_no_blank_line_warning() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 
 # Heading
 
 Some text.
-"#);
+"#,
+    );
     assert!(!codes(&diags).contains(&"block-blank-line"));
   }
 
   #[test]
   fn clean_file() {
-    let diags = lint(r#"---
+    let diags = lint(
+      r#"---
 ---
 ## Heading
 
 Some text.
-"#);
+"#,
+    );
     assert!(diags.is_empty(), "unexpected warnings: {:?}", codes(&diags));
   }
 }
