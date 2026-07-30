@@ -154,6 +154,129 @@ fn parse_bullet_list_dash() {
   );
 }
 
+// Nested bullet list inside bullet list
+#[test]
+fn parse_nested_bullet_list() {
+  let tree = parse_body(
+    r#"- parent
+ - child one
+ - child two
+"#,
+  );
+  assert!(
+    tree.contains("(MdBulletList") && tree.matches("(MdBulletList").count() == 2,
+    "should have nested MdBulletList:\n{tree}"
+  );
+}
+
+// Ordered list nested inside bullet list
+#[test]
+fn parse_ordered_in_bullet_list() {
+  let tree = parse_body(
+    r#"- parent
+ 1. first
+ 2. second
+"#,
+  );
+  assert!(
+    tree.contains("(MdBulletList") && tree.contains("(MdOrderedList"),
+    "should have MdOrderedList nested in MdBulletList:\n{tree}"
+  );
+}
+
+// Bullet list nested inside ordered list
+#[test]
+fn parse_bullet_in_ordered_list() {
+  let tree = parse_body(
+    r#"1. parent
+ - child one
+ - child two
+"#,
+  );
+  assert!(
+    tree.contains("(MdOrderedList") && tree.contains("(MdBulletList"),
+    "should have MdBulletList nested in MdOrderedList:\n{tree}"
+  );
+}
+
+// Three levels deep: bullet > ordered > bullet
+#[test]
+fn parse_triple_nested_list() {
+  let tree = parse_body(
+    r#"- level one
+ 1. level two
+  - level three
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdBulletList
+      (MdBulletListItem
+        "-"
+        " "
+        (MdParagraph
+          (MdText
+            "level"
+            " "
+            "one"))
+        "\n"
+        " "
+        (MdOrderedList
+          (MdOrderedListItem
+            "1"
+            "."
+            " "
+            (MdParagraph
+              (MdText
+                "level"
+                " "
+                "two"))
+            "\n"
+            " "
+            " "
+            (MdBulletList
+              (MdBulletListItem
+                "-"
+                " "
+                (MdParagraph
+                  (MdText
+                    "level"
+                    " "
+                    "three")))
+              "\n"))
+          ""))
+      "")))"####
+  );
+}
+
+// Toggle list nested inside ordered list nested inside bullet list
+#[test]
+fn parse_toggle_in_ordered_in_bullet() {
+  let tree = parse_body(
+    r#"- top
+ 1. middle
+  >- toggle summary
+
+     toggle details
+"#,
+  );
+  assert!(
+    tree.contains("(MdBulletList")
+      && tree.contains("(MdOrderedList")
+      && tree.contains("(MdToggleList"),
+    "should have toggle > ordered > bullet nesting:\n{tree}"
+  );
+}
+
 // Parses a bullet list with star markers
 #[test]
 fn parse_bullet_list_star() {
@@ -329,6 +452,68 @@ fn parse_task_list_mixed() {
   );
 }
 
+// Ordered list nested inside task list item
+#[test]
+fn parse_nested_task_list() {
+  let tree = parse_body(
+    r#"- [x] parent task
+ 1. substep one
+ 2. substep two
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdBulletList
+      (MdTaskListItem
+        "-"
+        " "
+        (MdCheckbox
+          "["
+          "x"
+          "]")
+        (MdParagraph
+          (MdText
+            " "
+            "parent"
+            " "
+            "task"))
+        "\n"
+        " "
+        (MdOrderedList
+          (MdOrderedListItem
+            "1"
+            "."
+            " "
+            (MdParagraph
+              (MdText
+                "substep"
+                " "
+                "one")))
+          "\n"
+          " "
+          (MdOrderedListItem
+            "2"
+            "."
+            " "
+            (MdParagraph
+              (MdText
+                "substep"
+                " "
+                "two")))
+          "\n"))
+      "")))"####
+  );
+}
+
 // Parses an ordered list
 #[test]
 fn parse_ordered_list_simple() {
@@ -394,6 +579,44 @@ fn parse_blockquote_simple() {
           "quoted"
           " "
           "text")))
+    "\n"))"####
+  );
+}
+
+// Two consecutive `>` lines form a single blockquote
+#[test]
+fn parse_blockquote_multiline() {
+  let tree = parse_body(
+    r#"> line one
+> line two
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdBlockquote
+      ">"
+      " "
+      (MdParagraph
+        (MdText
+          "line"
+          " "
+          "one")
+        "\n"
+        (MdText
+          ">"
+          " "
+          "line"
+          " "
+          "two")))
     "\n"))"####
   );
 }
@@ -492,14 +715,64 @@ fn parse_toggle_list_simple() {
         " "
         " "
         " "
-        "details"
-        " "
         "\n"
         (MdToggleListDetails
           (MdParagraph
             (MdText
+              "details"
+              " "
               "here"))))
       "")))"####
+  );
+}
+
+// Toggle list inside a blockquote
+#[test]
+fn parse_toggle_list_in_blockquote() {
+  let tree = parse_body(
+    r#"> >- summary
+>
+>    details here
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdBlockquote
+      ">"
+      " "
+      (MdToggleList
+        (MdToggleListItem
+          ">"
+          "-"
+          " "
+          (MdToggleListSummary
+            (MdText
+              "summary"))
+          "\n"
+          ">"
+          "\n"
+          ">"
+          " "
+          " "
+          " "
+          " "
+          "\n"
+          (MdToggleListDetails
+            (MdParagraph
+              (MdText
+                "details"
+                " "
+                "here"))))
+        ""))))"####
   );
 }
 
@@ -1296,9 +1569,10 @@ Second paragraph.
         "First"
         " "
         "paragraph"
-        ".")
-      "\n"
-      "\n"
+        "."))
+    "\n"
+    "\n"
+    (MdParagraph
       (MdText
         "Second"
         " "
