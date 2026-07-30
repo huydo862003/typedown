@@ -131,9 +131,19 @@ impl ExprCtxStack {
     self.stack.last().map(|e| e.ctx)
   }
 
-  /// The accumulated expected MD prefix tokens.
+  // The accumulated expected MD prefix tokens
   pub(in crate::syntax::parse) fn md_prefix_tokens(&self) -> &[SyntaxToken] {
     &self.md_prefix_tokens
+  }
+
+  // The prefix tokens excluding the current context's contribution
+  pub(in crate::syntax::parse) fn md_parent_prefix_tokens(&self) -> &[SyntaxToken] {
+    let current_count = self
+      .stack
+      .last()
+      .map(|e| e.prefix_token_count as usize)
+      .unwrap_or(0);
+    &self.md_prefix_tokens[..self.md_prefix_tokens.len() - current_count]
   }
 
   /// Whether expressions should skip indent/dedent tokens.
@@ -169,6 +179,12 @@ impl ExprCtxStack {
           .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
       ExprCtx::MdToggleListItem => {
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
+        self
+          .md_prefix_tokens
+          .push(cache.token(SyntaxKind::Whitespace, b" "));
         self
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));

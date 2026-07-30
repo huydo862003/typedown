@@ -11,8 +11,7 @@
 //! - File ends with exactly one newline
 
 use crate::syntax::ast::{
-  AstNode, MdBlockElement, MdBody, MdBulletList, MdBulletListItem, MdOrderedList,
-  MdOrderedListItem, MdTaskListItem,
+  AstNode, MdBody, MdBulletList, MdBulletListItem, MdOrderedList, MdOrderedListItem, MdTaskListItem,
 };
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
@@ -23,30 +22,17 @@ pub fn format_markdown(body: &MdBody) -> String {
   let blocks: Vec<_> = body.block_elements().collect();
 
   for (idx, block) in blocks.iter().enumerate() {
-    let is_first = idx == 0;
-    let prev_was_heading = idx > 0 && is_heading(&blocks[idx - 1]);
-    let is_heading_block = is_heading(block);
-
-    // Blank line before heading (unless first block or previous was also a heading)
-    if is_heading_block && !is_first && !prev_was_heading {
+    // One blank line between any two blocks
+    if idx > 0 {
       ensure_blank_line(&mut out);
     }
 
     format_block(&mut out, block.syntax(), 0);
-
-    // Blank line after heading
-    if is_heading_block {
-      ensure_blank_line(&mut out);
-    }
   }
 
   // Collapse multiple blank lines and ensure trailing newline
   let result = collapse_blank_lines(&out);
   ensure_trailing_newline(result)
-}
-
-fn is_heading(block: &MdBlockElement) -> bool {
-  block.syntax().kind() == SyntaxKind::MdHeading
 }
 
 fn format_block(out: &mut String, node: &RedNode, depth: usize) {
@@ -321,7 +307,7 @@ mod tests {
     );
   }
 
-  // Mixed bullet prefixes normalized to -
+  // Mixed bullet prefixes are separate lists, each normalized to -
   #[test]
   fn mixed_bullet_prefixes() {
     let result = fmt(
@@ -336,7 +322,9 @@ mod tests {
       result,
       r#"
 - Star item
+
 - Plus item
+
 - Dash item
 "#
     );
@@ -416,6 +404,54 @@ Alice is a **backend developer**.
       !result.contains("- Lead backend development\n- Lead backend development"),
       "no duplication:\n{result}"
     );
+  }
+
+  // Blank line between list and following paragraph
+  #[test]
+  fn list_then_paragraph() {
+    let result = fmt(
+      r#"---
+---
+- Item one
+- Item two
+Some text.
+"#,
+    );
+    assert!(
+      result.contains("- Item two\n\nSome text."),
+      "should have blank line between list and paragraph:\n{result}"
+    );
+  }
+
+  // Blank line between paragraph and following list
+  #[test]
+  fn paragraph_then_list() {
+    let result = fmt(
+      r#"---
+---
+Some text.
+- Item one
+- Item two
+"#,
+    );
+    assert!(
+      result.contains("Some text.\n\n- Item one"),
+      "should have blank line between paragraph and list:\n{result}"
+    );
+  }
+
+  // Blank line between two paragraphs
+  #[test]
+  fn paragraph_then_paragraph() {
+    let result = fmt(
+      r#"---
+---
+First paragraph.
+
+Second paragraph.
+"#,
+    );
+    assert_eq!(result, "\nFirst paragraph.\n\nSecond paragraph.\n");
   }
 
   // Idempotent with lists
