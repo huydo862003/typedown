@@ -503,9 +503,15 @@ _type: Person
       panic!("expected field completions");
     };
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-    assert!(!labels.contains(&"name"), "should not suggest 'name' (already exists)");
+    assert!(
+      !labels.contains(&"name"),
+      "should not suggest 'name' (already exists)"
+    );
     assert!(labels.contains(&"age"), "should suggest 'age' field");
-    assert!(labels.contains(&"verified"), "should suggest 'verified' field");
+    assert!(
+      labels.contains(&"verified"),
+      "should suggest 'verified' field"
+    );
   }
 
   #[test]
@@ -545,7 +551,10 @@ age: 30
       panic!("expected field completions on blank line");
     };
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-    assert!(labels.contains(&"verified"), "should suggest 'verified' on blank line between fields");
+    assert!(
+      labels.contains(&"verified"),
+      "should suggest 'verified' on blank line between fields"
+    );
   }
 
   #[test]
@@ -566,7 +575,10 @@ name: Alice
       panic!("expected field completions on last line of mapping");
     };
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-    assert!(labels.contains(&"age"), "should suggest 'age' on last blank line");
+    assert!(
+      labels.contains(&"age"),
+      "should suggest 'age' on last blank line"
+    );
   }
 
   #[test]
@@ -588,10 +600,22 @@ age: 30
       panic!("expected field completions");
     };
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-    assert!(!labels.contains(&"name"), "should not suggest 'name' (already exists)");
-    assert!(!labels.contains(&"age"), "should not suggest 'age' (already exists)");
-    assert!(labels.contains(&"verified"), "should suggest 'verified' (not yet used)");
-    assert!(labels.contains(&"nickname"), "should suggest 'nickname' (not yet used)");
+    assert!(
+      !labels.contains(&"name"),
+      "should not suggest 'name' (already exists)"
+    );
+    assert!(
+      !labels.contains(&"age"),
+      "should not suggest 'age' (already exists)"
+    );
+    assert!(
+      labels.contains(&"verified"),
+      "should suggest 'verified' (not yet used)"
+    );
+    assert!(
+      labels.contains(&"nickname"),
+      "should suggest 'nickname' (not yet used)"
+    );
   }
 
   #[test]
@@ -612,7 +636,10 @@ ver|:
       panic!("expected field completions");
     };
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-    assert!(!labels.contains(&"name"), "should not suggest 'name' (already exists)");
+    assert!(
+      !labels.contains(&"name"),
+      "should not suggest 'name' (already exists)"
+    );
     assert!(labels.contains(&"age"), "should suggest 'age'");
     assert!(labels.contains(&"verified"), "should suggest 'verified'");
   }

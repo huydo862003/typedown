@@ -91,7 +91,13 @@ fn export_markdown_body(
 ) -> String {
   let mut out = String::new();
 
+  // Separate block elements with blank lines for CommonMark
+  let mut first = true;
   for block in body.block_elements() {
+    if !first {
+      out.push('\n');
+    }
+    first = false;
     emit_md_block(db, project, file, block.syntax(), &mut out);
   }
 
@@ -402,5 +408,29 @@ mod tests {
       "default base_path should not have /blog prefix: {}",
       exported.content
     );
+  }
+
+  #[test]
+  fn export_separates_blocks_with_blank_lines() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_with_content.td");
+    let exported = export_resource(&db, project, file).expect("should export");
+    // Block elements should be separated by blank lines
+    let lines: Vec<&str> = exported.content.lines().collect();
+    let heading_indices: Vec<usize> = lines
+      .iter()
+      .enumerate()
+      .filter(|(_, l)| l.starts_with('#'))
+      .map(|(i, _)| i)
+      .collect();
+    for &idx in &heading_indices {
+      if idx > 0 {
+        assert_eq!(
+          lines[idx - 1],
+          "",
+          "heading at line {idx} should be preceded by blank line:\n{}",
+          exported.content
+        );
+      }
+    }
   }
 }

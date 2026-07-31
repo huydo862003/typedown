@@ -111,7 +111,10 @@ fn format_task_item(out: &mut String, item: &MdTaskListItem, depth: usize) {
   let indent = "  ".repeat(depth);
 
   // Emit checkbox + first block inline
-  let checkbox = item.checkbox().map(|c| c.syntax().text()).unwrap_or_default();
+  let checkbox = item
+    .checkbox()
+    .map(|c| c.syntax().text())
+    .unwrap_or_default();
   let mut blocks = item.block_elements();
   if let Some(first) = blocks.next() {
     let text = first.syntax().text();
@@ -489,12 +492,14 @@ Some text.
   // Nested bullet list content is not lost
   #[test]
   fn nested_bullet_list() {
-    let result = fmt(r#"---
+    let result = fmt(
+      r#"---
 ---
 - parent
  - child one
  - child two
-"#);
+"#,
+    );
     assert_eq!(
       result,
       r#"
@@ -509,12 +514,14 @@ Some text.
   // Ordered list nested inside bullet list content is not lost
   #[test]
   fn nested_ordered_in_bullet() {
-    let result = fmt(r#"---
+    let result = fmt(
+      r#"---
 ---
 - parent
  1. first
  2. second
-"#);
+"#,
+    );
     assert_eq!(
       result,
       r#"
@@ -528,12 +535,14 @@ Some text.
   // Three levels deep content is not lost
   #[test]
   fn nested_list_three_levels() {
-    let result = fmt(r#"---
+    let result = fmt(
+      r#"---
 ---
 - level one
  1. level two
   - level three
-"#);
+"#,
+    );
     assert_eq!(
       result,
       r#"
