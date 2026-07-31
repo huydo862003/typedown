@@ -412,8 +412,7 @@ mod tests {
 
   #[test]
   fn export_separates_blocks_with_blank_lines() {
-    let (db, project, file) =
-      load_vault_fixture("evaluate/my_vault", "content/md_with_content.td");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/md_with_content.td");
     let exported = export_resource(&db, project, file).expect("should export");
     // Block elements should be separated by blank lines
     let lines: Vec<&str> = exported.content.lines().collect();
