@@ -91,27 +91,38 @@ fn format_bullet_list(out: &mut String, node: &RedNode, depth: usize) {
 /// Format a single bullet list item
 fn format_bullet_item(out: &mut String, item: &MdBulletListItem, depth: usize) {
   let indent = "  ".repeat(depth);
-  let source = item.syntax().text();
-  let first_line = source.lines().next().unwrap_or("");
 
-  // Normalize the first line: indent + "- " + content
-  let content = first_line
-    .trim()
-    .strip_prefix("- ")
-    .or_else(|| first_line.trim().strip_prefix("* "))
-    .or_else(|| first_line.trim().strip_prefix("+ "))
-    .unwrap_or(first_line.trim());
-  push_trimmed_line(out, &format!("{indent}- {content}"));
+  // Emit the first block element inline after the bullet marker
+  let mut blocks = item.block_elements();
+  if let Some(first) = blocks.next() {
+    let text = first.syntax().text();
+    let content = text.trim();
+    push_trimmed_line(out, &format!("{indent}- {content}"));
+  }
+
+  // Recurse into remaining child blocks (nested lists, paragraphs)
+  for block in blocks {
+    format_block(out, block.syntax(), depth + 1);
+  }
 }
 
-/// Format a task list item: `- [ ] text` or `- [x] text`
+// Format a task list item: `- [ ] text` or `- [x] text`
 fn format_task_item(out: &mut String, item: &MdTaskListItem, depth: usize) {
   let indent = "  ".repeat(depth);
-  let source = item.syntax().text();
-  let first_line = source.lines().next().unwrap_or("");
-  let trimmed = first_line.trim();
 
-  push_trimmed_line(out, &format!("{indent}{trimmed}"));
+  // Emit checkbox + first block inline
+  let checkbox = item.checkbox().map(|c| c.syntax().text()).unwrap_or_default();
+  let mut blocks = item.block_elements();
+  if let Some(first) = blocks.next() {
+    let text = first.syntax().text();
+    let content = text.trim();
+    push_trimmed_line(out, &format!("{indent}- {checkbox} {content}"));
+  }
+
+  // Recurse into remaining child blocks
+  for block in blocks {
+    format_block(out, block.syntax(), depth + 1);
+  }
 }
 
 /// Format an ordered list
@@ -123,19 +134,22 @@ fn format_ordered_list(out: &mut String, node: &RedNode, depth: usize) {
   }
 }
 
-/// Format a single ordered list item
+// Format a single ordered list item
 fn format_ordered_item(out: &mut String, item: &MdOrderedListItem, depth: usize, number: usize) {
   let indent = "  ".repeat(depth);
-  let source = item.syntax().text();
-  let first_line = source.lines().next().unwrap_or("");
 
-  // Strip existing number and dot, emit with correct number
-  let trimmed = first_line.trim();
-  let content = trimmed
-    .find(". ")
-    .map(|pos| &trimmed[pos + 2..])
-    .unwrap_or(trimmed);
-  push_trimmed_line(out, &format!("{indent}{number}. {content}"));
+  // Emit the first block element inline after the number marker
+  let mut blocks = item.block_elements();
+  if let Some(first) = blocks.next() {
+    let text = first.syntax().text();
+    let content = text.trim();
+    push_trimmed_line(out, &format!("{indent}{number}. {content}"));
+  }
+
+  // Recurse into remaining child blocks (nested lists, paragraphs)
+  for block in blocks {
+    format_block(out, block.syntax(), depth + 1);
+  }
 }
 
 /// Emit source text lines with trailing whitespace stripped, at the given indent depth
@@ -470,5 +484,63 @@ Some text.
     let second_input = format!("---\n---\n{first}");
     let second = fmt(&second_input);
     assert_eq!(first, second, "formatter should be idempotent with lists");
+  }
+
+  // Nested bullet list content is not lost
+  #[test]
+  fn nested_bullet_list() {
+    let result = fmt(r#"---
+---
+- parent
+ - child one
+ - child two
+"#);
+    assert_eq!(
+      result,
+      r#"
+- parent
+
+ - child one
+ - child two
+"#
+    );
+  }
+
+  // Ordered list nested inside bullet list content is not lost
+  #[test]
+  fn nested_ordered_in_bullet() {
+    let result = fmt(r#"---
+---
+- parent
+ 1. first
+ 2. second
+"#);
+    assert_eq!(
+      result,
+      r#"
+- parent
+  1. first
+  2. second
+"#
+    );
+  }
+
+  // Three levels deep content is not lost
+  #[test]
+  fn nested_list_three_levels() {
+    let result = fmt(r#"---
+---
+- level one
+ 1. level two
+  - level three
+"#);
+    assert_eq!(
+      result,
+      r#"
+- level one
+  1. level two
+    - level three
+"#
+    );
   }
 }
