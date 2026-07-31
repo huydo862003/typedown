@@ -4,10 +4,12 @@
     "moduleResolution": "Bundler",
     "target": "ES2022",
     "lib": [
-      "ES2022"
+      "ES2022",
+      "DOM"
     ],
     "types": [
-      "node"
+      "node",
+      "vite/client"
     ],
     "strict": true,
     "skipLibCheck": true,
@@ -20,8 +22,6 @@
     }
   },
   "include": [
-    "*.ts",
-    "src/**/*.ts",
-    "__tests__/**/*.ts"
+    "**/*.ts"
   ]
 }

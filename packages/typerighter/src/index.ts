@@ -1,1 +1,1 @@
-export { default } from './node/index';
+export * from './node/index';

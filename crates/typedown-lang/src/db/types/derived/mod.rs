@@ -72,6 +72,8 @@ pub struct VaultConfigResult {
   schema_dir: PathBuf,
   base_path: String,
   assets_dir: AssetsDir,
+  site_title: String,
+  site_description: String,
   diagnostics: Vec<Diagnostic>,
 }
 

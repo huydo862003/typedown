@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "@fontsource-variable/archivo";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --font-sans: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", monospace;
+
+  /* Color tokens */
+  --color-td-bg: #f3f2f2;
+  --color-td-bg-subtle: #eae9e9;
+  --color-td-fg: #201e1d;
+  --color-td-fg-muted: color-mix(in srgb, #201e1d 55%, transparent);
+  --color-td-primary: #4F6BCA;
+  --color-td-primary-hover: #3d56b0;
+  --color-td-primary-active: #314498;
+  --color-td-primary-tint: #f0f2fb;
+  --color-td-primary-deep: #283873;
+  --color-td-secondary: #a0522d;
+  --color-td-secondary-hover: #8b4726;
+  --color-td-border: color-mix(in srgb, #201e1d 40%, transparent);
+  --color-td-gray-100: #f8f4f4;
+  --color-td-gray-200: #eae7e7;
+  --color-td-gray-300: #d7d3d3;
+  --color-td-gray-500: #9b9797;
+  --color-td-gray-600: #7d7979;
+  --color-td-gray-700: #605d5d;
+
+  /* Status colors */
+  --color-td-tip: #10b981;
+  --color-td-tip-bg: rgba(16, 185, 129, 0.08);
+  --color-td-info: #3b82f6;
+  --color-td-info-bg: rgba(59, 130, 246, 0.08);
+  --color-td-warning: #eab308;
+  --color-td-warning-text: #ca8a04;
+  --color-td-warning-bg: rgba(234, 179, 8, 0.08);
+  --color-td-danger: #ef4444;
+  --color-td-danger-bg: rgba(239, 68, 68, 0.08);
+  --color-td-diff-add: #10b981;
+  --color-td-diff-add-bg: rgba(16, 185, 129, 0.14);
+  --color-td-diff-remove: #f43f5e;
+  --color-td-diff-remove-bg: rgba(244, 63, 94, 0.14);
+
+  /* Code block chrome (always dark) */
+  --color-td-code-bg: #1e1e2e;
+  --color-td-code-fg: #d4d4d4;
+  --color-td-code-chrome-40: rgba(255, 255, 255, 0.4);
+  --color-td-code-chrome-20: rgba(255, 255, 255, 0.2);
+  --color-td-code-chrome-15: rgba(255, 255, 255, 0.15);
+  --color-td-code-chrome-10: rgba(255, 255, 255, 0.1);
+  --color-td-code-chrome-08: rgba(255, 255, 255, 0.08);
+  --color-td-code-chrome-06: rgba(255, 255, 255, 0.06);
+
+  /* Type scale */
+  --font-size-td-display: 120px;
+  --font-size-td-h1: 44px;
+  --font-size-td-h2: 26px;
+  --font-size-td-h3: 25px;
+  --font-size-td-h4: 20px;
+  --font-size-td-h5: 16px;
+  --font-size-td-h6: 13px;
+  --font-size-td-body: 16.5px;
+  --font-size-td-body-sm: 15px;
+  --font-size-td-ui: 14px;
+  --font-size-td-nav: 13.5px;
+  --font-size-td-caption: 13px;
+  --font-size-td-code: 0.8125rem;
+  --font-size-td-table-header: 11px;
+  --font-size-td-label: 10.5px;
+  --font-size-td-site-title: 17px;
+
+  --font-weight-td-heading: 800;
+  --font-weight-td-body: 400;
+  --font-weight-td-semibold: 600;
+
+  --leading-td-heading: 1.12;
+  --leading-td-body: 1.65;
+  --leading-td-code: 1.7;
+
+  --tracking-td-heading: -0.015em;
+  --tracking-td-title: -0.02em;
+  --tracking-td-label: 0.1em;
+  --tracking-td-h6: 0.08em;
+}
+
+:root {
+  --td-sidebar-width: 272px;
+  --td-toc-width: 264px;
+  --td-content-max: 780px;
+  --td-header-height: 58px;
+}
+
+.dark {
+  --color-td-bg: #1e1d1c;
+  --color-td-bg-subtle: #282625;
+  --color-td-fg: #d4d0ce;
+  --color-td-fg-muted: color-mix(in srgb, #d4d0ce 55%, transparent);
+  --color-td-primary: #8B9FE8;
+  --color-td-primary-hover: #a8b8f0;
+  --color-td-primary-active: #c4d0f5;
+  --color-td-primary-tint: #1a1e30;
+  --color-td-primary-deep: #d8e0fa;
+  --color-td-secondary: #c4885e;
+  --color-td-secondary-hover: #d4a07a;
+  --color-td-border: color-mix(in srgb, #d4d0ce 25%, transparent);
+  --color-td-gray-100: #2d2b2b;
+  --color-td-gray-200: #383535;
+  --color-td-gray-300: #444141;
+  --color-td-gray-500: #7d7979;
+  --color-td-gray-600: #9b9797;
+  --color-td-gray-700: #bab6b6;
+  --color-td-tip-bg: rgba(16, 185, 129, 0.12);
+  --color-td-info-bg: rgba(59, 130, 246, 0.12);
+  --color-td-warning-bg: rgba(234, 179, 8, 0.12);
+  --color-td-danger-bg: rgba(239, 68, 68, 0.12);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+  color: var(--color-td-fg);
+  background-color: var(--color-td-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-td-primary) 30%, transparent);
+}

@@ -121,6 +121,12 @@ Adding a new type does not touch the serializer. Changing the byte format does n
 
 Reference: [rustc_serialize/src/serialize.rs](https://github.com/rust-lang/rust/blob/2371d697abddba53be85137d5a68064066b4ae10/compiler/rustc_serialize/src/serialize.rs)
 
+### HMR in Vite
+
+- **Stale content on HMR**:
+  - Problem: Vite's file watcher fires `handleHotUpdate` before the Rust RPC server has re-indexed the file, so `transform` fetches stale content.
+  - Solution: We suppress Vite's watcher for `.td` files (`handleHotUpdate` returns `[]`) and let the Rust `onContentChanged` RPC event drive module invalidation, since it fires after re-indexing is complete.
+
 ### LSP: Dynamic vs Static Registration
 
 When a client advertises `dynamicRegistration: true` for `workspace.fileOperations` (as VSCode does), some clients **ignore** static capabilities declared in `InitializeResult`. The server must use `client/registerCapability` to dynamically register for `workspace/willRenameFiles` and `workspace/didRenameFiles` at runtime.

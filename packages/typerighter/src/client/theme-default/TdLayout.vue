@@ -1,0 +1,371 @@
+<script setup lang="ts">
+import {
+  watch,
+} from 'vue';
+import {
+  X,
+} from 'lucide-vue-next';
+import {
+  useTdContent, useSiteConfig, useSiteData, useRoute,
+} from '../app';
+import {
+  Content,
+} from '../app/components/Content';
+import TdBrandIcon from './components/TdBrandIcon.vue';
+import TdButton from './components/TdButton.vue';
+import TdContentNav from './components/TdContentNav.vue';
+import TdMenuButton from './components/TdMenuButton.vue';
+import TdThemeToggle from './components/TdThemeToggle.vue';
+import {
+  useCopyCode,
+} from './composables/useCopyCode';
+import {
+  useMenu,
+} from './composables/useMenu';
+import './styles/main.css';
+import './styles/markdown/content.css';
+import './styles/markdown/code.css';
+import './styles/markdown/containers.css';
+
+const {
+  title, page,
+} = useTdContent();
+const siteConfig = useSiteConfig();
+const siteData = useSiteData();
+const {
+  isOpen, close: closeMenu,
+} = useMenu();
+const route = useRoute();
+
+watch(() => route.path, () => closeMenu());
+
+useCopyCode();
+</script>
+
+<template>
+  <div>
+    <header class="td-header">
+      <div class="td-header-left">
+        <TdMenuButton />
+        <a
+          href="/"
+          class="td-brand"
+        >
+          <TdBrandIcon />
+          <span class="td-brand-name">{{ siteConfig.title || 'Typedown' }}</span>
+        </a>
+      </div>
+      <div class="td-header-right">
+        <TdThemeToggle />
+      </div>
+    </header>
+
+    <div
+      class="td-menu-overlay"
+      :class="{
+        'is-open': isOpen,
+      }"
+    >
+      <header class="td-menu-header">
+        <div class="td-header-left">
+          <TdButton
+            class="w-9 h-9 text-td-gray-600 hover:text-td-primary"
+            label="Close menu"
+            @click="closeMenu"
+          >
+            <X :size="20" />
+          </TdButton>
+          <a
+            href="/"
+            class="td-brand"
+          >
+            <TdBrandIcon />
+            <span class="td-brand-name">{{ siteConfig.title || 'Typedown' }}</span>
+          </a>
+        </div>
+      </header>
+      <nav
+        class="pt-4"
+        aria-label="Site navigation"
+      >
+        <TdContentNav :groups="siteData.sidebarGroups" />
+      </nav>
+    </div>
+
+    <div class="td-page">
+      <nav
+        class="td-sidebar-left"
+        aria-label="Site navigation"
+      >
+        <div class="td-sidebar-left-inner">
+          <TdContentNav :groups="siteData.sidebarGroups" />
+        </div>
+      </nav>
+
+      <div class="td-main-and-toc">
+        <main class="td-main">
+          <article class="td-content">
+            <h1
+              v-if="title"
+              class="td-page-title"
+            >
+              {{ title }}
+            </h1>
+            <Content />
+          </article>
+        </main>
+
+        <nav
+          class="td-sidebar-right"
+          aria-label="Table of contents"
+        >
+          <div class="td-sidebar-right-inner">
+            <div
+              v-if="page.headings.length"
+              class="td-toc"
+            >
+              <div class="td-toc-label">
+                On this page
+              </div>
+              <ul class="td-toc-list">
+                <li
+                  v-for="heading in page.headings"
+                  :key="heading.slug"
+                  :class="{
+                    'td-toc-indent-1': heading.level === 3,
+                    'td-toc-indent-2': heading.level === 4,
+                    'td-toc-indent-3': heading.level === 5,
+                  }"
+                >
+                  <a
+                    :href="heading.link"
+                    class="td-toc-link"
+                  >{{ heading.title }}</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Header */
+
+.td-header {
+  height: var(--td-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 2px solid var(--color-td-secondary);
+  background: var(--color-td-bg);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.td-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.td-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Brand */
+
+.td-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-td-secondary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.td-brand:hover {
+  color: var(--color-td-secondary-hover);
+}
+
+.td-brand-name {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-td-heading);
+  font-size: var(--font-size-td-site-title);
+  letter-spacing: var(--tracking-td-title);
+}
+
+/* Page grid */
+
+.td-page {
+  display: flex;
+  min-height: calc(100vh - var(--td-header-height));
+}
+
+.td-main-and-toc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--td-toc-width);
+  flex: 1;
+  min-width: 0;
+}
+
+/* Main content */
+
+.td-main {
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.td-content {
+  max-width: var(--td-content-max);
+  margin: 0 auto;
+  padding: 44px 56px 120px;
+}
+
+.td-page-title {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-td-heading);
+  font-size: var(--font-size-td-h1);
+  line-height: var(--leading-td-heading);
+  letter-spacing: var(--tracking-td-heading);
+  margin: 0 0 8px 0;
+}
+
+/* Menu button: hidden above lg */
+
+.td-menu-button {
+  display: none;
+}
+
+/* Sidebar: static column above lg */
+
+.td-sidebar-left {
+  overflow-y: auto;
+  width: var(--td-sidebar-width);
+  padding: 22px 0 60px;
+}
+
+.td-sidebar-left-inner {
+  position: sticky;
+  top: 2rem;
+  display: flex;
+  flex-direction: column;
+  width: var(--td-sidebar-width);
+}
+
+/* Menu overlay: full-screen with own header */
+
+.td-menu-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--color-td-bg);
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.td-menu-overlay.is-open {
+  display: flex;
+}
+
+.td-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--td-header-height);
+  padding: 0 16px;
+  border-bottom: 2px solid var(--color-td-secondary);
+  flex-shrink: 0;
+}
+
+/* Right sidebar (TOC) */
+
+.td-sidebar-right {
+  overflow-y: auto;
+  padding: 44px 22px 60px;
+  min-width: 0;
+}
+
+.td-sidebar-right-inner {
+  position: sticky;
+  top: 0;
+}
+
+.td-toc-label {
+  font-size: var(--font-size-td-label);
+  letter-spacing: var(--tracking-td-label);
+  text-transform: uppercase;
+  color: var(--color-td-gray-600);
+  margin-bottom: 12px;
+}
+
+.td-toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 2px solid var(--color-td-gray-300);
+}
+
+.td-toc-list li {
+  margin: 0;
+}
+
+.td-toc-link {
+  display: block;
+  padding: 5px 0 5px 12px;
+  margin-left: -2px;
+  font-size: var(--font-size-td-caption);
+  color: var(--color-td-gray-700);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 0.15s;
+}
+
+.td-toc-link:hover {
+  color: var(--color-td-primary);
+}
+
+.td-toc-indent-1 {
+  padding-left: 24px;
+}
+
+.td-toc-indent-2 {
+  padding-left: 36px;
+}
+
+.td-toc-indent-3 {
+  padding-left: 48px;
+}
+
+/* Below lg breakpoint */
+
+@media (width < 64rem) {
+  .td-header {
+    padding: 0 16px;
+  }
+
+  .td-menu-button {
+    display: inline-flex;
+  }
+
+  .td-sidebar-left,
+  .td-sidebar-right {
+    display: none;
+  }
+
+  .td-main-and-toc {
+    grid-template-columns: 1fr;
+  }
+
+  .td-content {
+    padding: 24px 16px 60px;
+  }
+}
+</style>
