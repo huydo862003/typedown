@@ -41,8 +41,12 @@ struct FsEvent {
 /// RPC build server that holds a single project and serves build requests
 // TIL: Use tokio::sync::RwLock in async contexts, not std::sync::RwLock as std::sync::RwLock blocks the OS thread while waiting, which can deadlock the tokio runtime if the lock is held across an .await point
 pub struct RpcServer {
-  _root_dir: PathBuf,
-  host: tokio::sync::RwLock<AnalysisHost>,
+  host: Arc<tokio::sync::RwLock<AnalysisHost>>,
+  events: Arc<FsEventBus>,
+}
+
+// Shared state for the FS watcher task
+struct FsEventBus {
   // Content events
   content_changed_tx: broadcast::Sender<TdContentNotification>,
   content_created_tx: broadcast::Sender<TdContentNotification>,
@@ -56,7 +60,7 @@ pub struct RpcServer {
 }
 
 impl RpcServer {
-  pub fn new(root_dir: PathBuf) -> anyhow::Result<Arc<Self>> {
+  pub fn new(root_dir: PathBuf) -> anyhow::Result<Self> {
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
@@ -72,9 +76,8 @@ impl RpcServer {
     let (fs_tx, fs_rx) = tokio::sync::mpsc::unbounded_channel();
     let _watcher = Self::setup_watcher(&root_dir, fs_tx)?;
 
-    let server = Arc::new(Self {
-      _root_dir: root_dir,
-      host: tokio::sync::RwLock::new(host),
+    let host = Arc::new(tokio::sync::RwLock::new(host));
+    let events = Arc::new(FsEventBus {
       content_changed_tx,
       content_created_tx,
       content_deleted_tx,
@@ -84,9 +87,9 @@ impl RpcServer {
       _watcher,
     });
 
-    Self::spawn_fs_watcher_task(Arc::clone(&server), fs_rx);
+    Self::spawn_fs_watcher_task(Arc::clone(&host), Arc::clone(&events), fs_rx);
 
-    Ok(server)
+    Ok(Self { host, events })
   }
 
   /// Set up the file watcher
@@ -118,7 +121,8 @@ impl RpcServer {
   }
 
   fn spawn_fs_watcher_task(
-    server: Arc<Self>,
+    host: Arc<tokio::sync::RwLock<AnalysisHost>>,
+    events: Arc<FsEventBus>,
     mut fs_rx: tokio::sync::mpsc::UnboundedReceiver<FsEvent>,
   ) {
     tokio::spawn(async move {
@@ -142,16 +146,17 @@ impl RpcServer {
           }
         }
 
-        // Apply all debounced events
-        let mut host = server.host.write().await;
+        let mut host_guard = host.write().await;
         for event in pending.values() {
           match event.kind {
-            FsEventKind::Created | FsEventKind::Modified => host.on_disk_change(event.path.clone()),
-            FsEventKind::Removed => host.on_disk_delete(event.path.clone()),
+            FsEventKind::Created | FsEventKind::Modified => {
+              host_guard.on_disk_change(event.path.clone())
+            }
+            FsEventKind::Removed => host_guard.on_disk_delete(event.path.clone()),
           }
         }
-        let analysis = host.snapshot();
-        drop(host);
+        let analysis = host_guard.snapshot();
+        drop(host_guard);
 
         let db = &analysis.db;
         let project = analysis.project;
@@ -165,9 +170,9 @@ impl RpcServer {
               content: event.path.to_string_lossy().into_owned(),
             };
             let sender = match event.kind {
-              FsEventKind::Created => &server.content_created_tx,
-              FsEventKind::Modified => &server.content_changed_tx,
-              FsEventKind::Removed => &server.content_deleted_tx,
+              FsEventKind::Created => &events.content_created_tx,
+              FsEventKind::Modified => &events.content_changed_tx,
+              FsEventKind::Removed => &events.content_deleted_tx,
             };
             let _ = sender.send(notification);
           } else if event.path.starts_with(&schema_dir) {
@@ -181,9 +186,9 @@ impl RpcServer {
             };
             let notification = TdSchemaNotification { schema: name };
             let sender = match event.kind {
-              FsEventKind::Created => &server.schema_created_tx,
-              FsEventKind::Modified => &server.schema_changed_tx,
-              FsEventKind::Removed => &server.schema_deleted_tx,
+              FsEventKind::Created => &events.schema_created_tx,
+              FsEventKind::Modified => &events.schema_changed_tx,
+              FsEventKind::Removed => &events.schema_deleted_tx,
             };
             let _ = sender.send(notification);
           }
@@ -381,41 +386,41 @@ impl TdBuildRpcServer<(), ()> for RpcServer {
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.content_changed_tx.subscribe()).await
+    run_subscription(pending, self.events.content_changed_tx.subscribe()).await
   }
 
   async fn subscribe_content_created(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.content_created_tx.subscribe()).await
+    run_subscription(pending, self.events.content_created_tx.subscribe()).await
   }
 
   async fn subscribe_content_deleted(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.content_deleted_tx.subscribe()).await
+    run_subscription(pending, self.events.content_deleted_tx.subscribe()).await
   }
 
   async fn subscribe_schema_changed(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.schema_changed_tx.subscribe()).await
+    run_subscription(pending, self.events.schema_changed_tx.subscribe()).await
   }
 
   async fn subscribe_schema_created(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.schema_created_tx.subscribe()).await
+    run_subscription(pending, self.events.schema_created_tx.subscribe()).await
   }
 
   async fn subscribe_schema_deleted(
     &self,
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
-    run_subscription(pending, self.schema_deleted_tx.subscribe()).await
+    run_subscription(pending, self.events.schema_deleted_tx.subscribe()).await
   }
 }

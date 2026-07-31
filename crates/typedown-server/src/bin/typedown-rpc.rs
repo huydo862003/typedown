@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use jsonrpsee::server::Server;
 use typedown_server::rpc::contract::TdBuildRpcServer;
@@ -19,10 +18,7 @@ async fn main() -> anyhow::Result<()> {
     .parse()
     .expect("TYPEDOWN_RPC_PORT must be a valid port number");
   let rpc_server = RpcServer::new(root_dir)?;
-  let module = Arc::try_unwrap(rpc_server)
-    .ok()
-    .expect("no other Arc references at startup")
-    .into_rpc();
+  let module = rpc_server.into_rpc();
 
   let server = Server::builder().build(format!("{addr}:{port}")).await?;
   let addr = server.local_addr()?;
