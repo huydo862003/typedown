@@ -10,7 +10,7 @@ function M.setup()
   -- Only apply if not already set by the user's colorscheme
 
   -- key: value
-  vim.api.nvim_set_hl(0, "@property.typedown_yaml", { link = "Label", default = true })
+  vim.api.nvim_set_hl(0, "@property.typedown_yaml", { fg = "#fe8019", default = true })
   vim.api.nvim_set_hl(0, "@property.typedown_md_inline", { link = "Label", default = true })
 
   -- ${...}

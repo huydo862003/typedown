@@ -54,10 +54,11 @@ pub fn completion(analysis: &Analysis, params: CompletionParams) -> Option<Compl
     return Some(CompletionResponse::Array(items));
   }
 
-  // Cursor in a mapping key: suggest field names from the declared schema.
-  if let Some(product) = enclosing_mapping_product(db, project, file, &node) {
+  // Cursor in a mapping key or blank line: suggest field names from the declared schema
+  if let Some((product, mapping)) = enclosing_mapping_product(db, project, file, &node) {
+    let existing = existing_keys(&mapping);
     return Some(CompletionResponse::Array(field_completions_from_type(
-      db, &product,
+      db, &product, &existing,
     )));
   }
 
@@ -140,15 +141,17 @@ fn fref_completions(
     .collect()
 }
 
-/// Resolve the product type of the mapping the cursor key belongs to.
-/// Returns None if the cursor is not on a key or no type can be resolved.
+// Resolve the product type and mapping node the cursor belongs to
+// Works on keys, blank lines, and trailing whitespace inside a mapping
 fn enclosing_mapping_product(
   db: &TypedownDatabase,
   project: Project,
   file: File,
   node: &RedNode,
-) -> Option<TdProductType> {
-  find_ancestor(node, SyntaxKind::YamlMappingEntryKey)?;
+) -> Option<(TdProductType, RedNode)> {
+  if is_in_mapping_value_position(node) {
+    return None;
+  }
   let mapping = find_ancestor(node, SyntaxKind::YamlMapping)?;
 
   // Explicit _type in this mapping.
@@ -156,7 +159,7 @@ fn enclosing_mapping_product(
     let scope = Scope::project_scope(db, project);
     let symbol = *members(db, scope).members(db).get(&schema_name)?;
     let typ = evaluate_type(db, symbol).typ(db)?;
-    return typ.as_td_product_type().cloned();
+    return Some((typ.as_td_product_type().cloned()?, mapping));
   }
 
   // No explicit _type. Try resolving via the parent field's declared type.
@@ -167,7 +170,7 @@ fn enclosing_mapping_product(
     MemberType::Simple(typ) => typ,
     _ => return None,
   };
-  typ.as_td_product_type().cloned()
+  Some((typ.as_td_product_type().cloned()?, mapping))
 }
 
 /// If the cursor is in a field value, return value completions
@@ -236,14 +239,30 @@ fn schema_completions(db: &TypedownDatabase, project: Project) -> Vec<Completion
     .collect()
 }
 
-/// Suggest field names from a resolved product type.
+// Collect existing key names from a mapping node
+fn existing_keys(mapping: &RedNode) -> Vec<String> {
+  mapping
+    .children()
+    .filter(|child| child.kind() == SyntaxKind::YamlMappingEntry)
+    .filter_map(|entry| {
+      entry
+        .children()
+        .find(|c| c.kind() == SyntaxKind::YamlMappingEntryKey)
+        .map(|key| key.text().trim().to_string())
+    })
+    .collect()
+}
+
+// Suggest field names from a resolved product type, excluding already-present keys
 fn field_completions_from_type(
   db: &TypedownDatabase,
   product: &TdProductType,
+  existing: &[String],
 ) -> Vec<CompletionItem> {
   product
     .fields(db)
     .keys()
+    .filter(|field| !existing.iter().any(|k| k == *field))
     .map(|field| CompletionItem {
       label: field.clone(),
       kind: Some(CompletionItemKind::FIELD),
@@ -484,8 +503,9 @@ _type: Person
       panic!("expected field completions");
     };
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
-    assert!(labels.contains(&"name"), "should suggest 'name' field");
+    assert!(!labels.contains(&"name"), "should not suggest 'name' (already exists)");
     assert!(labels.contains(&"age"), "should suggest 'age' field");
+    assert!(labels.contains(&"verified"), "should suggest 'verified' field");
   }
 
   #[test]
@@ -507,8 +527,98 @@ na|:
   }
 
   #[test]
+  fn field_completion_on_blank_line_between_fields() {
+    let (content, offset) = cursor(
+      r#"---
+_type: Person
+name: Alice
+|
+age: 30
+---
+"#,
+    );
+    let (analysis, uri) = setup(&content);
+    let params = make_params(uri, &content, offset);
+
+    let response = completion(&analysis, params);
+    let Some(CompletionResponse::Array(items)) = response else {
+      panic!("expected field completions on blank line");
+    };
+    let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
+    assert!(labels.contains(&"verified"), "should suggest 'verified' on blank line between fields");
+  }
+
+  #[test]
+  fn field_completion_on_last_line_of_mapping() {
+    let (content, offset) = cursor(
+      r#"---
+_type: Person
+name: Alice
+|
+---
+"#,
+    );
+    let (analysis, uri) = setup(&content);
+    let params = make_params(uri, &content, offset);
+
+    let response = completion(&analysis, params);
+    let Some(CompletionResponse::Array(items)) = response else {
+      panic!("expected field completions on last line of mapping");
+    };
+    let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
+    assert!(labels.contains(&"age"), "should suggest 'age' on last blank line");
+  }
+
+  #[test]
+  fn field_completion_excludes_existing_keys() {
+    let (content, offset) = cursor(
+      r#"---
+_type: Person
+name: Alice
+age: 30
+|
+---
+"#,
+    );
+    let (analysis, uri) = setup(&content);
+    let params = make_params(uri, &content, offset);
+
+    let response = completion(&analysis, params);
+    let Some(CompletionResponse::Array(items)) = response else {
+      panic!("expected field completions");
+    };
+    let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
+    assert!(!labels.contains(&"name"), "should not suggest 'name' (already exists)");
+    assert!(!labels.contains(&"age"), "should not suggest 'age' (already exists)");
+    assert!(labels.contains(&"verified"), "should suggest 'verified' (not yet used)");
+    assert!(labels.contains(&"nickname"), "should suggest 'nickname' (not yet used)");
+  }
+
+  #[test]
+  fn field_completion_on_key_excludes_other_existing_keys() {
+    let (content, offset) = cursor(
+      r#"---
+_type: Person
+name: Alice
+ver|:
+---
+"#,
+    );
+    let (analysis, uri) = setup(&content);
+    let params = make_params(uri, &content, offset);
+
+    let response = completion(&analysis, params);
+    let Some(CompletionResponse::Array(items)) = response else {
+      panic!("expected field completions");
+    };
+    let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
+    assert!(!labels.contains(&"name"), "should not suggest 'name' (already exists)");
+    assert!(labels.contains(&"age"), "should suggest 'age'");
+    assert!(labels.contains(&"verified"), "should suggest 'verified'");
+  }
+
+  #[test]
   fn no_completion_in_markdown_body() {
-    // Cursor in the markdown body below the frontmatter: no completions.
     let (content, offset) = cursor(
       r#"---
 _type: Person

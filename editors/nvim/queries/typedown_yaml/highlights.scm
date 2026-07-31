@@ -1,5 +1,6 @@
 ; Keys
-(property_key) @property
+((property_key (identifier) @property)
+  (#set! priority 101))
 (reserved_key) @keyword
 
 ; Type values
@@ -17,7 +18,8 @@
 (dict_type "dict" @type.builtin)
 (fixed_key_dict_type) @type
 (union_type) @type
-(fixed_key_entry key: (identifier) @property)
+((fixed_key_entry key: (identifier) @keyword)
+  (#set! priority 101))
 
 ; Expressions
 (identifier) @variable
