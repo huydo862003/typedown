@@ -65,8 +65,13 @@ if [[ "$BUMP_TYPE" != pre* ]]; then
 
   ${EDITOR:-vi} CHANGELOG.md
 
-  if grep -q "$PLACEHOLDER" CHANGELOG.md; then
-    echo "Error: changelog entry is empty"
+  # Strip the placeholder line if present
+  sed -i "/$PLACEHOLDER/d" CHANGELOG.md
+
+  # Check that something was actually written under the version header
+  ENTRY=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '1d;/^## \[/d' | sed '/^$/d')
+  if [[ -z "$ENTRY" ]]; then
+    echo "Error: no changelog entry for $VERSION (add content under the ## [$VERSION] header)"
     exit 1
   fi
 fi
