@@ -234,7 +234,7 @@ jobs:
   publish:
     name: ${{ needs.validate-tag.outputs.is_staging == 'true' && 'Publish Staging' || 'Publish Release' }}
     needs: [validate-tag, build]
-    environment: ${{ needs.validate-tag.outputs.is_staging == 'true' && '' || 'release' }}
+    environment: ${{ needs.validate-tag.outputs.is_staging == 'true' && 'staging' || 'release' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
