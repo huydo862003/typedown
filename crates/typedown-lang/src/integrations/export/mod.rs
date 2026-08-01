@@ -138,16 +138,27 @@ fn emit_md_toggle_list(
     if let Some(summary) = item.summary() {
       out.push_str("<summary>");
       emit_md_node(db, project, file, summary.syntax(), out);
-      out.push_str("</summary>\n\n");
+      out.push_str("</summary>\n");
     }
 
     if let Some(details) = item.details() {
       for block in details.block_elements() {
-        emit_md_block(db, project, file, block.syntax(), out);
+        let mut block_html = String::new();
+        emit_md_block(db, project, file, block.syntax(), &mut block_html);
+        let trimmed = block_html.trim_end_matches('\n');
+        let is_block_element = trimmed.starts_with('<');
+        if is_block_element {
+          out.push_str(trimmed);
+        } else {
+          out.push_str("<div>");
+          out.push_str(trimmed);
+          out.push_str("</div>");
+        }
+        out.push('\n');
       }
     }
 
-    out.push_str("</details>\n\n");
+    out.push_str("</details>\n");
   }
 }
 
@@ -432,5 +443,22 @@ mod tests {
         );
       }
     }
+  }
+
+  #[test]
+  fn exports_toggle_list_as_details() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/all_md_elements.td");
+    let exported = export_resource(&db, project, file).expect("should export");
+    let content = &exported.content;
+    // Toggle list should produce a self-contained HTML block with no blank lines
+    let expected = r#"<details>
+<summary>Toggle summary</summary>
+<div>Toggle details content</div>
+</details>
+"#;
+    assert!(
+      content.contains(expected),
+      "toggle list should emit:\n{expected}\ngot:\n{content}"
+    );
   }
 }

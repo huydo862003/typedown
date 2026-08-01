@@ -14,7 +14,7 @@ use typedown_incremental::QueryStorage;
 use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::derived::get_vault_config::get_vault_config;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
-use typedown_lang::db::types::SymbolKind;
+use typedown_lang::db::types::{AssetsDirMode, SymbolKind};
 use typedown_lang::integrations::export::{export_resource, export_schema};
 
 use typedown_types::path::normalize_path;
@@ -23,8 +23,8 @@ use crate::core::analysis_host::AnalysisHost;
 use crate::core::utils::fs::{is_asset_file, is_td_file, is_vault_config};
 
 use super::contract::{
-  TdBuildRpcServer, TdBuiltResource, TdContentNotification, TdFilePath,
-  TdRpcSubscriptionCloseResponse, TdSchemaInfo, TdSchemaNotification, TdSiteConfig,
+  TdAssetsDir, TdBuildRpcServer, TdBuiltResource, TdContentNotification, TdContentSummary,
+  TdFilePath, TdRpcSubscriptionCloseResponse, TdSchemaInfo, TdSchemaNotification, TdSiteConfig,
 };
 
 enum FsEventKind {
@@ -36,6 +36,33 @@ enum FsEventKind {
 struct FsEvent {
   path: PathBuf,
   kind: FsEventKind,
+}
+
+// Build a TdSiteConfig from the current project state
+fn build_site_config(
+  db: &TypedownDatabase,
+  project: typedown_lang::db::types::Project,
+) -> TdSiteConfig {
+  let config = get_vault_config(db, project);
+  let root = project.root_dir(db);
+  let content_dir = config.content_dir(db);
+  let base_path = config.base_path(db);
+  let assets_dir = config.assets_dir(db);
+
+  let content_dir_rel = normalize_path(content_dir.strip_prefix(&root).unwrap_or(&content_dir));
+
+  TdSiteConfig {
+    base_path: base_path.to_string(),
+    content_dir: content_dir_rel,
+    assets_dir: TdAssetsDir {
+      mode: match assets_dir.mode {
+        AssetsDirMode::Local => "local".to_string(),
+      },
+      path: assets_dir.path.clone(),
+    },
+    site_title: config.site_title(db).to_string(),
+    site_description: config.site_description(db).to_string(),
+  }
 }
 
 /// RPC build server that holds a single project and serves build requests
@@ -55,6 +82,8 @@ struct FsEventBus {
   schema_changed_tx: broadcast::Sender<TdSchemaNotification>,
   schema_created_tx: broadcast::Sender<TdSchemaNotification>,
   schema_deleted_tx: broadcast::Sender<TdSchemaNotification>,
+  // Config events
+  config_changed_tx: broadcast::Sender<TdSiteConfig>,
   // Held to keep the watcher alive for the lifetime of the server
   _watcher: RecommendedWatcher,
 }
@@ -72,6 +101,7 @@ impl RpcServer {
     let (schema_changed_tx, _) = broadcast::channel(64);
     let (schema_created_tx, _) = broadcast::channel(64);
     let (schema_deleted_tx, _) = broadcast::channel(64);
+    let (config_changed_tx, _) = broadcast::channel(64);
 
     let (fs_tx, fs_rx) = tokio::sync::mpsc::unbounded_channel();
     let _watcher = Self::setup_watcher(&root_dir, fs_tx)?;
@@ -84,6 +114,7 @@ impl RpcServer {
       schema_changed_tx,
       schema_created_tx,
       schema_deleted_tx,
+      config_changed_tx,
       _watcher,
     });
 
@@ -163,6 +194,13 @@ impl RpcServer {
         let config = get_vault_config(db, project);
         let content_dir = config.content_dir(db);
         let schema_dir = config.schema_dir(db);
+
+        // Notify subscribers if any pending event is a config file change
+        if pending.values().any(|event| is_vault_config(&event.path)) {
+          let _ = events
+            .config_changed_tx
+            .send(build_site_config(db, project));
+        }
 
         for event in pending.into_values() {
           if event.path.starts_with(&content_dir) {
@@ -266,22 +304,47 @@ impl RpcServer {
     Ok(result)
   }
 
-  async fn get_config_impl(&self) -> RpcResult<TdSiteConfig> {
+  async fn list_files_grouped_by_schema_impl(
+    &self,
+  ) -> RpcResult<HashMap<String, Vec<TdContentSummary>>> {
     let analysis = self.host.read().await.snapshot();
     let db = &analysis.db;
     let project = analysis.project;
 
     let config = get_vault_config(db, project);
-    let root = project.root_dir(db);
     let content_dir = config.content_dir(db);
-    let base_path = config.base_path(db);
+    let files = project.files(db);
 
-    let content_dir_rel = normalize_path(content_dir.strip_prefix(&root).unwrap_or(&content_dir));
+    let mut groups: HashMap<String, Vec<TdContentSummary>> = HashMap::new();
+    for (path, file) in files.iter() {
+      if !path.starts_with(&content_dir) {
+        continue;
+      }
+      if path.extension().and_then(|e| e.to_str()) != Some("td") {
+        continue;
+      }
+      let rel = normalize_path(path.strip_prefix(&content_dir).unwrap_or(path));
+      if let Some(exported) = export_resource(db, project, *file) {
+        groups
+          .entry(exported.schema.clone())
+          .or_default()
+          .push(TdContentSummary {
+            path: rel,
+            schema: exported.schema,
+            header: exported.header,
+          });
+      }
+    }
 
-    Ok(TdSiteConfig {
-      base_path: base_path.to_string(),
-      content_dir: content_dir_rel,
-    })
+    Ok(groups)
+  }
+
+  async fn get_config_impl(&self) -> RpcResult<TdSiteConfig> {
+    let analysis = self.host.read().await.snapshot();
+    let db = &analysis.db;
+    let project = analysis.project;
+
+    Ok(build_site_config(db, project))
   }
 
   async fn list_schemas_impl(&self) -> RpcResult<Vec<String>> {
@@ -370,6 +433,12 @@ impl TdBuildRpcServer<(), ()> for RpcServer {
     self.list_vault_impl().await
   }
 
+  async fn list_files_grouped_by_schema(
+    &self,
+  ) -> RpcResult<HashMap<String, Vec<TdContentSummary>>> {
+    self.list_files_grouped_by_schema_impl().await
+  }
+
   async fn list_schemas(&self) -> RpcResult<Vec<String>> {
     self.list_schemas_impl().await
   }
@@ -422,5 +491,12 @@ impl TdBuildRpcServer<(), ()> for RpcServer {
     pending: PendingSubscriptionSink,
   ) -> TdRpcSubscriptionCloseResponse {
     run_subscription(pending, self.events.schema_deleted_tx.subscribe()).await
+  }
+
+  async fn subscribe_config_changed(
+    &self,
+    pending: PendingSubscriptionSink,
+  ) -> TdRpcSubscriptionCloseResponse {
+    run_subscription(pending, self.events.config_changed_tx.subscribe()).await
   }
 }

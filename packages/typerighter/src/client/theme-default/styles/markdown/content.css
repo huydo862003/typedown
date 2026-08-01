@@ -1,0 +1,230 @@
+/* Headings */
+
+.td-content h1,
+.td-content h2,
+.td-content h3,
+.td-content h4,
+.td-content h5,
+.td-content h6 {
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-td-heading);
+  line-height: var(--leading-td-heading);
+  letter-spacing: var(--tracking-td-heading);
+  overflow-wrap: break-word;
+}
+
+.td-content h1 {
+  font-size: var(--font-size-td-h1);
+  margin-top: 2.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.td-content h1:first-child {
+  margin-top: 0;
+}
+
+.td-content h2 {
+  font-size: var(--font-size-td-h2);
+  margin-top: 2.5rem;
+  margin-bottom: 0.875rem;
+  padding-bottom: 8px;
+  border-bottom: 2px solid color-mix(in srgb, var(--color-td-secondary) 40%, transparent);
+}
+
+.td-content h3 {
+  font-size: var(--font-size-td-h3);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.td-content h4 {
+  font-size: var(--font-size-td-h4);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.td-content h5 {
+  font-size: var(--font-size-td-h5);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.td-content h6 {
+  font-size: var(--font-size-td-h6);
+  letter-spacing: var(--tracking-td-h6);
+  text-transform: uppercase;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-td-fg-muted);
+}
+
+/* Paragraphs */
+
+.td-content p {
+  margin: 1rem 0;
+  font-size: var(--font-size-td-body);
+  line-height: var(--leading-td-body);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+}
+
+/* Links */
+
+.td-content a {
+  color: var(--color-td-primary);
+  text-decoration: none;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+
+.td-content a:hover {
+  color: var(--color-td-primary-hover);
+  text-decoration: underline;
+}
+
+/* Header anchors */
+
+.td-content .header-anchor {
+  padding-right: 0.25em;
+  font-weight: 500;
+  color: var(--color-td-primary);
+  opacity: 0;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.td-content .header-anchor::before {
+  content: '#';
+}
+
+.td-content h1:hover .header-anchor,
+.td-content h2:hover .header-anchor,
+.td-content h3:hover .header-anchor,
+.td-content h4:hover .header-anchor,
+.td-content h5:hover .header-anchor,
+.td-content h6:hover .header-anchor {
+  opacity: 1;
+}
+
+/* Lists */
+
+.td-content ul {
+  list-style-type: disc;
+  margin: 1rem 0;
+  padding-left: 1.25rem;
+}
+
+.td-content ol {
+  list-style-type: decimal;
+  margin: 1rem 0;
+  padding-left: 1.25rem;
+}
+
+.td-content li {
+  margin: 0.5rem 0;
+  line-height: var(--leading-td-body);
+}
+
+.td-content li > ul,
+.td-content li > ol {
+  margin: 0.25rem 0;
+}
+
+/* Task lists */
+
+.td-content .contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.td-content .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.td-content .task-list-item input[type="checkbox"] {
+  margin-top: 0.375rem;
+}
+
+/* Blockquotes */
+
+.td-content blockquote {
+  margin: 1rem 0;
+  padding: 0 1rem;
+  border-left: 3px solid var(--color-td-primary);
+  color: var(--color-td-fg-muted);
+}
+
+.td-content blockquote > p {
+  margin: 0.5rem 0;
+}
+
+/* Horizontal rule */
+
+.td-content hr {
+  height: 2px;
+  margin: 2rem 0;
+  border: none;
+  background: var(--color-td-border);
+}
+
+/* Images */
+
+.td-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Tables */
+
+.td-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: var(--font-size-td-ui);
+  display: block;
+  overflow-x: auto;
+}
+
+.td-content th {
+  text-align: left;
+  font-size: var(--font-size-td-table-header);
+  letter-spacing: var(--tracking-td-h6);
+  text-transform: uppercase;
+  color: var(--color-td-fg-muted);
+  padding: 0.5rem;
+  border-bottom: 2px solid var(--color-td-border);
+}
+
+.td-content td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-td-border);
+}
+
+.td-content tbody tr:hover {
+  background: color-mix(in srgb, var(--color-td-fg) 4%, transparent);
+}
+
+/* Strong / emphasis */
+
+.td-content strong {
+  font-weight: var(--font-weight-td-semibold);
+}
+
+.td-content em {
+  font-style: italic;
+}
+
+/* MathJax */
+
+.td-content mjx-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.td-content mjx-container:not([display="true"]) {
+  display: inline-block;
+}

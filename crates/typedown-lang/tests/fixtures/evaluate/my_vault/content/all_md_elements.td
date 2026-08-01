@@ -43,3 +43,7 @@ callout content
 [^fn1]
 
 [@cite1]
+
+>- Toggle summary
+
+   Toggle details content

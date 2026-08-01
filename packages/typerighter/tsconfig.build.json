@@ -8,10 +8,12 @@
     "rootDir": "./src/"
   },
   "include": [
-    "./src/**/*.ts"
+    "./src/**/*.ts",
+    "./src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "./src/client/theme-default/**"
   ]
 }

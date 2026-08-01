@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::future::Future;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use futures::future::{AbortHandle, Abortable};
@@ -11,60 +12,36 @@ use crate::rpc::contract::{
   TdBuildRpcClient, TdBuiltResource, TdFilePath, TdSchemaInfo, TdSiteConfig,
 };
 
-fn rpc_err(err: impl std::fmt::Display) -> JsValue {
-  JsValue::from_str(&err.to_string())
-}
-
 #[wasm_bindgen]
 pub struct RpcClient {
   inner: Arc<WasmClient>,
-  content_changed: RefCell<Option<AbortHandle>>,
-  content_created: RefCell<Option<AbortHandle>>,
-  content_deleted: RefCell<Option<AbortHandle>>,
-  schema_changed: RefCell<Option<AbortHandle>>,
-  schema_created: RefCell<Option<AbortHandle>>,
-  schema_deleted: RefCell<Option<AbortHandle>>,
-  disconnect: RefCell<Option<AbortHandle>>,
-}
-
-impl RpcClient {
-  fn register<Fut>(&self, slot: &RefCell<Option<AbortHandle>>, fut: Fut)
-  // slot holds at most one active task
-  where
-    Fut: Future<Output = ()> + 'static,
-  {
-    // Create a linked pair:
-    // - handle is the cancel control
-    // - reg is given to the future
-    let (handle, reg) = AbortHandle::new_pair();
-    // Swap the new handle into the slot, getting back whatever was there before
-    if let Some(old) = slot.borrow_mut().replace(handle) {
-      // A previous task was registered here: cancel it before spawning the new one
-      old.abort();
-    }
-    spawn_local(async move {
-      // Wrap fut so it stops when handle.abort() is called, then hand it to the JS event loop
-      let _ = Abortable::new(fut, reg).await;
-    });
-  }
+  content_changed: RefCell<ListenerSlot>,
+  content_created: RefCell<ListenerSlot>,
+  content_deleted: RefCell<ListenerSlot>,
+  schema_changed: RefCell<ListenerSlot>,
+  schema_created: RefCell<ListenerSlot>,
+  schema_deleted: RefCell<ListenerSlot>,
+  config_changed: RefCell<ListenerSlot>,
+  disconnect: RefCell<ListenerSlot>,
 }
 
 impl Drop for RpcClient {
   fn drop(&mut self) {
-    for handle in [
-      self.content_changed.get_mut().take(),
-      self.content_created.get_mut().take(),
-      self.content_deleted.get_mut().take(),
-      self.schema_changed.get_mut().take(),
-      self.schema_created.get_mut().take(),
-      self.schema_deleted.get_mut().take(),
-      self.disconnect.get_mut().take(),
-    ]
-    .into_iter()
-    .flatten()
-    {
-      handle.abort();
-    }
+    self.content_changed.get_mut().abort();
+    self.content_created.get_mut().abort();
+    self.content_deleted.get_mut().abort();
+    self.schema_changed.get_mut().abort();
+    self.schema_created.get_mut().abort();
+    self.schema_deleted.get_mut().abort();
+    self.config_changed.get_mut().abort();
+    self.disconnect.get_mut().abort();
+  }
+}
+
+/// Call all registered callbacks with the given arguments
+fn notify_all(callbacks: &RefCell<Vec<js_sys::Function>>, args: &[JsValue]) {
+  for callback in callbacks.borrow().iter() {
+    let _ = callback.apply(&JsValue::NULL, &js_sys::Array::from_iter(args));
   }
 }
 
@@ -80,13 +57,14 @@ impl RpcClient {
       .map_err(rpc_err)?;
     Ok(RpcClient {
       inner: Arc::new(inner),
-      content_changed: RefCell::new(None),
-      content_created: RefCell::new(None),
-      content_deleted: RefCell::new(None),
-      schema_changed: RefCell::new(None),
-      schema_created: RefCell::new(None),
-      schema_deleted: RefCell::new(None),
-      disconnect: RefCell::new(None),
+      content_changed: RefCell::new(ListenerSlot::new()),
+      content_created: RefCell::new(ListenerSlot::new()),
+      content_deleted: RefCell::new(ListenerSlot::new()),
+      schema_changed: RefCell::new(ListenerSlot::new()),
+      schema_created: RefCell::new(ListenerSlot::new()),
+      schema_deleted: RefCell::new(ListenerSlot::new()),
+      config_changed: RefCell::new(ListenerSlot::new()),
+      disconnect: RefCell::new(ListenerSlot::new()),
     })
   }
 
@@ -119,6 +97,15 @@ impl RpcClient {
       .map_err(rpc_err)
   }
 
+  #[wasm_bindgen(js_name = "listFilesGroupedBySchema")]
+  pub async fn list_files_grouped_by_schema(&self) -> Result<JsValue, JsValue> {
+    let result =
+      <WasmClient as TdBuildRpcClient<(), ()>>::list_files_grouped_by_schema(&*self.inner)
+        .await
+        .map_err(rpc_err)?;
+    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+  }
+
   #[wasm_bindgen(js_name = "listSchemas")]
   pub async fn list_schemas(&self) -> Result<Vec<String>, JsValue> {
     <WasmClient as TdBuildRpcClient<(), ()>>::list_schemas(&*self.inner)
@@ -136,99 +123,189 @@ impl RpcClient {
   #[wasm_bindgen(js_name = "onContentChanged")]
   pub fn on_content_changed(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.content_changed, async move {
-      let Ok(mut sub) =
-        <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_content_changed(&*client).await
-      else {
-        return;
-      };
-      while let Some(Ok(notif)) = sub.next().await {
-        let _ = callback.call1(&JsValue::NULL, &notif.into());
-      }
-    });
+    self
+      .content_changed
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_content_changed(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
   }
 
   #[wasm_bindgen(js_name = "onContentCreated")]
   pub fn on_content_created(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.content_created, async move {
-      let Ok(mut sub) =
-        <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_content_created(&*client).await
-      else {
-        return;
-      };
-      while let Some(Ok(notif)) = sub.next().await {
-        let _ = callback.call1(&JsValue::NULL, &notif.into());
-      }
-    });
+    self
+      .content_created
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_content_created(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
   }
 
   #[wasm_bindgen(js_name = "onContentDeleted")]
   pub fn on_content_deleted(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.content_deleted, async move {
-      let Ok(mut sub) =
-        <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_content_deleted(&*client).await
-      else {
-        return;
-      };
-      while let Some(Ok(notif)) = sub.next().await {
-        let _ = callback.call1(&JsValue::NULL, &notif.into());
-      }
-    });
+    self
+      .content_deleted
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_content_deleted(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
   }
 
   #[wasm_bindgen(js_name = "onSchemaChanged")]
   pub fn on_schema_changed(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.schema_changed, async move {
-      let Ok(mut sub) =
-        <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_schema_changed(&*client).await
-      else {
-        return;
-      };
-      while let Some(Ok(notif)) = sub.next().await {
-        let _ = callback.call1(&JsValue::NULL, &notif.into());
-      }
-    });
+    self
+      .schema_changed
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_schema_changed(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
   }
 
   #[wasm_bindgen(js_name = "onSchemaCreated")]
   pub fn on_schema_created(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.schema_created, async move {
-      let Ok(mut sub) =
-        <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_schema_created(&*client).await
-      else {
-        return;
-      };
-      while let Some(Ok(notif)) = sub.next().await {
-        let _ = callback.call1(&JsValue::NULL, &notif.into());
-      }
-    });
+    self
+      .schema_created
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_schema_created(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
   }
 
   #[wasm_bindgen(js_name = "onSchemaDeleted")]
   pub fn on_schema_deleted(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.schema_deleted, async move {
-      let Ok(mut sub) =
-        <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_schema_deleted(&*client).await
-      else {
-        return;
-      };
-      while let Some(Ok(notif)) = sub.next().await {
-        let _ = callback.call1(&JsValue::NULL, &notif.into());
-      }
-    });
+    self
+      .schema_deleted
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_schema_deleted(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
+  }
+
+  #[wasm_bindgen(js_name = "onConfigChanged")]
+  pub fn on_config_changed(&self, callback: js_sys::Function) {
+    let client = Arc::clone(&self.inner);
+    self
+      .config_changed
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        let Ok(mut sub) =
+          <WasmClient as TdBuildRpcClient<(), ()>>::subscribe_config_changed(&*client).await
+        else {
+          return;
+        };
+        while let Some(Ok(notif)) = sub.next().await {
+          notify_all(&callbacks, &[notif.into()]);
+        }
+      });
   }
 
   #[wasm_bindgen(js_name = "onDisconnect")]
   pub fn on_disconnect(&self, callback: js_sys::Function) {
     let client = Arc::clone(&self.inner);
-    self.register(&self.disconnect, async move {
-      client.on_disconnect().await;
-      let _ = callback.call0(&JsValue::NULL);
+    self
+      .disconnect
+      .borrow_mut()
+      .add(callback, |callbacks| async move {
+        client.on_disconnect().await;
+        notify_all(&callbacks, &[]);
+      });
+  }
+}
+
+/// A subscription slot that supports multiple JS callbacks
+struct ListenerSlot {
+  callbacks: Rc<RefCell<Vec<js_sys::Function>>>,
+  abort: Option<AbortHandle>,
+}
+
+impl ListenerSlot {
+  fn new() -> Self {
+    Self {
+      callbacks: Rc::new(RefCell::new(Vec::new())),
+      abort: None,
+    }
+  }
+
+  /// Add a callback
+  /// If this is the first, start the subscription task
+  fn add<Fut>(
+    &mut self,
+    callback: js_sys::Function,
+    start_sub: impl FnOnce(Rc<RefCell<Vec<js_sys::Function>>>) -> Fut + 'static,
+  ) where
+    Fut: Future<Output = ()> + 'static,
+  {
+    self.callbacks.borrow_mut().push(callback);
+
+    // Only start the subscription on the first listener
+    if self.abort.is_some() {
+      return;
+    }
+
+    let (handle, reg) = AbortHandle::new_pair();
+    self.abort = Some(handle);
+    let callbacks = Rc::clone(&self.callbacks);
+
+    spawn_local(async move {
+      let _ = Abortable::new(start_sub(callbacks), reg).await;
     });
   }
+
+  fn abort(&mut self) {
+    if let Some(handle) = self.abort.take() {
+      handle.abort();
+    }
+    self.callbacks.borrow_mut().clear();
+  }
+}
+
+fn rpc_err(err: impl std::fmt::Display) -> JsValue {
+  JsValue::from_str(&err.to_string())
 }

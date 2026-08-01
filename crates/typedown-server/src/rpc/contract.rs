@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[cfg(not(target_arch = "wasm32"))]
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
@@ -37,6 +39,10 @@ pub trait TdBuildRpc<Hash, StorageKey> {
   #[method(name = "list_vault")]
   async fn list_vault(&self) -> RpcResult<Vec<String>>;
 
+  #[method(name = "list_files_grouped_by_schema")]
+  async fn list_files_grouped_by_schema(&self)
+  -> RpcResult<HashMap<String, Vec<TdContentSummary>>>;
+
   #[method(name = "list_schemas")]
   async fn list_schemas(&self) -> RpcResult<Vec<String>>;
 
@@ -67,12 +73,18 @@ pub trait TdBuildRpc<Hash, StorageKey> {
 
   #[subscription(name = "subscribe_schema_deleted", item = TdSchemaNotification)]
   async fn subscribe_schema_deleted(&self) -> TdRpcSubscriptionCloseResponse;
+
+  /* Config subscriptions */
+
+  #[subscription(name = "subscribe_config_changed", item = TdSiteConfig)]
+  async fn subscribe_config_changed(&self) -> TdRpcSubscriptionCloseResponse;
 }
 
 /* RPC request params and results */
 
 /// Site-wide configuration derived from typedown.yaml
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdSiteConfig {
@@ -80,11 +92,44 @@ pub struct TdSiteConfig {
   pub base_path: String,
   /// Content directory path relative to the project root
   pub content_dir: String,
+  /// Asset directory configuration
+  pub assets_dir: TdAssetsDir,
+  /// Site title from typedown.yaml
+  pub site_title: String,
+  /// Site description from typedown.yaml
+  pub site_description: String,
+}
+
+/// Asset directory configuration
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdAssetsDir {
+  /// "local" assets live in a subdirectory relative to each file
+  pub mode: String,
+  /// Subdirectory name (default: "assets")
+  pub path: String,
 }
 
 /// Path relative to the content directory
 #[derive(Serialize, Deserialize)]
 pub struct TdFilePath(pub String);
+
+/// Lightweight summary of a content file (no body content)
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdContentSummary {
+  /// Path relative to the content directory
+  pub path: String,
+  /// Schema type name
+  pub schema: String,
+  /// Frontmatter header as JSON
+  #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
+  pub header: serde_json::Value,
+}
 
 /// Structured build result: Header (frontmatter) and content (commonmark body)
 #[derive(Serialize, Deserialize, Clone)]

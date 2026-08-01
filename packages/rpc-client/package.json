@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "wasm-pack build ../../crates/typedown-server --target nodejs --out-dir ../../packages/rpc-client/src && rm src/package.json src/.gitignore",
+    "build": "wasm-pack build ../../crates/typedown-server --target bundler --out-dir ../../packages/rpc-client/src && rm -f src/package.json src/.gitignore",
     "prepublishOnly": "pnpm build"
   },
   "author": "Huy-DNA <huydo862003@gmail.com>",

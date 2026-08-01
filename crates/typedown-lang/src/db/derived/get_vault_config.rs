@@ -25,6 +25,8 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       PathBuf::new(),
       "/".to_string(),
       AssetsDir::default(),
+      String::new(),
+      String::new(),
       diagnostics,
     );
   };
@@ -37,6 +39,8 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
       PathBuf::new(),
       "/".to_string(),
       AssetsDir::default(),
+      String::new(),
+      String::new(),
       diagnostics,
     );
   };
@@ -50,6 +54,11 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
   let schema_dir = extract_schema_dir(&doc, &contents, &path_str, &root, &mut diagnostics);
   let base_path = extract_base_path(&doc, &contents, &path_str, &mut diagnostics);
   let assets_dir = extract_assets_dir(&doc, &contents, &path_str, &mut diagnostics);
+  let site_title = doc["site"]["title"].as_str().unwrap_or("").to_string();
+  let site_description = doc["site"]["description"]
+    .as_str()
+    .unwrap_or("")
+    .to_string();
 
   VaultConfigResult::new(
     db,
@@ -58,6 +67,8 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
     schema_dir,
     base_path,
     assets_dir,
+    site_title,
+    site_description,
     diagnostics,
   )
 }
@@ -161,7 +172,7 @@ fn check_unknown_fields(
   if let Some(hash) = doc.as_hash() {
     for key in hash.keys() {
       if let Some(key_str) = key.as_str()
-        && !matches!(key_str, "version" | "vault" | "build")
+        && !matches!(key_str, "version" | "vault" | "build" | "site")
       {
         let offset = key_char_offset(contents, key_str).unwrap_or(0);
         diagnostics.push(Diagnostic::VaultConfigUnknownField {
