@@ -7,3 +7,5 @@ allowBuilds:
   unrs-resolver: true
   esbuild: true
   tree-sitter-cli: true
+  '@vscode/vsce-sign': true
+  keytar: true
