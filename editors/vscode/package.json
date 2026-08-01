@@ -7,7 +7,7 @@
   "description": "vscode extension providing lsp services for the typedown language",
   "private": true,
   "author": "Huy-DNA <huydo862003@gmail.com>",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.121.0"
   },
@@ -388,25 +388,20 @@
     "build:rust": "cargo build -p typedown-server && TYPEDOWN_BINARY_SOURCE=local node scripts/setup-binary.mjs",
     "check-types": "tsc --noEmit",
     "fetch:staging": "TYPEDOWN_BINARY_SOURCE=staging node scripts/setup-binary.mjs",
-
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-
     "build": "pnpm run build:grammar && pnpm run check-types && pnpm run lint && node esbuild.js",
     "build:local": "pnpm run build:rust && pnpm run build",
     "build:staging": "pnpm run fetch:staging && pnpm run build",
     "build:tests": "tsc -p . --outDir out",
-
     "dev": "npm-run-all -p dev:rust dev:esbuild dev:tsc",
     "dev:esbuild": "node esbuild.js --watch",
     "dev:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "dev:rust": "cargo watch --workdir ../.. -w crates -s \"cargo build -p typedown-server && TYPEDOWN_BINARY_SOURCE=local node editors/vscode/scripts/setup-binary.mjs\"",
     "dev:staging": "npm-run-all -p dev:esbuild dev:tsc",
     "dev:tests": "tsc -p . -w --outDir out",
-
     "test": "vscode-test",
     "pretest": "pnpm run build:tests && pnpm run build && pnpm run lint",
-
     "package": "pnpm run build:grammar && pnpm run check-types && pnpm run lint && node esbuild.js --production",
     "vscode:prepublish": "pnpm run package"
   },
