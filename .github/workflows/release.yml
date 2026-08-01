@@ -264,3 +264,42 @@ jobs:
             artifacts/typedown-treesitters-wasm/*
             artifacts/typedown-zed/*
             SHA256SUMS.txt
+
+      # Publish to npm
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build npm packages
+        run: pnpm -r --filter typerighter --filter @typerighter/rpc-client --filter @typerighter/rpc-server run build
+
+      - name: Publish to npm
+        run: |
+          NPM_TAG=${{ needs.validate-tag.outputs.is_staging == 'true' && 'alpha' || 'latest' }}
+          pnpm -r --filter typerighter --filter @typerighter/rpc-client --filter @typerighter/rpc-server publish --access public --tag "$NPM_TAG" --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Publish to crates.io
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # nightly
+        with:
+          toolchain: nightly
+
+      - name: Publish to crates.io
+        run: |
+          cargo publish -p typedown-types --allow-dirty
+          cargo publish -p typedown-macros --allow-dirty
+          cargo publish -p typedown-incremental --allow-dirty
+          cargo publish -p typedown-lang --allow-dirty
+          cargo publish -p typedown-server --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
