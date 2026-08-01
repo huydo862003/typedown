@@ -85,10 +85,10 @@ printf 'return "%s"
 ' "$VERSION" > editors/nvim/lua/typedown/version.lua
 
 # Commit and push
-git add VERSION Cargo.toml editors/nvim/lua/typedown/version.lua Cargo.lock
+git add VERSION Cargo.toml editors/nvim/lua/typedown/version.lua Cargo.lock pnpm-lock.yaml
 [[ "$BUMP_TYPE" != pre* ]] && git add CHANGELOG.md
 find . -name package.json -not -path '*/node_modules/*' -print0 | xargs -0 git add --ignore-errors
-find ./crates -name Cargo.toml -print0 | xargs -0 git add --ignore-errors
+find ./crates ./editors -name Cargo.toml -print0 | xargs -0 git add --ignore-errors
 git commit -m "chore: release $TAG"
 git tag "$TAG"
 git push origin HEAD "$TAG"
