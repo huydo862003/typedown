@@ -4,7 +4,7 @@ version = "${VERSION}"
 schema_version = 1
 authors = ["Lucas Nguyen"]
 description = "Typedown - a structured type-safe markdown language"
-repository = "https://github.com/huydo862003/typedown"
+repository = "https://github.com/huydo862003/typerighter"
 languages = ["languages/typedown", "languages/typedown_yaml", "languages/typedown_md", "languages/typedown_md_inline"]
 
 [language_servers.typedown-lsp]

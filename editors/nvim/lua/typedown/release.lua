@@ -46,7 +46,7 @@ end
 
 --- Returns the base URL for downloading release artifacts.
 function M.release_base_url(tag)
-  return "https://github.com/huydo862003/typedown/releases/download/" .. tag
+  return "https://github.com/huydo862003/typerighter/releases/download/" .. tag
 end
 
 --- Downloads a file via curl. Returns true on success, false + stderr on failure.

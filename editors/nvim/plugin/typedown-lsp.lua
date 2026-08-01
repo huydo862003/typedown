@@ -7,6 +7,12 @@ local function resolve_lsp_binary()
     return release.repo_root() .. "/target/debug/typedown-lsp"
   end
 
+  -- Prefer Nix-provided binary if available
+  local nix_binary = vim.fn.exepath("typedown-lsp")
+  if nix_binary ~= "" then
+    return nix_binary
+  end
+
   local tag, version = release.release_tag()
 
   -- Artifact naming: typedown-lsp-{version}-{os}-{arch}[.exe]

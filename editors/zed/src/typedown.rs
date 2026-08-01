@@ -60,7 +60,7 @@ impl TypedownExtension {
     );
 
     let release = zed::latest_github_release(
-      "huydo862003/typedown",
+      "huydo862003/typerighter",
       zed::GithubReleaseOptions {
         require_assets: true,
         pre_release: false,

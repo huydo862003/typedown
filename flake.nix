@@ -29,7 +29,11 @@
             "clippy"
             "rustfmt"
           ];
-          targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" ];
+          targets = [
+            "wasm32-wasip1"
+            "wasm32-wasip2"
+            "wasm32-unknown-unknown"
+          ];
         };
         # wasi-sdk does not exist :(
         # this is a standard nix derivation tho
@@ -55,8 +59,27 @@
             cp -r wasi-sdk-25.0-x86_64-linux/* $out/
           '';
         };
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = rust-nightly;
+          rustc = rust-nightly;
+        };
+        typedown-server = rustPlatform.buildRustPackage {
+          pname = "typedown-server";
+          version = "0.1.0";
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+          cargoBuildFlags = [
+            "-p"
+            "typedown-server"
+          ];
+          doCheck = false;
+        };
       in
       {
+        packages.typedown-lsp = typedown-server;
+        packages.typedown-rpc = typedown-server;
+        packages.default = typedown-server;
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             mdbook
