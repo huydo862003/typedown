@@ -8,13 +8,14 @@ use typedown_macros::query_derived;
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_builtin_types::{
   get_bool_type, get_date_type, get_datetime_type, get_dict_type, get_list_type, get_math_type,
-  get_num_type, get_schema_type, get_str_type, get_time_type, get_type_type,
+  get_num_type, get_schema_type, get_str_type, get_time_type, get_type_type, instantiate_type,
 };
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::typecheck::typecheck;
 use crate::db::types::{
   BuiltinSchemaKind, File, HirValue, HirValueKind, LiteralValue, MemberType, Project, Symbol,
-  SymbolKind, TdBlobType, TdProductType, TdTypeEnum, TypeMember, TypeMemberDescriptors, TypeResult,
+  SymbolKind, TdBlobType, TdProductType, TdTypeEnum, TdTypeLike, TypeMember, TypeMemberDescriptors,
+  TypeResult,
 };
 use crate::db::utils::lower_file;
 use typedown_incremental::QueryDatabase;
@@ -239,6 +240,43 @@ fn resolve_type_member(
         TdProductType::new(db, None, get_type_type(db).into(), fields).into(),
       ))
     }
+    // Generic type instantiation like `type: list[string]`
+    HirValueKind::Index { expr, indices } => {
+      let base = resolve_type_member(db, *expr, diagnostics)?;
+      let MemberType::Simple(base_type) = base else {
+        return None;
+      };
+      if base_type.arity(db) == 0 {
+        return Some(MemberType::Simple(base_type));
+      }
+      let mut arg_types = vec![];
+      for idx_hir in indices {
+        let resolved = referee(db, idx_hir);
+        match resolved.value(db) {
+          Some(symbol) => {
+            let result = evaluate_type(db, symbol);
+            diagnostics.extend(result.diagnostics(db).iter().cloned());
+            {
+              let typ = result.typ(db)?;
+              arg_types.push(typ)
+            }
+          }
+          None => {
+            let node = idx_hir.node(db);
+            let (tr_offset, tr_len) = node.trimmed_range();
+            diagnostics.push(Diagnostic::UnresolvedSchema {
+              name: node.text(),
+              start_offset: tr_offset,
+              end_offset: tr_offset + tr_len,
+            });
+            return None;
+          }
+        }
+      }
+      let inst_result = instantiate_type(db, base_type, arg_types);
+      diagnostics.extend(inst_result.diagnostics(db).iter().cloned());
+      Some(MemberType::Simple(inst_result.typ(db)))
+    }
     // Literal types
     HirValueKind::Str(val) => Some(MemberType::Literal(LiteralValue::Str(val))),
     HirValueKind::Num(val) => Some(MemberType::Literal(LiteralValue::Num(val))),
@@ -395,6 +433,24 @@ mod tests {
       "schema with unresolved property type should have diagnostics: {:?}",
       result.diagnostics(&db)
     );
+  }
+
+  #[test]
+  fn evaluate_type_list_field_in_schema() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/WithListField.td");
+    let symbol = file_symbol(&db, project, file).value(&db).unwrap();
+
+    let result = evaluate_type(&db, symbol);
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with list[string] should have no diagnostics: {:?}",
+      result.diagnostics(&db)
+    );
+    let typ = result.typ(&db).expect("should return a type");
+    let product = typ.as_td_product_type().expect("expected TdProductType");
+    let fields = product.fields(&db);
+    assert!(fields.contains_key("tags"), "should have tags field");
+    assert!(fields.contains_key("scores"), "should have scores field");
   }
 
   #[test]
