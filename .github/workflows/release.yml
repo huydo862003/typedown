@@ -151,7 +151,7 @@ jobs:
           cp target/${{ matrix.target }}/release/${{ matrix.lsp-bin }} editors/vscode/bin/
 
       - name: Package VSIX
-        run: pnpm exec vsce package --no-dependencies --allow-missing-repository --allow-package-all-secrets --target ${{ matrix.vsce-target }} --out typedown-vscode-${{ env.VERSION }}-${{ matrix.os-arch }}.vsix
+        run: pnpm exec vsce package --no-dependencies --allow-missing-repository --target ${{ matrix.vsce-target }} --out typedown-vscode-${{ env.VERSION }}-${{ matrix.os-arch }}.vsix
         working-directory: editors/vscode
 
       - name: Upload VSIX

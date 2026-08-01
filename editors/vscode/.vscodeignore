@@ -14,3 +14,7 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 !bin/**
 scripts/**
+examples
+examples/**
+DEVELOPMENT.md
+syntaxes/*.json5
