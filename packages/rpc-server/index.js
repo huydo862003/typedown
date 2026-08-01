@@ -4,15 +4,17 @@ import { EventEmitter } from "node:events";
 import { binPath } from "./platform.js";
 
 function resolveBin() {
-  const local = binPath();
-  if (existsSync(local)) return local;
-
-  // Fall back to system PATH
+  // Prefer user's system binary
   try {
-    return execFileSync("which", ["typedown-rpc"], { encoding: "utf-8" }).trim();
+    const system = execFileSync("which", ["typedown-rpc"], { encoding: "utf-8" }).trim();
+    if (system) return system;
   } catch {
     // ignore
   }
+
+  // Fall back to downloaded binary
+  const local = binPath();
+  if (existsSync(local)) return local;
 
   throw new Error(
     `typedown-rpc binary not found. Run "pnpm install" to download it, ` +

@@ -13,10 +13,6 @@ import {
 
 const bin = binPath();
 
-if (existsSync(bin)) {
-  process.exit(0);
-}
-
 // In dev mode, we compile and `bin` will just automatically point to the artifact
 if (dev()) {
   console.log("[rpc-server] Development mode: building typedown-rpc with cargo");

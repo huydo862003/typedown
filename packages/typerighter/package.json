@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package",
   "name": "typerighter",
   "version": "0.1.2",
-  "description": "Typedown: A typed content framework. Work in progress.",
+  "description": "Typedown: A typed content framework.",
   "repository": {
     "type": "git",
     "url": "https://github.com/huydo862003/typerighter.git",
