@@ -21,6 +21,17 @@
 ((fixed_key_entry key: (identifier) @keyword)
   (#set! priority 101))
 
+; list[T] and dict[K, V] as index expressions
+((index_expression
+  (expression (identifier) @type.builtin))
+  (#any-of? @type.builtin "list" "dict")
+  (#set! priority 101))
+((index_expression
+  (expression (identifier) @type.builtin) .
+  (expression (identifier) @type))
+  (#any-of? @type.builtin "list" "dict")
+  (#set! priority 101))
+
 ; Expressions
 (identifier) @variable
 (self_expression) @variable.builtin
