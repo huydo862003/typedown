@@ -1,1 +1,1 @@
-return "0.0.1-rc.3"
+return "0.0.1-rc.4"
