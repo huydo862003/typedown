@@ -1,16 +1,26 @@
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { binPath } from "./platform.js";
 
-const bin = binPath();
+function resolveBin() {
+  const local = binPath();
+  if (existsSync(local)) return local;
 
-if (!existsSync(bin)) {
+  // Fall back to system PATH
+  try {
+    return execFileSync("which", ["typedown-rpc"], { encoding: "utf-8" }).trim();
+  } catch {
+    // ignore
+  }
+
   throw new Error(
-    `typedown-rpc binary not found at ${bin}. Run "pnpm install" to download it, ` +
-      `or build manually with "cargo build --release -p typedown-server".`,
+    `typedown-rpc binary not found. Run "pnpm install" to download it, ` +
+      `install via Nix, or build manually with "cargo build --release -p typedown-server".`,
   );
 }
+
+const bin = resolveBin();
 
 const DEFAULT_PORT = 4747;
 
