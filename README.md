@@ -123,9 +123,9 @@ Reference: [rustc_serialize/src/serialize.rs](https://github.com/rust-lang/rust/
 
 ### HMR in Vite
 
-- **Stale content on HMR**:
-  - Problem: Vite's file watcher fires `handleHotUpdate` before the Rust RPC server has re-indexed the file, so `transform` fetches stale content.
-  - Solution: We suppress Vite's watcher for `.td` files (`handleHotUpdate` returns `[]`) and let the Rust `onContentChanged` RPC event drive module invalidation, since it fires after re-indexing is complete.
+Two problems:
+- **Race condition**: Vite's watcher fires before Rust finishes re-indexing, so we suppress `handleHotUpdate` for `.td` files and let the Rust RPC events (`onContentChanged`, etc.) drive invalidation instead.
+- **Client-side hot reload**: `.td` files become Vue SFCs, so Vue's HMR runtime handles `import.meta.hot.accept()` automatically. No full page reload needed.
 
 ### LSP: Dynamic vs Static Registration
 
