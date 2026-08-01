@@ -55,7 +55,10 @@ pub fn get_vault_config(db: &TypedownDatabase, project: Project) -> VaultConfigR
   let base_path = extract_base_path(&doc, &contents, &path_str, &mut diagnostics);
   let assets_dir = extract_assets_dir(&doc, &contents, &path_str, &mut diagnostics);
   let site_title = doc["site"]["title"].as_str().unwrap_or("").to_string();
-  let site_description = doc["site"]["description"].as_str().unwrap_or("").to_string();
+  let site_description = doc["site"]["description"]
+    .as_str()
+    .unwrap_or("")
+    .to_string();
 
   VaultConfigResult::new(
     db,
