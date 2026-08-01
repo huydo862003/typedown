@@ -129,6 +129,16 @@ fn check_mapping_fields(
             });
           }
         }
+        // Unresolved identifier used as a field value
+        None if matches!(value_hir.kind(db), HirValueKind::Ident(_)) => {
+          let node = value_hir.node(db);
+          let (tr_offset, tr_len) = node.trimmed_range();
+          diagnostics.push(Diagnostic::UnresolvedSchema {
+            name: node.text(),
+            start_offset: tr_offset,
+            end_offset: tr_offset + tr_len,
+          });
+        }
         // Null on a non-optional field is a type error
         None if !is_optional => {
           let node = value_hir.node(db);
@@ -542,7 +552,8 @@ mod tests {
     );
   }
 
-  // Mapping with identifier value that resolves to nothing: no errors (any type)
+  // Mapping with identifier value that resolves to nothing
+  // No typecheck error here because the file has no _type, so no schema to check against
   #[test]
   fn typecheck_mapping_with_ident_value() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/ident_value.td");

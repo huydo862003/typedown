@@ -79,6 +79,10 @@ pub fn publish_diagnostics_for_project(analysis: &Analysis) -> Vec<Notification>
 }
 
 pub fn publish_diagnostics_for_file(analysis: &Analysis, target: &Path) -> Vec<Notification> {
+  if target.extension().and_then(|e| e.to_str()) != Some("td") {
+    return vec![];
+  }
+
   let db = &analysis.db;
   let project = analysis.project;
   let files = project.files(db);

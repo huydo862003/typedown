@@ -45,7 +45,7 @@ export function artifactName(osArchStr) {
 }
 
 export function artifactUrl(tag, artifact) {
-  return `https://github.com/Huy-DNA/typedown/releases/download/${tag}/${artifact}`;
+  return `https://github.com/huydo862003/typerighter/releases/download/${tag}/${artifact}`;
 }
 
 export function repoRoot() {

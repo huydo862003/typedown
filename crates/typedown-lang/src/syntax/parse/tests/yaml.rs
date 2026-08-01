@@ -1102,3 +1102,13 @@ fn folded_block_str_insufficient_indent() {
       .any(|d| matches!(d, Diagnostic::InsufficientBlockIndent { .. }))
   );
 }
+
+// Unquoted multi-word value should produce a parse error
+#[test]
+fn unquoted_multiword_value_has_parse_error() {
+  let (_, diags) = parse_frontmatter_with_diagnostics("title: hello world");
+  assert!(
+    !diags.is_empty(),
+    "unquoted multi-word value should produce parse errors, got none"
+  );
+}

@@ -5,7 +5,7 @@
   "description": "Typedown RPC server binary.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Huy-DNA/typedown.git",
+    "url": "https://github.com/huydo862003/typerighter.git",
     "directory": "packages/rpc-server"
   },
   "type": "module",

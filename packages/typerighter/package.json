@@ -5,7 +5,7 @@
   "description": "Typedown: A typed content framework. Work in progress.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Huy-DNA/typedown.git",
+    "url": "https://github.com/huydo862003/typerighter.git",
     "directory": "packages/typedown"
   },
   "type": "module",
