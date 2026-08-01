@@ -7,6 +7,7 @@ target/
 # Typescript
 dist/
 build/
+!**/src/**/build/
 output/
 
 # tree-sitter
