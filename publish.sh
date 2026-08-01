@@ -39,7 +39,7 @@ if [[ "$BUMP_TYPE" == pre* ]]; then
 fi
 
 # Compute new version
-VERSION=$(npx semver -i "$BUMP_TYPE" ${PREID:+--preid "$PREID"} "$CURRENT_VERSION")
+VERSION=$(pnpm dlx semver -i "$BUMP_TYPE" ${PREID:+--preid "$PREID"} "$CURRENT_VERSION")
 
 # Staging releases use staging/v* tag, production use v*
 if [[ "$BUMP_TYPE" == pre* ]]; then
