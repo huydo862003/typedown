@@ -213,6 +213,7 @@ pub fn query_input_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
           Self::id_counter().fetch_add(1, ::std::sync::atomic::Ordering::Relaxed)
         }
 
+        #[allow(clippy::too_many_arguments)]
         pub fn new<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let storage = unsafe { db.storage() };
           let id = Self::next_id();
@@ -700,6 +701,7 @@ fn query_derived_struct_impl(struct_ast: ItemStruct) -> TokenStream {
 
         /// Create or update a derived struct by identity
         /// If a struct with the same identity already exists, reuses its ID and updates fields in place
+        #[allow(clippy::too_many_arguments)]
         pub fn new<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let storage = unsafe { db.storage() };
           let start_index = Self::ingredient_start_index();
@@ -910,6 +912,7 @@ pub fn query_interned_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
           MAP.get_or_init(|| dashmap::DashMap::new())
         }
 
+        #[allow(clippy::too_many_arguments)]
         pub fn new<DB: ::typedown_incremental::QueryDatabase + ?Sized>(db: &DB, #(#field_names: #field_types),*) -> Self {
           let intern_key = (#(#field_names.clone(),)*);
           let map = Self::intern_map();
