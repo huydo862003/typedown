@@ -43,7 +43,7 @@ function M.setup()
   local ok_devicons, devicons = pcall(require, "nvim-web-devicons")
   if ok_devicons then
     devicons.set_icon({
-      typedown = {
+      td = {
         icon = "",
         color = "#a0522d",
         cterm_color = "130",
