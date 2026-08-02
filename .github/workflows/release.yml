@@ -265,7 +265,6 @@ jobs:
             artifacts/typedown-zed/*
             SHA256SUMS.txt
 
-      # Publish to npm
       - name: Install Rust
         uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # nightly
         with:
@@ -284,6 +283,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           registry-url: "https://registry.npmjs.org"
 
+      # Publish to npm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
