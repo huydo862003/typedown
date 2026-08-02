@@ -160,7 +160,10 @@ impl AssetKind {
   }
 
   pub fn is_image(&self) -> bool {
-    matches!(self, AssetKind::Png | AssetKind::Jpg | AssetKind::Svg | AssetKind::Webp)
+    matches!(
+      self,
+      AssetKind::Png | AssetKind::Jpg | AssetKind::Svg | AssetKind::Webp
+    )
   }
 
   pub fn as_format_str(&self) -> &'static str {

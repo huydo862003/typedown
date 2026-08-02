@@ -239,7 +239,7 @@ fn try_resolve_fref(
       } else {
         format!("{base_path}/{without_ext}")
       };
-      return Some(format!("[{name}]({url})"));
+      Some(format!("[{name}]({url})"))
     }
     SymbolKind::Asset(asset_kind, _, target_file) => {
       let handle = target_file.handle(db);
@@ -258,10 +258,10 @@ fn try_resolve_fref(
       if asset_kind.is_image() {
         return Some(format!("![{name}]({url})"));
       }
-      return Some(format!("[{name}]({url})"));
+      Some(format!("[{name}]({url})"))
     }
-    _ => return None,
-  };
+    _ => None,
+  }
 }
 
 /// Get a display name for a symbol: Try _label, then name field, then file stem
@@ -429,8 +429,7 @@ mod tests {
 
   #[test]
   fn fref_resolves_image_asset_to_markdown_image() {
-    let (db, project, file) =
-      load_vault_fixture("evaluate/my_vault", "content/with_asset_fref.td");
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/with_asset_fref.td");
     let exported = export_resource(&db, project, file).expect("should export");
     assert!(
       exported.content.contains("![icon](/icon.svg)"),
