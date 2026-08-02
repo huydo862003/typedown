@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import type {
   Plugin, ViteDevServer,
@@ -9,14 +10,17 @@ import {
   renderToVueSfc,
 } from '../../lib/render';
 import {
-  BRAND_FAVICON_URI,
-} from '../../../shared/brand';
+  escapeHtml,
+} from '../../build/html';
 import {
   VIRTUAL_APP_ID, RESOLVED_VIRTUAL_APP_ID, VIRTUAL_INDEX_ID,
 } from './constants';
 import {
   generateAppEntry, generateIndexSfc,
 } from './codegen';
+import {
+  BRAND_FAVICON_URI,
+} from '@/shared/brand';
 
 // Create the typedown vite plugin with the Vue plugin bundled
 export function typedown (): Plugin[] {
@@ -31,9 +35,15 @@ export function typedown (): Plugin[] {
 
     enforce: 'pre',
 
-    // Inject the app entry script into index.html
-    transformIndexHtml (html) {
+    // Inject favicon, app entry script, and site title into index.html
+    async transformIndexHtml (html) {
+      const config = await tdContext.getConfig();
+
       return html
+        .replace(
+          /<title>.*?<\/title>/,
+          `<title>${escapeHtml(config.siteTitle)}</title>`,
+        )
         .replace(
           '</head>',
           `  <link rel="icon" type="image/svg+xml" href="${BRAND_FAVICON_URI}">\n</head>`,
@@ -130,12 +140,13 @@ export function typedown (): Plugin[] {
             return next();
           }
 
-          const html = `<!DOCTYPE html>
+          tdContext.getConfig().then((config) => {
+            const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Typedown</title>
+  <title>${escapeHtml(config.siteTitle)}</title>
   <link rel="icon" type="image/svg+xml" href="${BRAND_FAVICON_URI}">
 </head>
 <body>
@@ -144,8 +155,10 @@ export function typedown (): Plugin[] {
 </body>
 </html>`;
 
-          result.setHeader('Content-Type', 'text/html');
-          result.end(html);
+            result.setHeader('Content-Type', 'text/html');
+            result.end(html);
+          })
+            .catch(next);
         });
       };
     },
@@ -183,6 +196,7 @@ export function typedown (): Plugin[] {
   return [
     typedownPlugin,
     vuePlugin,
+    ...tailwindcss(),
   ];
 }
 

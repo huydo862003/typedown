@@ -126,6 +126,12 @@ Adding a new type does not touch the serializer. Changing the byte format does n
 
 Reference: [rustc_serialize/src/serialize.rs](https://github.com/rust-lang/rust/blob/2371d697abddba53be85137d5a68064066b4ae10/compiler/rustc_serialize/src/serialize.rs)
 
+### Vue SSR Pre-rendering
+
+The general model ([Vue SSR guide](https://vuejs.org/guide/scaling-up/ssr)) has 2 main concepts:
+1. The SSR bundle.
+2. The client bundle.
+
 ### HMR in Vite
 
 Two problems:

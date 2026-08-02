@@ -223,7 +223,7 @@ fn try_resolve_fref(
   let name = resolve_display_name(db, project, &target_symbol);
 
   // Build URL-friendly path relative to content_dir, prefixed with base_path
-  let target_path = match target_symbol.kind(db) {
+  match target_symbol.kind(db) {
     SymbolKind::UserDefinedResource(_, target_file)
     | SymbolKind::UserDefinedSchema(_, target_file) => {
       let handle = target_file.handle(db);
@@ -234,16 +234,34 @@ fn try_resolve_fref(
       let relative = path.strip_prefix(&content_dir).unwrap_or(path);
       let path_str = relative.to_string_lossy();
       let without_ext = path_str.strip_suffix(".td").unwrap_or(&path_str);
-      if base_path == "/" {
+      let url = if base_path == "/" {
         format!("/{without_ext}")
       } else {
         format!("{base_path}/{without_ext}")
+      };
+      return Some(format!("[{name}]({url})"));
+    }
+    SymbolKind::Asset(asset_kind, _, target_file) => {
+      let handle = target_file.handle(db);
+      let path = handle.path()?;
+      let config = get_vault_config(db, project);
+      let content_dir = config.content_dir(db);
+      let base_path = config.base_path(db);
+      let relative = path.strip_prefix(&content_dir).unwrap_or(path);
+      let path_str = relative.to_string_lossy();
+      let url = if base_path == "/" {
+        format!("/{path_str}")
+      } else {
+        format!("{base_path}/{path_str}")
+      };
+      // Images produce a markdown image, other assets produce a link
+      if asset_kind.is_image() {
+        return Some(format!("![{name}]({url})"));
       }
+      return Some(format!("[{name}]({url})"));
     }
     _ => return None,
   };
-
-  Some(format!("[{name}]({target_path})"))
 }
 
 /// Get a display name for a symbol: Try _label, then name field, then file stem
@@ -405,6 +423,18 @@ mod tests {
     assert!(
       exported.content.contains("[Alice](/blog/alice)"),
       "fref should use base_path /blog: {}",
+      exported.content
+    );
+  }
+
+  #[test]
+  fn fref_resolves_image_asset_to_markdown_image() {
+    let (db, project, file) =
+      load_vault_fixture("evaluate/my_vault", "content/with_asset_fref.td");
+    let exported = export_resource(&db, project, file).expect("should export");
+    assert!(
+      exported.content.contains("![icon](/icon.svg)"),
+      "image asset fref should produce markdown image: {}",
       exported.content
     );
   }

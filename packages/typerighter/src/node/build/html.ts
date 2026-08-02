@@ -32,8 +32,8 @@ export function renderHtml (context: HtmlTemplateContext): string {
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${escapeHtmlAttr(context.title)}</title>
-    <meta name="description" content="${escapeHtmlAttr(context.description)}">
+    <title>${escapeHtml(context.title)}</title>
+    <meta name="description" content="${escapeHtml(context.description)}">
 ${cssLinks}
 ${modulePreloads}
   </head>
@@ -44,8 +44,8 @@ ${modulePreloads}
 </html>`;
 }
 
-// Escape characters for safe use in HTML attributes
-function escapeHtmlAttr (string_: string): string {
+// Escape characters for safe use in HTML
+export function escapeHtml (string_: string): string {
   return string_
     .replaceAll('&', '&amp;')
     .replaceAll('"', '&quot;')

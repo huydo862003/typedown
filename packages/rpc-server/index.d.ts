@@ -5,7 +5,7 @@ export interface RpcServerOptions {
   root?: string;
   /** Bind address (default: "127.0.0.1") */
   addr?: string;
-  /** Bind port (default: 4747) */
+  /** Bind port (default: 0, OS picks a free port) */
   port?: number;
 }
 
@@ -26,6 +26,9 @@ export class RpcServer extends EventEmitter {
 
   /** Stop the server. Emits "close" when the process exits */
   close(): this;
+
+  /** Unref the child process so it does not prevent Node from exiting */
+  unref(): this;
 
   on(event: 'listening', listener: () => void): this;
   on(event: 'close', listener: (code: number | null, signal: string | null) => void): this;

@@ -159,6 +159,10 @@ impl AssetKind {
     }
   }
 
+  pub fn is_image(&self) -> bool {
+    matches!(self, AssetKind::Png | AssetKind::Jpg | AssetKind::Svg | AssetKind::Webp)
+  }
+
   pub fn as_format_str(&self) -> &'static str {
     match self {
       AssetKind::Pdf => "pdf",
@@ -187,6 +191,25 @@ impl Decodable for AssetKind {
   fn decode(data: &mut &[u8], decoder: &Decoder) -> Self {
     let tag = decoder.read_u8(data);
     AssetKind::from_repr(tag).expect("unknown AssetKind tag")
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::AssetKind;
+
+  #[test]
+  fn is_image_returns_true_for_image_formats() {
+    assert!(AssetKind::Png.is_image());
+    assert!(AssetKind::Jpg.is_image());
+    assert!(AssetKind::Svg.is_image());
+    assert!(AssetKind::Webp.is_image());
+  }
+
+  #[test]
+  fn is_image_returns_false_for_non_image_formats() {
+    assert!(!AssetKind::Pdf.is_image());
+    assert!(!AssetKind::UnknownBinary.is_image());
   }
 }
 

@@ -18,6 +18,17 @@ export interface AppEntryOptions {
   sidebarGroups: SidebarGroups;
 }
 
+export interface SsrEntryOptions {
+  /** Content directory relative to project root */
+  contentDir: string;
+  /** Import path for the theme */
+  layoutImport: string;
+  /** Serialized siteConfig JSON */
+  siteConfig: string;
+  /** Serialized siteData JSON */
+  siteData: string;
+}
+
 // Generate the virtual app entry module
 export function generateAppEntry (options: AppEntryOptions): string {
   const {
@@ -77,4 +88,30 @@ export const __pageData = JSON.parse(${JSON.stringify(pageData)})
 export default { name: "index", components: { TdOverview } }
 </script>
 <template><TdOverview :groups='${data}' /></template>`;
+}
+
+// Generate the SSR entry module used for pre-rendering
+export function generateSsrEntry (options: SsrEntryOptions): string {
+  const glob = `/${options.contentDir}/**/*.td`;
+
+  return `
+import { createTypedownApp } from 'typerighter/client';
+import { renderToString } from 'vue/server-renderer';
+import theme from '${options.layoutImport}';
+
+const pages = import.meta.glob('${glob}', { eager: true });
+
+function loadPageModule(pagePath) {
+  const key = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
+  const altKey = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
+  return Promise.resolve(pages[key] || pages[altKey]);
+}
+
+export async function render(url) {
+  const { app, router } = await createTypedownApp(loadPageModule, theme.Layout, ${options.siteConfig}, ${options.siteData});
+  await router.go(url, { replace: true });
+  const html = await renderToString(app);
+  return { html, pageData: router.route.data };
+}
+`;
 }

@@ -24,14 +24,13 @@ function resolveBin() {
 
 const bin = resolveBin();
 
-const DEFAULT_PORT = 4747;
-
 export class RpcServer extends EventEmitter {
   constructor({ root, addr, port } = {}) {
     super();
     this._root = root ?? process.cwd();
     this._addr = addr ?? "127.0.0.1";
-    this._port = port ?? DEFAULT_PORT;
+    // Port 0 lets the OS pick a free port, avoiding conflicts between dev and build
+    this._port = port ?? 0;
     this._process = undefined;
     this._listening = false;
     this._resolvedAddress = undefined;
@@ -94,6 +93,14 @@ export class RpcServer extends EventEmitter {
       this.emit("close", code, signal);
     });
 
+    return this;
+  }
+
+  // Unref the child process so it does not keep the Node event loop alive
+  unref() {
+    if (this._process) {
+      this._process.unref();
+    }
     return this;
   }
 

@@ -212,6 +212,9 @@ async function initializeTypedownContext (): Promise<TypedownContext> {
   const md = await createMarkdownRenderer(config);
   const context = new TypedownContext(client, md);
 
+  // Unref the child so it does not prevent Node from exiting after vite build finishes
+  server.unref();
+
   // Clean up the RPC server on process exit
   let disposed = false;
 

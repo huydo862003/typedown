@@ -2,7 +2,7 @@ import {
   describe, it, expect,
 } from 'vitest';
 import {
-  generateAppEntry, generateIndexSfc,
+  generateAppEntry, generateIndexSfc, generateSsrEntry,
 } from './codegen';
 
 describe('generateAppEntry', () => {
@@ -103,17 +103,17 @@ describe('generateIndexSfc', () => {
     expect(result).toContain('</template>');
   });
 
-  it('imports ContentIndex from theme-default', () => {
+  it('imports TdOverview from theme-default', () => {
     const result = generateIndexSfc({});
 
-    expect(result).toContain('import { ContentIndex } from \'typerighter/client/theme-default\'');
+    expect(result).toContain('import { TdOverview } from \'typerighter/client/theme-default\'');
   });
 
-  it('exports __pageData with Content Index title', () => {
+  it('exports __pageData with Index title', () => {
     const result = generateIndexSfc({});
 
     expect(result).toContain('__pageData');
-    expect(result).toContain('Content Index');
+    expect(result).toContain('Index');
   });
 
   it('passes groups data as prop', () => {
@@ -166,5 +166,63 @@ describe('generateIndexSfc', () => {
     const result = generateIndexSfc({});
 
     expect(result).toContain(':groups=\'{}\'');
+  });
+});
+
+describe('generateSsrEntry', () => {
+  it('uses eager glob for SSR', () => {
+    const result = generateSsrEntry({
+      contentDir: 'vault/content',
+      layoutImport: 'typerighter/client/theme-default',
+      siteConfig: '{}',
+      siteData: '{}',
+    });
+
+    expect(result).toContain('import.meta.glob(\'/vault/content/**/*.td\', { eager: true })');
+  });
+
+  it('imports renderToString from vue/server-renderer', () => {
+    const result = generateSsrEntry({
+      contentDir: 'content',
+      layoutImport: 'typerighter/client/theme-default',
+      siteConfig: '{}',
+      siteData: '{}',
+    });
+
+    expect(result).toContain('import { renderToString } from \'vue/server-renderer\'');
+  });
+
+  it('imports theme from the provided layout import', () => {
+    const result = generateSsrEntry({
+      contentDir: 'content',
+      layoutImport: 'my-custom-theme',
+      siteConfig: '{}',
+      siteData: '{}',
+    });
+
+    expect(result).toContain('import theme from \'my-custom-theme\'');
+  });
+
+  it('exports a render function', () => {
+    const result = generateSsrEntry({
+      contentDir: 'content',
+      layoutImport: 'typerighter/client/theme-default',
+      siteConfig: '{}',
+      siteData: '{}',
+    });
+
+    expect(result).toContain('export async function render(url)');
+  });
+
+  it('passes siteConfig and siteData to createTypedownApp', () => {
+    const result = generateSsrEntry({
+      contentDir: 'content',
+      layoutImport: 'typerighter/client/theme-default',
+      siteConfig: '{"title":"Test"}',
+      siteData: '{"sidebarGroups":{}}',
+    });
+
+    expect(result).toContain('{"title":"Test"}');
+    expect(result).toContain('{"sidebarGroups":{}}');
   });
 });
