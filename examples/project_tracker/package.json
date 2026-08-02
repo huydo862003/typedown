@@ -4,16 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "typerighter": "workspace:*",
-    "vue": "^3.5.0"
+    "dev": "typedown dev",
+    "build": "typedown build",
+    "preview": "typedown preview"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.0",
-    "vite": "^8.0.0"
+    "typerighter": "workspace:*"
   }
 }

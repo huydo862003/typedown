@@ -3,6 +3,7 @@ packages:
   - "editors/nvim"
   - "editors/vscode"
   - "editors/zed"
+  - "examples/*"
 allowBuilds:
   unrs-resolver: true
   esbuild: true

@@ -80,6 +80,12 @@ importers:
 
   editors/zed: {}
 
+  examples/project_tracker:
+    devDependencies:
+      typerighter:
+        specifier: workspace:*
+        version: link:../../packages/typerighter
+
   packages/rpc-client: {}
 
   packages/rpc-server:
