@@ -6,6 +6,12 @@ import {
 import {
   escapeHtml,
 } from '../build/html';
+import {
+  VIRTUAL_APP_ID,
+} from '../plugin/vite/constants';
+import {
+  BRAND_FAVICON_URI,
+} from '@/shared/brand';
 
 // Interactive project scaffolding
 export async function initialize (targetDirectory: string): Promise<void> {
@@ -77,9 +83,18 @@ function indexHtml (options: InitializeOptions): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(options.siteTitle)}</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="${BRAND_FAVICON_URI}"
+    >
   </head>
   <body>
     <div id="app"></div>
+    <script
+      type="module"
+      src="/${VIRTUAL_APP_ID}"
+    ></script>
   </body>
 </html>
 `;
