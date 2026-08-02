@@ -1,7 +1,0 @@
-version: "1.0.0"
-vault:
-  content_dir: content
-  schema_dir: schemas
-site:
-  title: "Project Tracker"
-  description: "A typed content site for tracking people, projects, and tasks"

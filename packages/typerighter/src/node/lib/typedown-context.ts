@@ -237,5 +237,12 @@ async function initializeTypedownContext (): Promise<TypedownContext> {
   return context;
 }
 
-// Global singleton, initialized at module load
-export const tdContext = await initializeTypedownContext();
+let _tdContext: TypedownContext | undefined;
+
+export async function getTdContext (): Promise<TypedownContext> {
+  if (!_tdContext) {
+    _tdContext = await initializeTypedownContext();
+  }
+
+  return _tdContext;
+}

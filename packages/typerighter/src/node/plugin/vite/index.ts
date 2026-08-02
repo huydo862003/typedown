@@ -4,7 +4,7 @@ import type {
   Plugin, ViteDevServer,
 } from 'vite';
 import {
-  tdContext,
+  getTdContext,
 } from '../../lib/typedown-context';
 import {
   renderToVueSfc,
@@ -47,6 +47,8 @@ export function typedown (): Plugin[] {
 
     // Serve virtual modules
     async load (id) {
+      const tdContext = await getTdContext();
+
       if (id === RESOLVED_VIRTUAL_APP_ID) {
         const [
           config,
@@ -73,8 +75,9 @@ export function typedown (): Plugin[] {
       }
     },
 
-    configureServer (devServer) {
+    async configureServer (devServer) {
       server = devServer;
+      const tdContext = await getTdContext();
 
       // Config changes affect the rendering pipeline itself, requires full reload
       tdContext.rpc.onConfigChanged(() => server && hmrFullReload(server));
@@ -104,6 +107,7 @@ export function typedown (): Plugin[] {
           }
         }
       });
+
       tdContext.rpc.onContentCreated(() => server && hmrInvalidateAll(server));
       tdContext.rpc.onContentDeleted(() => server && hmrInvalidateAll(server));
 
@@ -150,6 +154,7 @@ export function typedown (): Plugin[] {
       if (!cleanId.endsWith('.td')) return;
       if (cleanId.includes(VIRTUAL_INDEX_ID)) return;
 
+      const tdContext = await getTdContext();
       const config = await tdContext.getConfig();
       const contentDirectory = config.contentDir;
       const relativePath = cleanId.includes(contentDirectory)

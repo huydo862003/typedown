@@ -13,6 +13,7 @@ import {
 import {
   generateAppEntry, generateSsrEntry,
 } from '../plugin/vite/codegen';
+import { getTdContext } from '../lib';
 
 const DEFAULT_LAYOUT_IMPORT = 'typerighter/client/theme-default';
 
@@ -36,8 +37,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
   const clientOutDir = path.join(outDir, '.client');
   const ssrOutDir = path.join(outDir, '.server');
 
-  // Lazy-import to avoid triggering top-level await at module load
-  const { tdContext } = await import('../lib/typedown-context');
+  const tdContext = await getTdContext();
 
   const [
     config,
