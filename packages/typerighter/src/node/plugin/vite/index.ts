@@ -4,13 +4,13 @@ import type {
 } from 'vite';
 import {
   tdContext,
-} from '../lib/typedown-context';
+} from '../../lib/typedown-context';
 import {
   renderToVueSfc,
-} from '../lib/render';
+} from '../../lib/render';
 import {
   BRAND_FAVICON_URI,
-} from '../../shared/brand';
+} from '../../../shared/brand';
 import {
   VIRTUAL_APP_ID, RESOLVED_VIRTUAL_APP_ID, VIRTUAL_INDEX_ID,
 } from './constants';
