@@ -9,45 +9,47 @@ import {
   typedown,
 } from '../plugin/vite';
 
-const argv = process.argv.slice(2);
-const command = argv[0];
-const root = argv[1] ?? process.cwd();
+export async function cli () {
+  const argv = process.argv.slice(2);
+  const command = argv[0];
+  const root = argv[1] ?? process.cwd();
 
-try {
-  if (!command || command === 'dev') {
+  try {
+    if (!command || command === 'dev') {
     // Skip configFile so user's vite.config.ts does not duplicate the typedown plugin
-    const server = await createServer({
-      root,
-      configFile: false,
-      plugins: [typedown()],
-    });
+      const server = await createServer({
+        root,
+        configFile: false,
+        plugins: [typedown()],
+      });
 
-    await server.listen();
-    server.printUrls();
-  } else if (command === 'build') {
-    await buildSite({
-      root,
-    });
-  } else if (command === 'init') {
-    const {
-      initialize,
-    } = await import('./init');
+      await server.listen();
+      server.printUrls();
+    } else if (command === 'build') {
+      await buildSite({
+        root,
+      });
+    } else if (command === 'init') {
+      const {
+        initialize,
+      } = await import('./init');
 
-    await initialize(root);
-  } else if (command === 'preview') {
-    const {
-      preview,
-    } = await import('vite');
-    const server = await preview({
-      root,
-    });
+      await initialize(root);
+    } else if (command === 'preview') {
+      const {
+        preview,
+      } = await import('vite');
+      const server = await preview({
+        root,
+      });
 
-    server.printUrls();
-  } else {
-    logErrorAndExit(`unknown command "${command}".`);
+      server.printUrls();
+    } else {
+      logErrorAndExit(`unknown command "${command}".`);
+    }
+  } catch (error) {
+    logErrorAndExit(`${command ?? 'dev'} error:`, error);
   }
-} catch (error) {
-  logErrorAndExit(`${command ?? 'dev'} error:`, error);
 }
 
 function logErrorAndExit (message: string, error?: unknown): never {

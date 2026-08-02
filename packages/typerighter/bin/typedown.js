@@ -1,3 +1,7 @@
 #!/usr/bin/env node
 
-import('../dist/node/cli/index.js');
+import {
+  cli,
+} from '../dist/index';
+
+cli();
