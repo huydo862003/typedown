@@ -1,3 +1,8 @@
+## [0.1.5] - 2026-08-02
+
+* packages/typerighter
+  - Split cli to a vite endtrypoint and properly import it
+
 ## [0.1.4] - 2026-08-02
 
 * packages/rpc-server
