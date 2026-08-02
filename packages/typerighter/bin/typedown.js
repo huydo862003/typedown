@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import {
+import('../dist/cli.js').then(({
   cli,
-} from '../dist/index';
-
-cli();
+}) => cli());
