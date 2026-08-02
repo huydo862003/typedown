@@ -6,12 +6,29 @@
 
 A typed markdown language for structured content.
 
-The npm package name `typedown` is unavailable (npm considers it too similar to `typedoc`). Since "down" was taken, we went the other direction: The entry package is [`typerighter`](https://www.npmjs.com/package/typerighter) and scoped packages are under [`@typerighter`](https://www.npmjs.com/org/typerighter)
+Typedown extends from markdown:
+1. A typedown document is a structured markdown document: It has YAML frontmatter with a specified schema to describe its properties and its relationship with other documents.
+2. At its core, Typedown is a syntax and semantic analyzer for knowledge base. Based on this, several QOL features for editing notes are implemented:
+   - Syntax highlighting.
+   - Autocompletion.
+   - Go to references.
+   - Go to definition.
+   - Semantic renaming.
+3. Extended furthermore, static site generators, search engines can be built on top of the core compiler.
 
 Here's a demo of a web generated from typedown:
 
 <img width="2880" height="1922" alt="image" src="https://github.com/user-attachments/assets/4725ef7f-f2b5-4183-aaca-b97fa74867cd" />
 
+## Installation
+
+TBU
+
+```sh
+npm install typerighter
+```
+
+> The npm package name `typedown` is unavailable (npm considers it too similar to `typedoc`). Since "down" was taken, we went the other direction: The entry package is [`typerighter`](https://www.npmjs.com/package/typerighter) and scoped packages are under [`@typerighter`](https://www.npmjs.com/org/typerighter)
 
 ## Design Documentation
 
