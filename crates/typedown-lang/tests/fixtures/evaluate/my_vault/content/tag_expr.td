@@ -1,5 +1,5 @@
 ---
 _type: Person
-name: !str "Alice"
-age: !num 30
+name: !string "Alice"
+age: !number 30
 ---
