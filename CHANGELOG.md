@@ -1,3 +1,8 @@
+## [0.1.6] - 2026-08-02
+
+* packages/typerighter
+  - No longer inject html
+
 ## [0.1.5] - 2026-08-02
 
 * packages/typerighter
