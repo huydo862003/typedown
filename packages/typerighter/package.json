@@ -81,9 +81,7 @@
     "markdown-it-task-lists": "^2.1.1",
     "picocolors": "^1.1.1",
     "shiki": "^4.3.1",
-    "tailwindcss": "^4.3.3"
-  },
-  "peerDependencies": {
+    "tailwindcss": "^4.3.3",
     "vite": "^6.0.0 || ^7.0.0 || ^8.0.0",
     "vue": "^3.0.0"
   },
