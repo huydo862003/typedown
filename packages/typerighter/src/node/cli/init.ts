@@ -111,12 +111,8 @@ function packageJson (options: InitializeOptions): string {
       build: 'typedown build',
       preview: 'typedown preview',
     },
-    dependencies: {
-      typerighter: '^0.1.3',
-      vue: '^3.5.0',
-    },
     devDependencies: {
-      vite: '^8.0.0',
+      typerighter: '^0.1.3',
     },
   }, undefined, 2) + '\n';
 }
@@ -158,11 +154,14 @@ async function scaffold (targetDirectory: string, options: InitializeOptions): P
 
   await Promise.all([
     writeFile(root, 'package.json', packageJson(options)),
-    writeFile(root, 'vite.config.ts', viteConfig()),
     writeFile(root, 'typedown.yaml', typedownYaml(options)),
     writeFile(root, 'index.html', indexHtml(options)),
-    writeFile(schemaDirectory, 'Article.td', sampleSchema()),
-    writeFile(contentDirectory, 'hello.td', sampleContent()),
+    writeFile(schemaDirectory, 'Article.td', sampleSchema(), {
+      shouldLog: false,
+    }),
+    writeFile(contentDirectory, 'hello.td', sampleContent(), {
+      shouldLog: false,
+    }),
   ]);
 }
 
@@ -177,27 +176,26 @@ site:
 `;
 }
 
-function viteConfig (): string {
-  return `import { defineConfig } from "vite";
-import { typedown } from "typerighter/vite";
-
-export default defineConfig({
-  plugins: [typedown()],
-});
-`;
-}
-
-async function writeFile (directory: string, name: string, content: string): Promise<void> {
+async function writeFile (
+  directory: string,
+  name: string,
+  content: string,
+  {
+    shouldLog = true,
+  }: {
+    shouldLog?: boolean;
+  } = {},
+): Promise<void> {
   const filePath = path.join(directory, name);
   const exists = await fs.access(filePath).then(() => true)
     .catch(() => false);
 
-  if (exists) {
+  if (exists && shouldLog) {
     log.warn(`skip ${name} (already exists)`);
 
     return;
   }
 
   await fs.writeFile(filePath, content);
-  log.success(`created ${name}`);
+  if (shouldLog) log.success(`created ${name}`);
 }
