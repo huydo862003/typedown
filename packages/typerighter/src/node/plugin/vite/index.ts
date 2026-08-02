@@ -35,25 +35,6 @@ export function typedown (): Plugin[] {
 
     enforce: 'pre',
 
-    // Inject favicon, app entry script, and site title into index.html
-    async transformIndexHtml (html) {
-      const config = await tdContext.getConfig();
-
-      return html
-        .replace(
-          /<title>.*?<\/title>/,
-          `<title>${escapeHtml(config.siteTitle)}</title>`,
-        )
-        .replace(
-          '</head>',
-          `  <link rel="icon" type="image/svg+xml" href="${BRAND_FAVICON_URI}">\n</head>`,
-        )
-        .replace(
-          '</body>',
-          `  <script type="module" src="/${VIRTUAL_APP_ID}"></script>\n</body>`,
-        );
-    },
-
     // Resolve virtual modules
     resolveId (id) {
       if (id === '/' + VIRTUAL_APP_ID || id === VIRTUAL_APP_ID) {
