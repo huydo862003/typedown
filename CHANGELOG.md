@@ -1,3 +1,16 @@
+## [0.1.4] - 2026-08-02
+
+* packages/rpc-server
+  - Support unref() to avoid keeping the event loop alive
+
+* packages/typerighter
+  - Support CLI
+  - Prevent building from keeping the event loop alive by unref() the server
+  - Use random port for RPC server
+
+* crates/typedown-lang
+  - Support exporting assets to markdown
+
 ## [0.1.3] - 2026-08-02
 
 * packages/rpc-server
