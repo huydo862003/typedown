@@ -10,7 +10,7 @@
   },
   "type": "module",
   "bin": {
-    "typedown": "./bin/typedown.js"
+    "typerighter": "./bin/typerighter.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

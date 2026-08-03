@@ -105,9 +105,9 @@ function packageJson (options: InitializeOptions): string {
     private: true,
     type: 'module',
     scripts: {
-      dev: 'typedown dev',
-      build: 'typedown build',
-      preview: 'typedown preview',
+      dev: 'typerighter dev',
+      build: 'typerighter build',
+      preview: 'typerighter preview',
     },
     devDependencies: {
       typerighter: '^0.1.6',
