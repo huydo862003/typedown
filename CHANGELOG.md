@@ -1,14 +1,19 @@
-## [0.1.6] - 2026-08-02
+## [0.2.0] - 2026-08-03
+
+* packages/typerighter
+  - Fix build and dev command failure for cli
+
+## [0.1.6] - 2026-08-02 (Deprecated)
 
 * packages/typerighter
   - No longer inject html
 
-## [0.1.5] - 2026-08-02
+## [0.1.5] - 2026-08-02 (Deprecated)
 
 * packages/typerighter
   - Split cli to a vite endtrypoint and properly import it
 
-## [0.1.4] - 2026-08-02
+## [0.1.4] - 2026-08-02 (Deprecated)
 
 * packages/rpc-server
   - Support unref() to avoid keeping the event loop alive
@@ -21,12 +26,12 @@
 * crates/typedown-lang
   - Support exporting assets to markdown
 
-## [0.1.3] - 2026-08-02
+## [0.1.3] - 2026-08-02 (Deprecated)
 
 * packages/rpc-server
   - Prioritize binary on PATH
 
-## [0.1.2] - 2026-08-02
+## [0.1.2] - 2026-08-02 (Deprecated)
 
 * packages/rpc-server
   - Fall back to system PATH when typedown-rpc binary is not in node_modules
@@ -41,7 +46,7 @@
 * editors/vscode
   - Add list[T] and dict[K,V] syntax highlighting via tmLanguage pattern
 
-## [0.1.1] - 2026-08-01
+## [0.1.1] - 2026-08-01 (Deprecated)
 
 * crates/\*, packages/\*, editors/\*
   - Report unresolved identifiers as errors when used as field values
@@ -49,7 +54,6 @@
   - Add Nix flake build for typedown-lsp and typedown-rpc
   - Fix repo URLs in npm packages
 
-## [0.1.0] - 2026-08-01
+## [0.1.0] - 2026-08-01 (Deprecated)
 
 First major version with core compiler + language services and static site generator
-
