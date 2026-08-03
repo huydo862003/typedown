@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import type {
@@ -22,6 +23,8 @@ import {
   BRAND_FAVICON_URI,
 } from '@/shared/brand';
 
+const require = createRequire(import.meta.url);
+
 // Create the typedown vite plugin with the Vue plugin bundled
 export function typedown (): Plugin[] {
   let server: ViteDevServer | undefined;
@@ -34,6 +37,19 @@ export function typedown (): Plugin[] {
     name: 'vite-plugin-typedown',
 
     enforce: 'pre',
+
+    // Resolve vue from typerighter's own node_modules so users don't need to install it
+    config (_, { isSsrBuild }) {
+      if (isSsrBuild) return;
+
+      return {
+        resolve: {
+          alias: {
+            vue: require.resolve('vue/dist/vue.runtime.esm-bundler.js'),
+          },
+        },
+      };
+    },
 
     // Resolve virtual modules
     resolveId (id) {
