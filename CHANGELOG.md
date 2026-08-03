@@ -1,3 +1,8 @@
+## [0.2.1] - 2026-08-04
+
+* packages/typerighter
+  - Bundle typerighter into ssr build to avoid dual vue instances
+
 ## [0.2.0] - 2026-08-03
 
 * packages/typerighter
