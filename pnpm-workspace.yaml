@@ -10,3 +10,8 @@ allowBuilds:
   tree-sitter-cli: true
   '@vscode/vsce-sign': true
   keytar: true
+  '@typerighter/rpc-server': true
+minimumReleaseAgeExclude:
+  - '@typerighter/rpc-client@0.1.6'
+  - '@typerighter/rpc-server@0.1.6'
+  - typerighter@0.1.6

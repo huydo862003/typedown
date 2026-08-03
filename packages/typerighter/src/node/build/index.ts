@@ -158,7 +158,7 @@ async function copyContentAssets (contentDir: string, outDir: string): Promise<v
 
   const copies = entries
     .filter((entry) => entry.isFile() && !entry.name.endsWith('.td'))
-    .map((entry) => {
+    .map(async (entry) => {
       const src = path.join(entry.parentPath, entry.name);
       const relative = path.relative(contentDir, src);
       const dest = path.join(outDir, relative);

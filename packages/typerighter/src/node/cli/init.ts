@@ -58,16 +58,14 @@ export async function initialize (targetDirectory: string): Promise<void> {
     siteDescription,
   });
 
-  const steps = [];
+  const steps = ['Done scaffolding.'];
 
   if (targetDirectory !== '.') {
     steps.push(`cd ${targetDirectory}`);
   }
 
   steps.push('pnpm install', 'pnpm dev');
-  log.info(steps.join('\n'));
-
-  outro('Done');
+  outro(steps.join('\n'));
 }
 
 interface InitializeOptions {
@@ -112,7 +110,7 @@ function packageJson (options: InitializeOptions): string {
       preview: 'typedown preview',
     },
     devDependencies: {
-      typerighter: '^0.1.3',
+      typerighter: '^0.1.6',
     },
   }, undefined, 2) + '\n';
 }
