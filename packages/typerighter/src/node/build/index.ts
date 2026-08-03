@@ -13,6 +13,9 @@ import {
 import {
   generateAppEntry, generateSsrEntry,
 } from '../plugin/vite/codegen';
+import {
+  typedown,
+} from '../plugin/vite';
 import { getTdContext } from '../lib';
 
 const DEFAULT_LAYOUT_IMPORT = 'typerighter/client/theme-default';
@@ -53,8 +56,9 @@ export async function buildSite (options: BuildOptions): Promise<void> {
   const siteConfig = JSON.stringify({ title: config.siteTitle, description: config.siteDescription });
   const siteData = JSON.stringify({ sidebarGroups });
 
-  // Generate entry files in a temp directory
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'typerighter-'));
+  // Generate entry files inside the project so Vite can resolve 'typerighter/*' imports
+  const tempDir = path.join(root, 'node_modules', '.typerighter');
+  await fs.mkdir(tempDir, { recursive: true });
   const clientEntryPath = path.join(tempDir, 'client-entry.js');
   const ssrEntryPath = path.join(tempDir, 'ssr-entry.js');
 
@@ -75,12 +79,15 @@ export async function buildSite (options: BuildOptions): Promise<void> {
   ]);
 
   try {
+    const plugins = typedown();
+
     logger.info('Phase 1: Building client bundle...');
 
     await build({
       ...options.viteConfig,
       root,
       base,
+      plugins,
       build: {
         ...options.viteConfig?.build,
         outDir: clientOutDir,
@@ -99,6 +106,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       ...options.viteConfig,
       root,
       base,
+      plugins,
       build: {
         ...options.viteConfig?.build,
         outDir: ssrOutDir,
@@ -116,6 +124,10 @@ export async function buildSite (options: BuildOptions): Promise<void> {
         ? '/'
         : `/${withoutExtension}`;
     });
+
+    if (!hasIndex) {
+      pagePaths.push('/');
+    }
 
     await renderPages({
       ssrEntryPath: path.join(ssrOutDir, 'ssr-entry.js'),

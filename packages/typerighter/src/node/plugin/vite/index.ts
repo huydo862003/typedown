@@ -1,4 +1,6 @@
-import { createRequire } from 'node:module';
+import {
+  createRequire,
+} from 'node:module';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import type {
@@ -39,14 +41,19 @@ export function typedown (): Plugin[] {
     enforce: 'pre',
 
     // Resolve vue from typerighter's own node_modules so users don't need to install it
-    config (_, { isSsrBuild }) {
-      if (isSsrBuild) return;
-
+    config () {
       return {
         resolve: {
-          alias: {
-            vue: require.resolve('vue/dist/vue.runtime.esm-bundler.js'),
-          },
+          alias: [
+            {
+              find: 'vue/server-renderer',
+              replacement: require.resolve('vue/server-renderer'),
+            },
+            {
+              find: 'vue',
+              replacement: require.resolve('vue/dist/vue.runtime.esm-bundler.js'),
+            },
+          ],
         },
       };
     },

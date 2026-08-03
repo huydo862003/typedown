@@ -221,6 +221,7 @@ async function initializeTypedownContext (): Promise<TypedownContext> {
   function dispose () {
     if (disposed) return;
     disposed = true;
+    client.free();
     server.close();
   }
 

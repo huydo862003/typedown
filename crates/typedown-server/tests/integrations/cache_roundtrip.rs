@@ -115,7 +115,7 @@ fn cache_miss_on_file_change() {
 
   let (_tmp, project_dir, cache_dir, _) = session1_dump();
 
-  let target = project_dir.join("content/people/alice.td");
+  let target = project_dir.join("vault/content/people/alice.td");
   let original = std::fs::read_to_string(&target).unwrap();
   std::fs::write(&target, original.replace("Alice", "Alicia")).unwrap();
 
@@ -151,7 +151,7 @@ fn cache_miss_on_new_file() {
   let (_tmp, project_dir, cache_dir, _) = session1_dump();
 
   std::fs::write(
-    project_dir.join("content/people/dave.td"),
+    project_dir.join("vault/content/people/dave.td"),
     "---\n_type: Person\nname: \"Dave\"\nrole: \"developer\"\n---\n",
   )
   .unwrap();
@@ -180,7 +180,7 @@ fn cache_miss_on_file_deleted() {
 
   let (_tmp, project_dir, cache_dir, _) = session1_dump();
 
-  std::fs::remove_file(project_dir.join("content/people/carol.td")).unwrap();
+  std::fs::remove_file(project_dir.join("vault/content/people/carol.td")).unwrap();
 
   run_child_test(
     "cache_roundtrip::cache_miss_on_file_deleted",
@@ -213,7 +213,7 @@ fn cache_miss_on_schema_change() {
 
   let (_tmp, project_dir, cache_dir, _) = session1_dump();
 
-  let schema_path = project_dir.join("schemas/Person.td");
+  let schema_path = project_dir.join("vault/schemas/Person.td");
   let original = std::fs::read_to_string(&schema_path).unwrap();
   std::fs::write(
     &schema_path,
