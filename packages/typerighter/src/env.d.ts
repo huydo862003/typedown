@@ -1,3 +1,5 @@
+declare const __VERSION__: string;
+
 declare module '*.vue' {
   import type {
     DefineComponent,

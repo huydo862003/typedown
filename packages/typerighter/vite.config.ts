@@ -1,3 +1,6 @@
+import {
+  createRequire,
+} from 'node:module';
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
@@ -5,7 +8,12 @@ import {
   defineConfig,
 } from 'vitest/config';
 
+const package_ = createRequire(import.meta.url)('./package.json');
+
 export default defineConfig({
+  define: {
+    __VERSION__: JSON.stringify(package_.version),
+  },
   plugins: [
     vue(),
     tailwindcss(),
@@ -39,6 +47,7 @@ export default defineConfig({
         '@tailwindcss/vite',
         '@vueuse/core',
         '@vueuse/shared',
+        'picocolors',
         /^node:/,
       ],
     },

@@ -70,7 +70,9 @@
     "@typerighter/rpc-client": "workspace:*",
     "@typerighter/rpc-server": "workspace:*",
     "@vitejs/plugin-vue": "^5.0.0 || ^6.0.0",
+    "cac": "^7.0.0",
     "image-size": "^2.0.2",
+    "js-yaml": "^5.2.3",
     "lucide-vue-next": "^1.0.0",
     "markdown-it": "^14.0.0",
     "markdown-it-anchor": "^9.0.0",
@@ -87,6 +89,7 @@
   },
   "devDependencies": {
     "@hdnax/nuclint": "^0.17.4",
+    "@types/js-yaml": "^4.0.9",
     "@types/markdown-it": "^14.0.0",
     "@types/markdown-it-container": "^4.0.0",
     "@types/markdown-it-emoji": "^3.0.1",

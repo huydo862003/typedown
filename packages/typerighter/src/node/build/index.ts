@@ -4,24 +4,24 @@ import {
   build, type InlineConfig,
 } from 'vite';
 import {
-  renderPages,
-} from './render';
-import {
-  logger,
-} from '../lib/logger';
+  prerenderHtmlPages,
+} from './prerender';
 import {
   generateAppEntry, generateSsrEntry,
 } from '../plugin/vite/codegen';
 import {
   typedown,
 } from '../plugin/vite';
-import { getTdContext } from '../lib';
+import {
+  ProgressLogger,
+} from '../lib/progress';
+import type {
+  AppContext,
+} from '../context';
 
 const DEFAULT_LAYOUT_IMPORT = 'typerighter/client/theme-default';
 
 export interface BuildOptions {
-  /** Root directory of the Vite project */
-  root: string;
   /** Output directory for the final build (default: "dist") */
   outDir?: string;
   /** Base public path (default: "/") */
@@ -31,15 +31,16 @@ export interface BuildOptions {
 }
 
 // Build the site into static HTML files
-export async function buildSite (options: BuildOptions): Promise<void> {
-  const root = path.resolve(options.root);
+export async function buildSite (ctx: AppContext, options: BuildOptions = {}): Promise<void> {
+  const { root, logger } = ctx;
   const outDir = path.resolve(root, options.outDir ?? 'dist');
   const base = options.base ?? '/';
 
   const clientOutDir = path.join(outDir, '.client');
   const ssrOutDir = path.join(outDir, '.server');
 
-  const tdContext = await getTdContext();
+  // 1. Fetch project metadata from the RPC server
+  const tdContext = await ctx.getTdContext();
 
   const [
     config,
@@ -55,7 +56,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
   const siteConfig = JSON.stringify({ title: config.siteTitle, description: config.siteDescription });
   const siteData = JSON.stringify({ sidebarGroups });
 
-  // Generate entry files inside the project so Vite can resolve 'typerighter/*' imports
+  // 2. Generate entry files inside the project so Vite can resolve 'typerighter/*' imports
   const tempDir = path.join(root, 'node_modules', '.typerighter');
   await fs.mkdir(tempDir, { recursive: true });
   const clientEntryPath = path.join(tempDir, 'client-entry.js');
@@ -78,15 +79,19 @@ export async function buildSite (options: BuildOptions): Promise<void> {
   ]);
 
   try {
-    const plugins = typedown();
+    const plugins = typedown({ context: ctx });
+    const customLogger = ctx.createViteLogger();
 
-    logger.phase('\nPhase 1: Building client bundle...\n');
+    // 3. Build the client bundle (JS/CSS for the browser)
+    const phase1 = new ProgressLogger(logger, 'Building client bundle...');
 
     await build({
       ...options.viteConfig,
       root,
       base,
       plugins,
+      customLogger,
+      logLevel: 'silent',
       build: {
         ...options.viteConfig?.build,
         outDir: clientOutDir,
@@ -99,13 +104,20 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       },
     });
 
-    logger.phase('\nPhase 2: Building SSR bundle...\n');
+    const clientChunks = await fs.readdir(path.join(clientOutDir, 'assets')).catch(() => []);
+
+    phase1.done(`Client bundle (${clientChunks.length} chunks)`);
+
+    // 4. Build the SSR bundle (Node-runnable entry for pre-rendering)
+    const phase2 = new ProgressLogger(logger, 'Building SSR bundle...');
 
     await build({
       ...options.viteConfig,
       root,
       base,
       plugins,
+      customLogger,
+      logLevel: 'silent',
       build: {
         ...options.viteConfig?.build,
         outDir: ssrOutDir,
@@ -114,8 +126,9 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       },
     });
 
-    logger.phase('\nPhase 3: Pre-rendering pages...\n');
+    phase2.done('SSR bundle');
 
+    // 5. Pre-render each page to a static HTML file
     const pagePaths = files.map((file) => {
       const withoutExtension = file.replace(/\.td$/, '');
 
@@ -128,15 +141,20 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       pagePaths.push('/');
     }
 
-    await renderPages({
+    const phase3 = new ProgressLogger(logger, 'Pre-rendering pages...');
+
+    await prerenderHtmlPages({
       ssrEntryPath: path.join(ssrOutDir, 'ssr-entry.js'),
       clientOutDir,
       outDir,
       base,
       pagePaths,
+      progress: phase3,
     });
 
-    // Copy client assets (JS/CSS) to the final output directory
+    phase3.done(`Pre-rendered ${pagePaths.length} pages`);
+
+    // 6. Copy assets to the final output directory
     const clientAssetsDir = path.join(clientOutDir, 'assets');
     const outAssetsDir = path.join(outDir, 'assets');
 
@@ -146,10 +164,9 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       // No assets to copy
     });
 
-    // Copy content assets (images, PDFs, etc.) to the output directory
     await copyContentAssets(path.join(root, config.contentDir), outDir);
   } finally {
-    // Clean up temp and intermediate directories
+    // 7. Clean up intermediate directories
     await Promise.all([
       fs.rm(tempDir, { recursive: true, force: true }),
       fs.rm(clientOutDir, { recursive: true, force: true }),
@@ -157,7 +174,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
     ]);
   }
 
-  logger.phase(`\nBuild complete. Output: ${outDir}`);
+  logger.log(`\nBuild complete. Output: ${outDir}`);
 }
 
 // Copy non-.td files from content directory to output, preserving structure

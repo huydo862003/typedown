@@ -17,7 +17,7 @@ import {
   createHighlighter as _createHighlighter, guessEmbeddedLanguages, isSpecialLang,
 } from 'shiki';
 import {
-  logger,
+  consoleLogger,
 } from '../../logger';
 import {
   extractLanguage,
@@ -92,7 +92,7 @@ export async function createHighlighter (): Promise<(string_: string, language: 
         loadedLanguages.add(language);
       }
     } catch {
-      logger.warn(
+      consoleLogger.warn(
         `\nThe language '${language}' is not loaded, falling back to 'txt' for syntax highlighting.`,
       );
       language = 'txt';

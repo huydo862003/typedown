@@ -4,14 +4,11 @@ import type {
   Plugin, ViteDevServer,
 } from 'vite';
 import {
-  getTdContext,
-} from '../../lib/typedown-context';
-import {
   renderToVueSfc,
 } from '../../lib/render';
 import {
-  escapeHtml,
-} from '../../build/html';
+  createAppContext, resolveProjectRoot, type AppContext,
+} from '../../context';
 import {
   VIRTUAL_APP_ID, RESOLVED_VIRTUAL_APP_ID, VIRTUAL_INDEX_ID,
 } from './constants';
@@ -22,12 +19,27 @@ import {
   resolveAliases,
 } from './alias';
 import {
+  escapeHtml,
+} from '@/shared';
+import {
   BRAND_FAVICON_URI,
 } from '@/shared/brand';
 
 // Create the typedown vite plugin with the Vue plugin bundled
-export function typedown (): Plugin[] {
+export interface TypedownPluginOptions {
+  // @internal Used by buildSite to share the RPC connection
+  context?: AppContext;
+}
+
+export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
+  let context = options.context;
   let server: ViteDevServer | undefined;
+
+  function resolveTdContext () {
+    if (context === undefined) throw new Error('typedown plugin not initialized');
+
+    return context.getTdContext();
+  }
 
   const vuePlugin = vue({
     include: /\.(?:vue|td)$/,
@@ -37,6 +49,12 @@ export function typedown (): Plugin[] {
     name: 'vite-plugin-typedown',
 
     enforce: 'pre',
+
+    configResolved (config) {
+      if (!context) {
+        context = createAppContext(resolveProjectRoot(config.root));
+      }
+    },
 
     config () {
       return {
@@ -62,7 +80,7 @@ export function typedown (): Plugin[] {
 
     // Serve virtual modules
     async load (id) {
-      const tdContext = await getTdContext();
+      const tdContext = await resolveTdContext();
 
       if (id === RESOLVED_VIRTUAL_APP_ID) {
         const [
@@ -92,7 +110,7 @@ export function typedown (): Plugin[] {
 
     async configureServer (devServer) {
       server = devServer;
-      const tdContext = await getTdContext();
+      const tdContext = await resolveTdContext();
 
       // Config changes affect the rendering pipeline itself, requires full reload
       tdContext.rpc.onConfigChanged(() => server && hmrFullReload(server));
@@ -169,7 +187,7 @@ export function typedown (): Plugin[] {
       if (!cleanId.endsWith('.td')) return;
       if (cleanId.includes(VIRTUAL_INDEX_ID)) return;
 
-      const tdContext = await getTdContext();
+      const tdContext = await resolveTdContext();
       const config = await tdContext.getConfig();
       const contentDirectory = config.contentDir;
       const relativePath = cleanId.includes(contentDirectory)
@@ -192,6 +210,7 @@ export function typedown (): Plugin[] {
     }) {
       if (file.endsWith('.td')) return [];
     },
+
   };
 
   return [

@@ -25,8 +25,8 @@ pub struct RpcClient {
   disconnect: RefCell<ListenerSlot>,
 }
 
-impl Drop for RpcClient {
-  fn drop(&mut self) {
+impl RpcClient {
+  fn abort_all_subscriptions(&mut self) {
     self.content_changed.get_mut().abort();
     self.content_created.get_mut().abort();
     self.content_deleted.get_mut().abort();
@@ -37,6 +37,13 @@ impl Drop for RpcClient {
     self.disconnect.get_mut().abort();
   }
 }
+
+impl Drop for RpcClient {
+  fn drop(&mut self) {
+    self.abort_all_subscriptions();
+  }
+}
+
 
 /// Call all registered callbacks with the given arguments
 fn notify_all(callbacks: &RefCell<Vec<js_sys::Function>>, args: &[JsValue]) {
@@ -66,6 +73,10 @@ impl RpcClient {
       config_changed: RefCell::new(ListenerSlot::new()),
       disconnect: RefCell::new(ListenerSlot::new()),
     })
+  }
+
+  pub fn close(&mut self) {
+    self.abort_all_subscriptions();
   }
 
   #[wasm_bindgen(js_name = "requestFile")]

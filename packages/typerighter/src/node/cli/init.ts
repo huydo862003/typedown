@@ -1,71 +1,39 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
-  cancel, intro, isCancel, log, outro, text,
-} from '@clack/prompts';
+  load,
+} from 'js-yaml';
 import {
-  escapeHtml,
-} from '../build/html';
+  cancel, intro, isCancel, log, outro, select, text,
+} from '@clack/prompts';
 import {
   VIRTUAL_APP_ID,
 } from '../plugin/vite/constants';
+import {
+  CONFIG_FILE_NAMES,
+} from '../context';
+import {
+  escapeHtml,
+} from '@/shared';
 import {
   BRAND_FAVICON_URI,
 } from '@/shared/brand';
 
 // Interactive project scaffolding
-export async function initialize (targetDirectory: string): Promise<void> {
-  intro('typedown');
+export async function initialize (root: string): Promise<void> {
+  const options = await collectUserInput(root);
 
-  const defaultName = path.basename(path.resolve(targetDirectory));
+  await scaffold(root, options);
 
-  const projectName = await text({
-    message: 'Project name',
-    placeholder: defaultName,
-    defaultValue: defaultName,
-  });
+  printFurtherSteps(root);
+}
 
-  if (isCancel(projectName)) {
-    cancel('Cancelled.');
-    process.exit(0);
-  }
-
-  const siteTitle = await text({
-    message: 'Site title',
-    placeholder: projectName,
-    defaultValue: projectName,
-  });
-
-  if (isCancel(siteTitle)) {
-    cancel('Cancelled.');
-    process.exit(0);
-  }
-
-  const siteDescription = await text({
-    message: 'Site description',
-    placeholder: 'A typedown site',
-    defaultValue: 'A typedown site',
-  });
-
-  if (isCancel(siteDescription)) {
-    cancel('Cancelled.');
-    process.exit(0);
-  }
-
-  await scaffold(targetDirectory, {
-    projectName,
-    siteTitle,
-    siteDescription,
-  });
-
-  const steps = ['Done scaffolding.'];
-
-  if (targetDirectory !== '.') {
-    steps.push(`cd ${targetDirectory}`);
-  }
-
-  steps.push('pnpm install', 'pnpm dev');
-  outro(steps.join('\n'));
+interface ExistingProject {
+  hasPackageJson: boolean;
+  hasTypedownYaml: boolean;
+  packageName: string | undefined;
+  siteTitle: string | undefined;
+  siteDescription: string | undefined;
 }
 
 interface InitializeOptions {
@@ -74,7 +42,100 @@ interface InitializeOptions {
   siteDescription: string;
 }
 
-function indexHtml (options: InitializeOptions): string {
+async function collectUserInput (
+  root: string,
+): Promise<InitializeOptions> {
+  intro('typedown');
+
+  const existing = await detectExistingProject(root);
+
+  if (existing.hasTypedownYaml) {
+    await confirmExistingProject();
+  }
+
+  const projectName = await prompt('Project name', existing.packageName ?? path.basename(root));
+  const siteTitle = await prompt('Site title', existing.siteTitle ?? projectName);
+  const siteDescription = await prompt('Site description', existing.siteDescription ?? 'A typedown site');
+
+  return {
+    projectName,
+    siteTitle,
+    siteDescription,
+  };
+}
+
+async function confirmExistingProject (): Promise<void> {
+  log.warn('typedown.yaml already exists in this directory');
+
+  const proceed = await select({
+    message: 'What would you like to do?',
+    options: [
+      {
+        value: 'scaffold',
+        label: 'Continue scaffolding (skip existing files)',
+      },
+      {
+        value: 'cancel',
+        label: 'Cancel',
+      },
+    ],
+  });
+
+  if (isCancel(proceed) || proceed === 'cancel') {
+    cancel('Cancelled.');
+    process.exit(0);
+  }
+}
+
+async function detectExistingProject (root: string): Promise<ExistingProject> {
+  const result: ExistingProject = {
+    hasPackageJson: false,
+    hasTypedownYaml: false,
+    packageName: undefined,
+    siteTitle: undefined,
+    siteDescription: undefined,
+  };
+
+  const packagePath = path.join(root, 'package.json');
+
+  try {
+    const raw = await fs.readFile(packagePath, 'utf-8');
+    const package_ = JSON.parse(raw);
+
+    result.hasPackageJson = true;
+    if (typeof package_.name === 'string' && 0 < package_.name.length) {
+      result.packageName = package_.name;
+    }
+  } catch {
+    // No package.json
+  }
+
+  for (const name of CONFIG_FILE_NAMES) {
+    try {
+      const raw = await fs.readFile(path.join(root, name), 'utf-8');
+      const document = load(raw) as Record<string, unknown> | undefined;
+
+      result.hasTypedownYaml = true;
+
+      const site = document?.site as Record<string, unknown> | undefined;
+
+      if (typeof site?.title === 'string') {
+        result.siteTitle = site.title;
+      }
+
+      if (typeof site?.description === 'string') {
+        result.siteDescription = site.description;
+      }
+      break;
+    } catch {
+      // No config file or invalid YAML
+    }
+  }
+
+  return result;
+}
+
+function generateIndexHtml (options: InitializeOptions): string {
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -98,7 +159,7 @@ function indexHtml (options: InitializeOptions): string {
 `;
 }
 
-function packageJson (options: InitializeOptions): string {
+function generatePackageJson (options: InitializeOptions): string {
   return JSON.stringify({
     name: options.projectName,
     version: '0.0.0',
@@ -110,12 +171,12 @@ function packageJson (options: InitializeOptions): string {
       preview: 'typerighter preview',
     },
     devDependencies: {
-      typerighter: '^0.1.6',
+      typerighter: `^${__VERSION__}`,
     },
   }, undefined, 2) + '\n';
 }
 
-function sampleContent (): string {
+function generateSampleTdContent (): string {
   return `---
 _type: Article
 title: "Hello, world"
@@ -125,7 +186,7 @@ Welcome to your new typedown site.
 `;
 }
 
-function sampleSchema (): string {
+function generateSampleTdSchema (): string {
   return `---
 _type: schema
 properties:
@@ -138,32 +199,7 @@ properties:
 `;
 }
 
-async function scaffold (targetDirectory: string, options: InitializeOptions): Promise<void> {
-  const root = path.resolve(targetDirectory);
-  const contentDirectory = path.join(root, 'vault', 'content');
-  const schemaDirectory = path.join(root, 'vault', 'schemas');
-
-  await fs.mkdir(contentDirectory, {
-    recursive: true,
-  });
-  await fs.mkdir(schemaDirectory, {
-    recursive: true,
-  });
-
-  await Promise.all([
-    writeFile(root, 'package.json', packageJson(options)),
-    writeFile(root, 'typedown.yaml', typedownYaml(options)),
-    writeFile(root, 'index.html', indexHtml(options)),
-    writeFile(schemaDirectory, 'Article.td', sampleSchema(), {
-      shouldLog: false,
-    }),
-    writeFile(contentDirectory, 'hello.td', sampleContent(), {
-      shouldLog: false,
-    }),
-  ]);
-}
-
-function typedownYaml (options: InitializeOptions): string {
+function generateTypedownYaml (options: InitializeOptions): string {
   return `version: "1.0.0"
 vault:
   content_dir: vault/content
@@ -174,26 +210,105 @@ site:
 `;
 }
 
-async function writeFile (
+function printFurtherSteps (root: string): void {
+  const steps = ['Done scaffolding.'];
+
+  if (root !== '.') {
+    steps.push(`cd ${root}`);
+  }
+
+  steps.push('pnpm install');
+
+  steps.push('pnpm dev');
+
+  outro(steps.join('\n'));
+}
+
+async function prompt (message: string, defaultValue: string): Promise<string> {
+  const value = await text({
+    message,
+    placeholder: defaultValue,
+    defaultValue,
+  });
+
+  if (isCancel(value)) {
+    cancel('Cancelled.');
+    process.exit(0);
+  }
+
+  return value;
+}
+
+async function scaffold (root: string, options: InitializeOptions): Promise<void> {
+  const contentDirectory = path.join(root, 'vault', 'content');
+  const schemaDirectory = path.join(root, 'vault', 'schemas');
+  const localDirectory = path.join(root, '.typedown', '.local');
+
+  await Promise.all([
+    fs.mkdir(contentDirectory, {
+      recursive: true,
+    }),
+    fs.mkdir(schemaDirectory, {
+      recursive: true,
+    }),
+    fs.mkdir(localDirectory, {
+      recursive: true,
+    }),
+  ]);
+
+  await writeIfMissing(localDirectory, '.gitignore', '*\n', {
+    silent: true,
+  });
+
+  await Promise.all([
+    writeIfMissing(root, '.gitignore', 'node_modules/\ndist/\n', {
+      silent: true,
+    }),
+    writeIfMissing(root, 'package.json', generatePackageJson(options)),
+    writeIfMissing(root, 'typedown.yaml', generateTypedownYaml(options)),
+    writeIfMissing(root, 'index.html', generateIndexHtml(options)),
+  ]);
+
+  const samples = await Promise.all([
+    writeIfMissing(schemaDirectory, 'Article.td', generateSampleTdSchema(), {
+      silent: true,
+    }),
+    writeIfMissing(contentDirectory, 'hello.td', generateSampleTdContent(), {
+      silent: true,
+    }),
+  ]);
+
+  const created = samples.filter(Boolean);
+  const skipped = samples.filter((sample) => !Boolean(sample));
+
+  if (0 < created.length) {
+    log.success(`created sample schema and content (${created.length} files)`);
+  }
+
+  if (0 < skipped.length) {
+    log.warn(`skipped ${skipped.length} sample files (already exist)`);
+  }
+}
+
+async function writeIfMissing (
   directory: string,
   name: string,
   content: string,
-  {
-    shouldLog = true,
-  }: {
-    shouldLog?: boolean;
+  options: {
+    silent?: boolean;
   } = {},
-): Promise<void> {
+): Promise<boolean> {
   const filePath = path.join(directory, name);
-  const exists = await fs.access(filePath).then(() => true)
-    .catch(() => false);
 
-  if (exists && shouldLog) {
-    log.warn(`skip ${name} (already exists)`);
+  try {
+    await fs.access(filePath);
+    if (!options.silent) log.warn(`skip ${name} (already exists)`);
 
-    return;
+    return false;
+  } catch {
+    await fs.writeFile(filePath, content);
+    if (!options.silent) log.success(`created ${name}`);
+
+    return true;
   }
-
-  await fs.writeFile(filePath, content);
-  if (shouldLog) log.success(`created ${name}`);
 }

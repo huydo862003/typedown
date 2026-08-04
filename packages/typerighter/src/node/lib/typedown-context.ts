@@ -1,19 +1,11 @@
 import path from 'node:path';
-import {
-  RpcServer,
-} from '@typerighter/rpc-server';
-import {
-  RpcClient,
-} from '@typerighter/rpc-client';
 import type {
+  RpcClient,
   TdBuiltResource, TdSiteConfig, TdSchemaInfo,
 } from '@typerighter/rpc-client';
 import {
   createMarkdownRenderer, type MarkdownRenderer,
 } from './markdown';
-import {
-  logger,
-} from './logger';
 import type {
   SidebarGroups,
 } from '@/shared';
@@ -23,6 +15,7 @@ import type {
 export class TypedownContext {
   private client: RpcClient;
   private _md: MarkdownRenderer;
+
   constructor (client: RpcClient, md: MarkdownRenderer) {
     this.client = client;
     this._md = md;
@@ -50,7 +43,7 @@ export class TypedownContext {
         }
       })
         .catch((error) => {
-          logger.error(`Failed to recreate markdown renderer: ${error}`);
+          console.error(`Failed to recreate markdown renderer: ${error}`);
         });
     });
 
@@ -185,58 +178,4 @@ export class TypedownContext {
   get md (): MarkdownRenderer {
     return this._md;
   }
-}
-
-// Start the RPC server, connect the client, and create the markdown renderer
-async function initializeTypedownContext (): Promise<TypedownContext> {
-  const server = new RpcServer();
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(() => {
-      server.removeListener('error', reject);
-      resolve();
-    });
-  });
-
-  const address = server.address;
-  const port = server.port;
-
-  if (address === undefined || port === undefined) {
-    throw new Error('RPC server started but address/port not available');
-  }
-
-  const client = await RpcClient.connect(new URL(address).hostname, port);
-  const config = await client.getConfig();
-  const md = await createMarkdownRenderer(config);
-  const context = new TypedownContext(client, md);
-
-  // Unref the child so it does not prevent Node from exiting after vite build finishes
-  server.unref();
-
-  function cleanup () {
-    server.close();
-  }
-
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => {
-    cleanup();
-    process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    cleanup();
-    process.exit(0);
-  });
-
-  return context;
-}
-
-let _tdContext: TypedownContext | undefined;
-
-export async function getTdContext (): Promise<TypedownContext> {
-  if (!_tdContext) {
-    _tdContext = await initializeTypedownContext();
-  }
-
-  return _tdContext;
 }

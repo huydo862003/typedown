@@ -1,6 +1,8 @@
+import path from 'node:path';
+import cac from 'cac';
 import pc from 'picocolors';
 import {
-  createLogger, createServer,
+  createServer,
 } from 'vite';
 import {
   buildSite,
@@ -8,61 +10,115 @@ import {
 import {
   typedown,
 } from '../plugin/vite';
+import {
+  createAppContext,
+} from '../context';
 
-export async function cli () {
-  const argv = process.argv.slice(2);
-  const command = argv[0];
-  const root = argv[1] ?? process.cwd();
+const TAG = pc.bold(pc.cyan('[typerighter]'));
 
-  try {
-    if (!command || command === 'dev') {
-    // Skip configFile so user's vite.config.ts does not duplicate the typedown plugin
+export function cli () {
+  const program = cac('typerighter');
+
+  process.on('uncaughtException', (error) => {
+    handleError('runtime', error);
+  });
+
+  process.on('unhandledRejection', (error) => {
+    handleError('runtime', error instanceof Error ? error : new Error(String(error)));
+  });
+
+  program
+    .command('[root]', 'Start dev server')
+    .alias('dev')
+    .option('--port <port>', 'Port to listen on')
+    .option('--host', 'Expose to network')
+    .action(async (root: string | undefined, options: {
+      port?: number;
+      host?: boolean;
+    }) => {
       const server = await createServer({
-        root,
+        root: resolveRoot(root),
+        // Skip configFile so user's vite.config.ts does not duplicate the typedown plugin
         configFile: false,
         plugins: [typedown()],
+        server: {
+          port: options.port,
+          host: options.host,
+        },
       });
 
       await server.listen();
       server.printUrls();
-    } else if (command === 'build') {
-      await buildSite({
-        root,
-      });
-      // RPC WebSocket keeps the event loop alive, exit explicitly after build
-      process.exit(0);
-    } else if (command === 'init') {
+    });
+
+  program
+    .command('build [root]', 'Build for production')
+    .option('--outDir <dir>', 'Output directory', {
+      default: 'dist',
+    })
+    .option('--base <path>', 'Base public path', {
+      default: '/',
+    })
+    .action(async (root: string | undefined, options: {
+      outDir: string;
+      base: string;
+    }) => {
+      const context = createAppContext(resolveRoot(root));
+
+      try {
+        await buildSite(context, {
+          outDir: options.outDir,
+          base: options.base,
+        });
+      } finally {
+        context.dispose();
+      }
+    });
+
+  program
+    .command('init [root]', 'Scaffold a new project')
+    .action(async (root: string | undefined) => {
       const {
         initialize,
       } = await import('./init');
 
-      await initialize(root);
-    } else if (command === 'preview') {
+      await initialize(resolveRoot(root));
+    });
+
+  program
+    .command('preview [root]', 'Preview production build')
+    .option('--port <port>', 'Port to listen on')
+    .action(async (root: string | undefined, options: {
+      port?: number;
+    }) => {
       const {
         preview,
       } = await import('vite');
       const server = await preview({
-        root,
+        root: resolveRoot(root),
+        preview: {
+          port: options.port,
+        },
       });
 
       server.printUrls();
-    } else {
-      logErrorAndExit(`unknown command "${command}".`);
-    }
-  } catch (error) {
-    logErrorAndExit(`${command ?? 'dev'} error:`, error);
-  }
+    });
+
+  program.help();
+  program.version(__VERSION__);
+
+  program.parse();
 }
 
-function logErrorAndExit (message: string, error?: unknown): never {
-  const logger = createLogger();
-  const parts = [pc.red(message)];
+function handleError (command: string, error: unknown): never {
+  const message = error instanceof Error ? error.message : String(error);
 
-  if (error instanceof Error) {
-    parts.push(error.message);
-    if (error.stack) parts.push(error.stack);
-  }
-
-  logger.error(parts.join('\n'));
+  console.error(`\n${TAG} ${pc.red(`${command} failed`)}\n`);
+  console.error(pc.red(message));
+  console.error('');
   process.exit(1);
+}
+
+function resolveRoot (root: string | undefined): string {
+  return path.resolve(root ?? process.cwd());
 }
