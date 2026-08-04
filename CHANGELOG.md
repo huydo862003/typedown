@@ -1,3 +1,18 @@
+## [0.3.0] - 2026-08-04
+
+[0.2.3] - 2026-08-04
+
+* crates/typedown-server
+  - Add close() to WASM RPC client for safe
+  cleanup
+* packages/typerighter
+  - Migrate CLI to cac framework with --help, --version, and options
+  - Clean build output with phase summaries, timing, and progress percentage
+  - Add file logging to .typedown/.local/logs/
+  - Detect existing project in init and generate .gitignore
+  - Introduce AppContext for resource lifecycle management
+  - Drop consola, use picocolors directly
+
 ## [0.2.2] - 2026-08-04
 
 * packages/typerighter
