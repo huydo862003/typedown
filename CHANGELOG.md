@@ -1,3 +1,9 @@
+## [0.2.2] - 2026-08-04
+
+* packages/typerighter
+  - Avoid the server hanging after build
+  - Improve the server logging for phases
+
 ## [0.2.1] - 2026-08-04
 
 * packages/typerighter
