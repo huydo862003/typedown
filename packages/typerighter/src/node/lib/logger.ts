@@ -5,6 +5,10 @@ export const logger = {
     console.log(colors.cyan(message));
   },
 
+  phase (message: string): void {
+    console.log(colors.bold(colors.cyan(message)));
+  },
+
   warn (message: string): void {
     console.warn(colors.yellow(message));
   },

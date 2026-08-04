@@ -29,6 +29,8 @@ export async function cli () {
       await buildSite({
         root,
       });
+      // RPC WebSocket keeps the event loop alive, exit explicitly after build
+      process.exit(0);
     } else if (command === 'init') {
       const {
         initialize,

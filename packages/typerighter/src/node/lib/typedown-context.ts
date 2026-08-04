@@ -23,7 +23,6 @@ import type {
 export class TypedownContext {
   private client: RpcClient;
   private _md: MarkdownRenderer;
-
   constructor (client: RpcClient, md: MarkdownRenderer) {
     this.client = client;
     this._md = md;
@@ -215,23 +214,17 @@ async function initializeTypedownContext (): Promise<TypedownContext> {
   // Unref the child so it does not prevent Node from exiting after vite build finishes
   server.unref();
 
-  // Clean up the RPC server on process exit
-  let disposed = false;
-
-  function dispose () {
-    if (disposed) return;
-    disposed = true;
-    client.free();
+  function cleanup () {
     server.close();
   }
 
-  process.on('exit', dispose);
+  process.on('exit', cleanup);
   process.on('SIGINT', () => {
-    dispose();
+    cleanup();
     process.exit(0);
   });
   process.on('SIGTERM', () => {
-    dispose();
+    cleanup();
     process.exit(0);
   });
 

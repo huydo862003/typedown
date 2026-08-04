@@ -1,6 +1,5 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import {
   build, type InlineConfig,
 } from 'vite';
@@ -81,7 +80,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
   try {
     const plugins = typedown();
 
-    logger.info('Phase 1: Building client bundle...');
+    logger.phase('\nPhase 1: Building client bundle...\n');
 
     await build({
       ...options.viteConfig,
@@ -100,7 +99,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       },
     });
 
-    logger.info('Phase 2: Building SSR bundle...');
+    logger.phase('\nPhase 2: Building SSR bundle...\n');
 
     await build({
       ...options.viteConfig,
@@ -115,7 +114,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
       },
     });
 
-    logger.info('Phase 3: Pre-rendering pages...');
+    logger.phase('\nPhase 3: Pre-rendering pages...\n');
 
     const pagePaths = files.map((file) => {
       const withoutExtension = file.replace(/\.td$/, '');
@@ -158,7 +157,7 @@ export async function buildSite (options: BuildOptions): Promise<void> {
     ]);
   }
 
-  logger.info(`Build complete. Output: ${outDir}`);
+  logger.phase(`\nBuild complete. Output: ${outDir}`);
 }
 
 // Copy non-.td files from content directory to output, preserving structure
