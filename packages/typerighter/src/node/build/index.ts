@@ -39,6 +39,9 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
   const clientOutDir = path.join(outDir, '.client');
   const ssrOutDir = path.join(outDir, '.server');
 
+  // Clear stale output from previous builds
+  await fs.rm(outDir, { recursive: true, force: true });
+
   // 1. Fetch project metadata from the RPC server
   const tdContext = await ctx.getTdContext();
 
