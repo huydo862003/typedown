@@ -1,10 +1,16 @@
+## [0.3.1] - 2026-08-04
+
+* packages/typerighter
+  - Use Vite manifest to resolve client entry (fixes broken hydration)
+  - Pre-render virtual index page in SSG build
+  - Clear output directory before building to prevent stale assets
+
 ## [0.3.0] - 2026-08-04
 
 [0.2.3] - 2026-08-04
 
 * crates/typedown-server
-  - Add close() to WASM RPC client for safe
-  cleanup
+  - Add close() to WASM RPC client for safe cleanup
 * packages/typerighter
   - Migrate CLI to cac framework with --help, --version, and options
   - Clean build output with phase summaries, timing, and progress percentage
