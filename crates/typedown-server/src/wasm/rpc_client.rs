@@ -44,7 +44,6 @@ impl Drop for RpcClient {
   }
 }
 
-
 /// Call all registered callbacks with the given arguments
 fn notify_all(callbacks: &RefCell<Vec<js_sys::Function>>, args: &[JsValue]) {
   for callback in callbacks.borrow().iter() {
