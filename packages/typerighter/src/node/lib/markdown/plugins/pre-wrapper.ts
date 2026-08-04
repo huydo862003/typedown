@@ -12,7 +12,7 @@ import type {
 } from 'markdown-it-async';
 import {
   extractLanguage,
-} from '@/shared';
+} from './highlight/language';
 
 export interface PreWrapperOptions {
   languageLabel?: Record<string, string>;

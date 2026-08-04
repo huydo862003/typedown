@@ -122,8 +122,8 @@ pub struct TdFilePath(pub String);
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdContentSummary {
-  /// Path relative to the content directory
-  pub path: String,
+  /// File path relative to the content directory
+  pub filepath: String,
   /// Schema type name
   pub schema: String,
   /// Frontmatter header as JSON

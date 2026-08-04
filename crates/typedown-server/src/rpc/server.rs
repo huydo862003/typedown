@@ -329,7 +329,7 @@ impl RpcServer {
           .entry(exported.schema.clone())
           .or_default()
           .push(TdContentSummary {
-            path: rel,
+            filepath: rel,
             schema: exported.schema,
             header: exported.header,
           });

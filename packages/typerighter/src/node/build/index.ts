@@ -7,14 +7,14 @@ import {
   prerenderHtmlPages,
 } from './prerender';
 import {
-  generateAppEntry, generateSsrEntry,
-} from '../plugin/vite/codegen';
-import {
-  typedown,
+  generateClientAppEntry, typedown,
 } from '../plugin/vite';
 import {
   ProgressLogger,
 } from '../lib/progress';
+import {
+  buildContentTree, buildDirectoryListingMap, type ContentTreeNode,
+} from '@/shared';
 import type {
   AppContext,
 } from '../context';
@@ -48,16 +48,17 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
   const [
     config,
     files,
-    sidebarGroups,
+    schemaGroups,
   ] = await Promise.all([
     tdContext.getConfig(),
     tdContext.listFiles(),
     tdContext.listFilesGroupedBySchema(),
   ]);
 
-  const hasIndex = files.some((file) => file === 'index.td');
+  const allItems = Object.values(schemaGroups).flat();
+  const contentTree = buildContentTree(allItems);
   const siteConfig = JSON.stringify({ title: config.siteTitle, description: config.siteDescription });
-  const siteData = JSON.stringify({ sidebarGroups });
+  const siteData = JSON.stringify({ contentTree });
 
   // 2. Generate entry files inside the project so Vite can resolve 'typerighter/*' imports
   const tempDir = path.join(root, 'node_modules', '.typerighter');
@@ -66,19 +67,17 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
   const ssrEntryPath = path.join(tempDir, 'ssr-entry.js');
 
   await Promise.all([
-    fs.writeFile(clientEntryPath, generateAppEntry({
+    fs.writeFile(clientEntryPath, generateClientAppEntry({
       contentDir: config.contentDir,
       siteTitle: config.siteTitle,
       siteDescription: config.siteDescription,
-      hasIndex,
-      sidebarGroups,
+      contentTree,
     })),
     fs.writeFile(ssrEntryPath, generateSsrEntry({
       contentDir: config.contentDir,
       layoutImport: DEFAULT_LAYOUT_IMPORT,
       siteConfig,
       siteData,
-      hasIndex,
     })),
   ]);
 
@@ -141,9 +140,9 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
         : `/${withoutExtension}`;
     });
 
-    if (!hasIndex) {
-      pagePaths.push('/');
-    }
+    // Add directory index pages (root + all subdirectories)
+    pagePaths.push('/');
+    collectDirectoryPaths(contentTree.children, '', pagePaths);
 
     const phase3 = new ProgressLogger(logger, 'Pre-rendering pages...');
 
@@ -181,6 +180,55 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
   logger.log(`\nBuild complete. Output: ${outDir}`);
 }
 
+interface SsrEntryOptions {
+  contentDir: string;
+  layoutImport: string;
+  siteConfig: string;
+  siteData: string;
+}
+
+// Generate the SSR entry module used for pre-rendering
+function generateSsrEntry (options: SsrEntryOptions): string {
+  const glob = `/${options.contentDir}/**/*.td`;
+  const parsedConfig = JSON.parse(options.siteConfig);
+  const parsedData = JSON.parse(options.siteData).contentTree ?? { rootItems: [], children: [] };
+  const directoryListingMap = buildDirectoryListingMap(parsedData.children ?? [], parsedConfig.title ?? '');
+
+  return `
+import { createTypedownApp } from 'typerighter/client';
+import { TdDirectoryIndex } from 'typerighter/client/theme-default';
+import { renderToString } from 'vue/server-renderer';
+import { h } from 'vue';
+import theme from '${options.layoutImport}';
+
+const pages = import.meta.glob('${glob}', { eager: true });
+
+const directoryIndex = ${JSON.stringify(directoryListingMap)};
+
+function loadPageModule(pagePath) {
+  const key = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
+  const altKey = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
+  const page = pages[key] || pages[altKey];
+  if (page) return Promise.resolve(page);
+
+  const dir = directoryIndex[pagePath] || directoryIndex[pagePath + '/'];
+  if (dir) return Promise.resolve({
+    default: { name: 'DirectoryIndex', render() { return h(TdDirectoryIndex, dir); } },
+    __pageData: { schema: '', frontmatter: {}, headings: [], title: dir.title },
+  });
+
+  return Promise.resolve(undefined);
+}
+
+export async function render(url) {
+  const { app, router } = await createTypedownApp(loadPageModule, theme.Layout, ${options.siteConfig}, ${options.siteData});
+  await router.go(url, { replace: true });
+  const html = await renderToString(app);
+  return { html, pageData: router.route.data };
+}
+`;
+}
+
 // Copy non-.td files from content directory to output, preserving structure
 async function copyContentAssets (contentDir: string, outDir: string): Promise<void> {
   const entries = await fs.readdir(contentDir, {
@@ -200,4 +248,14 @@ async function copyContentAssets (contentDir: string, outDir: string): Promise<v
     });
 
   await Promise.all(copies);
+}
+
+// Collect all directory paths from the content tree for pre-rendering
+function collectDirectoryPaths (nodes: ContentTreeNode[], prefix: string, paths: string[]) {
+  for (const node of nodes) {
+    const dirPath = `${prefix}/${node.name}`;
+
+    paths.push(dirPath);
+    collectDirectoryPaths(node.children, dirPath, paths);
+  }
 }

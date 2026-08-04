@@ -14,6 +14,7 @@ import {
 import TdBrandIcon from './components/TdBrandIcon.vue';
 import TdButton from './components/TdButton.vue';
 import TdContentNav from './components/TdContentNav.vue';
+import TdBreadcrumb from './components/TdBreadcrumb.vue';
 import TdMenuButton from './components/TdMenuButton.vue';
 import TdThemeToggle from './components/TdThemeToggle.vue';
 import {
@@ -88,7 +89,7 @@ useCopyCode();
         class="pt-4"
         aria-label="Site navigation"
       >
-        <TdContentNav :groups="siteData.sidebarGroups" />
+        <TdContentNav :tree="siteData.contentTree" />
       </nav>
     </div>
 
@@ -97,14 +98,13 @@ useCopyCode();
         class="td-sidebar-left"
         aria-label="Site navigation"
       >
-        <div class="td-sidebar-left-inner">
-          <TdContentNav :groups="siteData.sidebarGroups" />
-        </div>
+        <TdContentNav :tree="siteData.contentTree" />
       </nav>
 
       <div class="td-main-and-toc">
         <main class="td-main">
           <article class="td-content">
+            <TdBreadcrumb />
             <h1
               v-if="title"
               class="td-page-title"
@@ -119,7 +119,6 @@ useCopyCode();
           class="td-sidebar-right"
           aria-label="Table of contents"
         >
-          <div class="td-sidebar-right-inner">
             <div
               v-if="page.headings.length"
               class="td-toc"
@@ -144,7 +143,6 @@ useCopyCode();
                 </li>
               </ul>
             </div>
-          </div>
         </nav>
       </div>
     </div>
@@ -234,7 +232,7 @@ useCopyCode();
   font-size: var(--font-size-td-h1);
   line-height: var(--leading-td-heading);
   letter-spacing: var(--tracking-td-heading);
-  margin: 0 0 8px 0;
+  margin: 0 0 24px 0;
 }
 
 /* Menu button: hidden above lg */
@@ -246,17 +244,13 @@ useCopyCode();
 /* Sidebar: static column above lg */
 
 .td-sidebar-left {
-  overflow-y: auto;
   width: var(--td-sidebar-width);
-  padding: 22px 0 60px;
-}
-
-.td-sidebar-left-inner {
   position: sticky;
-  top: 2rem;
-  display: flex;
-  flex-direction: column;
-  width: var(--td-sidebar-width);
+  top: var(--td-header-height);
+  height: calc(100vh - var(--td-header-height));
+  overflow-y: auto;
+  padding: 22px 0 60px;
+  flex-shrink: 0;
 }
 
 /* Menu overlay: full-screen with own header */
@@ -288,14 +282,12 @@ useCopyCode();
 /* Right sidebar (TOC) */
 
 .td-sidebar-right {
+  position: sticky;
+  top: var(--td-header-height);
+  height: calc(100vh - var(--td-header-height));
   overflow-y: auto;
   padding: 44px 22px 60px;
   min-width: 0;
-}
-
-.td-sidebar-right-inner {
-  position: sticky;
-  top: 0;
 }
 
 .td-toc-label {

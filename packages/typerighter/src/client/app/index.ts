@@ -16,10 +16,9 @@ import {
 import {
   createRouter, routerSymbol, type Router,
 } from './router';
-import {
-  isInBrowser,
-  type PageModule,
-  type SidebarGroups,
+import type {
+  PageModule,
+  ContentTree,
 } from '@/shared';
 
 export {
@@ -40,8 +39,8 @@ export interface TypedownSiteConfig {
 }
 
 export interface TypedownSiteData {
-  /** Content files grouped by schema */
-  sidebarGroups: SidebarGroups;
+  /** Content files as a recursive directory tree */
+  contentTree: ContentTree;
 }
 
 const siteConfigSymbol: InjectionKey<TypedownSiteConfig> = Symbol('typedown-site-config');
@@ -62,7 +61,10 @@ export async function createTypedownApp (
   };
 
   const siteData: TypedownSiteData = {
-    sidebarGroups: data.sidebarGroups ?? {},
+    contentTree: data.contentTree ?? {
+      rootItems: [],
+      children: [],
+    },
   };
 
   const router = createRouter(loadPageModule);
@@ -83,7 +85,7 @@ export async function createTypedownApp (
   app.provide(siteDataSymbol, siteData);
   app.component('TypedownContent', Content);
 
-  if (isInBrowser) {
+  if (typeof window !== 'undefined') {
     await router.go(location.href, {
       replace: true,
       initialLoad: true,
@@ -105,6 +107,9 @@ export function useSiteConfig (): TypedownSiteConfig {
 
 export function useSiteData (): TypedownSiteData {
   return inject(siteDataSymbol, {
-    sidebarGroups: {},
+    contentTree: {
+      rootItems: [],
+      children: [],
+    },
   });
 }

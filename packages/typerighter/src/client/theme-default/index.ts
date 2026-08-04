@@ -9,8 +9,8 @@ export {
 } from './composables/useCopyCode';
 
 export {
-  default as TdOverview,
-} from './components/TdOverview.vue';
+  default as TdDirectoryIndex,
+} from './components/TdDirectoryIndex.vue';
 
 export default {
   Layout: TdLayout,

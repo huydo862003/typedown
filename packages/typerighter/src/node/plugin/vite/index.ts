@@ -10,25 +10,86 @@ import {
   createAppContext, resolveProjectRoot, type AppContext,
 } from '../../context';
 import {
-  VIRTUAL_APP_ID, RESOLVED_VIRTUAL_APP_ID, VIRTUAL_INDEX_ID,
+  VIRTUAL_APP_ID, RESOLVED_VIRTUAL_APP_ID,
 } from './constants';
-import {
-  generateAppEntry, generateIndexSfc,
-} from './codegen';
 import {
   resolveAliases,
 } from './alias';
 import {
+  buildContentTree,
+  buildDirectoryListingMap,
   escapeHtml,
+} from '@/shared';
+import type {
+  ContentTree,
 } from '@/shared';
 import {
   BRAND_FAVICON_URI,
 } from '@/shared/brand';
 
+export interface ClientAppEntryOptions {
+  /** Content directory relative to project root */
+  contentDir: string;
+  /** Site title */
+  siteTitle: string;
+  /** Site description */
+  siteDescription: string;
+  /** Content files as a recursive directory tree */
+  contentTree: ContentTree;
+}
+
 // Create the typedown vite plugin with the Vue plugin bundled
 export interface TypedownPluginOptions {
   // @internal Used by buildSite to share the RPC connection
   context?: AppContext;
+}
+
+export function generateClientAppEntry (options: ClientAppEntryOptions): string {
+  const {
+    contentDir,
+  } = options;
+  const glob = `/${contentDir}/**/*.td`;
+
+  const siteConfig = JSON.stringify({
+    title: options.siteTitle,
+    description: options.siteDescription,
+  });
+
+  const siteData = JSON.stringify({
+    contentTree: options.contentTree,
+  });
+
+  const directoryListingMap = buildDirectoryListingMap(options.contentTree.children, options.siteTitle);
+
+  return `
+import 'typerighter/style.css';
+import { createTypedownApp } from 'typerighter/client';
+import { TdDirectoryIndex } from 'typerighter/client/theme-default';
+import { h } from 'vue';
+import theme from 'typerighter/client/theme-default';
+
+const pages = import.meta.glob('${glob}');
+
+const directoryIndex = ${JSON.stringify(directoryListingMap)};
+
+async function loadPageModule(pagePath) {
+  const key = '/${contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
+  const altKey = '/${contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
+  const loader = pages[key] || pages[altKey];
+  if (loader) return loader();
+
+  const dir = directoryIndex[pagePath] || directoryIndex[pagePath + '/'];
+  if (dir) return {
+    default: { name: 'DirectoryIndex', render() { return h(TdDirectoryIndex, dir); } },
+    __pageData: { schema: '', frontmatter: {}, headings: [], title: dir.title },
+  };
+
+  return undefined;
+}
+
+const { app } = await createTypedownApp(loadPageModule, theme.Layout, ${siteConfig}, ${siteData});
+app.mount('#app');
+`;
 }
 
 export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
@@ -73,39 +134,29 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       if (id === '/' + VIRTUAL_APP_ID || id === VIRTUAL_APP_ID) {
         return RESOLVED_VIRTUAL_APP_ID;
       }
-      if (id.endsWith(VIRTUAL_INDEX_ID)) {
-        return id;
-      }
     },
 
     // Serve virtual modules
     async load (id) {
+      if (id !== RESOLVED_VIRTUAL_APP_ID) return;
+
       const tdContext = await resolveTdContext();
 
-      if (id === RESOLVED_VIRTUAL_APP_ID) {
-        const [
-          config,
-          files,
-          sidebarGroups,
-        ] = await Promise.all([
-          tdContext.getConfig(),
-          tdContext.listFiles(),
-          tdContext.listFilesGroupedBySchema(),
-        ]);
-        const hasIndex = files.some((file) => file === 'index.td');
+      const [
+        config,
+        schemaGroups,
+      ] = await Promise.all([
+        tdContext.getConfig(),
+        tdContext.listFilesGroupedBySchema(),
+      ]);
 
-        return generateAppEntry({
-          ...config,
-          hasIndex,
-          sidebarGroups,
-        });
-      }
+      const allItems = Object.values(schemaGroups).flat();
+      const contentTree = buildContentTree(allItems);
 
-      if (id.endsWith(VIRTUAL_INDEX_ID)) {
-        const groups = await tdContext.listFilesGroupedBySchema();
-
-        return generateIndexSfc(groups);
-      }
+      return generateClientAppEntry({
+        ...config,
+        contentTree,
+      });
     },
 
     async configureServer (devServer) {
@@ -185,7 +236,6 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       const cleanId = id.split('?')[0];
 
       if (!cleanId.endsWith('.td')) return;
-      if (cleanId.includes(VIRTUAL_INDEX_ID)) return;
 
       const tdContext = await resolveTdContext();
       const config = await tdContext.getConfig();

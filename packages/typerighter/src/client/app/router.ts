@@ -7,9 +7,8 @@ import {
 import type {
   PageData, PageModule,
 } from '@/shared';
-import {
-  isInBrowser,
-} from '@/shared';
+
+const isInBrowser = typeof window !== 'undefined';
 
 export interface Route {
   path: string;

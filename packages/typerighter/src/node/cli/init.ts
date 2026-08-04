@@ -298,15 +298,15 @@ async function writeIfMissing (
     silent?: boolean;
   } = {},
 ): Promise<boolean> {
-  const filePath = path.join(directory, name);
+  const filepath = path.join(directory, name);
 
   try {
-    await fs.access(filePath);
+    await fs.access(filepath);
     if (!options.silent) log.warn(`skip ${name} (already exists)`);
 
     return false;
   } catch {
-    await fs.writeFile(filePath, content);
+    await fs.writeFile(filepath, content);
     if (!options.silent) log.success(`created ${name}`);
 
     return true;

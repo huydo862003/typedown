@@ -51,10 +51,10 @@ export async function prerenderHtmlPages (context: PrerenderContext): Promise<vo
     const fileName = pagePath === '/'
       ? 'index.html'
       : `${pagePath.replace(/^\//, '')}.html`;
-    const filePath = path.join(context.outDir, fileName);
+    const filepath = path.join(context.outDir, fileName);
 
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, html);
+    await fs.mkdir(path.dirname(filepath), { recursive: true });
+    await fs.writeFile(filepath, html);
 
     renderedPages++;
     context.progress?.update(renderedPages, totalPages);

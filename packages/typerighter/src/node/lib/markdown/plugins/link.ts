@@ -11,8 +11,8 @@ import type {
 } from 'markdown-it-async';
 import {
   EXTERNAL_URL_RE,
-  isExternal,
-  isLinkToPage,
+  isUrlExternal,
+  isUrlToPage,
   type MarkdownEnv,
 } from '@/shared';
 
@@ -67,7 +67,7 @@ export function linkPlugin (
 
       hrefAttribute[1] = url;
 
-      if (isExternal(url)) {
+      if (isUrlExternal(url)) {
         // External link: apply configured attributes (e.g. target="_blank", rel="noreferrer")
         Object.entries(externalAttrs).forEach(([
           key,
@@ -92,7 +92,7 @@ export function linkPlugin (
           && protocol.startsWith('http')   // not mailto:/tel:/etc
           && token.attrIndex('target') < 0 // not explicitly targeted
           && token.attrIndex('download') < 0 // not a download link
-          && isLinkToPage(pathname)        // not a file download (.pdf, .png, etc.)
+          && isUrlToPage(pathname)        // not a file download (.pdf, .png, etc.)
         ) {
           normalizeHref(hrefAttribute, env, token.meta?.vpLine);
         } else if (url.startsWith('#')) {
