@@ -99,35 +99,35 @@ ${modulePreloads}
 </html>`;
 }
 
-// Scan the client output directory for the entry JS and CSS files
+// Read the Vite manifest to find the client entry and asset files
 async function resolveClientAssets (clientOutDir: string): Promise<{
   clientEntry: string;
   cssFiles: string[];
   jsFiles: string[];
 }> {
-  const assetsDir = path.join(clientOutDir, 'assets');
-  const empty: string[] = [];
-  const files = await fs.readdir(assetsDir).catch(() => empty);
+  const manifestPath = path.join(clientOutDir, '.vite', 'manifest.json');
+  const raw = await fs.readFile(manifestPath, 'utf-8');
+  const manifest = JSON.parse(raw) as Record<string, {
+    file: string;
+    isEntry?: boolean;
+    css?: string[];
+    imports?: string[];
+  }>;
 
+  let clientEntry = '';
   const cssFiles: string[] = [];
   const jsFiles: string[] = [];
-  let clientEntry = '';
 
-  for (const file of files) {
-    if (file.endsWith('.css')) {
-      cssFiles.push(`assets/${file}`);
-    } else if (file.endsWith('.js')) {
-      if (file.startsWith('client-entry') || file.startsWith('index')) {
-        clientEntry = `assets/${file}`;
-      } else {
-        jsFiles.push(`assets/${file}`);
+  for (const chunk of Object.values(manifest)) {
+    if (chunk.isEntry) {
+      clientEntry = chunk.file;
+
+      if (chunk.css) {
+        cssFiles.push(...chunk.css);
       }
+    } else if (chunk.file.endsWith('.js')) {
+      jsFiles.push(chunk.file);
     }
-  }
-
-  if (!clientEntry && jsFiles.length > 0) {
-    clientEntry = jsFiles[0];
-    jsFiles.splice(0, 1);
   }
 
   return { clientEntry, cssFiles, jsFiles };

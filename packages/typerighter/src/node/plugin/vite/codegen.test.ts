@@ -176,6 +176,7 @@ describe('generateSsrEntry', () => {
       layoutImport: 'typerighter/client/theme-default',
       siteConfig: '{}',
       siteData: '{}',
+      hasIndex: false,
     });
 
     expect(result).toContain('import.meta.glob(\'/vault/content/**/*.td\', { eager: true })');
@@ -187,6 +188,7 @@ describe('generateSsrEntry', () => {
       layoutImport: 'typerighter/client/theme-default',
       siteConfig: '{}',
       siteData: '{}',
+      hasIndex: false,
     });
 
     expect(result).toContain('import { renderToString } from \'vue/server-renderer\'');
@@ -198,6 +200,7 @@ describe('generateSsrEntry', () => {
       layoutImport: 'my-custom-theme',
       siteConfig: '{}',
       siteData: '{}',
+      hasIndex: false,
     });
 
     expect(result).toContain('import theme from \'my-custom-theme\'');
@@ -209,6 +212,7 @@ describe('generateSsrEntry', () => {
       layoutImport: 'typerighter/client/theme-default',
       siteConfig: '{}',
       siteData: '{}',
+      hasIndex: false,
     });
 
     expect(result).toContain('export async function render(url)');
@@ -220,6 +224,7 @@ describe('generateSsrEntry', () => {
       layoutImport: 'typerighter/client/theme-default',
       siteConfig: '{"title":"Test"}',
       siteData: '{"sidebarGroups":{}}',
+      hasIndex: false,
     });
 
     expect(result).toContain('{"title":"Test"}');

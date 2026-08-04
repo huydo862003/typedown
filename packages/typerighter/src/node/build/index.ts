@@ -78,6 +78,7 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
       layoutImport: DEFAULT_LAYOUT_IMPORT,
       siteConfig,
       siteData,
+      hasIndex,
     })),
   ]);
 
@@ -98,7 +99,7 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
       build: {
         ...options.viteConfig?.build,
         outDir: clientOutDir,
-        ssrManifest: true,
+        manifest: true,
         emptyOutDir: true,
         rollupOptions: {
           ...options.viteConfig?.build?.rollupOptions,

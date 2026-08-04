@@ -27,6 +27,8 @@ export interface SsrEntryOptions {
   siteConfig: string;
   /** Serialized siteData JSON */
   siteData: string;
+  /** Whether the vault has an index.td file */
+  hasIndex: boolean;
 }
 
 // Generate the virtual app entry module
@@ -93,6 +95,12 @@ export default { name: "index", components: { TdOverview } }
 // Generate the SSR entry module used for pre-rendering
 export function generateSsrEntry (options: SsrEntryOptions): string {
   const glob = `/${options.contentDir}/**/*.td`;
+  const indexPageEntry = options.hasIndex
+    ? ''
+    : `pages['/${options.contentDir}/${VIRTUAL_INDEX_ID}'] = import('${VIRTUAL_INDEX_ID}');`;
+  const indexFallback = options.hasIndex
+    ? ''
+    : ` || (pagePath === '/' ? pages['/${options.contentDir}/${VIRTUAL_INDEX_ID}'] : undefined)`;
 
   return `
 import { createTypedownApp } from 'typerighter/client';
@@ -100,11 +108,12 @@ import { renderToString } from 'vue/server-renderer';
 import theme from '${options.layoutImport}';
 
 const pages = import.meta.glob('${glob}', { eager: true });
+${indexPageEntry}
 
 function loadPageModule(pagePath) {
   const key = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
   const altKey = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
-  return Promise.resolve(pages[key] || pages[altKey]);
+  return Promise.resolve(pages[key] || pages[altKey]${indexFallback});
 }
 
 export async function render(url) {
