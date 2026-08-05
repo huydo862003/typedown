@@ -36,6 +36,13 @@ fn children<T: AstNode>(parent: &RedNode) -> impl Iterator<Item = T> {
 pub struct SourceFile(RedNode);
 
 impl SourceFile {
+  /// Whether the file has a non-empty frontmatter section (opened with ---)
+  pub fn has_nonempty_frontmatter(&self) -> bool {
+    self
+      .frontmatter()
+      .is_some_and(|fm| fm.syntax().children().count() > 0)
+  }
+
   /// Return the frontmatter of the source file
   pub fn frontmatter(&self) -> Option<YamlFrontmatter> {
     child::<YamlFrontmatter>(&self.0)
