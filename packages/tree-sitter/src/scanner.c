@@ -48,10 +48,6 @@ bool tree_sitter_typedown_external_scanner_scan(void *payload, TSLexer *lexer,
     // Yield to grammar's --- literal if frontmatter not yet parsed
     if (!valid_symbols[FRONTMATTER_CONTENT]) {
       lexer->mark_end(lexer);
-      while (lexer->lookahead == '\n' || lexer->lookahead == '\r' ||
-             lexer->lookahead == ' ' || lexer->lookahead == '\t') {
-        lexer->advance(lexer, true);
-      }
       if (lexer->lookahead == '-') {
         lexer->advance(lexer, false);
         if (lexer->lookahead == '-') {

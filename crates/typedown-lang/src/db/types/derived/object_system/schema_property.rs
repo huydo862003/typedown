@@ -10,6 +10,7 @@ use crate::db::derived::get_builtin_types::{
   get_bool_type, get_num_type, get_schema_property_type, get_str_type, get_type_type,
 };
 use crate::db::types::{InstResult, MemberType, TypeMember, TypeMemberDescriptors};
+use crate::db::utils::typecheck::member_types_compatible;
 
 /// The type of a single property descriptor inside a schema's `properties` field.
 /// Each property descriptor has:
@@ -127,20 +128,39 @@ impl TdTypeLike for TdSchemaPropertyType {
   fn get_type_args(&self, _db: &TypedownDatabase) -> Vec<TdTypeEnum> {
     vec![]
   }
-  fn is_compatible_with(&self, _db: &TypedownDatabase, actual: &TdTypeEnum) -> bool {
+  fn is_compatible_with(&self, db: &TypedownDatabase, actual: &TdTypeEnum) -> bool {
     if self.as_id() == actual.as_id() {
       return true;
     }
-    // FIXME: Currently, the type system is not sophisticated enough
-    // But schema_property is an opaque type anyways...
-    // We don't actually provide any validation here.
-
-    // Property descriptors are structurally validated by
-    // evaluate_type::resolve_property_descriptor
-    if actual.is_td_product_type() {
-      return true;
+    let actual_product = match actual.as_td_product_type() {
+      Some(p) => p,
+      None => return false,
+    };
+    // FIXME: Migrate the structural check like TdProductType
+    let actual_fields = actual_product.fields(db);
+    let field_names = ["type", "optional"];
+    for name in field_names {
+      let expected = match self.get_owned_field_type_member(db, name) {
+        Some(m) => m,
+        None => continue,
+      };
+      if expected
+        .descriptors(db)
+        .contains(TypeMemberDescriptors::OPTIONAL)
+      {
+        continue;
+      }
+      let actual_member = match actual_fields.get(name) {
+        Some(m) => m,
+        None => return false,
+      };
+      let exp_typ = expected.typ(db);
+      let act_typ = actual_member.typ(db);
+      if !member_types_compatible(db, &exp_typ, &act_typ) {
+        return false;
+      }
     }
-    false
+    true
   }
   fn construct(&self, _db: &TypedownDatabase, _args: Vec<TdObjectEnum>) -> Option<TdObjectEnum> {
     None

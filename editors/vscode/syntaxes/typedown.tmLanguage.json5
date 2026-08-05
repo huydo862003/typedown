@@ -8,6 +8,9 @@
     },
     {
       "include": "#body"
+    },
+    {
+      "include": "#body-no-frontmatter"
     }
   ],
   "repository": {
@@ -35,6 +38,15 @@
       "comment": "Markdown mode after frontmatter",
       "begin": "(?<=^---)\\s*$",
       "end": "\\z",
+      "patterns": [{ "include": "#md-block" }]
+    },
+    "body-no-frontmatter": {
+      "comment": "Markdown mode when file has no frontmatter",
+      "begin": "\\A(?!---)",
+      "end": "\\z",
+      "patterns": [{ "include": "#md-block" }]
+    },
+    "md-block": {
       "patterns": [
         { "include": "#md-fenced-code" },
         { "include": "#md-math-block" },

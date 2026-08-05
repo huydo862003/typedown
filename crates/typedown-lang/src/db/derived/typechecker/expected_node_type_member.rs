@@ -3,6 +3,7 @@
 
 use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_type::evaluate_type;
+use crate::db::derived::get_builtin_types::get_schemaless_type;
 use crate::db::derived::hir::lower_node;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::typechecker::actual_node_type_member::actual_node_type_member;
@@ -10,6 +11,7 @@ use crate::db::types::{
   File, HirValue, MemberType, Project, StaticAccessPath, Symbol, TdTypeEnum, TdTypeLike,
   TypeMember, TypeMemberDescriptors, TypeMemberResult,
 };
+use crate::db::utils::is_schemaless_file;
 use crate::db::utils::typecheck::{
   lift_type_member_result, member_types_compatible, value_matches_member_type,
 };
@@ -41,7 +43,13 @@ pub fn expected_node_type_member(db: &TypedownDatabase, hir: HirValue) -> TypeMe
 
   let anchor = match collect_path_to_anchor(db, project, file, &node) {
     Some(result) => result,
-    None => return TypeMemberResult::new(db, None, vec![]),
+    None => {
+      // If the file has no _type, return schemaless type
+      if is_schemaless_file(db, project, file) {
+        return simple_schemaless_result(db);
+      }
+      return TypeMemberResult::new(db, None, vec![]);
+    }
   };
 
   // Traverse down the type structure following the path
@@ -362,6 +370,18 @@ fn traverse_index(db: &TypedownDatabase, member_type: &MemberType) -> Option<Typ
   }
 }
 
+fn simple_schemaless_result(db: &TypedownDatabase) -> TypeMemberResult {
+  TypeMemberResult::new(
+    db,
+    Some(TypeMember::new(
+      db,
+      MemberType::Simple(get_schemaless_type(db).into()),
+      TypeMemberDescriptors::empty(),
+    )),
+    vec![],
+  )
+}
+
 #[cfg(test)]
 mod tests {
   use crate::db::TypedownDatabase;
@@ -429,6 +449,27 @@ mod tests {
     assert!(
       result.member(&db).is_none(),
       "untyped mapping root should have no declared member"
+    );
+  }
+
+  #[test]
+  fn expected_node_type_member_no_frontmatter_returns_schemaless() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "content/no_frontmatter.td");
+    let (hir, _) = lower_file(&db, project, file);
+    let hir = hir.expect("no_frontmatter.td should produce HIR");
+
+    let result = expected_node_type_member(&db, hir);
+    let member = result
+      .member(&db)
+      .expect("schemaless file should return a type member");
+    let typ = match member.typ(&db) {
+      MemberType::Simple(typ) => typ,
+      _ => panic!("expected Simple member type"),
+    };
+    assert_eq!(
+      typ.display_name(&db),
+      "{}",
+      "schemaless type should have no fields"
     );
   }
 

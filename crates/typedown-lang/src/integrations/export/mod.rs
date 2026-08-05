@@ -8,13 +8,15 @@ use crate::db::TypedownDatabase;
 use crate::db::derived::evaluate::evaluate_node::evaluate_node;
 use crate::db::derived::evaluate::evaluate_resource::evaluate_resource;
 use crate::db::derived::evaluate::evaluate_type::evaluate_type;
+use crate::db::derived::get_builtin_types::get_schemaless_type;
 use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::derived::hir::lower_node;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::parse_file::parse_file;
 use crate::db::types::{
-  File, HirValue, Project, Symbol, SymbolKind, TdBlobType, TdObjectEnum, TdObjectLike, TdTypeLike,
+  File, HirValue, Project, Symbol, SymbolKind, TdBlobType, TdObjectEnum, TdObjectLike, TdTypeEnum,
+  TdTypeLike,
 };
 use crate::syntax::ast::{AstNode, InterpFragment, MdBody, MdToggleList, SourceFile};
 use crate::syntax::red::RedNode;
@@ -23,8 +25,9 @@ use crate::syntax::syntax_kind::SyntaxKind;
 /// Structured export result
 #[derive(serde::Serialize)]
 pub struct ExportedResource {
-  /// Schema type name of this resource
-  pub schema: String,
+  /// Schema type name
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub schema: Option<String>,
   /// Frontmatter fields as a JSON object
   pub header: serde_json::Value,
   /// Commonmark-compatible markdown body
@@ -43,14 +46,20 @@ pub fn export_resource(
   // Assets export as a blob descriptor with no body
   if obj.as_td_blob_obj().is_some() {
     return Some(ExportedResource {
-      schema: TdBlobType::get(db).display_name(db),
+      schema: Some(TdBlobType::get(db).display_name(db)),
       header: json::to_json(db, &obj).unwrap_or_default(),
       content: String::new(),
     });
   }
 
   let product = obj.as_td_product_obj()?;
-  let schema = product.schema(db).display_name(db);
+  let schema_type = product.schema(db);
+  let schemaless: TdTypeEnum = get_schemaless_type(db).into();
+  let schema = if schema_type == schemaless {
+    None
+  } else {
+    Some(schema_type.display_name(db))
+  };
   let mut header = json::to_json(db, &obj).unwrap_or_default();
   // _content is available in ExportedResource.content, not the header
   if let serde_json::Value::Object(ref mut map) = header {
@@ -322,7 +331,11 @@ mod tests {
       exported.header.as_object().is_some_and(|m| !m.is_empty()),
       "header should have fields"
     );
-    assert_eq!(exported.schema, "Person", "schema should be Person");
+    assert_eq!(
+      exported.schema,
+      Some("Person".to_string()),
+      "schema should be Person"
+    );
     assert!(
       exported.header.get("_content").is_none(),
       "should not contain _content"
@@ -401,7 +414,7 @@ mod tests {
   fn exports_asset_as_blob_descriptor() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/icon.svg");
     let exported = export_resource(&db, project, file).expect("asset should export");
-    assert_eq!(exported.schema, "blob");
+    assert_eq!(exported.schema, Some("blob".to_string()));
     assert_eq!(
       exported.header["format"],
       serde_json::Value::String("svg".to_string())
@@ -488,6 +501,22 @@ mod tests {
     assert!(
       content.contains(expected),
       "toggle list should emit:\n{expected}\ngot:\n{content}"
+    );
+  }
+
+  #[test]
+  fn exports_schemaless_file() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/schemaless.td");
+    let result = export_resource(&db, project, file);
+    let exported = result.expect("schemaless file should export");
+    assert_eq!(
+      exported.schema, None,
+      "schemaless file should have no schema"
+    );
+    assert!(
+      exported.content.contains("Hello"),
+      "should contain markdown body: {}",
+      exported.content
     );
   }
 }

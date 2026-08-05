@@ -325,14 +325,12 @@ impl RpcServer {
       }
       let rel = normalize_path(path.strip_prefix(&content_dir).unwrap_or(path));
       if let Some(exported) = export_resource(db, project, *file) {
-        groups
-          .entry(exported.schema.clone())
-          .or_default()
-          .push(TdContentSummary {
-            filepath: rel,
-            schema: exported.schema,
-            header: exported.header,
-          });
+        let group_key = exported.schema.clone().unwrap_or_default();
+        groups.entry(group_key).or_default().push(TdContentSummary {
+          filepath: rel,
+          schema: exported.schema,
+          header: exported.header,
+        });
       }
     }
 

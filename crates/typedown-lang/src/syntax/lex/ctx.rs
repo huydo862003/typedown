@@ -104,6 +104,15 @@ impl<S: Utf8Stream> LexCtx<S> {
     self.mode
   }
 
+  /// Check if the stream starts with --- at byte 0
+  pub fn has_frontmatter_start(&mut self) -> bool {
+    use crate::syntax::lex::yaml::is_op_char;
+    matches!(self.stream.peek_nth(0), Utf8Result::Char('-'))
+      && matches!(self.stream.peek_nth(1), Utf8Result::Char('-'))
+      && matches!(self.stream.peek_nth(2), Utf8Result::Char('-'))
+      && !matches!(self.stream.peek_nth(3), Utf8Result::Char(c) if is_op_char(c))
+  }
+
   /// Current byte offset in the source stream.
   pub fn offset(&self) -> usize {
     self.stream.offset()

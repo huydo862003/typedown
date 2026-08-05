@@ -106,11 +106,11 @@ mod tests {
   }
 
   #[test]
-  fn parse_invalid_file_with_content_handle() {
+  fn parse_file_without_frontmatter_content_handle() {
     let fixtures = load_fixtures("parse_file");
     let fixture = fixtures
-      .get("invalid.td")
-      .expect("missing invalid.td fixture");
+      .get("no_frontmatter.td")
+      .expect("missing no_frontmatter.td fixture");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
@@ -125,22 +125,23 @@ mod tests {
 
     assert!(
       SourceFile::cast(result.ast(&db)).is_some(),
-      "AST should still be a SourceFile even for invalid input"
+      "AST should be a SourceFile for file without frontmatter"
     );
 
     let diagnostics = result.diagnostics(&db);
     assert!(
-      !diagnostics.is_empty(),
-      "Expected diagnostics for missing frontmatter"
+      diagnostics.is_empty(),
+      "No diagnostics expected for file without frontmatter: {:?}",
+      diagnostics
     );
   }
 
   #[test]
-  fn parse_invalid_file_with_path_handle() {
+  fn parse_file_without_frontmatter_path_handle() {
     let fixtures = load_fixtures("parse_file");
     let fixture = fixtures
-      .get("invalid.td")
-      .expect("missing invalid.td fixture");
+      .get("no_frontmatter.td")
+      .expect("missing no_frontmatter.td fixture");
 
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
@@ -155,13 +156,14 @@ mod tests {
 
     assert!(
       SourceFile::cast(result.ast(&db)).is_some(),
-      "AST should still be a SourceFile even for invalid input"
+      "AST should be a SourceFile for file without frontmatter"
     );
 
     let diagnostics = result.diagnostics(&db);
     assert!(
-      !diagnostics.is_empty(),
-      "Expected diagnostics for missing frontmatter"
+      diagnostics.is_empty(),
+      "No diagnostics expected for file without frontmatter: {:?}",
+      diagnostics
     );
   }
 }

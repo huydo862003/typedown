@@ -71,9 +71,8 @@ pub fn member_types_compatible(
       exp_type.is_compatible_with(db, &base)
     }
 
-    // A simple/literal actual is assignable to a Sum expected if some arm matches.
-    (MemberType::Sum(exp_arms), MemberType::Simple(_))
-    | (MemberType::Sum(exp_arms), MemberType::Literal(_)) => exp_arms
+    // An actual is assignable to a Sum expected if some arm matches
+    (MemberType::Sum(exp_arms), _) => exp_arms
       .iter()
       .any(|exp_arm| member_types_compatible(db, &exp_arm.typ(db), actual)),
 

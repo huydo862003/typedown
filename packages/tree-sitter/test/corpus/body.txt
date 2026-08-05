@@ -49,6 +49,34 @@ Body starting with dash
     (body_content)))
 
 ================
+Body with markdown heading
+================
+
+# Hello world
+
+Some paragraph text.
+
+------
+
+(source_file
+  (body
+    (body_content)))
+
+================
+Whitespace before triple dash is body
+================
+
+  ---
+content
+---
+
+------
+
+(source_file
+  (body
+    (body_content)))
+
+================
 Body starting with double dash
 ================
 

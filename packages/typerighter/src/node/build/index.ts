@@ -206,15 +206,16 @@ const pages = import.meta.glob('${glob}', { eager: true });
 const directoryIndex = ${JSON.stringify(directoryListingMap)};
 
 function loadPageModule(pagePath) {
-  const key = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
-  const altKey = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
+  const base = ('/${options.contentDir}/' + pagePath).replace(/\\/+/g, '/').replace(/\\/$/, '');
+  const key = base + '.td';
+  const altKey = base + '/index.td';
   const page = pages[key] || pages[altKey];
   if (page) return Promise.resolve(page);
 
   const dir = directoryIndex[pagePath] || directoryIndex[pagePath + '/'];
   if (dir) return Promise.resolve({
     default: { name: 'DirectoryIndex', render() { return h(TdDirectoryIndex, dir); } },
-    __pageData: { schema: '', frontmatter: {}, headings: [], title: dir.title },
+    __pageData: { frontmatter: {}, headings: [], title: dir.title },
   });
 
   return Promise.resolve(undefined);
