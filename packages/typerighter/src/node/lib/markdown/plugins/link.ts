@@ -16,7 +16,7 @@ import {
   type MarkdownEnv,
 } from '@/shared';
 
-const INDEX_RE = /(^|.*\/)index.md(#?.*)$/i;
+const INDEX_RE = /(^|.*\/)index\.(?:md|td)(#?.*)$/i;
 
 // markdown-it plugin for:
 // 1. Adding target="_blank" to external links
@@ -114,7 +114,7 @@ export function linkPlugin (
     return self.renderToken(tokens, index, options);
   };
 
-  // Normalize an internal page href: .td -> .html, ensure relative prefix, track for dead link checking
+  // Normalize an internal page href: strip .td/.md extensions, ensure relative prefix, track for dead link checking
   function normalizeHref (
     hrefAttribute: [string, string],
     env: MarkdownEnv,
@@ -136,9 +136,9 @@ export function linkPlugin (
       // Strip query and hash for extension processing
       let cleanUrl = url.replace(/[?#].*$/, '');
 
-      // foo.md -> foo.html
-      if (cleanUrl.endsWith('.md')) {
-        cleanUrl = cleanUrl.replace(/\.md$/, env.cleanUrls ? '' : '.html');
+      // foo.md / foo.td -> foo.html
+      if (cleanUrl.endsWith('.md') || cleanUrl.endsWith('.td')) {
+        cleanUrl = cleanUrl.replace(/\.(?:md|td)$/, env.cleanUrls ? '' : '.html');
       }
 
       // ./foo -> ./foo.html
