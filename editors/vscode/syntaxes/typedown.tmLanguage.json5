@@ -8,6 +8,9 @@
     },
     {
       "include": "#body"
+    },
+    {
+      "include": "#body-no-frontmatter"
     }
   ],
   "repository": {
@@ -34,6 +37,22 @@
     "body": {
       "comment": "Markdown mode after frontmatter",
       "begin": "(?<=^---)\\s*$",
+      "end": "\\z",
+      "patterns": [
+        { "include": "#md-fenced-code" },
+        { "include": "#md-math-block" },
+        { "include": "#md-heading" },
+        { "include": "#md-callout" },
+        { "include": "#md-toggle-list" },
+        { "include": "#md-block-quote" },
+        { "include": "#md-table" },
+        { "include": "#md-list" },
+        { "include": "#md-inline" }
+      ]
+    },
+    "body-no-frontmatter": {
+      "comment": "Markdown mode when file has no frontmatter",
+      "begin": "\\A(?!---)",
       "end": "\\z",
       "patterns": [
         { "include": "#md-fenced-code" },
