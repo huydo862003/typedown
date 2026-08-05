@@ -1,5 +1,6 @@
 use std::{
   cell::{Cell, RefCell},
+  collections::VecDeque,
   io::{BufReader, Read},
 };
 
@@ -14,6 +15,8 @@ pub struct FileStream<T: Read> {
   offset: Cell<usize>,
   /// Number of bytes to skip (from invalid UTF-8 recovery)
   skip: Cell<usize>,
+  /// Lookahead buffer for peek_nth, drained before reading the reader
+  lookahead: VecDeque<Utf8Result>,
 }
 
 impl<T: Read> FileStream<T> {
@@ -23,12 +26,14 @@ impl<T: Read> FileStream<T> {
       buffer: Cell::new(None),
       offset: Cell::new(0),
       skip: Cell::new(0),
+      lookahead: VecDeque::with_capacity(4),
     }
   }
 }
 
-impl<T: Read> Utf8Stream for FileStream<T> {
-  fn peek(&self) -> Utf8Result {
+impl<T: Read> FileStream<T> {
+  // Read the next char from the underlying reader, bypassing lookahead
+  fn read_next(&self) -> Utf8Result {
     if let Some(result) = self.buffer.get() {
       return result;
     }
@@ -50,29 +55,38 @@ impl<T: Read> Utf8Stream for FileStream<T> {
             break Utf8Result::Char(ch);
           }
           if filled >= 4 {
-            // 4 bytes read but still invalid UTF-8
             self.skip.set(filled);
             break Utf8Result::Invalid { len: filled, bytes };
           }
         }
-        Err(_) => {
-          // I/O error treated as EOF
-          break Utf8Result::Eof;
-        }
+        Err(_) => break Utf8Result::Eof,
       }
     };
 
     self.buffer.set(Some(result));
     result
   }
+}
+
+impl<T: Read> Utf8Stream for FileStream<T> {
+  fn peek(&self) -> Utf8Result {
+    if !self.lookahead.is_empty() {
+      return self.lookahead[0];
+    }
+    self.read_next()
+  }
 
   fn advance(&mut self) -> Utf8Result {
-    let result = match self.buffer.take() {
-      Some(r) => r,
-      None => {
-        let r = self.peek();
-        self.buffer.take();
-        r
+    let result = if !self.lookahead.is_empty() {
+      self.lookahead.pop_front().unwrap()
+    } else {
+      match self.buffer.take() {
+        Some(r) => r,
+        None => {
+          let r = self.peek();
+          self.buffer.take();
+          r
+        }
       }
     };
 
@@ -97,5 +111,33 @@ impl<T: Read> Utf8Stream for FileStream<T> {
   fn exhausted(&self) -> bool {
     self.peek();
     matches!(self.buffer.get(), Some(Utf8Result::Eof))
+  }
+
+  fn peek_nth(&mut self, n: usize) -> Utf8Result {
+    // Fill lookahead buffer up to n + 1 entries from the reader
+    if self.lookahead.capacity() < n + 1 {
+      self.lookahead.reserve(n + 1 - self.lookahead.capacity());
+    }
+    while self.lookahead.len() <= n {
+      let result = match self.buffer.take() {
+        Some(r) => r,
+        None => {
+        // Read from buffer/reader, bypassing lookahead
+          let r = self.read_next();
+          self.buffer.take();
+          r
+        }
+      };
+      let is_eof = matches!(result, Utf8Result::Eof);
+      self.lookahead.push_back(result);
+      if is_eof {
+        break;
+      }
+    }
+    if n < self.lookahead.len() {
+      self.lookahead[n]
+    } else {
+      Utf8Result::Eof
+    }
   }
 }

@@ -59,4 +59,17 @@ impl<'a> Utf8Stream for StringStream<'a> {
   fn exhausted(&self) -> bool {
     self.offset.get() >= self.str.len()
   }
+
+  fn peek_nth(&mut self, n: usize) -> Utf8Result {
+    let mut chars = self.str[self.offset.get()..].chars();
+    for _ in 0..n {
+      if chars.next().is_none() {
+        return Utf8Result::Eof;
+      }
+    }
+    match chars.next() {
+      Some(c) => Utf8Result::Char(c),
+      None => Utf8Result::Eof,
+    }
+  }
 }

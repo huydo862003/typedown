@@ -24,6 +24,10 @@ pub trait Utf8Stream {
 
   /// Whether the stream is exhausted.
   fn exhausted(&self) -> bool;
+
+  /// Peek at the nth character ahead (0-indexed) without consuming
+  /// Advances n chars internally, peeks, then restores the stream
+  fn peek_nth(&mut self, n: usize) -> Utf8Result;
 }
 
 impl Utf8Stream for Box<dyn Utf8Stream> {
@@ -41,5 +45,9 @@ impl Utf8Stream for Box<dyn Utf8Stream> {
 
   fn exhausted(&self) -> bool {
     (**self).exhausted()
+  }
+
+  fn peek_nth(&mut self, n: usize) -> Utf8Result {
+    (**self).peek_nth(n)
   }
 }
