@@ -891,15 +891,14 @@ mod tests {
   }
 
   #[test]
-  fn typecheck_schema_prop_descriptor_missing_type_no_typecheck_errors() {
+  fn typecheck_schema_prop_descriptor_missing_type_has_errors() {
     let (db, project, file) =
       load_vault_fixture("typecheck/my_vault", "schemas/PropDescriptorMissingType.td");
     let (hir, _) = lower_file(&db, project, file);
     let result = typecheck(&db, hir.unwrap());
     assert!(
-      result.diagnostics(&db).is_empty(),
-      "missing type in property descriptor is caught by evaluate_type, not typechecker: {:?}",
-      result.diagnostics(&db)
+      !result.diagnostics(&db).is_empty(),
+      "missing type in property descriptor should produce typecheck errors"
     );
   }
 
