@@ -2,14 +2,14 @@ import type {
   TdBuiltResource,
 } from '@typerighter/rpc-client';
 import type {
-  MarkdownRenderer,
-} from '../markdown';
+  TypedownContext,
+} from '../typedown-context';
 import type {
   MarkdownEnv,
   PageData,
 } from '@/shared';
 import {
-  getTdResourceTitle,
+  getTdIndexTitle, getTdResourceTitle, INDEX_FILENAME, path,
 } from '@/shared';
 
 export interface VueRenderResult {
@@ -21,7 +21,7 @@ export interface VueRenderResult {
 
 // Render a built resource to a Vue SFC string
 export async function renderToVueSfc (
-  md: MarkdownRenderer,
+  context: TypedownContext,
   resource: TdBuiltResource,
   filepath: string,
 ): Promise<VueRenderResult> {
@@ -31,9 +31,12 @@ export async function renderToVueSfc (
     cleanUrls: true,
   };
 
-  const html = await md.renderAsync(resource.content, env);
+  const html = await context.md.renderAsync(resource.content, env);
 
-  const title = env.title || getTdResourceTitle(resource.header, filepath);
+  const isIndex = path.basename(filepath, '.td') === INDEX_FILENAME;
+  const title = env.title || (isIndex
+    ? getTdIndexTitle(filepath, (await context.getConfig()).siteTitle)
+    : getTdResourceTitle(resource.header, filepath));
 
   const pageData = {
     schema: resource.schema,

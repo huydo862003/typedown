@@ -73,8 +73,9 @@ const pages = import.meta.glob('${glob}');
 const directoryIndex = ${JSON.stringify(directoryListingMap)};
 
 async function loadPageModule(pagePath) {
-  const key = '/${contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
-  const altKey = '/${contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
+  const base = ('/${contentDir}/' + pagePath).replace(/\\/+/g, '/').replace(/\\/$/, '');
+  const key = base + '.td';
+  const altKey = base + '/index.td';
   const loader = pages[key] || pages[altKey];
   if (loader) return loader();
 
@@ -247,7 +248,7 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       const resource = await tdContext.getFile(relativePath);
       const {
         vueSrc,
-      } = await renderToVueSfc(tdContext.md, resource, relativePath);
+      } = await renderToVueSfc(tdContext, resource, relativePath);
 
       return {
         code: vueSrc,

@@ -7,6 +7,9 @@ import {
 import {
   getParentUrl, getTdContentUrl,
 } from './url';
+import {
+  basename, dirname,
+} from './path';
 
 // Build a recursive tree from a flat list of content summaries, grouped by directory
 export function buildContentTree (items: ContentSummary[]): ContentTree {
@@ -112,15 +115,18 @@ export function buildDirectoryListingMap (tree: ContentTreeNode[], rootTitle: st
   return map;
 }
 
+export function getTdIndexTitle (filepath: string, siteTitle: string): string {
+  const parent = basename(dirname(filepath));
+
+  return parent ? unslugify(parent) : siteTitle;
+}
+
 // Resolve a display title from frontmatter _label, name, or the file path
 export function getTdResourceTitle (header: Record<string, unknown>, filepath: string): string {
   if (header._label !== undefined) return String(header._label);
   if (header.name !== undefined) return String(header.name);
 
-  const filename = filepath.replace(/\.td$/, '').split('/')
-    .pop() ?? '';
-
-  return unslugify(filename);
+  return unslugify(basename(filepath, '.td'));
 }
 
 // Sort by numeric prefix first, then alphabetically as fallback
@@ -135,10 +141,8 @@ function sortTree (node: ContentTreeNode) {
   });
 
   node.items.sort((left, right) => {
-    const leftFile = left.filepath.split('/').pop() ?? '';
-    const rightFile = right.filepath.split('/').pop() ?? '';
-    const leftPrefix = parseNumericPrefix(leftFile.replace(/\.td$/, ''));
-    const rightPrefix = parseNumericPrefix(rightFile.replace(/\.td$/, ''));
+    const leftPrefix = parseNumericPrefix(basename(left.filepath, '.td'));
+    const rightPrefix = parseNumericPrefix(basename(right.filepath, '.td'));
 
     if (leftPrefix.order !== rightPrefix.order) return leftPrefix.order - rightPrefix.order;
 

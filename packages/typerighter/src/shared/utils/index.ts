@@ -1,4 +1,5 @@
 export * from './content';
-export * from './url';
-export * from './html';
 export * from './format';
+export * from './html';
+export * as path from './path';
+export * from './url';

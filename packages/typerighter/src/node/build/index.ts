@@ -206,8 +206,9 @@ const pages = import.meta.glob('${glob}', { eager: true });
 const directoryIndex = ${JSON.stringify(directoryListingMap)};
 
 function loadPageModule(pagePath) {
-  const key = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '.td';
-  const altKey = '/${options.contentDir}/' + pagePath.replace(/^\\//, '') + '/index.td';
+  const base = ('/${options.contentDir}/' + pagePath).replace(/\\/+/g, '/').replace(/\\/$/, '');
+  const key = base + '.td';
+  const altKey = base + '/index.td';
   const page = pages[key] || pages[altKey];
   if (page) return Promise.resolve(page);
 

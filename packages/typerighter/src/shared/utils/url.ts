@@ -1,6 +1,9 @@
 import {
   EXTERNAL_URL_RE,
 } from '../regexes';
+import {
+  dirname, join, basename, extname,
+} from './path';
 
 // Returns true if the URL has a protocol prefix (https:, mailto:, data:, etc.)
 export function isUrlExternal (path: string): boolean {
@@ -25,13 +28,11 @@ export function getDirectoryUrl (urlPrefix: string, name: string): string {
 }
 
 export function getParentUrl (urlPath: string): string {
-  const parts = urlPath.replace(/\/$/, '').split('/');
-
-  return parts.slice(0, -1).join('/') || '/';
+  return dirname(urlPath.replace(/\/$/, '')) || '/';
 }
 
 export function getTdContentUrl (filepath: string): string {
-  return '/' + filepath.replace(/\.td$/, '');
+  return '/' + join(dirname(filepath), basename(filepath, '.td'));
 }
 
 export function isUrlAncestorOf (directoryUrl: string, path: string): boolean {
@@ -40,7 +41,7 @@ export function isUrlAncestorOf (directoryUrl: string, path: string): boolean {
 
 // Returns true if the path looks like a page link (not a file download)
 export function isUrlToPage (filename: string): boolean {
-  const extension = filename.split('.').pop();
+  const extension = extname(filename).slice(1);
 
-  return extension === undefined || !DOWNLOADABLE_FILE_EXTENSIONS.has(extension.toLowerCase());
+  return extension === '' || !DOWNLOADABLE_FILE_EXTENSIONS.has(extension.toLowerCase());
 }
