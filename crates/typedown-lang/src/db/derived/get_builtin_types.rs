@@ -9,8 +9,9 @@ use crate::db::types::BuiltinSchemaKind;
 use crate::db::types::FuncSignature;
 use crate::db::types::{
   InstResult, Symbol, SymbolKind, TdBlobType, TdBoolObj, TdBoolType, TdDateTimeType, TdDateType,
-  TdDictType, TdFuncType, TdListType, TdMathType, TdNumType, TdObjectType, TdSchemaPropertyType,
-  TdSchemaType, TdStrType, TdTimeType, TdTypeEnum, TdTypeLike, TdTypeType,
+  TdDictObj, TdDictType, TdFuncType, TdListType, TdMathType, TdNumType, TdObjectType,
+  TdProductType, TdSchemaPropertyType, TdSchemaType, TdStrType, TdTimeType, TdTypeEnum,
+  TdTypeLike, TdTypeType,
 };
 use typedown_incremental::QueryDatabase;
 
@@ -89,6 +90,17 @@ pub fn get_schema_property_type(db: &TypedownDatabase) -> TdSchemaPropertyType {
 #[query_derived]
 pub fn get_schema_type(db: &TypedownDatabase) -> TdSchemaType {
   TdSchemaType::new(db)
+}
+
+// A schema with no declared fields, used for typeless resources
+#[query_derived]
+pub fn get_schemaless_type(db: &TypedownDatabase) -> TdProductType {
+  let schema_type = get_schema_type(db);
+  let empty_dict = TdDictObj::new(db, std::collections::HashMap::new());
+  schema_type
+    .construct(db, vec![empty_dict.into()])
+    .and_then(|obj| obj.as_td_product_type().copied())
+    .expect("TdSchemaType::construct with empty dict must produce a TdProductType")
 }
 
 pub fn get_type_type_symbol(db: &TypedownDatabase) -> Symbol {
