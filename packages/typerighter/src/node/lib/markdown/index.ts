@@ -142,7 +142,9 @@ export async function createMarkdownRenderer (
         new state.Token('link_close', 'a', -1),
       ];
 
-      state.tokens[index + 1].children?.push(...linkTokens);
+      const space = new state.Token('text', '', 0);
+      space.content = ' ';
+      state.tokens[index + 1].children?.push(space, ...linkTokens);
     },
   });
   mathPlugin(md);
