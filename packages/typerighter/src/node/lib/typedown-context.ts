@@ -7,7 +7,7 @@ import {
   createMarkdownRenderer, type MarkdownRenderer,
 } from './markdown';
 import type {
-  SidebarGroups,
+  SchemaGroups,
 } from '@/shared';
 
 // The context is always rooted at the current directory
@@ -24,7 +24,7 @@ export class TypedownContext {
 
   private cachedConfig: TdSiteConfig | undefined;
   private cachedFiles: string[] | undefined;
-  private cachedFilesGroupedBySchema: SidebarGroups | undefined;
+  private cachedFilesGroupedBySchema: SchemaGroups | undefined;
   private cachedSchemas: string[] | undefined;
   private cachedSchemaMap = new Map<string, TdSchemaInfo>();
   private cachedFileMap = new Map<string, TdBuiltResource>();
@@ -99,8 +99,8 @@ export class TypedownContext {
 
   /* File operations */
 
-  async getFile (filePath: string): Promise<TdBuiltResource> {
-    return this.rpc.requestFile(filePath);
+  async getFile (filepath: string): Promise<TdBuiltResource> {
+    return this.rpc.requestFile(filepath);
   }
 
   async getFiles (paths: string[]): Promise<TdBuiltResource[]> {
@@ -108,9 +108,9 @@ export class TypedownContext {
 
     for (const [
       index,
-      filePath,
+      filepath,
     ] of paths.entries()) {
-      this.cachedFileMap.set(filePath, results[index]);
+      this.cachedFileMap.set(filepath, results[index]);
     }
 
     return results;
@@ -124,12 +124,12 @@ export class TypedownContext {
     return this.cachedFiles;
   }
 
-  async listFilesGroupedBySchema (): Promise<SidebarGroups> {
+  async listFilesGroupedBySchema (): Promise<SchemaGroups> {
     if (this.cachedFilesGroupedBySchema) return this.cachedFilesGroupedBySchema;
 
     const raw = await this.rpc.listFilesGroupedBySchema();
     // serde_wasm_bindgen converts HashMap to a JS Map, convert to plain object
-    const result: SidebarGroups = raw instanceof Map
+    const result: SchemaGroups = raw instanceof Map
       ? Object.fromEntries(raw)
       : raw ?? {};
 
@@ -149,10 +149,10 @@ export class TypedownContext {
   }
 
   // Get the asset directory for a given file
-  async getAssetDir (filePath: string): Promise<string> {
+  async getAssetDir (filepath: string): Promise<string> {
     const config = await this.getConfig();
 
-    return path.join(path.dirname(filePath), config.assetsDir.path);
+    return path.join(path.dirname(filepath), config.assetsDir.path);
   }
 
   async getSchema (schema: string): Promise<TdSchemaInfo> {

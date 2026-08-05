@@ -7,7 +7,7 @@ const shellLangs = [
 ];
 
 // Check if a language identifier is a shell language
-export function isShell (language: string): boolean {
+export function isShellLanguage (language: string): boolean {
   return shellLangs.includes(language);
 }
 

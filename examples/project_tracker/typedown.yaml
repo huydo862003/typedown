@@ -3,5 +3,5 @@ vault:
   content_dir: vault/content
   schema_dir: vault/schemas
 site:
-  title: "project_tracker"
+  title: "Project Tracker"
   description: "A typedown site"

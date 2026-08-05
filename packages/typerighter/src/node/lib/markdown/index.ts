@@ -116,7 +116,6 @@ export async function createMarkdownRenderer (
           .reduce((accumulator, token) => accumulator + token.content, '')
           .trim() || '';
 
-      // The anchor link is prepended so float:left positions it before the heading text
       const linkTokens = [
         Object.assign(new state.Token('link_open', 'a', 1), {
           attrs: [
@@ -143,7 +142,7 @@ export async function createMarkdownRenderer (
         new state.Token('link_close', 'a', -1),
       ];
 
-      state.tokens[index + 1].children?.unshift(...linkTokens);
+      state.tokens[index + 1].children?.push(...linkTokens);
     },
   });
   mathPlugin(md);

@@ -9,7 +9,7 @@ import type {
   PageData,
 } from '@/shared';
 import {
-  getResourceTitle,
+  getTdResourceTitle,
 } from '@/shared';
 
 export interface VueRenderResult {
@@ -23,17 +23,17 @@ export interface VueRenderResult {
 export async function renderToVueSfc (
   md: MarkdownRenderer,
   resource: TdBuiltResource,
-  filePath: string,
+  filepath: string,
 ): Promise<VueRenderResult> {
   const env: MarkdownEnv = {
-    path: filePath,
-    relativePath: filePath,
+    path: filepath,
+    relativePath: filepath,
     cleanUrls: true,
   };
 
   const html = await md.renderAsync(resource.content, env);
 
-  const title = env.title || getResourceTitle(resource.header, filePath);
+  const title = env.title || getTdResourceTitle(resource.header, filepath);
 
   const pageData = {
     schema: resource.schema,
@@ -49,7 +49,7 @@ export async function renderToVueSfc (
   const vueSrc = [
     '<script>',
     `export const __pageData = JSON.parse(${pageDataJson})`,
-    `export default { name: ${JSON.stringify(filePath)}, data() { return { __html: ${htmlJson} } } }`,
+    `export default { name: ${JSON.stringify(filepath)}, data() { return { __html: ${htmlJson} } } }`,
     '</script>',
     '<template><div v-html="__html" /></template>',
   ].join('\n');

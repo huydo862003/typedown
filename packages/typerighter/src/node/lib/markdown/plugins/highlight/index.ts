@@ -17,12 +17,12 @@ import {
   createHighlighter as _createHighlighter, guessEmbeddedLanguages, isSpecialLang,
 } from 'shiki';
 import {
-  consoleLogger,
-} from '../../logger';
-import {
   extractLanguage,
-  isShell,
-} from '@/shared';
+  isShellLanguage,
+} from './language';
+import {
+  consoleLogger,
+} from '@/node/lib/logger';
 
 // Auto-dispose the Shiki highlighter when it is GC'd
 const highlighterRegistry = new FinalizationRegistry<() => void>((dispose) => {
@@ -177,7 +177,7 @@ function transformerDisableShellSymbolSelect (): ShikiTransformer {
   return {
     name: 'typedown:disable-shell-symbol-select',
     tokens (tokensByLine) {
-      if (!isShell(this.options.lang)) return;
+      if (!isShellLanguage(this.options.lang)) return;
 
       for (const tokens of tokensByLine) {
         if (tokens.length < 2) continue;
