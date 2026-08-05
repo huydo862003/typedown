@@ -509,7 +509,10 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/schemaless.td");
     let result = export_resource(&db, project, file);
     let exported = result.expect("schemaless file should export");
-    assert_eq!(exported.schema, None, "schemaless file should have no schema");
+    assert_eq!(
+      exported.schema, None,
+      "schemaless file should have no schema"
+    );
     assert!(
       exported.content.contains("Hello"),
       "should contain markdown body: {}",
