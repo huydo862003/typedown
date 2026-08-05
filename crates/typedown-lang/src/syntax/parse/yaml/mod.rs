@@ -22,18 +22,13 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     let mut children = vec![];
 
-    // Consume opening ---
-    let ok = self.consume_yaml_if(
-      &mut children,
-      SKIP_INDENT,
-      |token| token.kind() == SyntaxKind::YamlOp && token.chars().collect::<String>() == "---",
-      Diagnostic::MissingFrontmatterMarker {
-        offset: self.offset(),
-      },
-    );
-    if !ok {
-      self.synchronize_to_triple_dash(&mut children);
+    // Check if the file starts with --- before lexing anything
+    if !self.lex_ctx.has_frontmatter_start() {
+      return self.emit(SyntaxKind::YamlFrontmatter, &children);
     }
+
+    // Consume opening ---
+    self.advance_yaml(&mut children, SKIP_INDENT);
 
     // Expect newline after opening ---
     self.expect_end_of_line(
@@ -81,30 +76,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     self.emit(SyntaxKind::YamlFrontmatter, &children)
-  }
-
-  /// Error recovery: skip tokens until `---` or EOF is found.
-  fn synchronize_to_triple_dash(&mut self, children: &mut Vec<GreenNode>) {
-    let mut error_children = vec![];
-
-    loop {
-      let result = self.lex_ctx.lex();
-      let kind = result.token.kind();
-
-      let is_target = (kind == SyntaxKind::YamlOp
-        && result.token.chars().collect::<String>() == "---")
-        || kind == SyntaxKind::Eof;
-
-      if is_target {
-        if !error_children.is_empty() {
-          children.push(self.emit(SyntaxKind::Error, &error_children));
-        }
-        children.push(GreenNode::from_token(result.token));
-        return;
-      }
-
-      error_children.push(GreenNode::from_token(result.token));
-    }
   }
 
   /* YAML frontmatter body */
