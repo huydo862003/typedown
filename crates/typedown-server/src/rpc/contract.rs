@@ -125,7 +125,8 @@ pub struct TdContentSummary {
   /// File path relative to the content directory
   pub filepath: String,
   /// Schema type name
-  pub schema: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub schema: Option<String>,
   /// Frontmatter header as JSON
   #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
   pub header: serde_json::Value,
@@ -136,7 +137,8 @@ pub struct TdContentSummary {
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
 #[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
 pub struct TdBuiltResource {
-  pub schema: String,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub schema: Option<String>,
   #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
   pub header: serde_json::Value,
   pub content: String,

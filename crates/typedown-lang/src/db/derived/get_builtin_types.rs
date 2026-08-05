@@ -10,8 +10,8 @@ use crate::db::types::FuncSignature;
 use crate::db::types::{
   InstResult, Symbol, SymbolKind, TdBlobType, TdBoolObj, TdBoolType, TdDateTimeType, TdDateType,
   TdDictObj, TdDictType, TdFuncType, TdListType, TdMathType, TdNumType, TdObjectType,
-  TdProductType, TdSchemaPropertyType, TdSchemaType, TdStrType, TdTimeType, TdTypeEnum,
-  TdTypeLike, TdTypeType,
+  TdProductType, TdSchemaPropertyType, TdSchemaType, TdStrType, TdTimeType, TdTypeEnum, TdTypeLike,
+  TdTypeType,
 };
 use typedown_incremental::QueryDatabase;
 

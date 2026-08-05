@@ -122,7 +122,7 @@ impl<T: Read> Utf8Stream for FileStream<T> {
       let result = match self.buffer.take() {
         Some(r) => r,
         None => {
-        // Read from buffer/reader, bypassing lookahead
+          // Read from buffer/reader, bypassing lookahead
           let r = self.read_next();
           self.buffer.take();
           r

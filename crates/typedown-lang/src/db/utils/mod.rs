@@ -27,6 +27,17 @@ pub fn lower_file(
   (Some(hir), diagnostics)
 }
 
+/// Check if a file has no frontmatter (schemaless)
+pub fn is_schemaless_file(db: &TypedownDatabase, project: Project, file: File) -> bool {
+  let result = parse_file(db, project, file);
+  let root = result.ast(db);
+  let source_file = match SourceFile::cast(root) {
+    Some(source_file) => source_file,
+    None => return false,
+  };
+  !source_file.has_nonempty_frontmatter()
+}
+
 /// Find the value of the _type field in a mapping or dict node
 pub fn schema_name_in_mapping(mapping: &RedNode) -> Option<String> {
   for entry in mapping.children() {

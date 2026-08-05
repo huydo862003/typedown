@@ -119,30 +119,30 @@ useCopyCode();
           class="td-sidebar-right"
           aria-label="Table of contents"
         >
-            <div
-              v-if="page.headings.length"
-              class="td-toc"
-            >
-              <div class="td-toc-label">
-                On this page
-              </div>
-              <ul class="td-toc-list">
-                <li
-                  v-for="heading in page.headings"
-                  :key="heading.slug"
-                  :class="{
-                    'td-toc-indent-1': heading.level === 3,
-                    'td-toc-indent-2': heading.level === 4,
-                    'td-toc-indent-3': heading.level === 5,
-                  }"
-                >
-                  <a
-                    :href="heading.link"
-                    class="td-toc-link"
-                  >{{ heading.title }}</a>
-                </li>
-              </ul>
+          <div
+            v-if="page.headings.length"
+            class="td-toc"
+          >
+            <div class="td-toc-label">
+              On this page
             </div>
+            <ul class="td-toc-list">
+              <li
+                v-for="heading in page.headings"
+                :key="heading.slug"
+                :class="{
+                  'td-toc-indent-1': heading.level === 3,
+                  'td-toc-indent-2': heading.level === 4,
+                  'td-toc-indent-3': heading.level === 5,
+                }"
+              >
+                <a
+                  :href="heading.link"
+                  class="td-toc-link"
+                >{{ heading.title }}</a>
+              </li>
+            </ul>
+          </div>
         </nav>
       </div>
     </div>

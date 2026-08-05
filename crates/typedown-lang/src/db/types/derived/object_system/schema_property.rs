@@ -144,7 +144,10 @@ impl TdTypeLike for TdSchemaPropertyType {
         Some(m) => m,
         None => continue,
       };
-      if expected.descriptors(db).contains(TypeMemberDescriptors::OPTIONAL) {
+      if expected
+        .descriptors(db)
+        .contains(TypeMemberDescriptors::OPTIONAL)
+      {
         continue;
       }
       let actual_member = match actual_fields.get(name) {

@@ -214,7 +214,7 @@ function loadPageModule(pagePath) {
   const dir = directoryIndex[pagePath] || directoryIndex[pagePath + '/'];
   if (dir) return Promise.resolve({
     default: { name: 'DirectoryIndex', render() { return h(TdDirectoryIndex, dir); } },
-    __pageData: { schema: '', frontmatter: {}, headings: [], title: dir.title },
+    __pageData: { frontmatter: {}, headings: [], title: dir.title },
   });
 
   return Promise.resolve(undefined);

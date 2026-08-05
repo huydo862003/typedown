@@ -371,7 +371,11 @@ world
 fn parse_typedown_no_frontmatter() {
   let input = "# Hello\n\nparagraph here\n";
   let (ast, diagnostics) = parse(input);
-  assert!(diagnostics.is_empty(), "should have no diagnostics: {:?}", diagnostics);
+  assert!(
+    diagnostics.is_empty(),
+    "should have no diagnostics: {:?}",
+    diagnostics
+  );
   let tree = render_tree(&ast);
   assert_eq!(
     tree,
@@ -400,9 +404,12 @@ fn parse_typedown_empty_file() {
   let (ast, diagnostics) = parse("");
   assert!(diagnostics.is_empty());
   let tree = render_tree(&ast);
-  assert_eq!(tree, r####"(SourceFile
+  assert_eq!(
+    tree,
+    r####"(SourceFile
   (YamlFrontmatter)
-  (MdBody))"####);
+  (MdBody))"####
+  );
 }
 
 // Single dash is not a frontmatter opener
@@ -410,9 +417,16 @@ fn parse_typedown_empty_file() {
 fn parse_typedown_single_dash_no_frontmatter() {
   let input = "- list item\n";
   let (ast, diagnostics) = parse(input);
-  assert!(diagnostics.is_empty(), "should have no diagnostics: {:?}", diagnostics);
+  assert!(
+    diagnostics.is_empty(),
+    "should have no diagnostics: {:?}",
+    diagnostics
+  );
   let tree = render_tree(&ast);
-  assert!(tree.contains("(YamlFrontmatter)"), "should have empty frontmatter");
+  assert!(
+    tree.contains("(YamlFrontmatter)"),
+    "should have empty frontmatter"
+  );
   assert!(tree.contains("MdBulletList"), "should parse as bullet list");
 }
 
@@ -423,7 +437,10 @@ fn parse_typedown_double_dash_no_frontmatter() {
   let (ast, diagnostics) = parse(input);
   assert!(diagnostics.is_empty());
   let tree = render_tree(&ast);
-  assert!(tree.contains("(YamlFrontmatter)"), "should have empty frontmatter");
+  assert!(
+    tree.contains("(YamlFrontmatter)"),
+    "should have empty frontmatter"
+  );
   assert!(tree.contains("MdBody"), "should have markdown body");
 }
 
@@ -434,7 +451,10 @@ fn parse_typedown_four_dashes_no_frontmatter() {
   let (ast, diagnostics) = parse(input);
   assert!(diagnostics.is_empty());
   let tree = render_tree(&ast);
-  assert!(tree.contains("(YamlFrontmatter)"), "should have empty frontmatter");
+  assert!(
+    tree.contains("(YamlFrontmatter)"),
+    "should have empty frontmatter"
+  );
   assert!(tree.contains("MdBody"), "should have markdown body");
 }
 

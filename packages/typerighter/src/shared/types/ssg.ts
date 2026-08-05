@@ -6,7 +6,7 @@ import type {
 } from './markdown';
 
 export interface PageData {
-  schema: string;
+  schema?: string;
   frontmatter: Record<string, unknown>;
   headings: MarkdownHeading[];
   title: string;

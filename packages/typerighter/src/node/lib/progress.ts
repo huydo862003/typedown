@@ -2,10 +2,6 @@ import type {
   TdLogger,
 } from './logger';
 
-function formatMs (ms: number): string {
-  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
-}
-
 export class ProgressLogger {
   private logger: TdLogger;
   private label: string;
@@ -35,4 +31,8 @@ export class ProgressLogger {
 
     this.logger.success(`${message} (${formatMs(elapsed)})`);
   }
+}
+
+function formatMs (ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
 }

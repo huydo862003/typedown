@@ -2,22 +2,9 @@ export interface ContentSummary {
   /** File path relative to content dir, with extension */
   filepath: string;
   /** Schema type name */
-  schema: string;
+  schema?: string;
   /** Frontmatter header */
   header: Record<string, unknown>;
-}
-
-export interface DirectoryEntry {
-  name: string;
-  url: string;
-}
-
-export type SchemaGroups = Record<string, ContentSummary[]>;
-
-export interface ContentTreeNode {
-  name: string;
-  children: ContentTreeNode[];
-  items: ContentSummary[];
 }
 
 export interface ContentTree {
@@ -27,10 +14,15 @@ export interface ContentTree {
   children: ContentTreeNode[];
 }
 
-export interface SubdirectoryEntry {
+export interface ContentTreeNode {
+  name: string;
+  children: ContentTreeNode[];
+  items: ContentSummary[];
+}
+
+export interface DirectoryEntry {
   name: string;
   url: string;
-  count: number;
 }
 
 export interface DirectoryListing {
@@ -38,4 +30,12 @@ export interface DirectoryListing {
   url: string;
   subdirectories: SubdirectoryEntry[];
   items: DirectoryEntry[];
+}
+
+export type SchemaGroups = Record<string, ContentSummary[]>;
+
+export interface SubdirectoryEntry {
+  name: string;
+  url: string;
+  count: number;
 }
