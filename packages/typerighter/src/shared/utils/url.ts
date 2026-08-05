@@ -1,3 +1,4 @@
+import { INDEX_FILENAME } from '../constants';
 import {
   EXTERNAL_URL_RE,
 } from '../regexes';
@@ -32,7 +33,12 @@ export function getParentUrl (urlPath: string): string {
 }
 
 export function getTdContentUrl (filepath: string): string {
-  return '/' + join(dirname(filepath), basename(filepath, '.td'));
+  const name = basename(filepath, '.td');
+  if (name === INDEX_FILENAME) {
+    const dir = dirname(filepath);
+    return dir ? '/' + dir : '/';
+  }
+  return '/' + join(dirname(filepath), name);
 }
 
 export function isUrlAncestorOf (directoryUrl: string, path: string): boolean {

@@ -29,6 +29,7 @@ export function extname (filepath: string): string {
 
 export function join (...segments: string[]): string {
   return segments
+    .filter(Boolean)
     .join('/')
     .replace(/\\+/g, '/')
     .replace(/\/+/g, '/')
