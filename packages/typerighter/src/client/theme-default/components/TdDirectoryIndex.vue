@@ -3,7 +3,7 @@ import {
   computed,
 } from 'vue';
 import {
-  FolderOpen, CornerLeftUp,
+  File, FolderOpen, CornerLeftUp,
 } from 'lucide-vue-next';
 import {
   getParentUrl,
@@ -66,6 +66,10 @@ const parentUrl = computed(() => getParentUrl(url));
         :href="item.url"
         class="td-dir-row"
       >
+        <File
+          :size="16"
+          class="text-td-gray-500 flex-shrink-0"
+        />
         <span class="font-td-semibold text-td-body-sm">{{ item.name }}</span>
       </a>
     </div>
