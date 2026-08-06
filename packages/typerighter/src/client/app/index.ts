@@ -3,9 +3,11 @@ import {
   defineComponent,
   h,
   inject,
+  shallowRef,
   type App,
   type Component,
   type InjectionKey,
+  type ShallowRef,
 } from 'vue';
 import {
   Content,
@@ -41,10 +43,16 @@ export interface TypedownSiteConfig {
 export interface TypedownSiteData {
   /** Content files as a recursive directory tree */
   contentTree: ContentTree;
+  /** Serialized MiniSearch index for full-text search */
+  searchIndex?: string;
 }
+
+type PageLoader = (path: string) => Promise<PageModule | undefined>;
 
 const siteConfigSymbol: InjectionKey<TypedownSiteConfig> = Symbol('typedown-site-config');
 const siteDataSymbol: InjectionKey<TypedownSiteData> = Symbol('typedown-site-data');
+const pageLoaderSymbol: InjectionKey<PageLoader> = Symbol('typedown-page-loader');
+const searchIndexSymbol: InjectionKey<ShallowRef<string | undefined>> = Symbol('typedown-search-index');
 
 export async function createTypedownApp (
   loadPageModule: (path: string) => Promise<PageModule | undefined>,
@@ -54,6 +62,7 @@ export async function createTypedownApp (
 ): Promise<{
   app: App;
   router: Router;
+  searchIndex: ShallowRef<string | undefined>;
 }> {
   const siteConfig: TypedownSiteConfig = {
     title: config.title ?? '',
@@ -83,6 +92,10 @@ export async function createTypedownApp (
   app.provide(routerSymbol, router);
   app.provide(siteConfigSymbol, siteConfig);
   app.provide(siteDataSymbol, siteData);
+  app.provide(pageLoaderSymbol, loadPageModule);
+  const searchIndex = shallowRef(data.searchIndex);
+
+  app.provide(searchIndexSymbol, searchIndex);
   app.component('TypedownContent', Content);
 
   if (typeof window !== 'undefined') {
@@ -95,7 +108,17 @@ export async function createTypedownApp (
   return {
     app,
     router,
+    searchIndex,
   };
+}
+
+export function usePageLoader (): PageLoader | undefined {
+  return inject(pageLoaderSymbol, undefined);
+}
+
+// Returns a reactive ref that updates on HMR
+export function useSearchIndex (): ShallowRef<string | undefined> {
+  return inject(searchIndexSymbol, shallowRef(undefined));
 }
 
 export function useSiteConfig (): TypedownSiteConfig {

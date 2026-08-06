@@ -9,9 +9,16 @@ import {
 import {
   createAppContext, resolveProjectRoot, type AppContext,
 } from '../../context';
+import type {
+  TypedownContext,
+} from '../../lib/typedown-context';
 import {
   VIRTUAL_APP_ID, RESOLVED_VIRTUAL_APP_ID,
+  SEARCH_INDEX_ID, RESOLVED_SEARCH_INDEX_ID,
 } from './constants';
+import {
+  SearchIndexer, type PageIndexInput,
+} from './search';
 import {
   resolveAliases,
 } from './alias';
@@ -20,6 +27,8 @@ import {
   buildDirectoryListingMap,
   CONTENT_EXTENSIONS,
   escapeHtml,
+  getTdContentUrl,
+  getTdResourceTitle,
   path,
 } from '@/shared';
 import type {
@@ -69,6 +78,7 @@ import { createTypedownApp } from 'typerighter/client';
 import { TdDirectoryIndex } from 'typerighter/client/theme-default';
 import { h } from 'vue';
 import theme from 'typerighter/client/theme-default';
+import searchIndex from '${SEARCH_INDEX_ID}';
 
 const pages = import.meta.glob('${glob}');
 const contentExts = ${JSON.stringify(CONTENT_EXTENSIONS)};
@@ -98,14 +108,24 @@ async function loadPageModule(pagePath) {
   return undefined;
 }
 
-const { app } = await createTypedownApp(loadPageModule, theme.Layout, ${siteConfig}, ${siteData});
+const { app, searchIndex: searchIndexRef } = await createTypedownApp(loadPageModule, theme.Layout, ${siteConfig}, { ...${siteData}, searchIndex });
 app.mount('#app');
+
+// Accept HMR for the search index so it updates without a full reload
+if (import.meta.hot) {
+  import.meta.hot.accept('${SEARCH_INDEX_ID}', (m) => {
+    if (m) searchIndexRef.value = m.default as string;
+  });
+}
 `;
 }
 
 export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
   let context = options.context;
   let server: ViteDevServer | undefined;
+
+  const searchIndexer = new SearchIndexer();
+  let searchIndexReady: Promise<void> | undefined;
 
   function resolveTdContext () {
     if (context === undefined) throw new Error('typedown plugin not initialized');
@@ -145,10 +165,24 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       if (id === '/' + VIRTUAL_APP_ID || id === VIRTUAL_APP_ID) {
         return RESOLVED_VIRTUAL_APP_ID;
       }
+      if (id === SEARCH_INDEX_ID) {
+        return RESOLVED_SEARCH_INDEX_ID;
+      }
     },
 
     // Serve virtual modules
     async load (id) {
+      if (id === RESOLVED_SEARCH_INDEX_ID) {
+        if (!searchIndexReady) {
+          const tdContext = await resolveTdContext();
+
+          searchIndexReady = indexAllPages(tdContext, searchIndexer);
+        }
+        await searchIndexReady;
+
+        return `export default ${JSON.stringify(searchIndexer.serialize())}`;
+      }
+
       if (id !== RESOLVED_VIRTUAL_APP_ID) return;
 
       const tdContext = await resolveTdContext();
@@ -184,6 +218,16 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       }) => {
         if (!server) return;
 
+        // Incrementally re-index the changed file
+        getPageIndexInput(tdContext, content)
+          .then((page) => {
+            if (page && server) {
+              searchIndexer.addPage(page);
+              invalidateSearchIndex(server);
+            }
+          })
+          .catch(() => {});
+
         for (const module_ of server.moduleGraph.idToModuleMap.values()) {
           if (module_.file?.endsWith(content)) {
             server.moduleGraph.invalidateModule(module_);
@@ -203,8 +247,18 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
         }
       });
 
-      tdContext.rpc.onContentCreated(() => server && hmrInvalidateAll(server));
-      tdContext.rpc.onContentDeleted(() => server && hmrInvalidateAll(server));
+      // Full re-index when files are added or removed
+      function handleContentListChange () {
+        if (!server) return;
+        searchIndexReady = indexAllPages(tdContext, searchIndexer);
+        searchIndexReady.then(() => {
+          if (server) invalidateSearchIndex(server);
+        });
+        hmrInvalidateAll(server);
+      }
+
+      tdContext.rpc.onContentCreated(handleContentListChange);
+      tdContext.rpc.onContentDeleted(handleContentListChange);
 
       // Schema changes affect all pages using that schema
       tdContext.rpc.onSchemaChanged(() => server && hmrInvalidateAll(server));
@@ -281,6 +335,26 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
   ];
 }
 
+// Render a single file into a PageIndexInput for the search indexer
+async function getPageIndexInput (context: TypedownContext, filepath: string): Promise<PageIndexInput | undefined> {
+  try {
+    const resource = await context.getFile(filepath);
+    const html = await context.md.renderAsync(resource.content, {
+      path: filepath,
+      relativePath: filepath,
+      cleanUrls: true,
+    });
+
+    return {
+      id: getTdContentUrl(filepath),
+      title: getTdResourceTitle(resource.header, filepath),
+      html,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 // Get all .td modules from the module graph
 function getTdModules (server: ViteDevServer) {
   return [...server.moduleGraph.idToModuleMap.entries()]
@@ -316,6 +390,26 @@ function hmrInvalidateAll (server: ViteDevServer): void {
       updates,
     });
   }
+}
+
+// Render all pages and rebuild the search index
+async function indexAllPages (context: TypedownContext, indexer: SearchIndexer): Promise<void> {
+  const files = await context.listFiles();
+  const pages = await Promise.all(files.map((filepath) => getPageIndexInput(context, filepath)));
+
+  indexer.addAll(pages.filter((page): page is PageIndexInput => page !== undefined));
+}
+
+// Invalidate the search index virtual module and push an HMR update
+function invalidateSearchIndex (server: ViteDevServer): void {
+  const module_ = server.moduleGraph.getModuleById(RESOLVED_SEARCH_INDEX_ID);
+
+  if (!module_) return;
+  server.moduleGraph.invalidateModule(module_);
+  server.hot.send({
+    type: 'update',
+    updates: [makeHmrUpdate(module_)],
+  });
 }
 
 // Build an HMR update payload for a module
