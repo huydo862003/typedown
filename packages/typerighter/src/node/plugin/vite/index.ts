@@ -114,7 +114,7 @@ app.mount('#app');
 // Accept HMR for the search index so it updates without a full reload
 if (import.meta.hot) {
   import.meta.hot.accept('${SEARCH_INDEX_ID}', (m) => {
-    if (m) searchIndexRef.value = m.default as string;
+    if (m) searchIndexRef.value = m.default;
   });
 }
 `;

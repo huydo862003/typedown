@@ -289,7 +289,7 @@ async function runSearch (trimmed: string) {
 
 <style scoped>
 .td-search {
-  padding: 8px 16px 12px;
+  padding: 16px 16px 4px;
 }
 
 .td-search-input-wrap {

@@ -90,7 +90,7 @@ function toggle () {
       v-if="!collapsed"
       class="td-tree-children"
       :style="{
-        marginLeft: `${19 + depth * 12}px`,
+        marginLeft: `${14 + depth * 10}px`,
       }"
     >
       <a
