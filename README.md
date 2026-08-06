@@ -18,7 +18,7 @@ Typedown extends from markdown:
 
 Here's a demo of a web generated from typedown:
 
-<img width="2880" height="1922" alt="image" src="https://github.com/user-attachments/assets/4725ef7f-f2b5-4183-aaca-b97fa74867cd" />
+<img width="2500" height="1558" alt="image" src="https://github.com/user-attachments/assets/973449aa-bf49-4626-b4e0-ad7e30303f53" />
 
 ## Installation
 
