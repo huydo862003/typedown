@@ -15,12 +15,13 @@ use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::derived::get_vault_config::get_vault_config;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::types::{AssetsDirMode, SymbolKind};
+use typedown_lang::db::utils::is_content_file;
 use typedown_lang::integrations::export::{export_resource, export_schema};
 
 use typedown_types::path::normalize_path;
 
 use crate::core::analysis_host::AnalysisHost;
-use crate::core::utils::fs::{is_asset_file, is_td_file, is_vault_config};
+use crate::core::utils::fs::{is_asset_file, is_vault_config};
 
 use super::contract::{
   TdAssetsDir, TdBuildRpcServer, TdBuiltResource, TdContentNotification, TdContentSummary,
@@ -132,7 +133,7 @@ impl RpcServer {
     let mut watcher = notify::recommended_watcher(move |result: Result<Event, notify::Error>| {
       let Ok(event) = result else { return };
       for path in &event.paths {
-        if !is_td_file(path) && !is_asset_file(path) && !is_vault_config(path) {
+        if !is_content_file(path) && !is_asset_file(path) && !is_vault_config(path) {
           continue;
         }
         let kind = match event.kind {
@@ -299,7 +300,7 @@ impl RpcServer {
       if !path.starts_with(&content_dir) {
         continue;
       }
-      if path.extension().and_then(|e| e.to_str()) != Some("td") {
+      if !is_content_file(path) {
         continue;
       }
       let rel = path.strip_prefix(&content_dir).unwrap_or(path);
@@ -325,7 +326,7 @@ impl RpcServer {
       if !path.starts_with(&content_dir) {
         continue;
       }
-      if path.extension().and_then(|e| e.to_str()) != Some("td") {
+      if !is_content_file(path) {
         continue;
       }
       let rel = normalize_path(path.strip_prefix(&content_dir).unwrap_or(path));

@@ -51,7 +51,6 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
-  use std::time::SystemTime;
 
   use crate::db::types::{
     AssetKind, File, FileHandle, FileMetadata, Project, Symbol, SymbolKind, TdBlobObj,

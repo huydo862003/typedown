@@ -19,8 +19,8 @@ const {
 }>();
 
 const route = useRoute();
-const indexItem = tree.rootItems.find((item) => path.basename(item.filepath, '.td') === INDEX_FILENAME);
-const regularRootItems = tree.rootItems.filter((item) => path.basename(item.filepath, '.td') !== INDEX_FILENAME);
+const indexItem = tree.rootItems.find((item) => path.filestem(item.filepath) === INDEX_FILENAME);
+const regularRootItems = tree.rootItems.filter((item) => path.filestem(item.filepath) !== INDEX_FILENAME);
 
 function isCurrent (href: string): boolean {
   return route.path === href;

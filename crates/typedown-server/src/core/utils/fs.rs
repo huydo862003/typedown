@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use typedown_lang::db::types::{AssetKind, FileHandle, FileMetadata};
+use typedown_lang::db::utils::is_content_file;
 
 pub fn disk_handle(path: &PathBuf) -> Option<FileHandle> {
   let meta = fs::metadata(path).ok()?;
@@ -26,15 +27,14 @@ fn scan_dir(root: &PathBuf, dir: &PathBuf, files: &mut HashSet<PathBuf>) -> io::
     let path = entry.path();
     if path.is_dir() {
       scan_dir(root, &path, files)?;
-    } else if is_td_file(&path) || is_asset_file(&path) || (dir == root && is_vault_config(&path)) {
+    } else if is_content_file(&path)
+      || is_asset_file(&path)
+      || (dir == root && is_vault_config(&path))
+    {
       files.insert(path);
     }
   }
   Ok(())
-}
-
-pub fn is_td_file(path: &Path) -> bool {
-  path.extension().is_some_and(|ext| ext == "td")
 }
 
 pub fn is_asset_file(path: &Path) -> bool {

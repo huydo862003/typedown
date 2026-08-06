@@ -43,7 +43,7 @@ mod tests {
   use std::sync::{Arc, Condvar, Mutex};
 
   use lsp_types::TextDocumentIdentifier;
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::core::analysis::Analysis;
@@ -62,9 +62,16 @@ mod tests {
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(config_path.clone(), config_content.to_string()),
+      FileHandle::Content(
+        config_path.clone(),
+        config_content.to_string(),
+        FileMetadata::default(),
+      ),
     );
-    let td_file = File::new(&db, FileHandle::Content(file_path.clone(), String::new()));
+    let td_file = File::new(
+      &db,
+      FileHandle::Content(file_path.clone(), String::new(), FileMetadata::default()),
+    );
 
     let files: HashMap<PathBuf, File> = [(config_path, config_file), (file_path.clone(), td_file)]
       .into_iter()

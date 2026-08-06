@@ -6,6 +6,7 @@ use typedown_types::path::normalize_path;
 use crate::db::TypedownDatabase;
 use crate::db::derived::get_vault_config::get_vault_config;
 use crate::db::types::Project;
+use crate::db::utils::is_content_file;
 use crate::syntax::diagnostic::Diagnostic;
 use typedown_incremental::QueryDatabase;
 
@@ -26,7 +27,7 @@ pub fn check_schema_dir(db: &TypedownDatabase, project: Project) -> SchemaCheckR
     if !path.starts_with(&schema_dir) {
       continue;
     }
-    if !path.extension().is_some_and(|ext| ext == "td") {
+    if !is_content_file(path) {
       continue;
     }
     // Check if the file is a direct child of schema_dir

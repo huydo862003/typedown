@@ -34,7 +34,7 @@ pub fn parse_file(db: &TypedownDatabase, project: Project, file: File) -> FileAs
 
 #[cfg(test)]
 mod tests {
-  use std::{collections::HashMap, path::PathBuf, time::SystemTime};
+  use std::{collections::HashMap, path::PathBuf};
 
   use crate::syntax::ast::{AstNode, SourceFile};
 

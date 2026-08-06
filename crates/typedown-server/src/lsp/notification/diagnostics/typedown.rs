@@ -14,6 +14,7 @@ use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::db::derived::typechecker::typecheck::typecheck;
 use typedown_lang::db::types::{File, Project};
+use typedown_lang::db::utils::is_content_file;
 use typedown_lang::integrations::lint::lint_markdown;
 use typedown_lang::syntax::ast::{AstNode, SourceFile};
 use typedown_lang::syntax::diagnostic::Diagnostic as TdDiagnostic;
@@ -31,7 +32,7 @@ pub fn publish_diagnostics_for_project(analysis: &Analysis) -> Vec<Notification>
 
   let mut notifications = Vec::new();
   for (path, file) in &files {
-    if path.extension().and_then(|e| e.to_str()) != Some("td") {
+    if !is_content_file(path) {
       continue;
     }
     let rope = match analysis.file_rope(path) {
@@ -79,7 +80,7 @@ pub fn publish_diagnostics_for_project(analysis: &Analysis) -> Vec<Notification>
 }
 
 pub fn publish_diagnostics_for_file(analysis: &Analysis, target: &Path) -> Vec<Notification> {
-  if target.extension().and_then(|e| e.to_str()) != Some("td") {
+  if !is_content_file(target) {
     return vec![];
   }
 
@@ -172,7 +173,7 @@ mod tests {
   use std::path::PathBuf;
   use std::sync::{Arc, Condvar, Mutex};
 
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::core::analysis::Analysis;
@@ -204,15 +205,27 @@ properties:
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_file = File::new(
       &db,
-      FileHandle::Content(root.join("schemas/Person.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        root.join("schemas/Person.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let test_file = File::new(
       &db,
-      FileHandle::Content(test_path.clone(), content.to_string()),
+      FileHandle::Content(
+        test_path.clone(),
+        content.to_string(),
+        FileMetadata::default(),
+      ),
     );
 
     let files = HashMap::from([

@@ -13,7 +13,8 @@ import {
   ProgressLogger,
 } from '../lib/progress';
 import {
-  buildContentTree, buildDirectoryListingMap, type ContentTreeNode,
+  buildContentTree, buildDirectoryListingMap, CONTENT_EXTENSIONS, CONTENT_GLOB, type ContentTreeNode,
+  path as tdpath,
 } from '@/shared';
 import type {
   AppContext,
@@ -133,7 +134,7 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
 
     // 5. Pre-render each page to a static HTML file
     const pagePaths = files.map((file) => {
-      const withoutExtension = file.replace(/\.td$/, '');
+      const withoutExtension = tdpath.stripExtension(file);
 
       return withoutExtension === 'index'
         ? '/'
@@ -189,7 +190,7 @@ interface SsrEntryOptions {
 
 // Generate the SSR entry module used for pre-rendering
 function generateSsrEntry (options: SsrEntryOptions): string {
-  const glob = `/${options.contentDir}/**/*.td`;
+  const glob = `/${options.contentDir}/${CONTENT_GLOB}`;
   const parsedConfig = JSON.parse(options.siteConfig);
   const parsedData = JSON.parse(options.siteData).contentTree ?? { rootItems: [], children: [] };
   const directoryListingMap = buildDirectoryListingMap(parsedData.children ?? [], parsedConfig.title ?? '');
@@ -202,14 +203,22 @@ import { h } from 'vue';
 import theme from '${options.layoutImport}';
 
 const pages = import.meta.glob('${glob}', { eager: true });
+const contentExts = ${JSON.stringify(CONTENT_EXTENSIONS)};
 
 const directoryIndex = ${JSON.stringify(directoryListingMap)};
 
+function findPage(base) {
+  for (const ext of contentExts) {
+    const key = base + ext;
+    if (pages[key]) return pages[key];
+    const indexKey = base + '/index' + ext;
+    if (pages[indexKey]) return pages[indexKey];
+  }
+}
+
 function loadPageModule(pagePath) {
   const base = ('/${options.contentDir}/' + pagePath).replace(/\\/+/g, '/').replace(/\\/$/, '');
-  const key = base + '.td';
-  const altKey = base + '/index.td';
-  const page = pages[key] || pages[altKey];
+  const page = findPage(base);
   if (page) return Promise.resolve(page);
 
   const dir = directoryIndex[pagePath] || directoryIndex[pagePath + '/'];
@@ -238,7 +247,7 @@ async function copyContentAssets (contentDir: string, outDir: string): Promise<v
   });
 
   const copies = entries
-    .filter((entry) => entry.isFile() && !entry.name.endsWith('.td'))
+    .filter((entry) => entry.isFile() && !tdpath.isContentFile(entry.name))
     .map(async (entry) => {
       const src = path.join(entry.parentPath, entry.name);
       const relative = path.relative(contentDir, src);

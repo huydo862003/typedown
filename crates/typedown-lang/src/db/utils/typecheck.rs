@@ -245,7 +245,7 @@ mod tests {
     }
   }
 
-  fn simple(db: &TypedownDatabase, typ: TdTypeEnum) -> MemberType {
+  fn simple(_db: &TypedownDatabase, typ: TdTypeEnum) -> MemberType {
     MemberType::Simple(typ)
   }
 

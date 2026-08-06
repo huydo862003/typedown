@@ -141,7 +141,7 @@ mod tests {
   use std::collections::HashMap;
   use std::path::PathBuf;
   use std::sync::{Arc, Condvar, Mutex};
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
   const VAULT_CONFIG: &str = r#"version: "1"
 vault:
@@ -213,35 +213,54 @@ age: 25
         root.join("typedown.yaml"),
         File::new(
           &db,
-          FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+          FileHandle::Content(
+            root.join("typedown.yaml"),
+            VAULT_CONFIG.to_string(),
+            FileMetadata::default(),
+          ),
         ),
       ),
       (
         root.join("schemas/Person.td"),
         File::new(
           &db,
-          FileHandle::Content(root.join("schemas/Person.td"), SCHEMA_PERSON.to_string()),
+          FileHandle::Content(
+            root.join("schemas/Person.td"),
+            SCHEMA_PERSON.to_string(),
+            FileMetadata::default(),
+          ),
         ),
       ),
       (
         root.join("content/alice.td"),
         File::new(
           &db,
-          FileHandle::Content(root.join("content/alice.td"), CONTENT_ALICE.to_string()),
+          FileHandle::Content(
+            root.join("content/alice.td"),
+            CONTENT_ALICE.to_string(),
+            FileMetadata::default(),
+          ),
         ),
       ),
       (
         root.join("content/bob.td"),
         File::new(
           &db,
-          FileHandle::Content(root.join("content/bob.td"), CONTENT_BOB.to_string()),
+          FileHandle::Content(
+            root.join("content/bob.td"),
+            CONTENT_BOB.to_string(),
+            FileMetadata::default(),
+          ),
         ),
       ),
     ]);
     for (path, content) in extra_files {
       files.insert(
         path.clone(),
-        File::new(&db, FileHandle::Content(path, content)),
+        File::new(
+          &db,
+          FileHandle::Content(path, content, FileMetadata::default()),
+        ),
       );
     }
     let project = Project::new(&db, root, files);

@@ -35,7 +35,7 @@ mod tests {
     Position, PrepareRenameResponse, TextDocumentIdentifier, TextDocumentPositionParams,
   };
   use ropey::Rope;
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use super::prepare_rename;
@@ -98,19 +98,35 @@ name: Alice
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Person.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        schema_root.join("Person.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let alice_file = File::new(
       &db,
-      FileHandle::Content(content_root.join("alice.td"), CONTENT_ALICE.to_string()),
+      FileHandle::Content(
+        content_root.join("alice.td"),
+        CONTENT_ALICE.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let editing_file = File::new(
       &db,
-      FileHandle::Content(test_path.clone(), content.to_string()),
+      FileHandle::Content(
+        test_path.clone(),
+        content.to_string(),
+        FileMetadata::default(),
+      ),
     );
 
     let files = HashMap::from([

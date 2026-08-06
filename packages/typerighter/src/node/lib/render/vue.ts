@@ -33,7 +33,7 @@ export async function renderToVueSfc (
 
   const html = await context.md.renderAsync(resource.content, env);
 
-  const isIndex = path.basename(filepath, '.td') === INDEX_FILENAME;
+  const isIndex = path.filestem(filepath) === INDEX_FILENAME;
   const title = env.title || (isIndex
     ? getTdIndexTitle(filepath, (await context.getConfig()).siteTitle)
     : getTdResourceTitle(resource.header, filepath));

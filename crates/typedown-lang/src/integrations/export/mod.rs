@@ -18,6 +18,7 @@ use crate::db::types::{
   File, FileHandle, HirValue, Project, Symbol, SymbolKind, TdBlobType, TdObjectEnum, TdObjectLike,
   TdTypeEnum, TdTypeLike,
 };
+use crate::db::utils::strip_content_extension;
 
 use crate::syntax::ast::{AstNode, InterpFragment, MdBody, MdToggleList, SourceFile};
 use crate::syntax::red::RedNode;
@@ -265,7 +266,7 @@ fn try_resolve_fref(
       let base_path = config.base_path(db);
       let relative = path.strip_prefix(&content_dir).unwrap_or(path);
       let path_str = relative.to_string_lossy();
-      let without_ext = path_str.strip_suffix(".td").unwrap_or(&path_str);
+      let without_ext = strip_content_extension(&path_str);
       let url = if base_path == "/" {
         format!("/{without_ext}")
       } else {

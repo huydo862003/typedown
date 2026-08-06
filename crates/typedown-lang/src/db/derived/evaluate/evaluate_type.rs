@@ -301,7 +301,6 @@ mod tests {
   use std::collections::HashMap;
 
   use std::path::PathBuf;
-  use std::time::SystemTime;
 
   use crate::db::{
     QueryStorage, TypedownDatabase,

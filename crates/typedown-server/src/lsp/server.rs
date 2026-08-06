@@ -291,6 +291,10 @@ impl Server {
         kind: Some(WatchKind::all()),
       },
       FileSystemWatcher {
+        glob_pattern: GlobPattern::String("**/*.md".to_string()),
+        kind: Some(WatchKind::all()),
+      },
+      FileSystemWatcher {
         glob_pattern: GlobPattern::String("**/*.{pdf,svg,png,jpg,jpeg,webp}".to_string()),
         kind: Some(WatchKind::all()),
       },
@@ -340,9 +344,9 @@ impl Server {
 
     let file_filter = serde_json::json!({
       "filters": [{
-        "pattern": {
-          "glob": "**/*.td"
-        }
+        "pattern": { "glob": "**/*.td" }
+      }, {
+        "pattern": { "glob": "**/*.md" }
       }]
     });
 

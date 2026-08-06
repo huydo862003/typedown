@@ -18,7 +18,9 @@ import {
 import {
   buildContentTree,
   buildDirectoryListingMap,
+  CONTENT_EXTENSIONS,
   escapeHtml,
+  path,
 } from '@/shared';
 import type {
   ContentTree,
@@ -48,7 +50,7 @@ export function generateClientAppEntry (options: ClientAppEntryOptions): string 
   const {
     contentDir,
   } = options;
-  const glob = `/${contentDir}/**/*.td`;
+  const glob = `/${contentDir}/**/*.{td,md}`;
 
   const siteConfig = JSON.stringify({
     title: options.siteTitle,
@@ -69,14 +71,22 @@ import { h } from 'vue';
 import theme from 'typerighter/client/theme-default';
 
 const pages = import.meta.glob('${glob}');
+const contentExts = ${JSON.stringify(CONTENT_EXTENSIONS)};
 
 const directoryIndex = ${JSON.stringify(directoryListingMap)};
 
+function findPage(base) {
+  for (const ext of contentExts) {
+    const key = base + ext;
+    if (pages[key]) return pages[key];
+    const indexKey = base + '/index' + ext;
+    if (pages[indexKey]) return pages[indexKey];
+  }
+}
+
 async function loadPageModule(pagePath) {
   const base = ('/${contentDir}/' + pagePath).replace(/\\/+/g, '/').replace(/\\/$/, '');
-  const key = base + '.td';
-  const altKey = base + '/index.td';
-  const loader = pages[key] || pages[altKey];
+  const loader = findPage(base);
   if (loader) return loader();
 
   const dir = directoryIndex[pagePath] || directoryIndex[pagePath + '/'];
@@ -236,7 +246,7 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
     async transform (_, id) {
       const cleanId = id.split('?')[0];
 
-      if (!cleanId.endsWith('.td')) return;
+      if (!path.isContentFile(cleanId)) return;
 
       const tdContext = await resolveTdContext();
       const config = await tdContext.getConfig();
@@ -259,7 +269,7 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
     handleHotUpdate ({
       file,
     }) {
-      if (file.endsWith('.td')) return [];
+      if (path.isContentFile(file)) return [];
     },
 
   };
