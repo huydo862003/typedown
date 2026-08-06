@@ -10,7 +10,7 @@
       The page you are looking for does not exist.
     </p>
     <a
-      class="inline-flex items-center mt-6 text-td-primary text-td-ui font-td-heading tracking-td-heading hover:text-td-primary-hover"
+      class="inline-flex items-center mt-6 text-td-primary-solid text-td-ui font-td-heading tracking-td-heading hover:text-td-primary-solid-hover"
       href="/"
     >Go Home</a>
   </div>

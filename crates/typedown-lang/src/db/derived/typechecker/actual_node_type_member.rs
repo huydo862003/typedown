@@ -496,7 +496,7 @@ mod tests {
   use crate::db::{
     QueryStorage, TypedownDatabase,
     derived::get_builtin_types::get_schema_type,
-    types::{File, FileHandle, Project},
+    types::{File, FileHandle, FileMetadata, Project},
     utils::lower_file,
   };
 
@@ -577,7 +577,7 @@ mod tests {
 
     let file = File::new(
       &db,
-      FileHandle::Path(schema_file_path.clone(), SystemTime::UNIX_EPOCH),
+      FileHandle::Path(schema_file_path.clone(), FileMetadata::default()),
     );
     let files = HashMap::from([(schema_file_path, file)]);
     let project = Project::new(&db, vault, files);

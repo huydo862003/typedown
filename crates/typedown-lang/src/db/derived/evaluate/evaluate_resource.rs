@@ -50,11 +50,17 @@ pub fn evaluate_resource(db: &TypedownDatabase, symbol: Symbol) -> ResourceResul
 
 #[cfg(test)]
 mod tests {
-  use crate::db::types::{AssetKind, TdObjectEnum, TdObjectLike};
+  use std::path::PathBuf;
+  use std::time::SystemTime;
+
+  use crate::db::types::{
+    AssetKind, File, FileHandle, FileMetadata, Project, Symbol, SymbolKind, TdBlobObj,
+    TdObjectEnum, TdObjectLike,
+  };
   use crate::syntax::diagnostic::Diagnostic;
 
   use crate::db::{
-    TypedownDatabase, derived::evaluate::evaluate_node::evaluate_node,
+    QueryStorage, TypedownDatabase, derived::evaluate::evaluate_node::evaluate_node,
     derived::evaluate::evaluate_resource::evaluate_resource,
     derived::name_resolver::file_symbol::file_symbol, fixtures::load_vault_fixture,
     types::HirValueKind, utils::lower_file,
@@ -476,16 +482,11 @@ mod tests {
   // An asset symbol evaluates to a TdBlobObj with the correct format field
   #[test]
   fn evaluate_asset_produces_blob() {
-    use crate::db::types::{File, FileHandle, Project, Symbol, SymbolKind};
-    use crate::db::{QueryStorage, TypedownDatabase};
-    use std::path::PathBuf;
-    use std::time::SystemTime;
-
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
     let path = PathBuf::from("/vault/assets/photo.png");
-    let file = File::new(&db, FileHandle::Path(path.clone(), SystemTime::UNIX_EPOCH));
+    let file = File::new(&db, FileHandle::Path(path.clone(), FileMetadata::default()));
     let project = Project::new(
       &db,
       PathBuf::from("/vault"),
@@ -541,17 +542,12 @@ mod tests {
   // Each AssetKind produces the correct format string
   #[test]
   fn blob_format_matches_asset_kind() {
-    use crate::db::types::{File, FileHandle, TdBlobObj};
-    use crate::db::{QueryStorage, TypedownDatabase};
-    use std::path::PathBuf;
-    use std::time::SystemTime;
-
     let db = TypedownDatabase {
       storage: QueryStorage::default(),
     };
     let file = File::new(
       &db,
-      FileHandle::Path(PathBuf::from("/dummy"), SystemTime::UNIX_EPOCH),
+      FileHandle::Path(PathBuf::from("/dummy"), FileMetadata::default()),
     );
 
     let cases = [

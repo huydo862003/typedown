@@ -24,7 +24,8 @@ use crate::core::utils::fs::{is_asset_file, is_td_file, is_vault_config};
 
 use super::contract::{
   TdAssetsDir, TdBuildRpcServer, TdBuiltResource, TdContentNotification, TdContentSummary,
-  TdFilePath, TdRpcSubscriptionCloseResponse, TdSchemaInfo, TdSchemaNotification, TdSiteConfig,
+  TdFileMetadata, TdFilePath, TdRpcSubscriptionCloseResponse, TdSchemaInfo, TdSchemaNotification,
+  TdSiteConfig,
 };
 
 enum FsEventKind {
@@ -274,6 +275,10 @@ impl RpcServer {
         schema: exported.schema,
         header: exported.header,
         content: exported.content,
+        metadata: TdFileMetadata {
+          mtime: exported.metadata.mtime,
+          ctime: exported.metadata.ctime,
+        },
       });
     }
 
@@ -330,6 +335,10 @@ impl RpcServer {
           filepath: rel,
           schema: exported.schema,
           header: exported.header,
+          metadata: TdFileMetadata {
+            mtime: exported.metadata.mtime,
+            ctime: exported.metadata.ctime,
+          },
         });
       }
     }

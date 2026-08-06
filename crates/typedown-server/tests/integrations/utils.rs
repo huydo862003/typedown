@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use typedown_incremental::{CacheSession, InputId};
-use typedown_lang::db::types::{AssetKind, File, FileHandle, Project};
+use typedown_lang::db::types::{AssetKind, File, FileHandle, FileMetadata, Project};
 use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
 pub fn example_vault() -> PathBuf {
@@ -65,12 +65,16 @@ pub fn run_child_test(test_name: &str, envs: &[(&str, &str)]) {
 fn register_project_fresh(db: &TypedownDatabase, project_dir: &Path) {
   let mut files = HashMap::new();
   for path in scan_project_files(project_dir) {
-    let handle = FileHandle::Path(
-      path.clone(),
-      std::fs::metadata(&path)
-        .and_then(|m| m.modified())
-        .unwrap_or(SystemTime::UNIX_EPOCH),
-    );
+    let meta = std::fs::metadata(&path).ok();
+    let mtime = meta
+      .as_ref()
+      .and_then(|m| m.modified().ok())
+      .unwrap_or(SystemTime::UNIX_EPOCH);
+    let ctime = meta
+      .as_ref()
+      .and_then(|m| m.created().ok())
+      .unwrap_or(mtime);
+    let handle = FileHandle::Path(path.clone(), FileMetadata { mtime, ctime });
     let file = File::new(db, handle);
     files.insert(path, file);
   }
@@ -88,12 +92,16 @@ fn register_project_cached(db: &mut TypedownDatabase, project_dir: &Path) {
 
   let mut files = HashMap::new();
   for path in scan_project_files(project_dir) {
-    let handle = FileHandle::Path(
-      path.clone(),
-      std::fs::metadata(&path)
-        .and_then(|m| m.modified())
-        .unwrap_or(SystemTime::UNIX_EPOCH),
-    );
+    let meta = std::fs::metadata(&path).ok();
+    let mtime = meta
+      .as_ref()
+      .and_then(|m| m.modified().ok())
+      .unwrap_or(SystemTime::UNIX_EPOCH);
+    let ctime = meta
+      .as_ref()
+      .and_then(|m| m.created().ok())
+      .unwrap_or(mtime);
+    let handle = FileHandle::Path(path.clone(), FileMetadata { mtime, ctime });
     let file = if let Some(&cached) = cached_files.get(&path) {
       cached.set_handle(db, handle);
       cached

@@ -13,23 +13,25 @@ use crate::db::types::{
 
 /// Serialize a FileHandle to a JSON object
 pub fn handle_to_json(handle: &FileHandle) -> serde_json::Value {
+  let meta = handle.metadata();
+  let metadata = serde_json::json!({
+    "mtime": meta.mtime_epoch_secs(),
+    "ctime": meta.ctime_epoch_secs(),
+  });
   match handle {
-    FileHandle::Path(path, mtime) => {
-      let mtime_secs = mtime
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+    FileHandle::Path(path, _) => {
       serde_json::json!({
         "type": "path",
         "path": path.to_string_lossy(),
-        "mtime": mtime_secs,
+        "metadata": metadata,
       })
     }
-    FileHandle::Content(path, content) => {
+    FileHandle::Content(path, content, _) => {
       serde_json::json!({
         "type": "content",
         "path": path.to_string_lossy(),
         "content": content,
+        "metadata": metadata,
       })
     }
   }
@@ -198,8 +200,8 @@ mod tests {
   use crate::db::derived::name_resolver::file_symbol::file_symbol;
   use crate::db::fixtures::load_vault_fixture;
   use crate::db::types::{
-    AssetKind, File, FileHandle, TdBlobObj, TdBoolObj, TdDateObj, TdDateTimeObj, TdDictObj,
-    TdListObj, TdMathObj, TdNumObj, TdProductObj, TdStrObj, TdStrType, TdTimeObj,
+    AssetKind, File, FileHandle, FileMetadata, TdBlobObj, TdBoolObj, TdDateObj, TdDateTimeObj,
+    TdDictObj, TdListObj, TdMathObj, TdNumObj, TdProductObj, TdStrObj, TdStrType, TdTimeObj,
   };
   use crate::db::{QueryStorage, TypedownDatabase};
 
@@ -461,7 +463,7 @@ mod tests {
   fn blob_includes_format_and_path() {
     let db = empty_db();
     let path = PathBuf::from("/vault/assets/photo.png");
-    let file = File::new(&db, FileHandle::Path(path.clone(), SystemTime::UNIX_EPOCH));
+    let file = File::new(&db, FileHandle::Path(path.clone(), FileMetadata::default()));
     let blob = TdBlobObj::new(&db, AssetKind::Png, file);
     let obj = TdObjectEnum::from(blob);
     let value = to_json(&db, &obj).unwrap();

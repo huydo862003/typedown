@@ -23,6 +23,9 @@ import {
 import {
   useMenu,
 } from './composables/useMenu';
+import {
+  formatEditTime,
+} from '@/shared';
 import './styles/main.css';
 import './styles/markdown/content.css';
 import './styles/markdown/code.css';
@@ -70,7 +73,7 @@ useCopyCode();
       <header class="td-menu-header">
         <div class="td-header-left">
           <TdButton
-            class="w-9 h-9 text-td-gray-600 hover:text-td-primary"
+            class="w-9 h-9 text-td-neutral-fg-muted hover:text-td-primary-solid"
             label="Close menu"
             @click="closeMenu"
           >
@@ -111,6 +114,13 @@ useCopyCode();
             >
               {{ title }}
             </h1>
+            <div
+              v-if="page.metadata"
+              class="td-page-meta"
+            >
+              <span>{{ formatEditTime(page.metadata.mtime, 'Modified') }}</span>
+              <span v-if="page.metadata.ctime !== page.metadata.mtime"> · {{ formatEditTime(page.metadata.ctime, 'Created') }}</span>
+            </div>
             <Content />
           </article>
         </main>
@@ -158,8 +168,8 @@ useCopyCode();
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  border-bottom: 2px solid var(--color-td-secondary);
-  background: var(--color-td-bg);
+  border-bottom: 1px solid var(--color-td-neutral-border);
+  background: var(--color-td-neutral-bg);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -183,13 +193,13 @@ useCopyCode();
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-td-secondary);
+  color: var(--color-td-primary-solid);
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .td-brand:hover {
-  color: var(--color-td-secondary-hover);
+  color: var(--color-td-primary-solid-hover);
 }
 
 .td-brand-name {
@@ -232,7 +242,13 @@ useCopyCode();
   font-size: var(--font-size-td-h1);
   line-height: var(--leading-td-heading);
   letter-spacing: var(--tracking-td-heading);
-  margin: 0 0 24px 0;
+  margin: 0 0 8px 0;
+}
+
+.td-page-meta {
+  font-size: 0.8rem;
+  color: var(--color-td-neutral-border-strong);
+  margin-bottom: 24px;
 }
 
 /* Menu button: hidden above lg */
@@ -260,7 +276,7 @@ useCopyCode();
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: var(--color-td-bg);
+  background: var(--color-td-neutral-bg);
   flex-direction: column;
   overflow-y: auto;
 }
@@ -275,7 +291,7 @@ useCopyCode();
   justify-content: space-between;
   height: var(--td-header-height);
   padding: 0 16px;
-  border-bottom: 2px solid var(--color-td-secondary);
+  border-bottom: 1px solid var(--color-td-neutral-border);
   flex-shrink: 0;
 }
 
@@ -294,7 +310,7 @@ useCopyCode();
   font-size: var(--font-size-td-label);
   letter-spacing: var(--tracking-td-label);
   text-transform: uppercase;
-  color: var(--color-td-gray-600);
+  color: var(--color-td-neutral-fg-muted);
   margin-bottom: 12px;
 }
 
@@ -302,7 +318,7 @@ useCopyCode();
   list-style: none;
   padding: 0;
   margin: 0;
-  border-left: 2px solid var(--color-td-gray-300);
+  border-left: 2px solid var(--color-td-neutral-border-subtle);
 }
 
 .td-toc-list li {
@@ -314,14 +330,14 @@ useCopyCode();
   padding: 5px 0 5px 12px;
   margin-left: -2px;
   font-size: var(--font-size-td-caption);
-  color: var(--color-td-gray-700);
+  color: var(--color-td-neutral-fg);
   text-decoration: none;
   border-left: 2px solid transparent;
   transition: color 0.15s;
 }
 
 .td-toc-link:hover {
-  color: var(--color-td-primary);
+  color: var(--color-td-primary-solid);
 }
 
 .td-toc-indent-1 {

@@ -4,7 +4,7 @@
   padding: 1px 5px;
   font-size: 0.85em;
   font-family: var(--font-mono);
-  background-color: var(--color-td-gray-200);
+  background-color: var(--color-td-neutral-bg-hover);
   color: var(--color-td-fg);
 }
 

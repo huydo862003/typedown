@@ -301,6 +301,7 @@ mod tests {
   use std::collections::HashMap;
 
   use std::path::PathBuf;
+  use std::time::SystemTime;
 
   use crate::db::{
     QueryStorage, TypedownDatabase,
@@ -312,9 +313,9 @@ mod tests {
     derived::typechecker::actual_node_type_member::actual_node_type_member,
     fixtures::load_vault_fixture,
     types::{
-      BuiltinSchemaKind, File, FileHandle, HirValue, HirValueKind, LiteralValue, MemberType,
-      Project, Symbol, SymbolKind, TdBoolObj, TdNumObj, TdProductType, TdStrObj, TdTypeLike,
-      TdTypeType, TypeMember, TypeMemberDescriptors,
+      BuiltinSchemaKind, File, FileHandle, FileMetadata, HirValue, HirValueKind, LiteralValue,
+      MemberType, Project, Symbol, SymbolKind, TdBoolObj, TdNumObj, TdProductType, TdStrObj,
+      TdTypeLike, TdTypeType, TypeMember, TypeMemberDescriptors,
     },
     utils::lower_file,
   };
@@ -531,7 +532,11 @@ mod tests {
   fn make_hir(db: &TypedownDatabase, content: &str) -> HirValue {
     let file = File::new(
       db,
-      FileHandle::Content(PathBuf::from("test.td"), content.to_string()),
+      FileHandle::Content(
+        PathBuf::from("test.td"),
+        content.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let project = Project::new(db, PathBuf::new(), HashMap::new());
     let (hir, _) = lower_file(db, project, file);

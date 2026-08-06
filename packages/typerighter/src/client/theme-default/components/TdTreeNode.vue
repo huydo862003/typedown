@@ -9,7 +9,7 @@ import {
   useRoute,
 } from '../../app';
 import {
-  getDirectoryUrl, getTdContentUrl, getTdResourceTitle, INDEX_FILENAME, isUrlAncestorOf, path, unslugify,
+  formatRelativeTime, getDirectoryUrl, getTdContentUrl, getTdResourceTitle, INDEX_FILENAME, isUrlAncestorOf, path, unslugify,
   type ContentTreeNode,
 } from '@/shared';
 
@@ -18,8 +18,11 @@ const {
   depth = 0,
   urlPrefix = '',
 } = defineProps<{
+  /** Tree node to render */
   node: ContentTreeNode;
+  /** Nesting depth for indentation */
   depth?: number;
+  /** Accumulated path prefix for building directory hrefs */
   urlPrefix?: string;
 }>();
 
@@ -27,6 +30,7 @@ const route = useRoute();
 const directoryUrl = getDirectoryUrl(urlPrefix, node.name);
 const indexItem = node.items.find((item) => path.basename(item.filepath, '.td') === INDEX_FILENAME);
 const regularItems = node.items.filter((item) => path.basename(item.filepath, '.td') !== INDEX_FILENAME);
+
 const hasContent = 0 < node.children.length || 0 < node.items.length;
 
 const totalCount = computed(() => countItems(node));
@@ -37,16 +41,16 @@ function countItems (n: ContentTreeNode): number {
 
 const collapsed = ref(!isUrlAncestorOf(directoryUrl, route.path));
 
-watch(() => route.path, (p) => {
-  if (isUrlAncestorOf(directoryUrl, p)) collapsed.value = false;
+watch(() => route.path, (currentPath) => {
+  if (isUrlAncestorOf(directoryUrl, currentPath)) collapsed.value = false;
 });
-
-function toggle () {
-  collapsed.value = !collapsed.value;
-}
 
 function isCurrent (href: string): boolean {
   return route.path === href;
+}
+
+function toggle () {
+  collapsed.value = !collapsed.value;
 }
 </script>
 
@@ -84,7 +88,9 @@ function isCurrent (href: string): boolean {
       <a
         :href="indexItem ? getTdContentUrl(indexItem.filepath) : directoryUrl"
         class="td-tree-link"
-        :class="{ 'is-active': isCurrent(indexItem ? getTdContentUrl(indexItem.filepath) : directoryUrl) }"
+        :class="{
+          'is-active': isCurrent(indexItem ? getTdContentUrl(indexItem.filepath) : directoryUrl),
+        }"
         :style="{
           paddingLeft: `${32 + depth * 12}px`,
         }"
@@ -93,7 +99,11 @@ function isCurrent (href: string): boolean {
           :size="14"
           class="td-tree-file-icon"
         />
-        {{ unslugify(node.name) }}
+        <span class="td-tree-link-text">{{ unslugify(node.name) }}</span>
+        <span
+          v-if="indexItem"
+          class="td-tree-time"
+        >{{ formatRelativeTime(indexItem.metadata.mtime) }}</span>
       </a>
       <TdTreeNode
         v-for="child in node.children"
@@ -107,7 +117,9 @@ function isCurrent (href: string): boolean {
         :key="item.filepath"
         :href="getTdContentUrl(item.filepath)"
         class="td-tree-link"
-        :class="{ 'is-active': isCurrent(getTdContentUrl(item.filepath)) }"
+        :class="{
+          'is-active': isCurrent(getTdContentUrl(item.filepath)),
+        }"
         :style="{
           paddingLeft: `${32 + depth * 12}px`,
         }"
@@ -116,7 +128,8 @@ function isCurrent (href: string): boolean {
           :size="14"
           class="td-tree-file-icon"
         />
-        {{ getTdResourceTitle(item.header, item.filepath) }}
+        <span class="td-tree-link-text">{{ getTdResourceTitle(item.header, item.filepath) }}</span>
+        <span class="td-tree-time">{{ formatRelativeTime(item.metadata.mtime) }}</span>
       </a>
     </div>
   </div>
@@ -132,7 +145,7 @@ function isCurrent (href: string): boolean {
   font-size: var(--font-size-td-label);
   letter-spacing: var(--tracking-td-label);
   text-transform: uppercase;
-  color: var(--color-td-gray-600);
+  color: var(--color-td-neutral-fg-muted);
   background: none;
   border: none;
   cursor: pointer;
@@ -149,7 +162,7 @@ function isCurrent (href: string): boolean {
 
 .td-tree-count {
   font-size: 0.75rem;
-  color: var(--color-td-gray-400);
+  color: var(--color-td-neutral-border);
   letter-spacing: normal;
   text-transform: none;
 }
@@ -164,12 +177,12 @@ function isCurrent (href: string): boolean {
 }
 
 .td-tree-children {
-  border-left: 1px solid var(--color-td-gray-300);
+  border-left: 1px solid var(--color-td-neutral-border-subtle);
 }
 
 .td-tree-file-icon {
   flex-shrink: 0;
-  color: var(--color-td-gray-500);
+  color: var(--color-td-neutral-border-strong);
 }
 
 .td-tree-link {
@@ -178,19 +191,32 @@ function isCurrent (href: string): boolean {
   gap: 6px;
   padding: 5px 12px;
   font-size: var(--font-size-td-nav);
-  color: var(--color-td-gray-700);
+  color: var(--color-td-neutral-fg);
   text-decoration: none;
   transition: background-color 0.1s;
 }
 
 .td-tree-link:hover {
-  background-color: var(--color-td-gray-200);
+  background-color: var(--color-td-neutral-bg-hover);
+}
+
+.td-tree-link-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td-tree-time {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-td-neutral-border);
 }
 
 .td-tree-link.is-active {
-  background-color: color-mix(in srgb, var(--color-td-secondary) 20%, transparent);
-  border-left-color: var(--color-td-secondary);
-  color: var(--color-td-fg);
+  background-color: var(--color-td-primary-bg-hover);
+  border-left-color: var(--color-td-primary-solid);
+  color: var(--color-td-primary-solid);
   font-weight: var(--font-weight-td-semibold);
 }
 </style>

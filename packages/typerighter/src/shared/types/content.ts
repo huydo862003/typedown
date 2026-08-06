@@ -5,6 +5,8 @@ export interface ContentSummary {
   schema?: string;
   /** Frontmatter header */
   header: Record<string, unknown>;
+  /** File metadata */
+  metadata: FileMetadata;
 }
 
 export interface ContentTree {
@@ -30,6 +32,13 @@ export interface DirectoryListing {
   url: string;
   subdirectories: SubdirectoryEntry[];
   items: DirectoryEntry[];
+}
+
+export interface FileMetadata {
+  /** Last modification time as seconds since UNIX epoch */
+  mtime: number;
+  /** Creation time as seconds since UNIX epoch */
+  ctime: number;
 }
 
 export type SchemaGroups = Record<string, ContentSummary[]>;
