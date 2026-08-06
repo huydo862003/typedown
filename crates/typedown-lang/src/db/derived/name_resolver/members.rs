@@ -6,6 +6,7 @@ use crate::db::TypedownDatabase;
 use crate::db::derived::name_resolver::builtin_scope::builtin_scope;
 use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::types::{MembersResult, Scope, ScopeKind};
+use crate::db::utils::is_content_file;
 use typedown_incremental::QueryDatabase;
 
 #[query_derived]
@@ -37,7 +38,7 @@ pub fn members(db: &TypedownDatabase, scope: Scope) -> MembersResult {
       let mut members = HashMap::new();
 
       for (path, file) in &proj_files {
-        if !path.extension().is_some_and(|ext| ext == "td") {
+        if !is_content_file(path) {
           continue;
         }
         if let Some(sym) = file_symbol(db, project, *file).value(db) {

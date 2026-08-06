@@ -8,7 +8,7 @@ import {
   getParentUrl, getTdContentUrl,
 } from './url';
 import {
-  basename, dirname,
+  basename, filestem, dirname,
 } from './path';
 
 // Build a recursive tree from a flat list of content summaries, grouped by directory
@@ -126,7 +126,7 @@ export function getTdResourceTitle (header: Record<string, unknown>, filepath: s
   if (header._label !== undefined) return String(header._label);
   if (header.name !== undefined) return String(header.name);
 
-  return unslugify(basename(filepath, '.td'));
+  return unslugify(filestem(filepath));
 }
 
 // Sort by numeric prefix first, then alphabetically as fallback
@@ -141,8 +141,8 @@ function sortTree (node: ContentTreeNode) {
   });
 
   node.items.sort((left, right) => {
-    const leftPrefix = parseNumericPrefix(basename(left.filepath, '.td'));
-    const rightPrefix = parseNumericPrefix(basename(right.filepath, '.td'));
+    const leftPrefix = parseNumericPrefix(filestem(left.filepath));
+    const rightPrefix = parseNumericPrefix(filestem(right.filepath));
 
     if (leftPrefix.order !== rightPrefix.order) return leftPrefix.order - rightPrefix.order;
 

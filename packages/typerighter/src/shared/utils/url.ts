@@ -5,7 +5,7 @@ import {
   EXTERNAL_URL_RE,
 } from '../regexes';
 import {
-  dirname, join, basename, extname,
+  filestem, dirname, join, extname,
 } from './path';
 
 // Returns true if the URL has a protocol prefix (https:, mailto:, data:, etc.)
@@ -35,7 +35,7 @@ export function getParentUrl (urlPath: string): string {
 }
 
 export function getTdContentUrl (filepath: string): string {
-  const name = basename(filepath, '.td');
+  const name = filestem(filepath);
 
   if (name === INDEX_FILENAME) {
     const directory = dirname(filepath);

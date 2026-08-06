@@ -1,6 +1,10 @@
 // Posix-style path utilities for content filepaths
 // These work with forward-slash paths and run in both Node and browser
 
+import {
+  CONTENT_EXTENSIONS,
+} from '../constants';
+
 export function basename (filepath: string, extension?: string): string {
   const name = normalize(filepath).split('/')
     .pop() ?? '';
@@ -27,6 +31,17 @@ export function extname (filepath: string): string {
   return dot <= 0 ? '' : name.slice(dot);
 }
 
+export function filestem (filepath: string): string {
+  const name = basename(filepath);
+  const dot = name.lastIndexOf('.');
+
+  return dot <= 0 ? name : name.slice(0, dot);
+}
+
+export function isContentFile (filepath: string): boolean {
+  return CONTENT_EXTENSIONS.includes(extname(filepath));
+}
+
 export function join (...segments: string[]): string {
   return segments
     .filter(Boolean)
@@ -34,6 +49,12 @@ export function join (...segments: string[]): string {
     .replace(/\\+/g, '/')
     .replace(/\/+/g, '/')
     .replace(/\/$/, '') || '/';
+}
+
+export function stripExtension (filepath: string): string {
+  const extension = extname(filepath);
+
+  return extension ? filepath.slice(0, -extension.length) : filepath;
 }
 
 function normalize (filepath: string): string {

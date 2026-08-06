@@ -1,4 +1,5 @@
 use typedown_lang::db::types::TdTypeLike;
+use typedown_lang::db::utils::is_content_file;
 
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
 use typedown_lang::db::TypedownDatabase;
@@ -116,7 +117,7 @@ fn fref_completions(
   project
     .files(db)
     .iter()
-    .filter(|(path, _)| path.extension().is_some_and(|ext| ext == "td"))
+    .filter(|(path, _)| is_content_file(path))
     .filter(|(_, target_file)| {
       // If we have an expected type, only include files whose type is compatible.
       let Some(ref expected) = expected_type else {

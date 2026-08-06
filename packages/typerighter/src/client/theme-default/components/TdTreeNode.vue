@@ -28,8 +28,8 @@ const {
 
 const route = useRoute();
 const directoryUrl = getDirectoryUrl(urlPrefix, node.name);
-const indexItem = node.items.find((item) => path.basename(item.filepath, '.td') === INDEX_FILENAME);
-const regularItems = node.items.filter((item) => path.basename(item.filepath, '.td') !== INDEX_FILENAME);
+const indexItem = node.items.find((item) => path.filestem(item.filepath) === INDEX_FILENAME);
+const regularItems = node.items.filter((item) => path.filestem(item.filepath) !== INDEX_FILENAME);
 
 const hasContent = 0 < node.children.length || 0 < node.items.length;
 

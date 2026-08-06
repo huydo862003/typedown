@@ -7,10 +7,27 @@ use crate::syntax::diagnostic::Diagnostic;
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
 
+use std::path::Path;
+
 use crate::db::TypedownDatabase;
 use crate::db::derived::hir::lower_node;
 use crate::db::derived::parse_file::parse_file;
 use crate::db::types::{File, HirValue, Project};
+
+/// Whether a path has a content file extension (.td or .md)
+pub fn is_content_file(path: &Path) -> bool {
+  path
+    .extension()
+    .and_then(|e| e.to_str())
+    .is_some_and(|ext| ext == "td" || ext == "md")
+}
+
+/// Strip a content file extension (.td or .md) from a string
+pub fn strip_content_extension(s: &str) -> &str {
+  s.strip_suffix(".td")
+    .or_else(|| s.strip_suffix(".md"))
+    .unwrap_or(s)
+}
 
 pub fn lower_file(
   db: &TypedownDatabase,
@@ -63,4 +80,48 @@ pub fn schema_name_in_mapping(mapping: &RedNode) -> Option<String> {
     }
   }
   None
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::path::Path;
+
+  #[test]
+  fn is_content_file_accepts_td() {
+    assert!(is_content_file(Path::new("file.td")));
+    assert!(is_content_file(Path::new("path/to/file.td")));
+  }
+
+  #[test]
+  fn is_content_file_accepts_md() {
+    assert!(is_content_file(Path::new("file.md")));
+    assert!(is_content_file(Path::new("path/to/file.md")));
+  }
+
+  #[test]
+  fn is_content_file_rejects_other() {
+    assert!(!is_content_file(Path::new("file.txt")));
+    assert!(!is_content_file(Path::new("file.yaml")));
+    assert!(!is_content_file(Path::new("file.png")));
+    assert!(!is_content_file(Path::new("file")));
+  }
+
+  #[test]
+  fn strip_content_extension_strips_td() {
+    assert_eq!(strip_content_extension("file.td"), "file");
+    assert_eq!(strip_content_extension("path/to/file.td"), "path/to/file");
+  }
+
+  #[test]
+  fn strip_content_extension_strips_md() {
+    assert_eq!(strip_content_extension("file.md"), "file");
+    assert_eq!(strip_content_extension("path/to/file.md"), "path/to/file");
+  }
+
+  #[test]
+  fn strip_content_extension_preserves_other() {
+    assert_eq!(strip_content_extension("file.txt"), "file.txt");
+    assert_eq!(strip_content_extension("file"), "file");
+  }
 }

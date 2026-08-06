@@ -10,11 +10,10 @@ use std::time::SystemTime;
 use typedown_incremental::InputId;
 use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
+use typedown_lang::db::utils::is_content_file;
 
 use crate::core::analysis::Analysis;
-use crate::core::utils::fs::{
-  disk_handle, is_asset_file, is_td_file, is_vault_config, scan_project_files,
-};
+use crate::core::utils::fs::{disk_handle, is_asset_file, is_vault_config, scan_project_files};
 use crate::core::utils::uri::{uri_scheme, uri_to_path};
 
 pub struct AnalysisHost {
@@ -219,7 +218,7 @@ impl AnalysisHost {
     if self.open_files.contains_key(&path) {
       return; // editor owns this file, ignore disk change
     }
-    if is_td_file(&path)
+    if is_content_file(&path)
       || is_asset_file(&path)
       || (path.parent().is_some_and(|p| p == self.project_dir) && is_vault_config(&path))
     {

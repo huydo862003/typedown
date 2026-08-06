@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use crate::db::types::{AssetKind, File, FileHandle, FileMetadata, Project};
+use crate::db::utils::is_content_file;
 use crate::db::{QueryStorage, TypedownDatabase};
 
 pub struct Fixture {
@@ -77,10 +78,7 @@ fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, Fi
       .and_then(|ext| ext.to_str())
       .and_then(AssetKind::from_extension)
       .is_some();
-    path.extension().is_some_and(|ext| ext == "td")
-      || is_asset
-      || name == "typedown.yaml"
-      || name == "typedown.yml"
+    is_content_file(&path) || is_asset || name == "typedown.yaml" || name == "typedown.yml"
   }
 
   fn walk(dir: &Path, db: &TypedownDatabase, files: &mut HashMap<PathBuf, File>) {

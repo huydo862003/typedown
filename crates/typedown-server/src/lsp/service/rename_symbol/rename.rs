@@ -6,6 +6,7 @@ use typedown_lang::db::derived::hir::lower_node;
 use typedown_lang::db::derived::name_resolver::referee::referee;
 use typedown_lang::db::derived::name_resolver::resolution_index::references;
 use typedown_lang::db::types::SymbolKind;
+use typedown_lang::db::utils::is_content_file;
 use typedown_lang::syntax::ast::AstNode;
 
 use crate::core::analysis::Analysis;
@@ -91,8 +92,8 @@ fn compute_ident_target(
     .and_then(|f| Path::new(f).extension())
     .is_some();
   let is_schema = matches!(symbol.kind(db), SymbolKind::UserDefinedSchema(_, _));
-  // Schemas must be .td & reject non .td extensions
-  if is_schema && has_extension && new_path.extension() != Some("td".as_ref()) {
+  // Schemas must have a content file extension
+  if is_schema && has_extension && !is_content_file(new_path) {
     return None;
   }
   let stem = if has_extension {
