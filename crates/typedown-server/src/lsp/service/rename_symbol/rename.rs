@@ -127,7 +127,7 @@ mod tests {
     TextDocumentIdentifier, TextDocumentPositionParams,
   };
   use ropey::Rope;
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use super::rename;
@@ -198,19 +198,35 @@ age: 30
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Person.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        schema_root.join("Person.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let alice_file = File::new(
       &db,
-      FileHandle::Content(content_root.join("alice.td"), CONTENT_ALICE.to_string()),
+      FileHandle::Content(
+        content_root.join("alice.td"),
+        CONTENT_ALICE.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let editing_file = File::new(
       &db,
-      FileHandle::Content(test_path.clone(), content.to_string()),
+      FileHandle::Content(
+        test_path.clone(),
+        content.to_string(),
+        FileMetadata::default(),
+      ),
     );
 
     let files = HashMap::from([
@@ -392,22 +408,35 @@ name: Alice
     };
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let schema_file = File::new(
       &db,
-      FileHandle::Content(root.join("schemas/Human.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        root.join("schemas/Human.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let alice_file = File::new(
       &db,
       FileHandle::Content(
         root.join("content/alice.td"),
         CONTENT_ALICE.replace("Person", "Human"),
+        FileMetadata::default(),
       ),
     );
     let test_file = File::new(
       &db,
-      FileHandle::Content(root.join("content/file.td"), human_content.clone()),
+      FileHandle::Content(
+        root.join("content/file.td"),
+        human_content.clone(),
+        FileMetadata::default(),
+      ),
     );
     let files = HashMap::from([
       (root.join("typedown.yaml"), config_file),

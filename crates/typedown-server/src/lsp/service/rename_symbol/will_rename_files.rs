@@ -59,7 +59,7 @@ mod tests {
   use std::sync::{Arc, Condvar, Mutex};
 
   use lsp_types::{DocumentChangeOperation, DocumentChanges, FileRename, RenameFilesParams};
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use super::will_rename_files;
@@ -114,19 +114,35 @@ avatar: fref("assets/icon.svg")
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Person.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        schema_root.join("Person.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let alice_file = File::new(
       &db,
-      FileHandle::Content(content_root.join("alice.td"), CONTENT_ALICE.to_string()),
+      FileHandle::Content(
+        content_root.join("alice.td"),
+        CONTENT_ALICE.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let editing_file = File::new(
       &db,
-      FileHandle::Content(content_root.join("file.td"), editing_content.to_string()),
+      FileHandle::Content(
+        content_root.join("file.td"),
+        editing_content.to_string(),
+        FileMetadata::default(),
+      ),
     );
 
     let mut files = HashMap::from([
@@ -137,7 +153,10 @@ avatar: fref("assets/icon.svg")
     ]);
 
     for (path, content) in extra_files {
-      let file = File::new(&db, FileHandle::Content(path.clone(), content.to_string()));
+      let file = File::new(
+        &db,
+        FileHandle::Content(path.clone(), content.to_string(), FileMetadata::default()),
+      );
       files.insert(path, file);
     }
 

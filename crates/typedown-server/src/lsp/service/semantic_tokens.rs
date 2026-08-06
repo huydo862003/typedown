@@ -136,6 +136,7 @@ mod tests {
   use std::path::PathBuf;
 
   use super::*;
+  use typedown_lang::db::types::FileMetadata;
 
   // Token -> Semantic token
   fn parse_tokens(content: &str) -> Vec<SemanticTokenType> {
@@ -143,7 +144,10 @@ mod tests {
       storage: QueryStorage::default(),
     };
     let path = PathBuf::from("/test.td");
-    let file = File::new(&db, FileHandle::Content(path.clone(), content.to_string()));
+    let file = File::new(
+      &db,
+      FileHandle::Content(path.clone(), content.to_string(), FileMetadata::default()),
+    );
     let project = Project::new(
       &db,
       PathBuf::from("/"),

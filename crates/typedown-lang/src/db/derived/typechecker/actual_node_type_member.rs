@@ -491,7 +491,7 @@ fn get_self_type(db: &TypedownDatabase, hir: HirValue) -> TypeMemberResult {
 #[cfg(test)]
 mod tests {
   use crate::db::types::TdTypeEnum;
-  use std::{collections::HashMap, path::PathBuf, time::SystemTime};
+  use std::{collections::HashMap, path::PathBuf};
 
   use crate::db::{
     QueryStorage, TypedownDatabase,

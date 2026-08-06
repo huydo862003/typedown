@@ -283,7 +283,7 @@ mod tests {
     TextDocumentPositionParams, Uri, WorkDoneProgressParams,
   };
   use ropey::Rope;
-  use typedown_lang::db::types::{File, FileHandle, Project};
+  use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
   use typedown_lang::db::{QueryStorage, TypedownDatabase};
 
   use crate::core::analysis::Analysis;
@@ -378,26 +378,43 @@ properties:
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Person.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        schema_root.join("Person.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let event_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Event.td"), SCHEMA_EVENT.to_string()),
+      FileHandle::Content(
+        schema_root.join("Event.td"),
+        SCHEMA_EVENT.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_with_address_file = File::new(
       &db,
       FileHandle::Content(
         schema_root.join("PersonWithAddress.td"),
         SCHEMA_PERSON_WITH_ADDRESS.to_string(),
+        FileMetadata::default(),
       ),
     );
     let test_file = File::new(
       &db,
-      FileHandle::Content(test_path.clone(), content.to_string()),
+      FileHandle::Content(
+        test_path.clone(),
+        content.to_string(),
+        FileMetadata::default(),
+      ),
     );
 
     let files = HashMap::from([
@@ -760,37 +777,59 @@ date: 2024-01-01
 
     let config_file = File::new(
       &db,
-      FileHandle::Content(root.join("typedown.yaml"), VAULT_CONFIG.to_string()),
+      FileHandle::Content(
+        root.join("typedown.yaml"),
+        VAULT_CONFIG.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let person_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Person.td"), SCHEMA_PERSON.to_string()),
+      FileHandle::Content(
+        schema_root.join("Person.td"),
+        SCHEMA_PERSON.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let event_file = File::new(
       &db,
-      FileHandle::Content(schema_root.join("Event.td"), SCHEMA_EVENT.to_string()),
+      FileHandle::Content(
+        schema_root.join("Event.td"),
+        SCHEMA_EVENT.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let directory_file = File::new(
       &db,
       FileHandle::Content(
         schema_root.join("Directory.td"),
         SCHEMA_DIRECTORY.to_string(),
+        FileMetadata::default(),
       ),
     );
     let alice_file = File::new(
       &db,
-      FileHandle::Content(content_root.join("alice.td"), CONTENT_ALICE.to_string()),
+      FileHandle::Content(
+        content_root.join("alice.td"),
+        CONTENT_ALICE.to_string(),
+        FileMetadata::default(),
+      ),
     );
     let birthday_file = File::new(
       &db,
       FileHandle::Content(
         content_root.join("birthday.td"),
         CONTENT_BIRTHDAY.to_string(),
+        FileMetadata::default(),
       ),
     );
     let editing_file = File::new(
       &db,
-      FileHandle::Content(test_path.clone(), content.to_string()),
+      FileHandle::Content(
+        test_path.clone(),
+        content.to_string(),
+        FileMetadata::default(),
+      ),
     );
 
     let files = HashMap::from([

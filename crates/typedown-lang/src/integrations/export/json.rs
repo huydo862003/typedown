@@ -188,7 +188,6 @@ fn serialize_member_type(
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
-  use std::time::SystemTime;
 
   use typedown_types::either::Either;
 
