@@ -67,7 +67,7 @@ const crumbs = computed(() => {
   align-items: center;
   gap: 2px;
   font-size: var(--font-size-td-body-sm);
-  color: var(--color-td-gray-500);
+  color: var(--color-td-neutral-border-strong);
   margin-bottom: 8px;
 }
 
@@ -76,16 +76,16 @@ const crumbs = computed(() => {
 }
 
 .td-breadcrumb-link {
-  color: var(--color-td-gray-500);
+  color: var(--color-td-neutral-border-strong);
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .td-breadcrumb-link:hover {
-  color: var(--color-td-primary);
+  color: var(--color-td-primary-solid);
 }
 
 .td-breadcrumb-current {
-  color: var(--color-td-gray-700);
+  color: var(--color-td-neutral-fg);
 }
 </style>

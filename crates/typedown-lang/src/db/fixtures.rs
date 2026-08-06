@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use crate::db::types::{AssetKind, File, FileHandle, Project};
+use crate::db::types::{AssetKind, File, FileHandle, FileMetadata, Project};
 use crate::db::{QueryStorage, TypedownDatabase};
 
 pub struct Fixture {
@@ -58,8 +58,10 @@ pub fn load_vault_fixture(
 
   // Ensure the target file is registered
   let target_file = *files.entry(target_path.clone()).or_insert_with(|| {
-    let mtime = path_mtime(&target_path);
-    File::new(&db, FileHandle::Path(target_path.clone(), mtime))
+    File::new(
+      &db,
+      FileHandle::Path(target_path.clone(), path_metadata(&target_path)),
+    )
   });
 
   let project = Project::new(&db, vault, files);
@@ -88,8 +90,7 @@ fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, Fi
         if path.is_dir() {
           walk(&path, db, files);
         } else if is_vault_file(&path) {
-          let mtime = path_mtime(&path);
-          let file = File::new(db, FileHandle::Path(path.clone(), mtime));
+          let file = File::new(db, FileHandle::Path(path.clone(), path_metadata(&path)));
           files.insert(path, file);
         }
       }
@@ -101,8 +102,15 @@ fn collect_vault_files(dir: &Path, db: &TypedownDatabase) -> HashMap<PathBuf, Fi
   files
 }
 
-fn path_mtime(path: &Path) -> SystemTime {
-  fs::metadata(path)
-    .and_then(|meta| meta.modified())
-    .unwrap_or(SystemTime::UNIX_EPOCH)
+fn path_metadata(path: &Path) -> FileMetadata {
+  let meta = fs::metadata(path).ok();
+  let mtime = meta
+    .as_ref()
+    .and_then(|m| m.modified().ok())
+    .unwrap_or(SystemTime::UNIX_EPOCH);
+  let ctime = meta
+    .as_ref()
+    .and_then(|m| m.created().ok())
+    .unwrap_or(mtime);
+  FileMetadata { mtime, ctime }
 }

@@ -130,6 +130,8 @@ pub struct TdContentSummary {
   /// Frontmatter header as JSON
   #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
   pub header: serde_json::Value,
+  /// File metadata
+  pub metadata: TdFileMetadata,
 }
 
 /// Structured build result: Header (frontmatter) and content (commonmark body)
@@ -142,6 +144,20 @@ pub struct TdBuiltResource {
   #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
   pub header: serde_json::Value,
   pub content: String,
+  /// File metadata
+  pub metadata: TdFileMetadata,
+}
+
+/// File metadata
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(target_arch = "wasm32", derive(Tsify))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+pub struct TdFileMetadata {
+  /// Last modification time as seconds since UNIX epoch
+  pub mtime: u64,
+  /// Creation time as seconds since UNIX epoch
+  pub ctime: u64,
 }
 
 /// Schema metadata

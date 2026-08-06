@@ -41,7 +41,7 @@ mod tests {
   use crate::db::{
     QueryStorage, TypedownDatabase,
     fixtures::load_fixtures,
-    types::{File, FileHandle, Project},
+    types::{File, FileHandle, FileMetadata, Project},
   };
 
   use super::parse_file;
@@ -59,7 +59,11 @@ mod tests {
 
     let file = File::new(
       &db,
-      FileHandle::Content(PathBuf::from("test.td"), fixture.contents.clone()),
+      FileHandle::Content(
+        PathBuf::from("test.td"),
+        fixture.contents.clone(),
+        FileMetadata::default(),
+      ),
     );
     let result = parse_file(&db, project, file);
 
@@ -88,7 +92,7 @@ mod tests {
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
     let file = File::new(
       &db,
-      FileHandle::Path(fixture.path.clone(), SystemTime::UNIX_EPOCH),
+      FileHandle::Path(fixture.path.clone(), FileMetadata::default()),
     );
     let result = parse_file(&db, project, file);
 
@@ -119,7 +123,11 @@ mod tests {
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
     let file = File::new(
       &db,
-      FileHandle::Content(PathBuf::from("test.td"), fixture.contents.clone()),
+      FileHandle::Content(
+        PathBuf::from("test.td"),
+        fixture.contents.clone(),
+        FileMetadata::default(),
+      ),
     );
     let result = parse_file(&db, project, file);
 
@@ -150,7 +158,7 @@ mod tests {
     let project = Project::new(&db, PathBuf::from("/"), HashMap::new());
     let file = File::new(
       &db,
-      FileHandle::Path(fixture.path.clone(), SystemTime::UNIX_EPOCH),
+      FileHandle::Path(fixture.path.clone(), FileMetadata::default()),
     );
     let result = parse_file(&db, project, file);
 

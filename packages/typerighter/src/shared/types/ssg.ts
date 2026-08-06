@@ -2,6 +2,9 @@ import type {
   Component, Ref,
 } from 'vue';
 import type {
+  FileMetadata,
+} from './content';
+import type {
   MarkdownHeading,
 } from './markdown';
 
@@ -10,6 +13,7 @@ export interface PageData {
   frontmatter: Record<string, unknown>;
   headings: MarkdownHeading[];
   title: string;
+  metadata?: FileMetadata;
 }
 
 export interface PageModule {

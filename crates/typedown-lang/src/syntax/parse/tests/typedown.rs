@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::db::derived::parse_file::parse_file;
-use crate::db::types::{File, FileHandle, Project};
+use crate::db::types::{File, FileHandle, FileMetadata, Project};
 use crate::db::{QueryStorage, TypedownDatabase};
 
 use super::helpers::*;
@@ -220,12 +220,16 @@ fn parse_all_project_tracker_files() {
   collect_files(&project_dir, &mut paths);
 
   for path in &paths {
-    let handle = FileHandle::Path(
-      path.clone(),
-      std::fs::metadata(&path)
-        .and_then(|m| m.modified())
-        .unwrap_or(SystemTime::UNIX_EPOCH),
-    );
+    let meta = std::fs::metadata(&path).ok();
+    let mtime = meta
+      .as_ref()
+      .and_then(|m| m.modified().ok())
+      .unwrap_or(SystemTime::UNIX_EPOCH);
+    let ctime = meta
+      .as_ref()
+      .and_then(|m| m.created().ok())
+      .unwrap_or(mtime);
+    let handle = FileHandle::Path(path.clone(), FileMetadata { mtime, ctime });
     let file = File::new(&db, handle);
     file_map.insert(path.clone(), file);
   }

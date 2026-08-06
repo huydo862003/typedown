@@ -15,9 +15,10 @@ use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::parse_file::parse_file;
 use crate::db::types::{
-  File, HirValue, Project, Symbol, SymbolKind, TdBlobType, TdObjectEnum, TdObjectLike, TdTypeEnum,
-  TdTypeLike,
+  File, FileHandle, HirValue, Project, Symbol, SymbolKind, TdBlobType, TdObjectEnum, TdObjectLike,
+  TdTypeEnum, TdTypeLike,
 };
+
 use crate::syntax::ast::{AstNode, InterpFragment, MdBody, MdToggleList, SourceFile};
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
@@ -32,6 +33,17 @@ pub struct ExportedResource {
   pub header: serde_json::Value,
   /// Commonmark-compatible markdown body
   pub content: String,
+  /// File metadata
+  pub metadata: ExportedMetadata,
+}
+
+/// File metadata exported alongside a resource
+#[derive(serde::Serialize, Clone)]
+pub struct ExportedMetadata {
+  /// Last modification time as seconds since UNIX epoch
+  pub mtime: u64,
+  /// Creation time as seconds since UNIX epoch
+  pub ctime: u64,
 }
 
 /// Export a resource file as structured header and commonmark content
@@ -42,6 +54,7 @@ pub fn export_resource(
 ) -> Option<ExportedResource> {
   let symbol = file_symbol(db, project, file).value(db)?;
   let obj = evaluate_resource(db, symbol).value(db)?;
+  let metadata = export_metadata(file.handle(db));
 
   // Assets export as a blob descriptor with no body
   if obj.as_td_blob_obj().is_some() {
@@ -49,6 +62,7 @@ pub fn export_resource(
       schema: Some(TdBlobType::get(db).display_name(db)),
       header: json::to_json(db, &obj).unwrap_or_default(),
       content: String::new(),
+      metadata,
     });
   }
 
@@ -77,6 +91,7 @@ pub fn export_resource(
     schema,
     header,
     content,
+    metadata,
   })
 }
 
@@ -90,6 +105,14 @@ pub fn export_schema(
   let typ = evaluate_type(db, symbol).typ(db)?;
   let obj = TdObjectEnum::from(typ);
   json::to_json(db, &obj).ok()
+}
+
+fn export_metadata(handle: FileHandle) -> ExportedMetadata {
+  let meta = handle.metadata();
+  ExportedMetadata {
+    mtime: meta.mtime_epoch_secs(),
+    ctime: meta.ctime_epoch_secs(),
+  }
 }
 
 fn export_markdown_body(

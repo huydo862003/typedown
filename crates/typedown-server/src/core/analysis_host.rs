@@ -6,9 +6,10 @@ use std::{fs, io};
 
 use lsp_types::Uri;
 use ropey::Rope;
+use std::time::SystemTime;
 use typedown_incremental::InputId;
 use typedown_lang::db::TypedownDatabase;
-use typedown_lang::db::types::{File, FileHandle, Project};
+use typedown_lang::db::types::{File, FileHandle, FileMetadata, Project};
 
 use crate::core::analysis::Analysis;
 use crate::core::utils::fs::{
@@ -129,7 +130,16 @@ impl AnalysisHost {
     for (path, rope) in self.open_files.iter() {
       desired.insert(
         path.clone(),
-        FileHandle::Content(path.clone(), rope.to_string()),
+        FileHandle::Content(
+          path.clone(),
+          rope.to_string(),
+          FileMetadata {
+            mtime: SystemTime::now(),
+            ctime: fs::metadata(path)
+              .and_then(|m| m.created())
+              .unwrap_or_else(|_| SystemTime::now()),
+          },
+        ),
       );
     }
 
@@ -171,7 +181,20 @@ impl AnalysisHost {
 
   /// Called on textDocument/didChange.
   pub fn on_editor_change_file(&mut self, path: PathBuf, rope: Rope) {
-    let handle = FileHandle::Content(path.clone(), rope.to_string());
+    // Preserve ctime from the existing handle instead of re-reading from disk
+    let ctime = self
+      .file_map
+      .get(&path)
+      .map(|f| f.handle(&self.db).metadata().ctime)
+      .unwrap_or_else(SystemTime::now);
+    let handle = FileHandle::Content(
+      path.clone(),
+      rope.to_string(),
+      FileMetadata {
+        mtime: SystemTime::now(),
+        ctime,
+      },
+    );
     Arc::make_mut(&mut self.open_files).insert(path.clone(), rope);
     let file_map = &self.file_map;
 
@@ -223,11 +246,18 @@ impl AnalysisHost {
     };
 
     let content = match file.handle(&self.db) {
-      FileHandle::Content(_, content) => content.clone(),
+      FileHandle::Content(_, content, _) => content.clone(),
       FileHandle::Path(path, _) => fs::read_to_string(&path).unwrap_or_default(),
     };
 
-    let handle = FileHandle::Content(new_path.clone(), content);
+    let handle = FileHandle::Content(
+      new_path.clone(),
+      content,
+      FileMetadata {
+        mtime: SystemTime::now(),
+        ctime: SystemTime::now(),
+      },
+    );
 
     let project = self.project;
 

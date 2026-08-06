@@ -60,7 +60,7 @@ pub fn definition(
 
   let target_path = match target_file.handle(db) {
     FileHandle::Path(path, _) => path,
-    FileHandle::Content(_, _) => project
+    FileHandle::Content(_, _, _) => project
       .files(db)
       .iter()
       .find(|(_, f)| **f == target_file)

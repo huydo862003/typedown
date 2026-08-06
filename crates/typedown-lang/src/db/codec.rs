@@ -4,7 +4,10 @@ use crate::syntax::green::node::SyntaxNode;
 use crate::syntax::green::token::SyntaxToken;
 use crate::syntax::red::RedNode;
 use crate::syntax::syntax_kind::SyntaxKind;
-use crate::{db::types::FileHandle, syntax::green::GreenNode};
+use crate::{
+  db::types::{FileHandle, FileMetadata},
+  syntax::green::GreenNode,
+};
 
 use typedown_incremental::{
   Decodable, Decoder, Encodable, Encoder, QueryDatabase, StableHash, StableHasher,
@@ -138,17 +141,25 @@ impl StableHash for RedNode {
   }
 }
 
+impl StableHash for FileMetadata {
+  fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
+    self.mtime.stable_hash(db, hasher);
+    self.ctime.stable_hash(db, hasher);
+  }
+}
+
 impl StableHash for FileHandle {
   fn stable_hash<DB: QueryDatabase + ?Sized>(&self, db: &DB, hasher: &mut StableHasher) {
     std::mem::discriminant(self).stable_hash(db, hasher);
     match self {
-      FileHandle::Path(path, content) => {
+      FileHandle::Path(path, metadata) => {
         path.stable_hash(db, hasher);
-        content.stable_hash(db, hasher);
+        metadata.stable_hash(db, hasher);
       }
-      FileHandle::Content(path, content) => {
+      FileHandle::Content(path, content, metadata) => {
         path.stable_hash(db, hasher);
         content.stable_hash(db, hasher);
+        metadata.stable_hash(db, hasher);
       }
     }
   }

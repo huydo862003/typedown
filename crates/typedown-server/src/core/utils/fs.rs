@@ -2,11 +2,16 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use typedown_lang::db::types::{AssetKind, FileHandle};
+use typedown_lang::db::types::{AssetKind, FileHandle, FileMetadata};
 
 pub fn disk_handle(path: &PathBuf) -> Option<FileHandle> {
-  let mtime = fs::metadata(path).and_then(|meta| meta.modified()).ok()?;
-  Some(FileHandle::Path(path.clone(), mtime))
+  let meta = fs::metadata(path).ok()?;
+  let mtime = meta.modified().ok()?;
+  let ctime = meta.created().unwrap_or(mtime);
+  Some(FileHandle::Path(
+    path.clone(),
+    FileMetadata { mtime, ctime },
+  ))
 }
 
 pub fn scan_project_files(root: &PathBuf) -> io::Result<HashSet<PathBuf>> {

@@ -43,6 +43,7 @@ export async function renderToVueSfc (
     frontmatter: resource.header,
     headings: env.headers ?? [],
     title,
+    metadata: resource.metadata,
   };
 
   const pageDataJson = JSON.stringify(JSON.stringify(pageData));

@@ -28,7 +28,7 @@
   margin-top: 2.5rem;
   margin-bottom: 0.875rem;
   padding-bottom: 8px;
-  border-bottom: 2px solid color-mix(in srgb, var(--color-td-secondary) 40%, transparent);
+  border-bottom: 2px solid var(--color-td-primary-border-subtle);
 }
 
 .td-content h3 {
@@ -71,14 +71,14 @@
 /* Links */
 
 .td-content a {
-  color: var(--color-td-primary);
+  color: var(--color-td-link);
   text-decoration: none;
   text-underline-offset: 3px;
   transition: color 0.15s;
 }
 
 .td-content a:hover {
-  color: var(--color-td-primary-hover);
+  color: var(--color-td-link-hover);
   text-decoration: underline;
 }
 
@@ -87,7 +87,7 @@
 .td-content .header-anchor {
   padding-right: 0.25em;
   font-weight: 500;
-  color: var(--color-td-primary);
+  color: var(--color-td-link);
   opacity: 0;
   text-decoration: none;
   transition: opacity 0.2s;
@@ -152,7 +152,7 @@
 .td-content blockquote {
   margin: 1rem 0;
   padding: 0 1rem;
-  border-left: 3px solid var(--color-td-primary);
+  border-left: 3px solid var(--color-td-neutral-border);
   color: var(--color-td-fg-muted);
 }
 
@@ -166,7 +166,7 @@
   height: 2px;
   margin: 2rem 0;
   border: none;
-  background: var(--color-td-border);
+  background: var(--color-td-neutral-border);
 }
 
 /* Images */
@@ -195,13 +195,13 @@
   text-transform: uppercase;
   color: var(--color-td-fg-muted);
   padding: 0.5rem;
-  border-bottom: 2px solid var(--color-td-border);
+  border-bottom: 2px solid var(--color-td-neutral-border);
 }
 
 .td-content td {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid var(--color-td-border);
+  border-bottom: 1px solid var(--color-td-neutral-border);
 }
 
 .td-content tbody tr:hover {

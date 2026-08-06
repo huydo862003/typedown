@@ -63,7 +63,7 @@
 /* Details */
 .td-content details.custom-block {
   border-left: none;
-  border: 1px solid var(--color-td-gray-300);
+  border: 1px solid var(--color-td-neutral-border-subtle);
   padding: 0;
 }
 
@@ -76,11 +76,11 @@
 }
 
 .td-content details.custom-block summary:hover {
-  color: var(--color-td-primary);
+  color: var(--color-td-link);
 }
 
 .td-content details.custom-block[open] summary {
-  border-bottom: 1px solid var(--color-td-gray-300);
+  border-bottom: 1px solid var(--color-td-neutral-border-subtle);
   margin-bottom: 8px;
 }
 

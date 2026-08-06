@@ -40,7 +40,7 @@ const parentUrl = computed(() => getParentUrl(url));
         :size="16"
         class="text-td-gray-500 flex-shrink-0"
       />
-      <span class="font-td-semibold text-td-body-sm text-td-gray-600">..</span>
+      <span class="font-td-semibold text-td-body-sm text-td-neutral-fg-muted">..</span>
     </a>
 
     <div v-if="subdirectories.length > 0">
@@ -55,7 +55,7 @@ const parentUrl = computed(() => getParentUrl(url));
           class="text-td-gray-500 flex-shrink-0"
         />
         <span class="font-td-semibold text-td-body-sm">{{ sub.name }}</span>
-        <span class="text-td-label text-td-gray-600 ml-auto">{{ sub.count }}</span>
+        <span class="text-td-label text-td-neutral-fg-muted ml-auto">{{ sub.count }}</span>
       </a>
     </div>
 
@@ -82,13 +82,13 @@ const parentUrl = computed(() => getParentUrl(url));
   align-items: center;
   gap: 12px;
   padding: 11px 4px;
-  border-bottom: 1px solid var(--color-td-gray-300);
+  border-bottom: 1px solid var(--color-td-neutral-border-subtle);
   text-decoration: none;
   color: var(--color-td-fg);
   transition: background-color 0.1s;
 }
 
 .td-dir-row:hover {
-  background: var(--color-td-primary-tint);
+  background: var(--color-td-primary-bg-subtle);
 }
 </style>
