@@ -40,10 +40,18 @@ function countItems (n: ContentTreeNode): number {
 }
 
 const collapsed = ref(!isUrlAncestorOf(directoryUrl, route.path));
+const expanded = ref(false);
+const MAX_VISIBLE = 4;
+const visibleItems = computed(() => expanded.value ? regularItems : regularItems.slice(0, MAX_VISIBLE));
+const hiddenCount = computed(() => Math.max(0, regularItems.length - MAX_VISIBLE));
 
 watch(() => route.path, (currentPath) => {
   if (isUrlAncestorOf(directoryUrl, currentPath)) collapsed.value = false;
 });
+
+function expand () {
+  expanded.value = true;
+}
 
 function isCurrent (href: string): boolean {
   return route.path === href;
@@ -113,7 +121,7 @@ function toggle () {
         :url-prefix="directoryUrl"
       />
       <a
-        v-for="item in regularItems"
+        v-for="item in visibleItems"
         :key="item.filepath"
         :href="getTdContentUrl(item.filepath)"
         class="td-tree-link"
@@ -131,6 +139,17 @@ function toggle () {
         <span class="td-tree-link-text">{{ getTdResourceTitle(item.header, item.filepath) }}</span>
         <span class="td-tree-time">{{ formatRelativeTime(item.metadata.mtime) }}</span>
       </a>
+      <button
+        v-if="hiddenCount > 0 && !expanded"
+        class="td-tree-more"
+        type="button"
+        :style="{
+          paddingLeft: `${32 + depth * 12}px`,
+        }"
+        @click="expand"
+      >
+        {{ hiddenCount }} more
+      </button>
     </div>
   </div>
 </template>
@@ -218,5 +237,19 @@ function toggle () {
   border-left-color: var(--color-td-primary-solid);
   color: var(--color-td-primary-solid);
   font-weight: var(--font-weight-td-semibold);
+}
+
+.td-tree-more {
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--color-td-neutral-fg-muted);
+  padding: 4px 12px;
+}
+
+.td-tree-more:hover {
+  color: var(--color-td-fg);
 }
 </style>

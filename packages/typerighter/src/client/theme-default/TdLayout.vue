@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  watch,
+  ref, watch,
 } from 'vue';
 import {
   X,
@@ -16,6 +16,7 @@ import TdButton from './components/TdButton.vue';
 import TdContentNav from './components/TdContentNav.vue';
 import TdBreadcrumb from './components/TdBreadcrumb.vue';
 import TdMenuButton from './components/TdMenuButton.vue';
+import TdSearch from './components/TdSearch.vue';
 import TdThemeToggle from './components/TdThemeToggle.vue';
 import {
   useCopyCode,
@@ -39,6 +40,8 @@ const siteData = useSiteData();
 const {
   isOpen, close: closeMenu,
 } = useMenu();
+const sidebarSearchActive = ref(false);
+const menuSearchActive = ref(false);
 const route = useRoute();
 
 watch(() => route.path, () => closeMenu());
@@ -88,7 +91,12 @@ useCopyCode();
           </a>
         </div>
       </header>
+      <TdSearch
+        v-model:active="menuSearchActive"
+        @select="closeMenu"
+      />
       <nav
+        v-if="!menuSearchActive"
         class="pt-4"
         aria-label="Site navigation"
       >
@@ -101,7 +109,11 @@ useCopyCode();
         class="td-sidebar-left"
         aria-label="Site navigation"
       >
-        <TdContentNav :tree="siteData.contentTree" />
+        <TdSearch v-model:active="sidebarSearchActive" />
+        <TdContentNav
+          v-if="!sidebarSearchActive"
+          :tree="siteData.contentTree"
+        />
       </nav>
 
       <div class="td-main-and-toc">
