@@ -50,11 +50,22 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
     config,
     files,
     schemaGroups,
+    schemaNames,
   ] = await Promise.all([
     tdContext.getConfig(),
     tdContext.listFiles(),
     tdContext.listFilesGroupedBySchema(),
+    tdContext.listSchemas(),
   ]);
+
+  const schemaEntries = await Promise.all(
+    schemaNames.map(async (name) => {
+      const info = await tdContext.getSchema(name);
+
+      return [name, info.properties] as const;
+    }),
+  );
+  const schemas = Object.fromEntries(schemaEntries);
 
   const allItems = Object.values(schemaGroups).flat();
   const contentTree = buildContentTree(allItems);
@@ -73,6 +84,7 @@ export async function buildSite (ctx: AppContext, options: BuildOptions = {}): P
       siteTitle: config.siteTitle,
       siteDescription: config.siteDescription,
       contentTree,
+      schemas,
     })),
     fs.writeFile(ssrEntryPath, generateSsrEntry({
       contentDir: config.contentDir,

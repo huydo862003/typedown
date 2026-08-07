@@ -41,6 +41,25 @@ export interface FileMetadata {
   ctime: number;
 }
 
+export interface PropertyDescriptor {
+  /** UI widget hint for rendering this property */
+  widget: PropertyWidget;
+  /** Whether this property is optional */
+  optional?: boolean;
+  /** Allowed values for select/multi_select widgets */
+  options?: string[];
+  /** Target schema name for relation widgets */
+  schema?: string;
+  /** Item descriptor for list widgets */
+  items?: PropertyDescriptor;
+}
+
+export type PropertyWidget = 'text' | 'number' | 'checkbox' | 'date' | 'select' | 'multiSelect' | 'relation' | 'list';
+
+export interface SchemaDefinition {
+  [property: string]: PropertyDescriptor;
+}
+
 export type SchemaGroups = Record<string, ContentSummary[]>;
 
 export interface SubdirectoryEntry {

@@ -2,6 +2,7 @@
 _type: Person
 name: "Bob Kim"
 role: "designer"
+tags: ["ui", "figma", "design-systems"]
 ---
 
 Bob specializes in UI/UX design and design systems.

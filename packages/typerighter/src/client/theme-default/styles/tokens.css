@@ -63,15 +63,15 @@
   --font-size-td-h4: 20px;
   --font-size-td-h5: 16px;
   --font-size-td-h6: 13px;
-  --font-size-td-body: 16.5px;
-  --font-size-td-body-sm: 15px;
-  --font-size-td-ui: 14px;
-  --font-size-td-nav: 13.5px;
-  --font-size-td-caption: 13px;
-  --font-size-td-code: 0.8125rem;
-  --font-size-td-table-header: 11px;
-  --font-size-td-label: 10.5px;
-  --font-size-td-site-title: 17px;
+  --font-size-td-body: 17px;
+  --font-size-td-body-sm: 15.5px;
+  --font-size-td-ui: 14.5px;
+  --font-size-td-nav: 14px;
+  --font-size-td-caption: 13.5px;
+  --font-size-td-code: 0.85rem;
+  --font-size-td-table-header: 11.5px;
+  --font-size-td-label: 11px;
+  --font-size-td-site-title: 17.5px;
 
   --font-weight-td-heading: 800;
   --font-weight-td-body: 400;
@@ -124,7 +124,7 @@
 
 body {
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
   font-weight: 400;
   color: var(--color-td-fg);

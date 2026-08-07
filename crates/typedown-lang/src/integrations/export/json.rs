@@ -4,11 +4,11 @@ use std::collections::HashSet;
 
 use typedown_incremental::Id;
 
-use super::evaluate_lazy_field;
+use super::{evaluate_lazy_field, resolve_ref};
 use crate::db::TypedownDatabase;
 use crate::db::types::derived::object_system::member_type_display_name;
 use crate::db::types::{
-  FileHandle, MemberType, SymbolKind, TdObjectEnum, TdTypeEnum, TypeMember, TypeMemberDescriptors,
+  FileHandle, MemberType, Project, TdObjectEnum, TdTypeEnum, TypeMember, TypeMemberDescriptors,
 };
 
 /// Serialize a FileHandle to a JSON object
@@ -44,13 +44,15 @@ pub struct CircularRef;
 /// Serialize a Typedown object to a plain JSON value
 pub fn to_json(
   db: &TypedownDatabase,
+  project: Project,
   obj: &TdObjectEnum,
 ) -> Result<serde_json::Value, CircularRef> {
-  serialize(db, obj, &mut HashSet::new(), false)
+  serialize(db, project, obj, &mut HashSet::new(), false)
 }
 
 fn serialize(
   db: &TypedownDatabase,
+  project: Project,
   obj: &TdObjectEnum,
   visiting: &mut HashSet<(usize, usize)>,
   should_serialize_as_fref: bool, /* false for the top-level object */
@@ -79,7 +81,7 @@ fn serialize(
       let mut items = Vec::with_capacity(list.len(db));
       for idx in 0..list.len(db) {
         match list.get(db, idx) {
-          Some(item) => items.push(serialize(db, &item, visiting, true)?),
+          Some(item) => items.push(serialize(db, project, &item, visiting, true)?),
           None => items.push(serde_json::Value::Null),
         }
       }
@@ -90,25 +92,21 @@ fn serialize(
       let mut map = serde_json::Map::new();
       for (key, entry) in dict.entries(db) {
         if let Some(item) = evaluate_lazy_field(db, entry) {
-          map.insert(key, serialize(db, &item, visiting, true)?);
+          map.insert(key, serialize(db, project, &item, visiting, true)?);
         }
       }
       Ok(serde_json::Value::Object(map))
     }
 
     TdObjectEnum::TdProductObj(product) => {
-      // If this product originated from a file symbol, serialize as a $fref (skip for root)
-      if should_serialize_as_fref && let Some(symbol) = product.file_symbol(db) {
-        let file = match symbol.kind(db) {
-          SymbolKind::UserDefinedResource(_, f) | SymbolKind::UserDefinedSchema(_, f) => Some(f),
-          _ => None,
-        };
-        if let Some(file) = file {
-          let handle = file.handle(db);
-          if let Some(path) = handle.path() {
-            return Ok(serde_json::json!({ "$fref": path.to_string_lossy() }));
-          }
-        }
+      // Resolve references to other files as project relative paths
+      if should_serialize_as_fref
+        && let Some(symbol) = product.file_symbol(db)
+        && let Some(resolved) = resolve_ref(db, project, &symbol)
+      {
+        return Ok(serde_json::json!({
+          "$ref": { "url": resolved.url, "name": resolved.name }
+        }));
       }
 
       // If this object is already on the call stack we have a cycle
@@ -119,7 +117,7 @@ fn serialize(
       let mut map = serde_json::Map::new();
       for (key, entry) in product.fields(db) {
         if let Some(item) = evaluate_lazy_field(db, entry) {
-          map.insert(key, serialize(db, &item, visiting, true)?);
+          map.insert(key, serialize(db, project, &item, visiting, true)?);
         }
       }
       visiting.remove(&id);
@@ -140,7 +138,7 @@ fn serialize(
       }
       let mut map = serde_json::Map::new();
       for (name, member) in product.fields(db) {
-        map.insert(name, serialize_member(db, &member, visiting)?);
+        map.insert(name, serialize_member(db, project, &member, visiting)?);
       }
       visiting.remove(&id);
       Ok(serde_json::Value::Object(map))
@@ -155,10 +153,11 @@ fn serialize(
 /// Wraps optional fields as `{ "type": ..., "optional": true }`.
 fn serialize_member(
   db: &TypedownDatabase,
+  project: Project,
   member: &TypeMember,
   visiting: &mut HashSet<(usize, usize)>,
 ) -> Result<serde_json::Value, CircularRef> {
-  let typ = serialize_member_type(db, &member.typ(db), visiting)?;
+  let typ = serialize_member_type(db, project, &member.typ(db), visiting)?;
   if member
     .descriptors(db)
     .contains(TypeMemberDescriptors::OPTIONAL)
@@ -173,11 +172,18 @@ fn serialize_member(
 /// Recurses into nested product types, everything else becomes a string.
 fn serialize_member_type(
   db: &TypedownDatabase,
+  project: Project,
   member: &MemberType,
   visiting: &mut HashSet<(usize, usize)>,
 ) -> Result<serde_json::Value, CircularRef> {
   if let MemberType::Simple(TdTypeEnum::TdProductType(product)) = member {
-    serialize(db, &TdObjectEnum::TdProductType(*product), visiting, true)
+    serialize(
+      db,
+      project,
+      &TdObjectEnum::TdProductType(*product),
+      visiting,
+      true,
+    )
   } else {
     Ok(serde_json::Value::String(member_type_display_name(
       db, member,
@@ -199,73 +205,77 @@ mod tests {
   use crate::db::derived::name_resolver::file_symbol::file_symbol;
   use crate::db::fixtures::load_vault_fixture;
   use crate::db::types::{
-    AssetKind, File, FileHandle, FileMetadata, TdBlobObj, TdBoolObj, TdDateObj, TdDateTimeObj,
-    TdDictObj, TdListObj, TdMathObj, TdNumObj, TdProductObj, TdStrObj, TdStrType, TdTimeObj,
+    AssetKind, File, FileHandle, FileMetadata, Project, TdBlobObj, TdBoolObj, TdDateObj,
+    TdDateTimeObj, TdDictObj, TdListObj, TdMathObj, TdNumObj, TdProductObj, TdStrObj, TdStrType,
+    TdTimeObj,
   };
   use crate::db::{QueryStorage, TypedownDatabase};
 
-  fn empty_db() -> TypedownDatabase {
-    TypedownDatabase {
+  fn empty_db() -> (TypedownDatabase, Project) {
+    let db = TypedownDatabase {
       storage: QueryStorage::default(),
-    }
+    };
+    let project = Project::new(&db, PathBuf::new(), HashMap::new());
+
+    (db, project)
   }
 
   #[test]
   fn serializes_string() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdStrObj::new(&db, "hello".to_string()));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::String("hello".to_string()));
   }
 
   #[test]
   fn serializes_number() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdNumObj::new(&db, 42.0));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::json!(42.0));
   }
 
   #[test]
   fn non_finite_float_serializes_to_null() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdNumObj::new(&db, f64::NAN));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::Null);
   }
 
   #[test]
   fn infinity_serializes_to_null() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdNumObj::new(&db, f64::INFINITY));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::Null);
   }
 
   #[test]
   fn serializes_bool() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdBoolObj::new(&db, true));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::Bool(true));
   }
 
   #[test]
   fn serializes_list() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let items = vec![
       Either::Right(TdObjectEnum::from(TdNumObj::new(&db, 1.0))),
       Either::Right(TdObjectEnum::from(TdStrObj::new(&db, "two".to_string()))),
       Either::Right(TdObjectEnum::from(TdBoolObj::new(&db, false))),
     ];
     let obj = TdObjectEnum::from(TdListObj::new(&db, items));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::json!([1.0, "two", false]));
   }
 
   #[test]
   fn serializes_dict() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let mut entries = HashMap::new();
     entries.insert(
       "x".to_string(),
@@ -276,24 +286,24 @@ mod tests {
       Either::Right(TdObjectEnum::from(TdStrObj::new(&db, "hello".to_string()))),
     );
     let obj = TdObjectEnum::from(TdDictObj::new(&db, entries));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value["x"], serde_json::json!(10.0));
     assert_eq!(value["y"], serde_json::json!("hello"));
   }
 
   #[test]
   fn serializes_math_as_string() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdMathObj::new(&db, "$E = mc^2$".to_string()));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::String("$E = mc^2$".to_string()));
   }
 
   #[test]
   fn serializes_datetime_as_string() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdDateTimeObj::new(&db, "2024-01-15T10:30:00Z".to_string()));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(
       value,
       serde_json::Value::String("2024-01-15T10:30:00Z".to_string())
@@ -302,17 +312,17 @@ mod tests {
 
   #[test]
   fn serializes_date_as_string() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdDateObj::new(&db, "2024-01-15".to_string()));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::String("2024-01-15".to_string()));
   }
 
   #[test]
   fn serializes_time_as_string() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdTimeObj::new(&db, "10:30:00".to_string()));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::String("10:30:00".to_string()));
   }
 
@@ -321,7 +331,7 @@ mod tests {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.td");
     let result = evaluate_resource(&db, file_symbol(&db, project, file).value(&db).unwrap());
     let obj = result.value(&db).expect("should evaluate resource");
-    let value = to_json(&db, &obj).expect("should serialize without cycle");
+    let value = to_json(&db, project, &obj).expect("should serialize without cycle");
     assert!(value.is_object(), "product should serialize to object");
     assert_eq!(
       value["name"],
@@ -331,44 +341,44 @@ mod tests {
   }
 
   #[test]
-  fn fref_field_serializes_as_fref_object() {
+  fn fref_field_serializes_as_resolved_ref() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/with_fref.td");
     let result = evaluate_resource(&db, file_symbol(&db, project, file).value(&db).unwrap());
     let obj = result.value(&db).expect("should evaluate resource");
-    let value = to_json(&db, &obj).expect("should serialize");
-    assert!(value["friend"].is_object(), "friend should be an object");
+    let value = to_json(&db, project, &obj).expect("should serialize");
     assert!(
-      value["friend"]["$fref"].is_string(),
-      "friend should have $fref key: {value}",
+      value["friend"]["$ref"].is_object(),
+      "friend should have $ref: {value}"
     );
-    let fref_path = value["friend"]["$fref"].as_str().unwrap();
     assert!(
-      fref_path.ends_with("valid_person.td"),
-      "fref path should end with valid_person.td, got: {fref_path}",
+      value["friend"]["$ref"]["url"].is_string(),
+      "ref should have url: {value}",
+    );
+    assert!(
+      value["friend"]["$ref"]["name"].is_string(),
+      "ref should have name: {value}",
     );
   }
 
   #[test]
-  fn transitive_fref_serializes_as_fref_object() {
+  fn transitive_fref_serializes_as_resolved_ref() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/transitive_fref.td");
     let result = evaluate_resource(&db, file_symbol(&db, project, file).value(&db).unwrap());
     let obj = result.value(&db).expect("should evaluate resource");
-    let value = to_json(&db, &obj).expect("should serialize");
-    // friend is fref("with_fref.td").friend, which evaluates to valid_person.td's product
+    let value = to_json(&db, project, &obj).expect("should serialize");
     assert!(
-      value["friend"]["$fref"].is_string(),
-      "transitive fref should have $fref key: {value}",
+      value["friend"]["$ref"]["url"].is_string(),
+      "transitive ref should have url: {value}",
     );
-    let fref_path = value["friend"]["$fref"].as_str().unwrap();
     assert!(
-      fref_path.ends_with("valid_person.td"),
-      "transitive fref path should end with valid_person.td, got: {fref_path}",
+      value["friend"]["$ref"]["name"].is_string(),
+      "transitive ref should have name: {value}",
     );
   }
 
   #[test]
   fn nested_product_serializes_without_cycle() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let schema: TdTypeEnum = TdStrType::get(&db).into();
     let inner = TdProductObj::new(&db, schema.clone(), None, HashMap::new());
     let mut fields = HashMap::new();
@@ -378,7 +388,7 @@ mod tests {
     );
     let outer = TdProductObj::new(&db, schema, None, fields);
 
-    let result = to_json(&db, &TdObjectEnum::from(outer));
+    let result = to_json(&db, project, &TdObjectEnum::from(outer));
     assert!(result.is_ok(), "non-cyclic nested product should serialize");
   }
 
@@ -390,7 +400,7 @@ mod tests {
       .typ(&db)
       .expect("should have type");
     let obj = TdObjectEnum::from(typ);
-    let value = to_json(&db, &obj).expect("should serialize");
+    let value = to_json(&db, project, &obj).expect("should serialize");
     assert!(value.is_object(), "product type should serialize to object");
     assert_eq!(
       value["name"],
@@ -410,7 +420,7 @@ mod tests {
       .typ(&db)
       .expect("should have type");
     let obj = TdObjectEnum::from(typ);
-    let value = to_json(&db, &obj).expect("should serialize");
+    let value = to_json(&db, project, &obj).expect("should serialize");
     assert_eq!(
       value["title"],
       serde_json::Value::String("string".to_string())
@@ -438,7 +448,7 @@ mod tests {
       .typ(&db)
       .expect("should have type");
     let obj = TdObjectEnum::from(typ);
-    let value = to_json(&db, &obj).expect("should serialize");
+    let value = to_json(&db, project, &obj).expect("should serialize");
     assert_eq!(
       value["title"],
       serde_json::Value::String("string".to_string())
@@ -452,20 +462,20 @@ mod tests {
 
   #[test]
   fn non_product_type_serializes_to_null() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let obj = TdObjectEnum::from(TdStrType::get(&db));
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value, serde_json::Value::Null);
   }
 
   #[test]
   fn blob_includes_format_and_path() {
-    let db = empty_db();
+    let (db, project) = empty_db();
     let path = PathBuf::from("/vault/assets/photo.png");
     let file = File::new(&db, FileHandle::Path(path.clone(), FileMetadata::default()));
     let blob = TdBlobObj::new(&db, AssetKind::Png, file);
     let obj = TdObjectEnum::from(blob);
-    let value = to_json(&db, &obj).unwrap();
+    let value = to_json(&db, project, &obj).unwrap();
     assert_eq!(value["format"], "png");
     assert_eq!(value["handle"]["type"], "path");
     assert_eq!(value["handle"]["path"], "/vault/assets/photo.png");

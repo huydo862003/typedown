@@ -15,6 +15,9 @@ import TdBrandIcon from './components/TdBrandIcon.vue';
 import TdButton from './components/TdButton.vue';
 import TdContentNav from './components/TdContentNav.vue';
 import TdBreadcrumb from './components/TdBreadcrumb.vue';
+import {
+  TdFrontmatter,
+} from './components/TdFrontmatter';
 import TdMenuButton from './components/TdMenuButton.vue';
 import TdSearch from './components/TdSearch.vue';
 import TdThemeToggle from './components/TdThemeToggle.vue';
@@ -40,6 +43,7 @@ const siteData = useSiteData();
 const {
   isOpen, close: closeMenu,
 } = useMenu();
+const searchQuery = ref('');
 const sidebarSearchActive = ref(false);
 const menuSearchActive = ref(false);
 const route = useRoute();
@@ -92,6 +96,7 @@ useCopyCode();
         </div>
       </header>
       <TdSearch
+        v-model:query="searchQuery"
         v-model:active="menuSearchActive"
         @select="closeMenu"
       />
@@ -109,7 +114,10 @@ useCopyCode();
         class="td-sidebar-left"
         aria-label="Site navigation"
       >
-        <TdSearch v-model:active="sidebarSearchActive" />
+        <TdSearch
+          v-model:query="searchQuery"
+          v-model:active="sidebarSearchActive"
+        />
         <TdContentNav
           v-if="!sidebarSearchActive"
           :tree="siteData.contentTree"
@@ -133,6 +141,10 @@ useCopyCode();
               <span>{{ formatEditTime(page.metadata.mtime, 'Modified') }}</span>
               <span v-if="page.metadata.ctime !== page.metadata.mtime"> · {{ formatEditTime(page.metadata.ctime, 'Created') }}</span>
             </div>
+            <TdFrontmatter
+              :schema="page.schema"
+              :frontmatter="page.frontmatter"
+            />
             <Content />
           </article>
         </main>

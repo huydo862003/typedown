@@ -2,7 +2,7 @@
 <!-- https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/components/VPLocalSearchBox.vue -->
 <script setup lang="ts">
 import {
-  computed, markRaw, ref, shallowRef, watch,
+  computed, markRaw, shallowRef, watch,
 } from 'vue';
 import MiniSearch from 'minisearch';
 import {
@@ -29,6 +29,10 @@ interface SearchResult {
 const active = defineModel<boolean>('active', {
   default: false,
 });
+const query = defineModel<string>('query', {
+  default: '',
+});
+
 const emit = defineEmits<{
   select: [];
 }>();
@@ -37,7 +41,6 @@ const route = useRoute();
 
 const EXCERPT_CHARS = 120;
 
-const query = ref('');
 const results = shallowRef<SearchResult[]>([]);
 const isSearchActive = computed(() => 0 < query.value.trim().length);
 
@@ -289,7 +292,7 @@ async function runSearch (trimmed: string) {
 
 <style scoped>
 .td-search {
-  padding: 16px 16px 4px;
+  padding: 16px 16px 12px;
 }
 
 .td-search-input-wrap {
