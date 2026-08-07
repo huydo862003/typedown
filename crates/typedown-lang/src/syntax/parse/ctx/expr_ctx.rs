@@ -74,8 +74,6 @@ pub(in crate::syntax::parse) enum ExprCtx {
   MdBoldItalic,
   /// Inside `~~text~~`, closed by `~~`
   MdStrikethrough,
-  /// Inside `[@key]`, closed by `]`
-  MdCitation,
 }
 
 struct ExprStackEntry {
@@ -303,9 +301,6 @@ impl ExprCtx {
         | (ExprCtx::MdBoldItalic, SyntaxKind::Eof)
         | (ExprCtx::MdStrikethrough, SyntaxKind::Newline)
         | (ExprCtx::MdStrikethrough, SyntaxKind::Eof)
-        | (ExprCtx::MdCitation, SyntaxKind::RBracket)
-        | (ExprCtx::MdCitation, SyntaxKind::Newline)
-        | (ExprCtx::MdCitation, SyntaxKind::Eof)
         | (ExprCtx::MdCalloutBlock(_), SyntaxKind::Eof)
     )
   }

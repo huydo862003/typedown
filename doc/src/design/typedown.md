@@ -643,31 +643,3 @@ Standard Markdown links are supported. Links can point to external URLs or to ot
 [Anthropic](https://anthropic.com)
 [Bob](bob.td)
 ```
-
-### Footnotes
-
-Footnotes are declared in a `:::footnote` block. Keys are arbitrary identifiers, not indices: the rendered order is determined by appearance in the text, not the key name. Footnotes are referenced with `[^key]`:
-
-```markdown
-This is a claim.[^my_claim]
-
-:::footnote
-my_claim: This is the footnote text.
-:::
-```
-
-### Bibliography
-
-Bibliography entries are declared in a `:::bibtex` block. Entries are cited in the body with `[@key]`:
-
-```markdown
-Knuth described this in detail [@knuth1984].
-
-:::bibtex
-@book{knuth1984,
-author: Donald Knuth,
-title: The TeXbook,
-year: 1984
-}
-:::
-```
