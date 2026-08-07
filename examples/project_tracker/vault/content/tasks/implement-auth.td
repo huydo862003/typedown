@@ -43,7 +43,7 @@ Session storage in Redis:
 redis-cli SET "session:abc123" '{"userId":"u1","refresh":"tok"}' EX 2592000
 ```
 
-::: details
+::: details Rate limiting strategy
 Rate-limit login attempts to 10 per minute per IP using a sliding window counter.
 
 ```python
@@ -58,8 +58,9 @@ def check_rate_limit(ip: str) -> bool:
 
 ## Blockers
 
-> **Warning**: This task is currently blocked.
-> Session token format pending sign-off from security team.
+::: danger Blocked
+Session token format pending sign-off from security team.
+:::
 
 - Need final decision on cookie vs `Authorization` header for token transport
 - Security audit for the password reset flow

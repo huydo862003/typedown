@@ -1113,10 +1113,20 @@ impl<S: Utf8Stream> ParseCtx<S> {
       self.advance_md(&mut children, SKIP_NONE);
     }
 
-    // Consume the newline after the label (skip trailing whitespace)
+    // Consume optional title text after the label until newline
+    loop {
+      let next = self.lex_ctx.peek_md(SKIP_NONE);
+
+      if next.token.kind() == SyntaxKind::Newline || next.token.kind() == SyntaxKind::Eof {
+        break;
+      }
+      self.advance_md(&mut children, SKIP_NONE);
+    }
+
+    // Consume the newline after the label/title
     self.consume_md(
       &mut children,
-      SKIP_WS,
+      SKIP_NONE,
       SyntaxKind::Newline,
       Diagnostic::MissingSyntaxNode {
         expected: SyntaxKind::Newline,

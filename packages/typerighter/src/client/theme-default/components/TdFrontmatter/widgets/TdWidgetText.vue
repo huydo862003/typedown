@@ -14,11 +14,11 @@ const {
   value: unknown;
 }>();
 
-function format (val: unknown): string {
-  if (val === undefined || val === null) return '';
-  if (definition.widget === 'date') return formatDateString(String(val));
+function format (value_: unknown): string {
+  if (value_ === undefined || value_ === null) return '';
+  if (definition.widget === 'date') return formatDateString(String(value_));
 
-  return String(val);
+  return String(value_);
 }
 </script>
 

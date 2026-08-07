@@ -811,6 +811,49 @@ content
   );
 }
 
+// Parses a callout block with a title
+#[test]
+fn parse_callout_block_with_title() {
+  let tree = parse_body(
+    r#"::: details My Custom Title
+content here
+:::
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (MdCalloutBlock
+      ":::"
+      " "
+      "details"
+      " "
+      "My"
+      " "
+      "Custom"
+      " "
+      "Title"
+      "\n"
+      (MdParagraph
+        (MdText
+          "content"
+          " "
+          "here"))
+      (MdText
+        "\n")
+      ":::")
+    "\n"))"####
+  );
+}
+
 // Parses a fenced code block
 #[test]
 fn parse_code_block_simple() {

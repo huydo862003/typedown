@@ -36,6 +36,10 @@ $$
 callout content
 :::
 
+::: details Click to expand
+details content
+:::
+
 [link text](https://example.com)
 
 ![alt](image.png)

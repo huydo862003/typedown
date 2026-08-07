@@ -529,6 +529,17 @@ mod tests {
   }
 
   #[test]
+  fn exports_callout_with_title() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/all_md_elements.td");
+    let exported = export_resource(&db, project, file).expect("should export");
+    assert!(
+      exported.content.contains("::: details Click to expand"),
+      "should contain callout with title: {}",
+      exported.content,
+    );
+  }
+
+  #[test]
   fn returns_none_for_schema() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.td");
     let result = export_resource(&db, project, file);

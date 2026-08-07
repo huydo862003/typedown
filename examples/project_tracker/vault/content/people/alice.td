@@ -25,7 +25,7 @@ She joined the team in 2023 and has been ***leading*** the website redesign effo
 - Review pull requests for the auth subsystem
 - Mentor junior developers on the team
 
-::: details
+::: details Weekly schedule
 | Day | Focus |
 |-----|-------|
 | Monday | Sprint planning, code review |
