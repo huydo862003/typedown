@@ -150,7 +150,7 @@
       "contentName": "meta.embedded.math.typedown"
     },
     "md-callout": {
-      "begin": "^(:::)\\s*(\\w+)?\\s*(.*)?",
+      "begin": "^(:::)\\s+(\\w+)\\s*(.*)?",
       "end": "^(:::)\\s*$",
       "beginCaptures": {
         "1": { "name": "keyword.control.callout.begin.typedown" },
