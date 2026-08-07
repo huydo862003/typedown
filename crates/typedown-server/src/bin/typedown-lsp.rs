@@ -33,6 +33,7 @@ pub fn main() -> anyhow::Result<()> {
     completion_provider: Some(CompletionOptions::default()),
     definition_provider: Some(OneOf::Left(true)),
     references_provider: Some(OneOf::Left(true)),
+    code_action_provider: Some(lsp_types::CodeActionProviderCapability::Simple(true)),
     document_formatting_provider: Some(OneOf::Left(true)),
     semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
       SemanticTokensOptions {
