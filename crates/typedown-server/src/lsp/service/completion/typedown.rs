@@ -1,7 +1,9 @@
 use typedown_lang::db::types::TdTypeLike;
 use typedown_lang::db::utils::is_content_file;
 
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse};
+use lsp_types::{
+  CompletionItem, CompletionItemKind, CompletionParams, CompletionResponse, InsertTextFormat,
+};
 use typedown_lang::db::TypedownDatabase;
 use typedown_lang::db::derived::evaluate::evaluate_type::evaluate_type;
 use typedown_lang::db::derived::hir::lower_node;
@@ -11,7 +13,8 @@ use typedown_lang::db::derived::parse_file::parse_file;
 use typedown_lang::db::derived::typechecker::expected_node_type_member::expected_node_type_member;
 use typedown_lang::db::derived::typechecker::get_symbol_type_member::get_symbol_type_member;
 use typedown_lang::db::types::{
-  File, MemberType, Project, Scope, SymbolKind, TdProductType, TypeMember, TypeMemberDescriptors,
+  File, LiteralValue, MemberType, Project, Scope, SymbolKind, TdProductType, TdTypeEnum,
+  TypeMember, TypeMemberDescriptors,
 };
 use typedown_lang::db::utils::schema_name_in_mapping;
 use typedown_lang::db::utils::typecheck::lift_type_member_result;
@@ -232,12 +235,110 @@ fn schema_completions(db: &TypedownDatabase, project: Project) -> Vec<Completion
     .members(db)
     .iter()
     .filter(|(_, sym)| matches!(sym.kind(db), SymbolKind::UserDefinedSchema(..)))
-    .map(|(name, _)| CompletionItem {
-      label: name.clone(),
-      kind: Some(CompletionItemKind::CLASS),
-      ..Default::default()
+    .map(|(name, sym)| {
+      let snippet = build_schema_snippet(db, name, sym);
+
+      CompletionItem {
+        label: name.clone(),
+        kind: Some(CompletionItemKind::CLASS),
+        insert_text: Some(snippet),
+        insert_text_format: Some(InsertTextFormat::SNIPPET),
+        ..Default::default()
+      }
     })
     .collect()
+}
+
+// Build a snippet with all schema fields as placeholders
+fn build_schema_snippet(
+  db: &TypedownDatabase,
+  name: &str,
+  sym: &typedown_lang::db::types::Symbol,
+) -> String {
+  let typ = evaluate_type(db, *sym).typ(db);
+  let product = typ.as_ref().and_then(|t| t.as_td_product_type());
+
+  let Some(product) = product else {
+    return name.to_string();
+  };
+
+  let fields = product.fields(db);
+  let mut snippet = name.to_string();
+  for (tab_stop, (field_name, member)) in fields.iter().enumerate() {
+    let placeholder = member_placeholder(db, &member.typ(db), 0);
+    let idx = tab_stop + 1;
+
+    snippet.push_str(&format!("\n{field_name}: ${{{idx}:{placeholder}}}"));
+  }
+
+  snippet
+}
+
+// Generate a placeholder string for a type member
+fn member_placeholder(db: &TypedownDatabase, member: &MemberType, indent: usize) -> String {
+  match member {
+    MemberType::Simple(typ) => simple_type_placeholder(db, typ, indent),
+    // Enum: use first option as default
+    MemberType::Sum(members) => {
+      let first = members.first().and_then(|m| match m.typ(db) {
+        MemberType::Literal(LiteralValue::Str(s)) => Some(s),
+        _ => None,
+      });
+
+      first.unwrap_or_else(|| "value".to_string())
+    }
+    MemberType::Literal(LiteralValue::Str(s)) => s.clone(),
+    MemberType::ListOfSum(members) => {
+      // List: generate a YAML list item
+      let inner = members
+        .first()
+        .map(|m| member_placeholder(db, &m.typ(db), indent))
+        .unwrap_or_else(|| "value".to_string());
+      let pad = "  ".repeat(indent);
+
+      format!("\\n{pad}- {inner}")
+    }
+    _ => "value".to_string(),
+  }
+}
+
+fn simple_type_placeholder(db: &TypedownDatabase, typ: &TdTypeEnum, indent: usize) -> String {
+  match typ {
+    TdTypeEnum::TdStrType(_) => "string".to_string(),
+    TdTypeEnum::TdNumType(_) => "0".to_string(),
+    TdTypeEnum::TdBoolType(_) => "true".to_string(),
+    TdTypeEnum::TdDateType(_) => "date".to_string(),
+    TdTypeEnum::TdDateTimeType(_) => "datetime".to_string(),
+    TdTypeEnum::TdTimeType(_) => "time".to_string(),
+    TdTypeEnum::TdListType(list) => {
+      let inner = list
+        .elem(db)
+        .map(|elem| simple_type_placeholder(db, &elem, indent + 1))
+        .unwrap_or_else(|| "value".to_string());
+      let pad = "  ".repeat(indent);
+
+      format!("\\n{pad}- {inner}")
+    }
+    TdTypeEnum::TdProductType(product) => {
+      if let Some(schema) = product.name(db) {
+        // Named schema: relation ref
+        format!("fref(\\\"{schema}\\\")")
+      } else {
+        // Inline product: nested YAML mapping
+        let fields = product.fields(db);
+        let pad = "  ".repeat(indent + 1);
+        let mut nested = String::new();
+
+        for (field_name, member) in &fields {
+          let placeholder = member_placeholder(db, &member.typ(db), indent + 1);
+
+          nested.push_str(&format!("\\n{pad}{field_name}: {placeholder}"));
+        }
+        nested
+      }
+    }
+    _ => "value".to_string(),
+  }
 }
 
 // Collect existing key names from a mapping node
@@ -317,6 +418,19 @@ properties:
     type: string
   date:
     type: date
+---
+"#;
+
+  const SCHEMA_TASK: &str = r#"---
+_type: schema
+properties:
+  title:
+    type: string
+  status:
+    type: ['todo', 'in_progress', 'done']
+  assignee:
+    type: Person
+    optional: true
 ---
 "#;
 
@@ -400,6 +514,14 @@ properties:
         FileMetadata::default(),
       ),
     );
+    let task_file = File::new(
+      &db,
+      FileHandle::Content(
+        schema_root.join("Task.td"),
+        SCHEMA_TASK.to_string(),
+        FileMetadata::default(),
+      ),
+    );
     let person_with_address_file = File::new(
       &db,
       FileHandle::Content(
@@ -421,6 +543,7 @@ properties:
       (root.join("typedown.yaml"), config_file),
       (root.join("schemas/Person.td"), person_file),
       (root.join("schemas/Event.td"), event_file),
+      (root.join("schemas/Task.td"), task_file),
       (
         root.join("schemas/PersonWithAddress.td"),
         person_with_address_file,
@@ -458,6 +581,89 @@ _type: |
     let labels: Vec<&str> = items.iter().map(|item| item.label.as_str()).collect();
     assert!(labels.contains(&"Person"), "should suggest Person schema");
     assert!(labels.contains(&"Event"), "should suggest Event schema");
+  }
+
+  #[test]
+  fn schema_completion_generates_snippet_with_fields() {
+    let (content, offset) = cursor(
+      r#"---
+_type: |
+---
+"#,
+    );
+    let (analysis, uri) = setup(&content);
+    let params = make_params(uri, &content, offset);
+
+    let response = completion(&analysis, params);
+    let Some(CompletionResponse::Array(items)) = response else {
+      panic!("expected completion items");
+    };
+
+    let person = items
+      .iter()
+      .find(|i| i.label == "Person")
+      .expect("should have Person");
+    let snippet = person
+      .insert_text
+      .as_ref()
+      .expect("should have insert_text");
+
+    assert!(
+      snippet.starts_with("Person\n"),
+      "snippet should start with schema name: {snippet}"
+    );
+    assert!(
+      snippet.contains("name:"),
+      "snippet should contain name field: {snippet}"
+    );
+    assert!(
+      snippet.contains("age:"),
+      "snippet should contain age field: {snippet}"
+    );
+    assert!(
+      snippet.contains("string"),
+      "string field should have string placeholder: {snippet}"
+    );
+    assert!(
+      snippet.contains(":0}"),
+      "number field should have 0 placeholder: {snippet}"
+    );
+    assert!(
+      person.insert_text_format == Some(lsp_types::InsertTextFormat::SNIPPET),
+      "should use snippet format"
+    );
+  }
+
+  #[test]
+  fn schema_snippet_includes_enum_and_relation() {
+    let (content, offset) = cursor(
+      r#"---
+_type: |
+---
+"#,
+    );
+    let (analysis, uri) = setup(&content);
+    let params = make_params(uri, &content, offset);
+
+    let response = completion(&analysis, params);
+    let Some(CompletionResponse::Array(items)) = response else {
+      panic!("expected completion items");
+    };
+
+    let task = items
+      .iter()
+      .find(|i| i.label == "Task")
+      .expect("should have Task");
+    let snippet = task.insert_text.as_ref().expect("should have insert_text");
+
+    assert!(
+      snippet.contains("todo"),
+      "enum field should have first option as placeholder: {snippet}"
+    );
+    assert!(
+      snippet.contains("fref(\\\"Person\\\")"),
+      "relation field should have fref placeholder: {snippet}"
+    );
   }
 
   #[test]
