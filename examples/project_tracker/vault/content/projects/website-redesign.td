@@ -31,7 +31,7 @@ The main focus areas are:
 3. Full test coverage, target 2026-07-25
 4. Production release, target 2026-08-01
 
-::: details
+::: details Architecture overview
 The site is built as a static site with selective hydration.
 
 ```
@@ -70,5 +70,7 @@ where each metric is measured at the 75th percentile.
 
 ## Progress
 
+::: tip Current status
 Design mockups are complete. Authentication is currently being implemented.
 Integration tests are next in the queue once auth is merged.
+:::

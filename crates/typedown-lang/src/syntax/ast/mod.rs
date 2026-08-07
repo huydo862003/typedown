@@ -415,6 +415,36 @@ impl MdCalloutBlock {
       .map(str::to_string)
   }
 
+  // Title text after the label on the opening line
+  pub fn title(&self) -> Option<String> {
+    let mut found_label = false;
+    let mut title_parts = Vec::new();
+
+    for child in self.0.children() {
+      // Skip until we find the label identifier
+      if !found_label {
+        if child.kind() == SyntaxKind::Ident {
+          found_label = true;
+        }
+        continue;
+      }
+      // Stop at the first newline after the label
+      if child.kind() == SyntaxKind::Newline {
+        break;
+      }
+      // Collect text tokens as part of the title
+      if let Some(token) = child.as_token()
+        && let Some(text) = token.text()
+      {
+        title_parts.push(text.to_string());
+      }
+    }
+
+    let title = title_parts.join("").trim().to_string();
+
+    if title.is_empty() { None } else { Some(title) }
+  }
+
   pub fn value(&self) -> impl Iterator<Item = MdNode> {
     self.0.children().filter_map(MdNode::cast)
   }

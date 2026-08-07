@@ -21,7 +21,7 @@ The team reviewed them in the design review on *2026-04-10* and settled on **var
 | B | Split hero | Accepted |
 | C | Grid | Rejected, too busy |
 
-::: details
+::: details Design tokens
 The design system uses a constrained set of tokens:
 
 ```css

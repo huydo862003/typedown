@@ -33,16 +33,20 @@
 
 /* Shiki dual-theme: apply light/dark token colors from CSS variables */
 
-.td-content .shiki,
-.td-content .shiki span {
-  color: var(--shiki-light);
+.td-content .shiki {
   background-color: var(--shiki-light-bg);
 }
 
-.dark .td-content .shiki,
+.td-content .shiki span {
+  color: var(--shiki-light);
+}
+
+.dark .td-content .shiki {
+  background-color: var(--shiki-dark-bg);
+}
+
 .dark .td-content .shiki span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
 }
 
 /* Language label */

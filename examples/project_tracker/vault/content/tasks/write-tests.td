@@ -11,8 +11,10 @@ assignee: fref("people/alice.td")
 Depends on the auth implementation being merged first.
 Tests should cover login success, login failure, session expiry, and password reset flow.
 
-> **Note**: These tests require a running database.
-> See the setup instructions below.
+::: info Prerequisites
+These tests require a running PostgreSQL database and Redis instance.
+See the setup instructions below.
+:::
 
 ## Test Cases
 
@@ -52,10 +54,16 @@ async fn test_login_success() {
 - [ ] Assert token expiry behavior
 - [x] Choose test framework
 
-::: warning
+::: warning No flaky tests
 Flaky tests must be fixed before merge. Do not use `#[ignore]` to skip them.
+:::
+
+::: tip Running locally
+Use `cargo watch -x 'test --test auth_integration'` for fast feedback during development.
 :::
 
 ## Coverage Target
 
+::: note
 Expected coverage: $\frac{\text{covered lines}}{\text{total lines}} \geq 0.80$
+:::
