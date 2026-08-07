@@ -44,10 +44,6 @@ details content
 
 ![alt](image.png)
 
-[^fn1]
-
-[@cite1]
-
 >- Toggle summary
 
    Toggle details content

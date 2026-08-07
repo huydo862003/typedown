@@ -150,11 +150,12 @@
       "contentName": "meta.embedded.math.typedown"
     },
     "md-callout": {
-      "begin": "^(:::)\\s*(\\w+)?",
+      "begin": "^(:::)\\s*(\\w+)?\\s*(.*)?",
       "end": "^(:::)\\s*$",
       "beginCaptures": {
         "1": { "name": "keyword.control.callout.begin.typedown" },
-        "2": { "name": "entity.name.tag.typedown" }
+        "2": { "name": "entity.name.tag.typedown" },
+        "3": { "name": "string.other.callout.title.typedown" }
       },
       "endCaptures": {
         "1": { "name": "keyword.control.callout.end.typedown" }
@@ -246,8 +247,6 @@
         { "include": "#md-emphasis" },
         { "include": "#md-image" },
         { "include": "#md-link" },
-        { "include": "#md-footnote" },
-        { "include": "#md-citation" },
         { "include": "#interpolation" },
         { "include": "#md-escape" }
       ]
@@ -305,24 +304,6 @@
       "captures": {
         "1": { "name": "string.other.link.title.typedown" },
         "2": { "name": "markup.underline.link.typedown" }
-      }
-    },
-    "md-footnote": {
-      "match": "(\\[)(\\^)([a-zA-Z_]\\w*)(\\])",
-      "captures": {
-        "1": { "name": "punctuation.definition.footnote.begin.typedown" },
-        "2": { "name": "punctuation.definition.footnote.typedown" },
-        "3": { "name": "entity.name.footnote.typedown" },
-        "4": { "name": "punctuation.definition.footnote.end.typedown" }
-      }
-    },
-    "md-citation": {
-      "match": "(\\[)(@)([a-zA-Z_]\\w*)(\\])",
-      "captures": {
-        "1": { "name": "punctuation.definition.citation.begin.typedown" },
-        "2": { "name": "punctuation.definition.citation.typedown" },
-        "3": { "name": "entity.name.citation.typedown" },
-        "4": { "name": "punctuation.definition.citation.end.typedown" }
       }
     },
     "md-escape": {

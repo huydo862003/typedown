@@ -811,6 +811,41 @@ content
   );
 }
 
+// Callout with title and multi-line content should produce no diagnostics
+#[test]
+fn parse_callout_block_with_title_no_diagnostics() {
+  let (_, diags) = parse_body_with_diags(
+    r#"::: tip Current status
+Design mockups are complete. Authentication is currently being implemented.
+Integration tests are next in the queue once auth is merged.
+:::
+"#,
+  );
+  assert!(
+    diags.is_empty(),
+    "should produce no diagnostics, got: {diags:?}"
+  );
+}
+
+// Multiple callouts with titles should produce no diagnostics
+#[test]
+fn parse_multiple_callouts_with_titles_no_diagnostics() {
+  let (_, diags) = parse_body_with_diags(
+    r#"::: details Architecture overview
+Some content here.
+:::
+
+::: tip Current status
+More content here.
+:::
+"#,
+  );
+  assert!(
+    diags.is_empty(),
+    "should produce no diagnostics, got: {diags:?}"
+  );
+}
+
 // Parses a callout block with a title
 #[test]
 fn parse_callout_block_with_title() {

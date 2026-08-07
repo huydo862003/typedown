@@ -1,4 +1,5 @@
 pub mod assets_dir;
+pub mod code_action;
 pub mod completion;
 pub mod definition;
 pub mod formatting;
@@ -10,8 +11,8 @@ pub mod utils;
 
 use lsp_server::{ErrorCode, Request, Response};
 use lsp_types::request::{
-  Completion, Formatting, GotoDefinition, HoverRequest, PrepareRenameRequest, References, Rename,
-  Request as _, SemanticTokensFullRequest, WillRenameFiles,
+  CodeActionRequest, Completion, Formatting, GotoDefinition, HoverRequest, PrepareRenameRequest,
+  References, Rename, Request as _, SemanticTokensFullRequest, WillRenameFiles,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -22,6 +23,7 @@ use crate::core::analysis::Analysis;
 /// Dispatch an LSP request to the appropriate service handler.
 pub fn dispatch(analysis: &Analysis, req: Request) -> Response {
   match req.method.as_str() {
+    CodeActionRequest::METHOD => try_handle(&req, |p| code_action::code_action(analysis, p)),
     HoverRequest::METHOD => try_handle(&req, |p| hover::hover(analysis, p)),
     Completion::METHOD => try_handle(&req, |p| completion::completion(analysis, p)),
     GotoDefinition::METHOD => try_handle(&req, |p| definition::definition(analysis, p)),

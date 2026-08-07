@@ -302,6 +302,7 @@ export default grammar({
       seq(
         alias($._callout_open, $.callout_block_delimiter),
         optional(field('type', $.callout_type)),
+        optional(field('title', $.callout_title)),
         $._line_ending,
         repeat(
           choice(
@@ -315,6 +316,9 @@ export default grammar({
 
     callout_type: () =>
       /[a-zA-Z_]\w*/,
+
+    callout_title: () =>
+      /[^\n\r]+/,
   },
 });
 
