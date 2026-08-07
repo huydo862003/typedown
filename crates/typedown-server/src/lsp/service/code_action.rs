@@ -24,7 +24,10 @@ pub fn code_action(analysis: &Analysis, params: CodeActionParams) -> Option<Code
   let source = SourceFile::cast(root)?;
 
   // Only offer schema initialization when frontmatter has no mapping entries
-  if source.frontmatter().is_some_and(|fm| fm.mapping().is_some()) {
+  if source
+    .frontmatter()
+    .is_some_and(|fm| fm.mapping().is_some())
+  {
     return None;
   }
 

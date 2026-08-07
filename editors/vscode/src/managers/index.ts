@@ -11,5 +11,9 @@ export {
 } from './lsp';
 
 export {
+  SchemaTemplateManager,
+} from './schemaTemplate';
+
+export {
   PasteHandlerManager,
 } from './pasteHandler';
