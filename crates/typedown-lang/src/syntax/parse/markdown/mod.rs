@@ -128,20 +128,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
     let next = self.lex_ctx.peek_md(SKIP_NONE);
     match next.token.kind() {
-      SyntaxKind::LBracket => {
-        // Check for footnote ref `[^`, citation `[@`, or link `[`
-        let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
-        if second.token.kind() == SyntaxKind::MdSymbol {
-          let text: String = second.token.chars().collect();
-          if text == "^" {
-            return self.parse_footnote_ref();
-          }
-          if text == "@" {
-            return self.parse_citation();
-          }
-        }
-        self.parse_link()
-      }
+      SyntaxKind::LBracket => self.parse_link(),
       SyntaxKind::MdSymbol => {
         let text: String = next.token.chars().collect();
         match text.as_str() {
@@ -1513,115 +1500,6 @@ impl<S: Utf8Stream> ParseCtx<S> {
     }
 
     (self.emit(SyntaxKind::MdMedia, &children), None)
-  }
-
-  /// Parse a footnote reference: `[^key]`.
-  pub(in crate::syntax::parse) fn parse_footnote_ref(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    debug_assert!(
-      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
-      "[ParseCtx::parse_footnote_ref] Expected ["
-    );
-    debug_assert!(
-      {
-        let second = self.lex_ctx.peek_md_nth(1, SKIP_NONE);
-        second.token.kind() == SyntaxKind::MdSymbol
-          && second.token.chars().collect::<String>() == "^"
-      },
-      "[ParseCtx::parse_footnote_ref] Expected ^ after ["
-    );
-
-    let mut children = vec![];
-    let open_offset = self.offset();
-
-    self.expr_ctx_stack.enter(ExprCtx::MdCitation);
-    self.advance_md(&mut children, SKIP_NONE); // consume `[`
-
-    self.consume_md_if(
-      &mut children,
-      SKIP_NONE,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == "^",
-      Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCitation,
-        start_offset: open_offset,
-        end_offset: open_offset,
-      },
-    );
-
-    self.consume_md(
-      &mut children,
-      SKIP_NONE,
-      SyntaxKind::Ident,
-      Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCitation,
-        start_offset: open_offset,
-        end_offset: open_offset,
-      },
-    );
-
-    self.consume_md(
-      &mut children,
-      SKIP_NONE,
-      SyntaxKind::RBracket,
-      Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCitation,
-        start_offset: open_offset,
-        end_offset: open_offset,
-      },
-    );
-
-    self.expr_ctx_stack.exit(ExprCtx::MdCitation);
-    (self.emit(SyntaxKind::MdCitation, &children), None)
-  }
-
-  /// Parse a citation: `[@key]`.
-  /// INVARIANT: The next token must be LBracket.
-  pub(in crate::syntax::parse) fn parse_citation(&mut self) -> (GreenNode, Option<ExprCtx>) {
-    debug_assert!(
-      self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::LBracket,
-      "[ParseCtx::parse_citation] Expected ["
-    );
-
-    let mut children = vec![];
-    let open_offset = self.offset();
-
-    self.expr_ctx_stack.enter(ExprCtx::MdCitation);
-    self.advance_md(&mut children, SKIP_NONE); // consume `[`
-
-    self.consume_md_if(
-      &mut children,
-      SKIP_NONE,
-      |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == "@",
-      Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCitation,
-        start_offset: open_offset,
-        end_offset: open_offset,
-      },
-    );
-
-    self.consume_md(
-      &mut children,
-      SKIP_NONE,
-      SyntaxKind::Ident,
-      Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCitation,
-        start_offset: open_offset,
-        end_offset: open_offset,
-      },
-    );
-
-    self.consume_md(
-      &mut children,
-      SKIP_NONE,
-      SyntaxKind::RBracket,
-      Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCitation,
-        start_offset: open_offset,
-        end_offset: open_offset,
-      },
-    );
-
-    self.expr_ctx_stack.exit(ExprCtx::MdCitation);
-    (self.emit(SyntaxKind::MdCitation, &children), None)
   }
 
   /// Parse bold text: `**text**`.

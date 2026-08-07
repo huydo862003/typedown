@@ -1126,34 +1126,6 @@ fn parse_inline_code_simple() {
   );
 }
 
-// Parses a citation
-#[test]
-fn parse_citation_simple() {
-  let tree = parse_body(
-    r#"[@key]
-"#,
-  );
-  assert_eq!(
-    tree,
-    r####"(SourceFile
-  (YamlFrontmatter
-    ""
-    "---"
-    "\n"
-    ""
-    "---"
-    "\n")
-  (MdBody
-    (MdParagraph
-      (MdCitation
-        "["
-        "@"
-        "key"
-        "]"))
-    "\n"))"####
-  );
-}
-
 // Inline elements inside block elements
 
 // Parses a paragraph with italic and link
@@ -2285,7 +2257,7 @@ fn recover_unclosed_link() {
   assert_eq!(
     diags,
     vec![Diagnostic::UnclosedLink {
-      start_offset: 13,
+      start_offset: 9,
       end_offset: 30,
     },]
   );

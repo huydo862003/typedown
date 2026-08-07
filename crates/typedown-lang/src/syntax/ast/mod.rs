@@ -149,7 +149,7 @@ impl MdBody {
 #[wrapper_ast_node(SyntaxKind = [
   MdHeading, MdParagraph, MdBlockquote, MdTable,
   MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock,
-  MdLink, MdMedia, MdFootnoteRef, MdCitation,
+  MdLink, MdMedia,
   MdBold, MdItalic, MdBoldItalic, MdStrikethrough,
   MdText, MdHtmlEntity,
 ])]
@@ -162,7 +162,7 @@ pub struct MdNode(RedNode);
 pub struct MdBlockElement(RedNode);
 
 #[wrapper_ast_node(SyntaxKind = [
-  MdLink, MdMedia, MdFootnoteRef, MdCitation,
+  MdLink, MdMedia,
   MdBold, MdItalic, MdBoldItalic, MdStrikethrough,
   MdText,
 ])]
@@ -477,38 +477,6 @@ impl MdMedia {
 
   pub fn url(&self) -> Option<MdText> {
     self.0.children().filter_map(MdText::cast).nth(1)
-  }
-}
-
-/// The Markdown footnote ref
-/// Represented by: [^key]
-#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
-pub struct MdFootnoteRef(RedNode);
-
-impl MdFootnoteRef {
-  pub fn value(&self) -> Option<String> {
-    self
-      .0
-      .children()
-      .find(|child| child.kind() == SyntaxKind::Ident)
-      .and_then(|child| child.as_token())
-      .and_then(|token| token.text().map(str::to_string))
-  }
-}
-
-/// The Markdown citation
-/// Represented by: [@citation]
-#[derive(Clone, PartialEq, Eq, Hash, AstNode)]
-pub struct MdCitation(RedNode);
-
-impl MdCitation {
-  pub fn value(&self) -> Option<String> {
-    self
-      .0
-      .children()
-      .find(|child| child.kind() == SyntaxKind::Ident)
-      .and_then(|child| child.as_token())
-      .and_then(|token| token.text().map(str::to_string))
   }
 }
 

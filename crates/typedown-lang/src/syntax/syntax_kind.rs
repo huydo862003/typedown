@@ -38,8 +38,6 @@ pub enum SyntaxKind {
   MdCalloutBlock,  // ::: label ... :::
   MdLink,          // [text](url)
   MdMedia,         // ![alt](src)
-  MdFootnoteRef,   // [^key]
-  MdCitation,      // [@key]
   MdBold,          // **text**
   MdItalic,        // *text* or _text_
   MdBoldItalic,    // ***text***
