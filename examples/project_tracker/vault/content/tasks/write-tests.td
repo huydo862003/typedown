@@ -3,21 +3,13 @@ _type: Task
 title: "Write integration tests for auth"
 status: "todo"
 priority: "medium"
+blocked: false
 project: fref("projects/website-redesign.td")
 assignee: fref("people/alice.td")
-description: >
-  Integration tests for the authentication flow,
-  covering login, session management, and password
-  reset. Must pass before auth can be merged.
-notes: |
-  Run with:
-    cargo test --test auth_integration
-  Requires a running PostgreSQL instance.
 ---
 
 Depends on the auth implementation being merged first.
 Tests should cover login success, login failure, session expiry, and password reset flow.
-Use the existing test harness in `tests/integration/`.
 
 > **Note**: These tests require a running database.
 > See the setup instructions below.
@@ -60,24 +52,10 @@ async fn test_login_success() {
 - [ ] Assert token expiry behavior
 - [x] Choose test framework
 
-## FAQ
-
->- Why not use mocks?
-  We want to test the full stack including database queries.
-  Mocks would hide integration bugs.
-
->- What about flaky tests?
-  Retry up to 3 times before marking as failed.
-  Track flake rate in CI dashboard.
-
-## Metrics
-
-Total test count: ${len(self.checklist)}
-
 ::: warning
 Flaky tests must be fixed before merge. Do not use `#[ignore]` to skip them.
 :::
 
-## Math
+## Coverage Target
 
 Expected coverage: $\frac{\text{covered lines}}{\text{total lines}} \geq 0.80$

@@ -21,6 +21,7 @@ import {
 import type {
   PageModule,
   ContentTree,
+  SchemaDefinition,
 } from '@/shared';
 
 export {
@@ -45,6 +46,8 @@ export interface TypedownSiteData {
   contentTree: ContentTree;
   /** Serialized MiniSearch index for full-text search */
   searchIndex?: string;
+  /** Schema definitions keyed by schema name */
+  schemas: Record<string, SchemaDefinition>;
 }
 
 type PageLoader = (path: string) => Promise<PageModule | undefined>;
@@ -74,6 +77,7 @@ export async function createTypedownApp (
       rootItems: [],
       children: [],
     },
+    schemas: data.schemas ?? {},
   };
 
   const router = createRouter(loadPageModule);
@@ -134,5 +138,6 @@ export function useSiteData (): TypedownSiteData {
       rootItems: [],
       children: [],
     },
+    schemas: {},
   });
 }

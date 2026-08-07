@@ -47,6 +47,8 @@ export interface ClientAppEntryOptions {
   siteDescription: string;
   /** Content files as a recursive directory tree */
   contentTree: ContentTree;
+  /** Schema definitions keyed by schema name */
+  schemas: Record<string, unknown>;
 }
 
 // Create the typedown vite plugin with the Vue plugin bundled
@@ -68,6 +70,7 @@ export function generateClientAppEntry (options: ClientAppEntryOptions): string 
 
   const siteData = JSON.stringify({
     contentTree: options.contentTree,
+    schemas: options.schemas ?? {},
   });
 
   const directoryListingMap = buildDirectoryListingMap(options.contentTree.children, options.siteTitle);
@@ -190,10 +193,25 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       const [
         config,
         schemaGroups,
+        schemaNames,
       ] = await Promise.all([
         tdContext.getConfig(),
         tdContext.listFilesGroupedBySchema(),
+        tdContext.listSchemas(),
       ]);
+
+      // Fetch all schema definitions in parallel
+      const schemaEntries = await Promise.all(
+        schemaNames.map(async (name) => {
+          const info = await tdContext.getSchema(name);
+
+          return [
+            name,
+            info.properties,
+          ] as const;
+        }),
+      );
+      const schemas = Object.fromEntries(schemaEntries);
 
       const allItems = Object.values(schemaGroups).flat();
       const contentTree = buildContentTree(allItems);
@@ -201,6 +219,7 @@ export function typedown (options: TypedownPluginOptions = {}): Plugin[] {
       return generateClientAppEntry({
         ...config,
         contentTree,
+        schemas,
       });
     },
 

@@ -15,8 +15,8 @@ use crate::db::derived::name_resolver::file_symbol::file_symbol;
 use crate::db::derived::name_resolver::referee::referee;
 use crate::db::derived::parse_file::parse_file;
 use crate::db::types::{
-  File, FileHandle, HirValue, Project, Symbol, SymbolKind, TdBlobType, TdObjectEnum, TdObjectLike,
-  TdTypeEnum, TdTypeLike,
+  File, FileHandle, HirValue, LiteralValue, MemberType, Project, Symbol, SymbolKind, TdBlobType,
+  TdObjectEnum, TdObjectLike, TdTypeEnum, TdTypeLike, TypeMemberDescriptors,
 };
 use crate::db::utils::strip_content_extension;
 
@@ -61,7 +61,7 @@ pub fn export_resource(
   if obj.as_td_blob_obj().is_some() {
     return Some(ExportedResource {
       schema: Some(TdBlobType::get(db).display_name(db)),
-      header: json::to_json(db, &obj).unwrap_or_default(),
+      header: json::to_json(db, project, &obj).unwrap_or_default(),
       content: String::new(),
       metadata,
     });
@@ -75,7 +75,7 @@ pub fn export_resource(
   } else {
     Some(schema_type.display_name(db))
   };
-  let mut header = json::to_json(db, &obj).unwrap_or_default();
+  let mut header = json::to_json(db, project, &obj).unwrap_or_default();
   // _content is available in ExportedResource.content, not the header
   if let serde_json::Value::Object(ref mut map) = header {
     map.remove("_content");
@@ -96,16 +96,123 @@ pub fn export_resource(
   })
 }
 
-/// Export schema field types as a JSON object mapping field name to type name
-pub fn export_schema(
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Widget {
+  Text,
+  Number,
+  Checkbox,
+  Date,
+  Select,
+  MultiSelect,
+  Relation,
+  List,
+}
+
+/// Export schema property descriptors as structured JSON for the client
+pub fn export_property_descriptors(
   db: &TypedownDatabase,
   project: Project,
   file: File,
 ) -> Option<serde_json::Value> {
   let symbol = file_symbol(db, project, file).value(db)?;
   let typ = evaluate_type(db, symbol).typ(db)?;
-  let obj = TdObjectEnum::from(typ);
-  json::to_json(db, &obj).ok()
+
+  let product = typ.as_td_product_type()?;
+  let fields = product.fields(db);
+
+  let mut properties = serde_json::Map::new();
+
+  for (name, member) in &fields {
+    let mut prop = member_to_descriptor(db, &member.typ(db));
+
+    if member
+      .descriptors(db)
+      .contains(TypeMemberDescriptors::OPTIONAL)
+    {
+      prop["optional"] = serde_json::Value::Bool(true);
+    }
+
+    properties.insert(name.clone(), prop);
+  }
+
+  return Some(serde_json::Value::Object(properties));
+
+  // Map a MemberType to a property descriptor with a widget hint
+  fn member_to_descriptor(db: &TypedownDatabase, member: &MemberType) -> serde_json::Value {
+    match member {
+      MemberType::Simple(typ) => simple_type_to_descriptor(db, typ),
+
+      // Sum of string literals is a select (single value from options)
+      MemberType::Sum(members) => {
+        let literals: Vec<String> = members
+          .iter()
+          .filter_map(|m| match m.typ(db) {
+            MemberType::Literal(LiteralValue::Str(s)) => Some(s),
+            _ => None,
+          })
+          .collect();
+
+        if literals.len() == members.len() {
+          serde_json::json!({ "widget": Widget::Select, "options": literals })
+        } else {
+          serde_json::json!({ "widget": Widget::Text })
+        }
+      }
+
+      MemberType::Literal(LiteralValue::Str(s)) => {
+        serde_json::json!({ "widget": Widget::Select, "options": [s] })
+      }
+
+      // List of literals is a multi_select (multiple values from options)
+      MemberType::ListOfSum(members) => {
+        let literals: Vec<String> = members
+          .iter()
+          .filter_map(|m| match m.typ(db) {
+            MemberType::Literal(LiteralValue::Str(s)) => Some(s),
+            _ => None,
+          })
+          .collect();
+
+        if literals.len() == members.len() && !literals.is_empty() {
+          serde_json::json!({ "widget": Widget::MultiSelect, "options": literals })
+        } else if members.len() == 1 {
+          let inner = member_to_descriptor(db, &members[0].typ(db));
+          serde_json::json!({ "widget": Widget::List, "items": inner })
+        } else {
+          serde_json::json!({ "widget": Widget::Text })
+        }
+      }
+
+      _ => serde_json::json!({ "widget": Widget::Text }),
+    }
+  }
+
+  fn simple_type_to_descriptor(db: &TypedownDatabase, typ: &TdTypeEnum) -> serde_json::Value {
+    match typ {
+      TdTypeEnum::TdStrType(_) => serde_json::json!({ "widget": Widget::Text }),
+      TdTypeEnum::TdNumType(_) => serde_json::json!({ "widget": Widget::Number }),
+      TdTypeEnum::TdBoolType(_) => serde_json::json!({ "widget": Widget::Checkbox }),
+      TdTypeEnum::TdDateType(_) => serde_json::json!({ "widget": Widget::Date }),
+      TdTypeEnum::TdDateTimeType(_) => serde_json::json!({ "widget": Widget::Date }),
+      TdTypeEnum::TdTimeType(_) => serde_json::json!({ "widget": Widget::Text }),
+      TdTypeEnum::TdListType(list) => match list.elem(db) {
+        Some(elem) => {
+          let inner = simple_type_to_descriptor(db, &elem);
+          serde_json::json!({ "widget": Widget::List, "items": inner })
+        }
+        None => serde_json::json!({ "widget": Widget::List }),
+      },
+      TdTypeEnum::TdProductType(product) => {
+        if let Some(name) = product.name(db) {
+          serde_json::json!({ "widget": Widget::Relation, "schema": name })
+        } else {
+          serde_json::json!({ "widget": Widget::Text })
+        }
+      }
+      _ => serde_json::json!({ "widget": Widget::Text }),
+    }
+  }
 }
 
 fn export_metadata(handle: FileHandle) -> ExportedMetadata {
@@ -243,20 +350,21 @@ fn emit_md_node(
   }
 }
 
-/// Resolve a fref interpolation to a markdown link
-fn try_resolve_fref(
+/// Resolved reference: display name and URL
+pub struct ResolvedRef {
+  pub name: String,
+  pub url: String,
+}
+
+/// Resolve a symbol to a display name and URL
+pub fn resolve_ref(
   db: &TypedownDatabase,
   project: Project,
-  file: File,
-  node: &RedNode,
-) -> Option<String> {
-  let hir = lower_node(db, project, file, node.clone());
-  let target_symbol = referee(db, hir).value(db)?;
+  symbol: &Symbol,
+) -> Option<ResolvedRef> {
+  let name = resolve_display_name(db, project, symbol);
 
-  let name = resolve_display_name(db, project, &target_symbol);
-
-  // Build URL-friendly path relative to content_dir, prefixed with base_path
-  match target_symbol.kind(db) {
+  match symbol.kind(db) {
     SymbolKind::UserDefinedResource(_, target_file)
     | SymbolKind::UserDefinedSchema(_, target_file) => {
       let handle = target_file.handle(db);
@@ -272,9 +380,9 @@ fn try_resolve_fref(
       } else {
         format!("{base_path}/{without_ext}")
       };
-      Some(format!("[{name}]({url})"))
+      Some(ResolvedRef { name, url })
     }
-    SymbolKind::Asset(asset_kind, _, target_file) => {
+    SymbolKind::Asset(_, _, target_file) => {
       let handle = target_file.handle(db);
       let path = handle.path()?;
       let config = get_vault_config(db, project);
@@ -287,14 +395,31 @@ fn try_resolve_fref(
       } else {
         format!("{base_path}/{path_str}")
       };
-      // Images produce a markdown image, other assets produce a link
-      if asset_kind.is_image() {
-        return Some(format!("![{name}]({url})"));
-      }
-      Some(format!("[{name}]({url})"))
+      Some(ResolvedRef { name, url })
     }
     _ => None,
   }
+}
+
+/// Resolve a fref interpolation to a markdown link
+fn try_resolve_fref(
+  db: &TypedownDatabase,
+  project: Project,
+  file: File,
+  node: &RedNode,
+) -> Option<String> {
+  let hir = lower_node(db, project, file, node.clone());
+  let target_symbol = referee(db, hir).value(db)?;
+  let resolved = resolve_ref(db, project, &target_symbol)?;
+
+  // Images produce a markdown image, other assets produce a link
+  if let SymbolKind::Asset(asset_kind, _, _) = target_symbol.kind(db)
+    && asset_kind.is_image()
+  {
+    return Some(format!("![{}]({})", resolved.name, resolved.url));
+  }
+
+  Some(format!("[{}]({})", resolved.name, resolved.url))
 }
 
 /// Get a display name for a symbol: Try _label, then name field, then file stem
@@ -411,26 +536,54 @@ mod tests {
   }
 
   #[test]
+  fn exports_list_field_schema() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/WithListField.td");
+    let props =
+      export_property_descriptors(&db, project, file).expect("WithListField schema should export");
+    assert_eq!(props["tags"]["widget"], "list");
+    assert_eq!(props["tags"]["items"]["widget"], "text");
+    assert_eq!(props["scores"]["widget"], "list");
+    assert_eq!(props["scores"]["items"]["widget"], "number");
+  }
+
+  #[test]
   fn exports_schema_properties() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Person.td");
-    let props = export_schema(&db, project, file).expect("Person schema should export");
+    let props =
+      export_property_descriptors(&db, project, file).expect("Person schema should export");
+    assert_eq!(props["name"]["widget"], "text");
+    assert_eq!(props["age"]["widget"], "number");
+  }
+
+  #[test]
+  fn exports_schema_select_property() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Status.td");
+    let props =
+      export_property_descriptors(&db, project, file).expect("Status schema should export");
+    assert_eq!(props["status"]["widget"], "select");
     assert_eq!(
-      props["name"],
-      serde_json::Value::String("string".to_string())
+      props["status"]["options"],
+      serde_json::json!(["draft", "published", "archived"])
     );
-    assert_eq!(
-      props["age"],
-      serde_json::Value::String("number".to_string())
-    );
+  }
+
+  #[test]
+  fn exports_schema_relation_property() {
+    let (db, project, file) = load_vault_fixture("evaluate/my_vault", "schemas/Event.td");
+    let props =
+      export_property_descriptors(&db, project, file).expect("Event schema should export");
+    assert_eq!(props["title"]["widget"], "text");
+    assert_eq!(props["location"]["widget"], "relation");
+    assert_eq!(props["location"]["schema"], "Address");
   }
 
   #[test]
   fn returns_none_for_non_schema() {
     let (db, project, file) = load_vault_fixture("evaluate/my_vault", "content/valid_person.td");
-    let result = export_schema(&db, project, file);
+    let result = export_property_descriptors(&db, project, file);
     assert!(
       result.is_none(),
-      "resource file should return None from export_schema"
+      "resource file should return None from export_property_descriptors"
     );
   }
 

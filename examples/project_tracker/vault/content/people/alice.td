@@ -2,9 +2,9 @@
 _type: Person
 name: "Alice Chen"
 role: "developer"
-email: "alice@example.com"
+active: true
 tags: ["rust", "backend", "auth"]
-scores: [95, 88, 72]
+email: "alice@example.com"
 ---
 
 Alice is a **backend developer** with a focus on *authentication systems* and developer tooling.
@@ -25,6 +25,27 @@ She joined the team in 2023 and has been ***leading*** the website redesign effo
 - Review pull requests for the auth subsystem
 - Mentor junior developers on the team
 
-## Formula Examples
+::: details
+| Day | Focus |
+|-----|-------|
+| Monday | Sprint planning, code review |
+| Tuesday | Deep work on auth implementation |
+| Wednesday | Pairing sessions with junior devs |
+| Thursday | Deep work, PR reviews |
+| Friday | Documentation, tech debt |
+:::
 
-Inline formula reference: ${fref("tasks/implement-auth.td")}
+## Tools
+
+Alice uses a custom shell function to check CI status:
+
+```bash
+ci-status() {
+  gh run list --repo "$1" --limit 5 --json status,conclusion,name \
+    | jq '.[] | "\(.name): \(.status) (\(.conclusion // "pending"))"'
+}
+```
+
+## Inline References
+
+Currently working on: ${fref("tasks/implement-auth.td")}

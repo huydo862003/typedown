@@ -10,4 +10,7 @@ properties:
     type: ['planning', 'active', 'done']
   started:
     type: date
+  archived:
+    type: boolean
+    optional: true
 ---

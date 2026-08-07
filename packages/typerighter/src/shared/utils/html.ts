@@ -7,6 +7,10 @@ export function escapeHtml (value: string): string {
 }
 
 export function stripHtml (html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ')
+  return html
+    // Remove style/script blocks entirely (including MathJax injected styles)
+    .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }

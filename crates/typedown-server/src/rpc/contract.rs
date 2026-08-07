@@ -86,7 +86,7 @@ pub trait TdBuildRpc<Hash, StorageKey> {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdSiteConfig {
   /// URL base path (e.g. "/" or "/docs")
   pub base_path: String,
@@ -104,7 +104,7 @@ pub struct TdSiteConfig {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdAssetsDir {
   /// "local" assets live in a subdirectory relative to each file
   pub mode: String,
@@ -120,7 +120,7 @@ pub struct TdFilePath(pub String);
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdContentSummary {
   /// File path relative to the content directory
   pub filepath: String,
@@ -137,7 +137,7 @@ pub struct TdContentSummary {
 /// Structured build result: Header (frontmatter) and content (commonmark body)
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdBuiltResource {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub schema: Option<String>,
@@ -152,7 +152,7 @@ pub struct TdBuiltResource {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdFileMetadata {
   /// Last modification time as seconds since UNIX epoch
   pub mtime: u64,
@@ -163,7 +163,7 @@ pub struct TdFileMetadata {
 /// Schema metadata
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdSchemaInfo {
   pub schema: String,
   #[cfg_attr(target_arch = "wasm32", tsify(type = "Record<string, any>"))]
@@ -175,7 +175,7 @@ pub struct TdSchemaInfo {
 /// Content file event: A resource file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdContentNotification {
   pub content: String,
 }
@@ -183,7 +183,7 @@ pub struct TdContentNotification {
 /// Schema file event: A schema file was created, changed, or deleted
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(target_arch = "wasm32", derive(Tsify))]
-#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi))]
+#[cfg_attr(target_arch = "wasm32", tsify(into_wasm_abi, hashmap_as_object))]
 pub struct TdSchemaNotification {
   pub schema: String,
 }

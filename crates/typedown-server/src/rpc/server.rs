@@ -16,7 +16,7 @@ use typedown_lang::db::derived::get_vault_config::get_vault_config;
 use typedown_lang::db::derived::name_resolver::file_symbol::file_symbol;
 use typedown_lang::db::types::{AssetsDirMode, SymbolKind};
 use typedown_lang::db::utils::is_content_file;
-use typedown_lang::integrations::export::{export_resource, export_schema};
+use typedown_lang::integrations::export::{export_property_descriptors, export_resource};
 
 use typedown_types::path::normalize_path;
 
@@ -394,7 +394,7 @@ impl RpcServer {
       ErrorObjectOwned::owned(INVALID_PARAMS_CODE, "Schema not found", None::<()>)
     })?;
 
-    let properties = export_schema(db, project, *file)
+    let properties = export_property_descriptors(db, project, *file)
       .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
 
     Ok(TdSchemaInfo {

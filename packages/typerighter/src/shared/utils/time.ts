@@ -38,6 +38,20 @@ export function formatRelativeTime (epochSecs: number): string {
   return `${Math.floor(delta / YEAR)}y ago`;
 }
 
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+
+export function formatDateString (value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return dateFormatter.format(date);
+}
+
 export function formatTime (epochSecs: number): string {
   const delta = Math.floor(Date.now() / 1000) - epochSecs;
 

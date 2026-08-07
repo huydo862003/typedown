@@ -2,6 +2,7 @@
 _type: Person
 name: "Carol Santos"
 role: "manager"
+tags: ["leadership", "planning"]
 email: "carol@example.com"
 ---
 
