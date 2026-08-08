@@ -148,7 +148,7 @@ impl MdBody {
 
 #[wrapper_ast_node(SyntaxKind = [
   MdHeading, MdParagraph, MdBlockquote, MdTable,
-  MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock,
+  MdBulletList, MdOrderedList, MdToggleList, MdContainerBlock,
   MdLink, MdMedia,
   MdBold, MdItalic, MdBoldItalic, MdStrikethrough,
   MdText, MdHtmlEntity,
@@ -157,7 +157,7 @@ pub struct MdNode(RedNode);
 
 #[wrapper_ast_node(SyntaxKind = [
   MdHeading, MdParagraph, MdBlockquote, MdTable,
-  MdBulletList, MdOrderedList, MdToggleList, MdCalloutBlock,
+  MdBulletList, MdOrderedList, MdToggleList, MdContainerBlock,
 ])]
 pub struct MdBlockElement(RedNode);
 
@@ -396,15 +396,15 @@ impl MdToggleListDetails {
   }
 }
 
-/// The Markdown callout block
+/// The Markdown container block
 /// Represented by:
 /// ::: label
 ///  content
 /// :::
 #[derive(Clone, PartialEq, Eq, Hash, AstNode)]
-pub struct MdCalloutBlock(RedNode);
+pub struct MdContainerBlock(RedNode);
 
-impl MdCalloutBlock {
+impl MdContainerBlock {
   pub fn label(&self) -> Option<String> {
     self
       .0

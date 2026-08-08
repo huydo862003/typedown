@@ -776,9 +776,9 @@ fn parse_toggle_list_in_blockquote() {
   );
 }
 
-// Parses a callout block
+// Parses a container block
 #[test]
-fn parse_callout_block_simple() {
+fn parse_container_block_simple() {
   let tree = parse_body(
     r#"::: note
 content
@@ -796,7 +796,7 @@ content
     "---"
     "\n")
   (MdBody
-    (MdCalloutBlock
+    (MdContainerBlock
       ":::"
       " "
       "note"
@@ -811,9 +811,9 @@ content
   );
 }
 
-// Callout with title and multi-line content should produce no diagnostics
+// Container with title and multi-line content should produce no diagnostics
 #[test]
-fn parse_callout_block_with_title_no_diagnostics() {
+fn parse_container_block_with_title_no_diagnostics() {
   let (_, diags) = parse_body_with_diags(
     r#"::: tip Current status
 Design mockups are complete. Authentication is currently being implemented.
@@ -827,9 +827,9 @@ Integration tests are next in the queue once auth is merged.
   );
 }
 
-// Multiple callouts with titles should produce no diagnostics
+// Multiple containers with titles should produce no diagnostics
 #[test]
-fn parse_multiple_callouts_with_titles_no_diagnostics() {
+fn parse_multiple_containers_with_titles_no_diagnostics() {
   let (_, diags) = parse_body_with_diags(
     r#"::: details Architecture overview
 Some content here.
@@ -846,9 +846,9 @@ More content here.
   );
 }
 
-// Parses a callout block with a title
+// Parses a container block with a title
 #[test]
-fn parse_callout_block_with_title() {
+fn parse_container_block_with_title() {
   let tree = parse_body(
     r#"::: details My Custom Title
 content here
@@ -866,7 +866,7 @@ content here
     "---"
     "\n")
   (MdBody
-    (MdCalloutBlock
+    (MdContainerBlock
       ":::"
       " "
       "details"

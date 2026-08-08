@@ -36,8 +36,8 @@ enum TokenType {
   LIST_MARKER_STAR,
   LIST_MARKER_DOT,
 
-  CALLOUT_OPEN,
-  CALLOUT_CLOSE,
+  CONTAINER_OPEN,
+  CONTAINER_CLOSE,
 
   PIPE_TABLE_START,
   PIPE_TABLE_LINE_ENDING,
@@ -733,7 +733,7 @@ bool tree_sitter_tdr_md_external_scanner_scan(void *payload,
   }
 
   // :::
-  if (lexer->lookahead == ':' && valid_symbols[CALLOUT_CLOSE]) {
+  if (lexer->lookahead == ':' && valid_symbols[CONTAINER_CLOSE]) {
     lexer->mark_end(lexer);
     lexer->advance(lexer, false);
     if (lexer->lookahead == ':') {
@@ -741,13 +741,13 @@ bool tree_sitter_tdr_md_external_scanner_scan(void *payload,
       if (lexer->lookahead == ':') {
         lexer->advance(lexer, false);
         lexer->mark_end(lexer);
-        lexer->result_symbol = CALLOUT_CLOSE;
+        lexer->result_symbol = CONTAINER_CLOSE;
         return true;
       }
     }
   }
 
-  if (lexer->lookahead == ':' && valid_symbols[CALLOUT_OPEN]) {
+  if (lexer->lookahead == ':' && valid_symbols[CONTAINER_OPEN]) {
     lexer->mark_end(lexer);
     lexer->advance(lexer, false);
     if (lexer->lookahead == ':') {
@@ -758,7 +758,7 @@ bool tree_sitter_tdr_md_external_scanner_scan(void *payload,
           lexer->advance(lexer, false);
         }
         lexer->mark_end(lexer);
-        lexer->result_symbol = CALLOUT_OPEN;
+        lexer->result_symbol = CONTAINER_OPEN;
         return true;
       }
     }

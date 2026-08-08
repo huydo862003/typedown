@@ -101,7 +101,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
       _ if self.is_bullet_list_start(SKIP_NONE) => self.parse_bullet_list(),
       _ if self.is_ordered_list_start(SKIP_NONE) => self.parse_ordered_list(),
       _ if self.is_table_start(SKIP_NONE) => self.parse_table(),
-      _ if self.is_callout_start(SKIP_NONE) => self.parse_callout_block(),
+      _ if self.is_container_start(SKIP_NONE) => self.parse_container_block(),
       _ if self.is_media_block_start(SKIP_NONE) => self.parse_media(),
       _ if self.is_code_or_math_block_start(SKIP_NONE) => {
         let mut children = vec![];
@@ -1057,9 +1057,9 @@ impl<S: Utf8Stream> ParseCtx<S> {
     (self.emit(SyntaxKind::MdToggleListItem, &children), None)
   }
 
-  /// Parse a callout block: `::: label ... :::`.
+  /// Parse a container block: `::: label ... :::`.
   /// INVARIANT: Expect ::: to be the next token, all spaces must already be consumed and passed
-  pub(in crate::syntax::parse) fn parse_callout_block(&mut self) -> (GreenNode, Option<ExprCtx>) {
+  pub(in crate::syntax::parse) fn parse_container_block(&mut self) -> (GreenNode, Option<ExprCtx>) {
     debug_assert!(
       self.lex_ctx.peek_md(SKIP_NONE).token.kind() == SyntaxKind::MdSymbol
         && self
@@ -1069,7 +1069,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
           .chars()
           .collect::<String>()
           == ":::",
-      "[ParseCtx::parse_callout_block] Expected :::"
+      "[ParseCtx::parse_container_block] Expected :::"
     );
 
     let mut children = vec![];
@@ -1123,11 +1123,11 @@ impl<S: Utf8Stream> ParseCtx<S> {
     );
 
     let parent_prefix_count = self.expr_ctx_stack.md_prefix_tokens().len();
-    let callout_ctx = ExprCtx::MdCalloutBlock(parent_prefix_count as u16);
-    self.expr_ctx_stack.enter(callout_ctx);
+    let container_ctx = ExprCtx::MdContainerBlock(parent_prefix_count as u16);
+    self.expr_ctx_stack.enter(container_ctx);
 
     // Parse block elements until closing `:::` or EOF
-    // The callout creates a new indentation context: inner elements start at indent 0
+    // The container creates a new indentation context: inner elements start at indent 0
     loop {
       let next_kind = self.lex_ctx.peek_md(SKIP_NONE).token.kind();
       if next_kind == SyntaxKind::Eof {
@@ -1146,15 +1146,21 @@ impl<S: Utf8Stream> ParseCtx<S> {
 
       let (block, early_exit) = self.parse_md_block_element();
       children.push(block);
-      if early_exit.is_some_and(|ctx| !ctx.is_md_callout_block()) {
-        self.expr_ctx_stack.exit(callout_ctx);
-        return (self.emit(SyntaxKind::MdCalloutBlock, &children), early_exit);
+      if early_exit.is_some_and(|ctx| !ctx.is_md_container_block()) {
+        self.expr_ctx_stack.exit(container_ctx);
+        return (
+          self.emit(SyntaxKind::MdContainerBlock, &children),
+          early_exit,
+        );
       }
-      if early_exit.is_some_and(|ctx| ctx.is_md_callout_block())
-        && let Some(ctx) = self.synchronize_callout_block(&mut children)
+      if early_exit.is_some_and(|ctx| ctx.is_md_container_block())
+        && let Some(ctx) = self.synchronize_container_block(&mut children)
       {
-        self.expr_ctx_stack.exit(callout_ctx);
-        return (self.emit(SyntaxKind::MdCalloutBlock, &children), Some(ctx));
+        self.expr_ctx_stack.exit(container_ctx);
+        return (
+          self.emit(SyntaxKind::MdContainerBlock, &children),
+          Some(ctx),
+        );
       }
     }
 
@@ -1164,18 +1170,18 @@ impl<S: Utf8Stream> ParseCtx<S> {
       SKIP_WS,
       |token| token.kind() == SyntaxKind::MdSymbol && token.chars().collect::<String>() == ":::",
       Diagnostic::MissingSyntaxNode {
-        expected: SyntaxKind::MdCalloutBlock,
+        expected: SyntaxKind::MdContainerBlock,
         start_offset: open_offset,
         end_offset: self.offset(),
       },
     );
 
-    self.expr_ctx_stack.exit(callout_ctx);
-    (self.emit(SyntaxKind::MdCalloutBlock, &children), None)
+    self.expr_ctx_stack.exit(container_ctx);
+    (self.emit(SyntaxKind::MdContainerBlock, &children), None)
   }
 
   // Stop on `:::` at matching indent, or EOF.
-  fn synchronize_callout_block(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
+  fn synchronize_container_block(&mut self, children: &mut Vec<GreenNode>) -> Option<ExprCtx> {
     let current = self.expr_ctx_stack.current().unwrap();
     let mut error_children = vec![];
     let result = loop {
@@ -2089,7 +2095,7 @@ impl<S: Utf8Stream> ParseCtx<S> {
     next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == "|"
   }
 
-  fn is_callout_start(&mut self, skip: u16) -> bool {
+  fn is_container_start(&mut self, skip: u16) -> bool {
     let next = self.lex_ctx.peek_md(skip);
     next.token.kind() == SyntaxKind::MdSymbol && next.token.chars().collect::<String>() == ":::"
   }

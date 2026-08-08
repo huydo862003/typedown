@@ -42,9 +42,9 @@
 (list_marker_star) @markup.list
 (list_marker_dot) @markup.list
 
-; Callouts
-(callout_block_delimiter) @punctuation.special
-(callout_type) @label
+; Containers
+(container_block_delimiter) @punctuation.special
+(container_type) @label
 
 ; Tables
 (pipe_table_header) @markup.heading
@@ -59,4 +59,4 @@
 (math_block_content) @nospell
 (language) @nospell
 (line_range_indicator) @nospell
-(callout_type) @nospell
+(container_type) @nospell

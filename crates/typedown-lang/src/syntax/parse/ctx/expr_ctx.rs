@@ -34,9 +34,9 @@ pub(in crate::syntax::parse) enum ExprCtx {
 
   /// Top-level Markdown body context
   MarkdownBody,
-  /// Inside a `:::` callout block, closed by `:::`
+  /// Inside a `:::` container block, closed by `:::`
   /// The `u16` is the indentation level (spaces before `:::`) to append to the prefix.
-  MdCalloutBlock(u16),
+  MdContainerBlock(u16),
   /// Inside a `>` blockquote
   MdBlockQuote,
   /// Inside an ordered list (`1. ...`)
@@ -187,7 +187,7 @@ impl ExprCtxStack {
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));
       }
-      ExprCtx::MdCalloutBlock(parent_prefix_count) if parent_prefix_count > 0 => {
+      ExprCtx::MdContainerBlock(parent_prefix_count) if parent_prefix_count > 0 => {
         self
           .md_prefix_tokens
           .push(cache.token(SyntaxKind::Whitespace, b" "));
@@ -210,8 +210,8 @@ impl ExprCtxStack {
 }
 
 impl ExprCtx {
-  pub(in crate::syntax::parse) fn is_md_callout_block(self) -> bool {
-    matches!(self, ExprCtx::MdCalloutBlock(_))
+  pub(in crate::syntax::parse) fn is_md_container_block(self) -> bool {
+    matches!(self, ExprCtx::MdContainerBlock(_))
   }
 
   /// Whether expressions in this context should skip indent/dedent tokens.
@@ -242,7 +242,7 @@ impl ExprCtx {
           | (ExprCtx::MdItalicUnderscore, "_")
           | (ExprCtx::MdBoldItalic, "***")
           | (ExprCtx::MdStrikethrough, "~~")
-          | (ExprCtx::MdCalloutBlock(_), ":::")
+          | (ExprCtx::MdContainerBlock(_), ":::")
           | (ExprCtx::MdTableCell, "|")
       );
     }
@@ -301,7 +301,7 @@ impl ExprCtx {
         | (ExprCtx::MdBoldItalic, SyntaxKind::Eof)
         | (ExprCtx::MdStrikethrough, SyntaxKind::Newline)
         | (ExprCtx::MdStrikethrough, SyntaxKind::Eof)
-        | (ExprCtx::MdCalloutBlock(_), SyntaxKind::Eof)
+        | (ExprCtx::MdContainerBlock(_), SyntaxKind::Eof)
     )
   }
 }
