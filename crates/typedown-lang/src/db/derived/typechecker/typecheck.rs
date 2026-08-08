@@ -769,6 +769,18 @@ mod tests {
   // Schema property descriptor tests: valid cases
 
   #[test]
+  fn typecheck_schema_with_list_type_no_errors() {
+    let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/WithListType.td");
+    let (hir, _) = lower_file(&db, project, file);
+    let result = typecheck(&db, hir.unwrap());
+    assert!(
+      result.diagnostics(&db).is_empty(),
+      "schema with list[string] should have no errors: {:?}",
+      result.diagnostics(&db)
+    );
+  }
+
+  #[test]
   fn typecheck_schema_simple_props_no_errors() {
     let (db, project, file) = load_vault_fixture("typecheck/my_vault", "schemas/SimpleProps.td");
     let (hir, _) = lower_file(&db, project, file);

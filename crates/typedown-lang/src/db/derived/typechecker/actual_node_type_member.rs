@@ -409,7 +409,20 @@ fn get_index_type(
     _ => return TypeMemberResult::new(db, None, diagnostics),
   };
 
-  // Type instantiation (e.g. `list[string]`, `dict[string, number]`)
+  /* Generic instantiation */
+
+  let expr_type = if expr_type.arity(db) == 0
+    && let HirValueKind::Ident(_) = expr.kind(db)
+    && let Some(symbol) = referee(db, expr).value(db)
+    && let Some(typ) = evaluate_type(db, symbol).typ(db)
+    && typ.arity(db) > 0
+  {
+    typ
+  } else {
+    expr_type
+  };
+
+  // Resolve each type argument and instantiate the generic type
   if expr_type.arity(db) > 0 {
     let mut arg_types = vec![];
     for idx_hir in indices {
