@@ -47,7 +47,7 @@ impl<S: Utf8Stream> LexCtx<S> {
       /* Dollar */
       '$' => self.lex_markdown_dollar(),
 
-      /* Brackets and parens */
+      /* Brackets and parens and braces */
       '[' => {
         self.advance_avoid_invalid_utf8();
         self.emit(SyntaxKind::LBracket)
@@ -63,6 +63,14 @@ impl<S: Utf8Stream> LexCtx<S> {
       ')' => {
         self.advance_avoid_invalid_utf8();
         self.emit(SyntaxKind::RParen)
+      }
+      '{' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::LBrace)
+      }
+      '}' => {
+        self.advance_avoid_invalid_utf8();
+        self.emit(SyntaxKind::RBrace)
       }
 
       /* Code spans */
@@ -294,6 +302,8 @@ impl<S: Utf8Stream> LexCtx<S> {
             && char != ']'
             && char != '('
             && char != ')'
+            && char != '{'
+            && char != '}'
             && char != '`'
             && char != '"'
             && char != '\''
