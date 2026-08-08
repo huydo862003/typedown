@@ -32,6 +32,7 @@ export default grammar({
     $.fenced_code_block_delimiter,
     $.code_fence_content,
     $.language,
+    $.line_range_indicator,
 
     $.math_block_delimiter,
     $.math_block_content,
@@ -186,9 +187,11 @@ export default grammar({
       seq(
         $.fenced_code_block_delimiter,
         optional(field('language', $.language)),
+        optional(field('line_ranges', $.line_range_indicator)),
         optional($.code_fence_content),
         $.fenced_code_block_delimiter,
       ),
+
 
     // Math block
 

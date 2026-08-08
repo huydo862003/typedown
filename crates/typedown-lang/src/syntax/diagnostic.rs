@@ -61,6 +61,7 @@ pub enum DiagnosticCode {
   IndexOutOfBounds = 53,
   NestedSchemaFile = 54,
   VaultConfigInvalidValue = 55,
+  InvalidCodeRangeIndicator = 56, // {abc} or unclosed { in code block
 }
 
 impl DiagnosticCode {
@@ -124,6 +125,7 @@ impl DiagnosticCode {
       DiagnosticCode::IndexOutOfBounds => "index-out-of-bounds",
       DiagnosticCode::NestedSchemaFile => "nested-schema-file",
       DiagnosticCode::VaultConfigInvalidValue => "vault-config-invalid-value",
+      DiagnosticCode::InvalidCodeRangeIndicator => "invalid-code-range-indicator",
     }
   }
 }
@@ -491,6 +493,10 @@ pub enum Diagnostic {
     start_offset: usize,
     end_offset: usize,
   },
+  InvalidCodeRangeIndicator {
+    start_offset: usize,
+    end_offset: usize,
+  },
 }
 
 impl Diagnostic {
@@ -724,6 +730,10 @@ impl Diagnostic {
         start_offset,
         end_offset,
         ..
+      }
+      | Diagnostic::InvalidCodeRangeIndicator {
+        start_offset,
+        end_offset,
       } => Some((*start_offset, *end_offset)),
       Diagnostic::MissingVaultConfig { .. }
       | Diagnostic::VaultConfigReadError { .. }
@@ -889,6 +899,9 @@ impl Diagnostic {
       Diagnostic::IndexOutOfBounds { index, length, .. } => {
         format!("index {index} is out of bounds for length {length}")
       }
+      Diagnostic::InvalidCodeRangeIndicator { .. } => {
+        "invalid code block line range indicator".into()
+      }
     }
   }
 
@@ -955,6 +968,7 @@ impl Diagnostic {
       Diagnostic::IndexOutOfBounds { .. } => DiagnosticCode::IndexOutOfBounds,
       Diagnostic::NestedSchemaFile { .. } => DiagnosticCode::NestedSchemaFile,
       Diagnostic::VaultConfigInvalidValue { .. } => DiagnosticCode::VaultConfigInvalidValue,
+      Diagnostic::InvalidCodeRangeIndicator { .. } => DiagnosticCode::InvalidCodeRangeIndicator,
     }
   }
 }

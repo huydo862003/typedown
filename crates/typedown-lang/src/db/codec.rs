@@ -642,6 +642,13 @@ impl Encodable for Diagnostic {
         encoder.emit_usize(buf, *start_offset);
         encoder.emit_usize(buf, *end_offset);
       }
+      Diagnostic::InvalidCodeRangeIndicator {
+        start_offset,
+        end_offset,
+      } => {
+        encoder.emit_usize(buf, *start_offset);
+        encoder.emit_usize(buf, *end_offset);
+      }
     }
   }
 }
@@ -1157,6 +1164,14 @@ impl Decodable for Diagnostic {
           end_offset,
         }
       }
+      DiagnosticCode::InvalidCodeRangeIndicator => {
+        let start_offset = decoder.read_usize(data);
+        let end_offset = decoder.read_usize(data);
+        Diagnostic::InvalidCodeRangeIndicator {
+          start_offset,
+          end_offset,
+        }
+      }
     }
   }
 }
@@ -1524,6 +1539,10 @@ impl StableHash for Diagnostic {
         end_offset,
       }
       | Diagnostic::NotIndexable {
+        start_offset,
+        end_offset,
+      }
+      | Diagnostic::InvalidCodeRangeIndicator {
         start_offset,
         end_offset,
       } => {

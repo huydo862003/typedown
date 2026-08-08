@@ -24,6 +24,7 @@ enum TokenType {
   FENCED_CODE_BLOCK_DELIMITER,
   CODE_FENCE_CONTENT,
   LANGUAGE,
+  LINE_RANGE_INDICATOR,
 
   MATH_BLOCK_DELIMITER,
   MATH_BLOCK_CONTENT,
@@ -470,15 +471,35 @@ bool tree_sitter_typedown_md_external_scanner_scan(void *payload,
 
   if (scanner->code_fence_count > 0) {
     if (scanner->code_fence_info_pending) {
+      // Scan language tag, stopping at '{' for range indicator
       if (valid_symbols[LANGUAGE] && !is_newline(lexer->lookahead) &&
-          !lexer->eof(lexer)) {
-        while (!is_newline(lexer->lookahead) && !lexer->eof(lexer)) {
+          lexer->lookahead != '{' && !lexer->eof(lexer)) {
+        while (!is_newline(lexer->lookahead) && lexer->lookahead != '{' &&
+               !lexer->eof(lexer)) {
+          lexer->advance(lexer, false);
+        }
+        lexer->mark_end(lexer);
+        if (lexer->lookahead != '{') {
+          if (is_newline(lexer->lookahead)) eat_newline(lexer);
+          scanner->code_fence_info_pending = false;
+        }
+        lexer->result_symbol = LANGUAGE;
+        return true;
+      }
+      // Scan line range indicator like {1,3,5-8}
+      if (valid_symbols[LINE_RANGE_INDICATOR] && lexer->lookahead == '{') {
+        lexer->advance(lexer, false);
+        while (lexer->lookahead != '}' && !is_newline(lexer->lookahead) &&
+               !lexer->eof(lexer)) {
+          lexer->advance(lexer, false);
+        }
+        if (lexer->lookahead == '}') {
           lexer->advance(lexer, false);
         }
         lexer->mark_end(lexer);
         if (is_newline(lexer->lookahead)) eat_newline(lexer);
         scanner->code_fence_info_pending = false;
-        lexer->result_symbol = LANGUAGE;
+        lexer->result_symbol = LINE_RANGE_INDICATOR;
         return true;
       }
       if (is_newline(lexer->lookahead)) eat_newline(lexer);

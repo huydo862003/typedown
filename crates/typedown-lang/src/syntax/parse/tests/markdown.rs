@@ -915,6 +915,32 @@ code
   );
 }
 
+// Code block with line range indicator parses as CodeBlock
+#[test]
+fn parse_code_block_with_line_ranges() {
+  let tree = parse_body(
+    r#"```js{1,3,5-8}
+code
+```
+"#,
+  );
+  assert_eq!(
+    tree,
+    r####"(SourceFile
+  (YamlFrontmatter
+    ""
+    "---"
+    "\n"
+    ""
+    "---"
+    "\n")
+  (MdBody
+    (CodeBlock
+      "```js{1,3,5-8}\ncode\n```")
+    "\n"))"####
+  );
+}
+
 // Parses an empty body
 #[test]
 fn parse_body_empty() {

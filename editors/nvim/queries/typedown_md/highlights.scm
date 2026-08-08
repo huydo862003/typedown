@@ -22,6 +22,7 @@
 (fenced_code_block) @markup.raw.block
 (fenced_code_block_delimiter) @punctuation.delimiter
 (language) @label
+(line_range_indicator) @comment
 (code_fence_content) @markup.raw
 
 ; Math blocks
@@ -57,4 +58,5 @@
 (code_fence_content) @nospell
 (math_block_content) @nospell
 (language) @nospell
+(line_range_indicator) @nospell
 (callout_type) @nospell
