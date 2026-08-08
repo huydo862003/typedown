@@ -46,6 +46,7 @@ export default grammar({
 
     $._container_open,
     $._container_close,
+    $._container_slot_separator,
 
     $._pipe_table_start,
     $._pipe_table_line_ending,
@@ -192,7 +193,6 @@ export default grammar({
         $.fenced_code_block_delimiter,
       ),
 
-
     // Math block
 
     math_block: ($) =>
@@ -299,18 +299,26 @@ export default grammar({
     pipe_table_cell: () =>
       /[^\r\n|]+/,
 
-    // Callout block
+    // Container block
 
     container_block: ($) =>
       seq(
         alias($._container_open, $.container_block_delimiter),
         optional(field('type', $.container_type)),
-        optional(field('title', $.container_title)),
+        optional(seq(
+          optional($._whitespace),
+          field('props', $.container_prop_block),
+        )),
+        optional(seq(
+          optional($._whitespace),
+          field('title', $.container_title),
+        )),
         $._line_ending,
         repeat(
           choice(
             $._block,
             $._blank_line,
+            $.container_slot_separator,
           ),
         ),
         alias($._container_close, $.container_block_delimiter),
@@ -318,10 +326,55 @@ export default grammar({
       ),
 
     container_type: () =>
+      token(prec(1, /[a-zA-Z_]\w*/)),
+
+    // Container props: `{key=value flag}`
+    container_prop_block: ($) =>
+      seq(
+        '{',
+        optional($._whitespace),
+        repeat(seq($.container_prop_item, optional($._whitespace))),
+        '}',
+      ),
+
+    container_prop_item: ($) =>
+      seq(
+        field('key', $.container_prop_key),
+        optional(seq('=', field('value', $.container_prop_value))),
+      ),
+
+    container_prop_key: () =>
+      /[a-zA-Z_]\w*/,
+
+    container_prop_value: ($) =>
+      choice($.container_prop_number, $.container_prop_string),
+
+    container_prop_number: () =>
+      /\d+/,
+
+    container_prop_string: () =>
+      token(choice(
+        seq('"', /[^"\n\r]*/, '"'),
+        seq('\'', /[^'\n\r]*/, '\''),
+      )),
+
+    // Slot separator: `=== name`
+    container_slot_separator: ($) =>
+      seq(
+        alias($._container_slot_separator, $.container_slot_delimiter),
+        optional(seq(
+          $._whitespace,
+          field('name', $.container_slot_name),
+        )),
+        optional($._whitespace),
+        $._line_ending,
+      ),
+
+    container_slot_name: () =>
       /[a-zA-Z_]\w*/,
 
     container_title: () =>
-      /[^\n\r]+/,
+      /[^{\s][^\n\r]*/,
   },
 });
 

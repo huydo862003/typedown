@@ -151,22 +151,56 @@
       "contentName": "meta.embedded.math.typedown"
     },
     "md-container": {
-      "begin": "^(:::)\\s+(\\w+)\\s*(.*)?",
+      "begin": "^(:::)\\s+(\\w+)\\s*(\\{[^}]*\\})?\\s*(.*)?",
       "end": "^(:::)\\s*$",
       "beginCaptures": {
         "1": { "name": "keyword.control.container.begin.typedown" },
         "2": { "name": "entity.name.tag.typedown" },
-        "3": { "name": "string.other.container.title.typedown" }
+        "3": {
+          "name": "meta.attribute.container.typedown",
+          "patterns": [{ "include": "#md-container-props" }]
+        },
+        "4": { "name": "string.other.container.title.typedown" }
       },
       "endCaptures": {
         "1": { "name": "keyword.control.container.end.typedown" }
       },
       "patterns": [
+        { "include": "#md-container-slot-separator" },
         { "include": "#md-fenced-code" },
         { "include": "#md-math-block" },
         { "include": "#md-list" },
         { "include": "#md-inline" }
       ]
+    },
+    "md-container-props": {
+      // Contents of a container prop block: `{key="value" count=2 flag}`
+      "patterns": [
+        {
+          "match": "[{}]",
+          "name": "punctuation.definition.container.props.typedown"
+        },
+        {
+          "match": "([A-Za-z_]\\w*)\\s*(=)?",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.typedown" },
+            "2": { "name": "keyword.operator.assignment.typedown" }
+          }
+        },
+        {
+          "match": "\"[^\"]*\"|'[^']*'",
+          "name": "string.quoted.container.prop.typedown"
+        },
+        { "match": "\\b\\d+\\b", "name": "constant.numeric.typedown" }
+      ]
+    },
+    "md-container-slot-separator": {
+      // Slot separator inside a container: `=== name`
+      "match": "^(===)(?:(\\s+)([A-Za-z_]\\w*))?\\s*$",
+      "captures": {
+        "1": { "name": "keyword.control.container.separator.typedown" },
+        "3": { "name": "entity.name.tag.slot.typedown" }
+      }
     },
     "md-toggle-list": {
       "match": "^(>-)(\\s+)(.*)",

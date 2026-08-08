@@ -40,13 +40,13 @@ pub enum SyntaxKind {
   MdContainerPropItem,  // key=value or key
   MdContainerSlot,
   MdContainerSlotSeparator, // ===
-  MdLink,           // [text](url)
-  MdMedia,          // ![alt](src)
-  MdBold,           // **text**
-  MdItalic,         // *text* or _text_
-  MdBoldItalic,     // ***text***
-  MdStrikethrough,  // ~~text~~
-  MdText,           // plain text run
+  MdLink,                   // [text](url)
+  MdMedia,                  // ![alt](src)
+  MdBold,                   // **text**
+  MdItalic,                 // *text* or _text_
+  MdBoldItalic,             // ***text***
+  MdStrikethrough,          // ~~text~~
+  MdText,                   // plain text run
 
   // Expression nodes
   PrimaryExpr = 300, // An operand in an expression

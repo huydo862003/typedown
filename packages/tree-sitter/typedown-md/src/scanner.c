@@ -38,6 +38,7 @@ enum TokenType {
 
   CONTAINER_OPEN,
   CONTAINER_CLOSE,
+  CONTAINER_SLOT_SEPARATOR,
 
   PIPE_TABLE_START,
   PIPE_TABLE_LINE_ENDING,
@@ -256,7 +257,7 @@ static bool try_closing_fence(TSLexer *lexer, char fence_char,
 // Check if next line would interrupt a paragraph
 // Sets has_pipe if a pipe is found on the line
 static bool next_line_starts_block(TSLexer *lexer, bool exclude_pipe,
-                                   bool *has_pipe) {
+                                     bool *has_pipe) {
   skip_spaces(lexer);
 
   if (lexer->eof(lexer) || is_newline(lexer->lookahead)) return true;
@@ -274,6 +275,17 @@ static bool next_line_starts_block(TSLexer *lexer, bool exclude_pipe,
     if (lexer->lookahead == ':') {
       lexer->advance(lexer, false);
       if (lexer->lookahead == ':') return true;
+    }
+    return false;
+  }
+
+  // Triple equals opens a container slot, but only where one is valid --
+  // elsewhere `===` is ordinary text, since there are no setext headings.
+  if (next == '=') {
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '=') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '=') return true;
     }
     return false;
   }
@@ -413,6 +425,7 @@ static bool scan_line_ending(Scanner *scanner, TSLexer *lexer,
     bool has_pipe = false;
     bool starts_block = next_line_starts_block(
         lexer, valid_symbols[PIPE_TABLE_LINE_ENDING], &has_pipe);
+
 
     if (valid_symbols[PIPE_TABLE_LINE_ENDING] && !starts_block) {
       if (!has_pipe) {
@@ -746,6 +759,22 @@ bool tree_sitter_typedown_md_external_scanner_scan(void *payload,
       }
     }
   }
+
+  // === name
+  if (lexer->lookahead == '=' && valid_symbols[CONTAINER_SLOT_SEPARATOR]) {
+    lexer->mark_end(lexer);
+    lexer->advance(lexer, false);
+    if (lexer->lookahead == '=') {
+      lexer->advance(lexer, false);
+      if (lexer->lookahead == '=') {
+        lexer->advance(lexer, false);
+        lexer->mark_end(lexer);
+        lexer->result_symbol = CONTAINER_SLOT_SEPARATOR;
+        return true;
+      }
+    }
+  }
+
 
   if (lexer->lookahead == ':' && valid_symbols[CONTAINER_OPEN]) {
     lexer->mark_end(lexer);

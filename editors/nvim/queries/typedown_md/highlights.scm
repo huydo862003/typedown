@@ -45,6 +45,13 @@
 ; Containers
 (container_block_delimiter) @punctuation.special
 (container_type) @label
+(container_prop_block ["{" "}"] @punctuation.bracket)
+(container_prop_key) @attribute
+(container_prop_item "=" @operator)
+(container_prop_number) @number
+(container_prop_string) @string
+(container_slot_delimiter) @punctuation.special
+(container_slot_name) @label
 
 ; Tables
 (pipe_table_header) @markup.heading
@@ -60,3 +67,6 @@
 (language) @nospell
 (line_range_indicator) @nospell
 (container_type) @nospell
+(container_prop_key) @nospell
+(container_slot_name) @nospell
+
