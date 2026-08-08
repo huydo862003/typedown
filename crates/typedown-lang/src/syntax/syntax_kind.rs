@@ -35,7 +35,11 @@ pub enum SyntaxKind {
   MdToggleListItem,
   MdToggleListSummary,
   MdToggleListDetails,
-  MdContainerBlock, // ::: label ... :::
+  MdContainerBlock,     // ::: label ... :::
+  MdContainerPropBlock, // {key=value}
+  MdContainerPropItem,  // key=value or key
+  MdContainerSlot,
+  MdContainerSlotSeparator, // ===
   MdLink,           // [text](url)
   MdMedia,          // ![alt](src)
   MdBold,           // **text**
